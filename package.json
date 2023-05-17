@@ -5,6 +5,8 @@
     "dotenv": "^16.0.3"
   },
   "devDependencies": {
+    "@commitlint/cli": "^17.6.3",
+    "@commitlint/config-conventional": "^17.6.3",
     "@ethersproject/providers": "^5.7.2",
     "@nomicfoundation/hardhat-chai-matchers": "2.0.0-beta.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
@@ -19,6 +21,7 @@
     "ethers": "^6.3.0",
     "hardhat": "^2.14.0",
     "hardhat-gas-reporter": "^1.0.9",
+    "husky": "^8.0.3",
     "prettier": "^2.8.8",
     "prettier-plugin-solidity": "^1.1.3",
     "solidity-coverage": "^0.8.2",
@@ -43,7 +46,8 @@
     "remix": "remixd -s ./contracts -u https://remix.ethereum.org --read-only",
     "dev": "pnpm node",
     "typechain": "npx hardhat typechain",
-    "typechain:export": "npx hardhat typechain && cp -r ./typechain ../st-v1-interface/src/types/typechain"
+    "typechain:export": "npx hardhat typechain && cp -r ./typechain ../st-v1-interface/src/types/typechain",
+    "prepare": "husky install"
   },
   "engines": {
     "node": ">=18.0.0"
