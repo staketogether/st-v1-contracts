@@ -107,7 +107,7 @@ contract Oracle is Ownable, Pausable {
   }
 
   function setReportMaxFrequency(uint256 newFrequency) external onlyOwner {
-    require(newFrequency >= 240, 'Frequency must be at least 1 hour (approx 240 blocks)');
+    // require(newFrequency >= 240, 'Frequency must be at least 1 hour (approx 240 blocks)');
     reportFrequency = newFrequency;
     emit ReportMaxFrequencyChanged(newFrequency);
   }
@@ -119,6 +119,18 @@ contract Oracle is Ownable, Pausable {
     emit ReportQuorumChanged(newQuorum);
   }
 
+  function getNodes() external view returns (address[] memory) {
+    return nodes;
+  }
+
+  function isNode(address node) external view returns (bool) {
+    return _isNode(node);
+  }
+
+  function isNodeBlaclisted(address node) external view returns (bool) {
+    return !_isNode(node);
+  }
+
   function addNode(address node) external onlyOwner {
     require(!_isNode(node), 'Node already exists');
     nodes.push(node);
@@ -127,6 +139,10 @@ contract Oracle is Ownable, Pausable {
 
   function removeNode(address node) external onlyOwner {
     _removeNode(node);
+  }
+
+  function getNodeReportByBlock(address node, uint256 blockNumber) external view returns (uint256) {
+    return nodeReports[node][blockNumber];
   }
 
   function getNodeReports(address node, uint256 blockNumber) external view returns (uint256) {

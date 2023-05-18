@@ -20,7 +20,7 @@ contract Validator is Ownable {
   ISSVNetwork public immutable ssvNetwork;
   IERC20 public immutable ssvToken;
 
-  uint256 public validatorIndex = 0;
+  bytes[] public validators;
 
   bytes public withdrawalCredentials;
 
@@ -32,13 +32,10 @@ contract Validator is Ownable {
     bytes32 deposit_data_root
   );
 
-  event ValidatorRegistered(
-    bytes publicKey,
-    uint64[] operatorIds,
-    bytes sharesEncrypted,
-    uint256 amount,
-    uint256 clusterIndex
-  );
+  event SSVNetworkRegistered(bytes publicKey, uint64[] operatorIds, uint256 amount, uint256 clusterIndex);
+  event SSVNetworkRemoved(bytes publicKey, uint64[] operatorIds, uint256 clusterIndex);
+  event SSVNetworkLiquidated(address owner, uint64[] operatorIds, uint256 clusterIndex);
+  event SSVNetworkReactivated(uint64[] operatorIds, uint256 amount, uint256 clusterIndex);
 
   modifier onlyStakeTogether() {
     require(msg.sender == address(stakeTogether), 'Only StakeTogether contract can call this function');
@@ -61,6 +58,19 @@ contract Validator is Ownable {
     withdrawalCredentials = _withdrawalCredentials;
   }
 
+  function getValidators() external view returns (bytes[] memory) {
+    return validators;
+  }
+
+  function isValidator(bytes memory pubkey) external view returns (bool) {
+    for (uint256 i = 0; i < validators.length; i++) {
+      if (keccak256(validators[i]) == keccak256(pubkey)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function createValidator(
     bytes memory pubkey,
     bytes memory signature,
@@ -75,19 +85,89 @@ contract Validator is Ownable {
       deposit_data_root
     );
 
-    validatorIndex++;
+    validators.push(pubkey);
 
     emit ValidatorCreated(msg.sender, pubkey, withdrawalCredentials, signature, deposit_data_root);
   }
 
   function registerValidator(
     bytes calldata publicKey,
-    uint64[] memory operatorIds,
+    uint64[] calldata operatorIds,
     bytes calldata sharesEncrypted,
     uint256 amount,
-    ISSVNetwork.Cluster memory cluster
-  ) public {
+    ISSVNetwork.Cluster calldata cluster
+  ) external onlyOwner {
     ssvNetwork.registerValidator(publicKey, operatorIds, sharesEncrypted, amount, cluster);
-    emit ValidatorRegistered(publicKey, operatorIds, sharesEncrypted, amount, cluster.index);
+
+    emit SSVNetworkRegistered(publicKey, operatorIds, amount, cluster.index);
+  }
+
+  function removeValidator(
+    bytes calldata publicKey,
+    uint64[] calldata operatorIds,
+    ISSVNetwork.Cluster calldata cluster
+  ) external onlyOwner {
+    ssvNetwork.removeValidator(publicKey, operatorIds, cluster);
+    emit SSVNetworkRemoved(publicKey, operatorIds, cluster.index);
+  }
+
+  function liquidateSSVNetwork(
+    address owner,
+    uint64[] calldata operatorIds,
+    ISSVNetwork.Cluster calldata cluster
+  ) external {
+    ssvNetwork.liquidate(owner, operatorIds, cluster);
+    emit SSVNetworkLiquidated(owner, operatorIds, cluster.index);
+  }
+
+  function reactivateSSV(
+    uint64[] calldata operatorIds,
+    uint256 amount,
+    ISSVNetwork.Cluster calldata cluster
+  ) external payable onlyOwner {
+    ssvNetwork.reactivate(operatorIds, amount, cluster);
+    emit SSVNetworkReactivated(operatorIds, amount, cluster.index);
+  }
+
+  function deposit(
+    uint64[] calldata operatorIds,
+    uint256 amount,
+    ISSVNetwork.Cluster calldata cluster
+  ) external onlyOwner {
+    ssvNetwork.deposit(address(this), operatorIds, amount, cluster);
+  }
+
+  function withdraw(
+    uint64[] calldata operatorIds,
+    uint256 amount,
+    ISSVNetwork.Cluster calldata cluster
+  ) external onlyOwner {
+    ssvNetwork.withdraw(operatorIds, amount, cluster);
+  }
+
+  function approve() external onlyOwner {
+    uint256 maxValue = type(uint256).max;
+    ssvToken.approve(address(ssvToken), maxValue);
+  }
+
+  function setFeeRecipientAddress(address account) external onlyOwner {
+    ssvNetwork.setFeeRecipientAddress(account);
+  }
+
+  function withdrawSSVToken(uint256 amount) external onlyOwner {
+    require(amount > 0, 'Amount must be greater than 0');
+    uint256 contractBalance = ssvToken.balanceOf(address(this));
+    require(contractBalance >= amount, 'Not enough SSV tokens in the contract');
+
+    ssvToken.transfer(owner(), amount);
+  }
+
+  function withdrawAllEthToStakeTogether() external onlyOwner {
+    require(
+      address(stakeTogether) != address(0),
+      'StakeTogether address must be set before withdrawing ETH'
+    );
+    uint256 contractBalance = address(this).balance;
+    payable(address(stakeTogether)).transfer(contractBalance);
   }
 }

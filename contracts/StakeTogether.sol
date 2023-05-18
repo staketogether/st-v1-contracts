@@ -16,6 +16,7 @@ contract StakeTogether is Ownable, ReentrancyGuard, CETH {
   event Unstaked(address indexed account, uint256 amount);
   event BufferDeposited(address indexed account, uint256 amount);
   event BufferWithdrawn(address indexed account, uint256 amount);
+  event Referral(address indexed account, address delegated, address indexed referral, uint256 amount);
 
   constructor(address _oracle, address _validator) payable {
     oracle = Oracle(_oracle);
@@ -33,13 +34,17 @@ contract StakeTogether is Ownable, ReentrancyGuard, CETH {
 
   uint256 private beaconBalance = 0;
 
-  function stake(address _delegated) external payable nonReentrant whenNotPaused {
+  function stake(address _delegated, address referral) external payable nonReentrant whenNotPaused {
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
     require(_isCommunity(_delegated), 'Only can stake for Communities');
     require(msg.value > 0, 'Amount must be greater than 0');
 
     _mintShares(msg.sender, msg.value);
     _mintDelegatedShares(msg.sender, _delegated, msg.value);
+
+    if (referral != address(0)) {
+      emit Referral(msg.sender, _delegated, referral, msg.value);
+    }
 
     emit Staked(msg.sender, msg.value);
   }
