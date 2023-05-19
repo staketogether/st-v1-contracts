@@ -220,7 +220,9 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable {
     require(!_isCommunity(community), 'Community already exists');
     require(!_stakeTogetherFeeRecipient(community), 'Community cannot be the st fee recipient');
     require(!_operatorFeeRecipient(community), 'Community cannot be the operator fee recipient');
-    require(sharesOf(community) == 0, 'Community need to do not have shares');
+    // TODO: check if this is necessary
+    // require(sharesOf(community) == 0, 'Community need to do not have shares');
+
     communities.push(community);
     emit CommunityAdded(community);
   }
