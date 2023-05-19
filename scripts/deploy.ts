@@ -3,7 +3,7 @@ import * as dotenv from 'dotenv'
 import { ethers } from 'hardhat'
 import { checkVariables } from '../test/utils/env'
 import { formatAddressToWithdrawalCredentials } from '../test/utils/formatWithdrawal'
-import { Oracle__factory, StakeTogether__factory, Validator__factory } from '../typechain'
+import { STOracle__factory, STValidator__factory, StakeTogether__factory } from '../typechain'
 
 dotenv.config()
 
@@ -33,11 +33,11 @@ async function verifyContracts(oracleAddress: string, validatorAddress: string, 
 }
 
 async function deployOracle(owner: CustomEthersSigner) {
-  const Oracle = await new Oracle__factory().connect(owner).deploy()
+  const STOracle = await new STOracle__factory().connect(owner).deploy()
 
-  const address = await Oracle.getAddress()
+  const address = await STOracle.getAddress()
 
-  console.log(`Oracle deployed:\t\t ${address}`)
+  console.log(`STOracle deployed:\t\t ${address}`)
 
   return address
 }
@@ -45,7 +45,7 @@ async function deployOracle(owner: CustomEthersSigner) {
 async function deployValidator(owner: CustomEthersSigner) {
   checkVariables()
 
-  const Validator = await new Validator__factory()
+  const STValidator = await new STValidator__factory()
     .connect(owner)
     .deploy(
       process.env.GOERLI_DEPOSIT_ADDRESS as string,
@@ -53,9 +53,9 @@ async function deployValidator(owner: CustomEthersSigner) {
       process.env.GOERLI_SSV_TOKEN_ADDRESS as string
     )
 
-  const address = await Validator.getAddress()
+  const address = await STValidator.getAddress()
 
-  console.log(`Validator deployed:\t\t ${address}`)
+  console.log(`STValidator deployed:\t\t ${address}`)
 
   return address
 }
@@ -78,12 +78,12 @@ async function deployStakeTogether(
 
   console.log(`StakeTogether deployed:\t\t ${address}`)
 
-  const Validator = await ethers.getContractAt('Validator', validatorAddress)
-  await Validator.setStakeTogether(address)
-  await Validator.setWithdrawalCredentials(formatAddressToWithdrawalCredentials(address))
+  const STValidator = await ethers.getContractAt('STValidator', validatorAddress)
+  await STValidator.setStakeTogether(address)
+  await STValidator.setWithdrawalCredentials(formatAddressToWithdrawalCredentials(address))
 
-  const Oracle = await ethers.getContractAt('Oracle', oracleAddress)
-  await Oracle.setStakeTogether(address)
+  const STOracle = await ethers.getContractAt('STOracle', oracleAddress)
+  await STOracle.setStakeTogether(address)
 
   return address
 }

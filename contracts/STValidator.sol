@@ -8,7 +8,7 @@ import './interfaces/IDepositContract.sol';
 import './interfaces/ISSVNetwork.sol';
 import './StakeTogether.sol';
 
-contract Validator is Ownable {
+contract STValidator is Ownable {
   struct EthValidator {
     bytes pubkey;
     bytes signature;

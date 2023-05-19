@@ -60,7 +60,7 @@ async function registerValidator() {
       }
     )
 
-    console.log('TX Register Validator', registerTX.hash)
+    console.log('TX Register STValidator', registerTX.hash)
   } catch (error) {
     console.error(error)
   }

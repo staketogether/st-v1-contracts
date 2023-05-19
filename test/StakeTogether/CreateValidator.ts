@@ -6,9 +6,9 @@ import connect from '../utils/connect'
 
 dotenv.config()
 
-xdescribe('StakeTogether: Create Validator', function () {
+xdescribe('StakeTogether: Create STValidator', function () {
   it('Should create a validator successfully', async function () {
-    const { StakeTogether, Validator, owner, user1, user2 } = await loadFixture(defaultFixture)
+    const { StakeTogether, STValidator, owner, user1, user2 } = await loadFixture(defaultFixture)
 
     const stakeAmount = ethers.parseEther('32.1')
 
@@ -18,12 +18,12 @@ xdescribe('StakeTogether: Create Validator', function () {
 
     // await connect(StakeTogether, owner).createValidator()
 
-    // const validatorIndex = await Validator.validatorIndex()
+    // const validatorIndex = await STValidator.validatorIndex()
     // expect(validatorIndex).to.equal(1)
   })
 
   it('Should fail to create a validator due lack ether on pool balance', async function () {
-    const { StakeTogether, Validator, owner, user1, user2 } = await loadFixture(defaultFixture)
+    const { StakeTogether, STValidator, owner, user1, user2 } = await loadFixture(defaultFixture)
 
     const stakeAmount = ethers.parseEther('2')
 

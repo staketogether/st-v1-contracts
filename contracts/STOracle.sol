@@ -6,7 +6,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import './StakeTogether.sol';
 
-contract Oracle is Ownable, Pausable {
+contract STOracle is Ownable, Pausable {
   StakeTogether public stakeTogether;
   uint256 public beaconBalance;
   uint256 public beaconLastReportBlock = 0;

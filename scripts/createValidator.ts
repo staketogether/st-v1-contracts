@@ -32,7 +32,7 @@ async function createValidator() {
     `0x${ethValidator.deposit_data_root}`
   )
 
-  console.log('TX Create Validator', tx.hash)
+  console.log('TX Create STValidator', tx.hash)
 }
 
 executeTxs().catch(error => {

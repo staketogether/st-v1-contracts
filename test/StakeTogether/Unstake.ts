@@ -15,7 +15,9 @@ describe('StakeTogether: Unstake', function () {
   }
 
   it('Should unstake and distribute fee successfully', async function () {
-    const { StakeTogether, Oracle, owner, user1, user2, user3, user4 } = await loadFixture(defaultFixture)
+    const { StakeTogether, STOracle, owner, user1, user2, user3, user4 } = await loadFixture(
+      defaultFixture
+    )
 
     const stakeAmount = ethers.parseEther('1')
     await connect(StakeTogether, user1).stake(user2, {
@@ -33,10 +35,10 @@ describe('StakeTogether: Unstake', function () {
     let blockNumber = await ethers.provider.getBlockNumber()
     expect(blockNumber).to.equal(5774)
 
-    let reportNextBlock = await Oracle.reportNextBlock()
+    let reportNextBlock = await STOracle.reportNextBlock()
 
-    await connect(Oracle, user1).report(reportNextBlock, newBeaconBalance)
-    await connect(Oracle, user2).report(reportNextBlock, newBeaconBalance)
+    await connect(STOracle, user1).report(reportNextBlock, newBeaconBalance)
+    await connect(STOracle, user2).report(reportNextBlock, newBeaconBalance)
 
     const unstakeAmount = ethers.parseEther('1.091') + 1n
     await connect(StakeTogether, user1).unstake(unstakeAmount, user2)

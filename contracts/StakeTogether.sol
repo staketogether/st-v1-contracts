@@ -5,12 +5,12 @@ pragma solidity ^0.8.18;
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './CETH.sol';
-import './Oracle.sol';
-import './Validator.sol';
+import './STOracle.sol';
+import './STValidator.sol';
 
 contract StakeTogether is Ownable, ReentrancyGuard, CETH {
-  Oracle public immutable oracle;
-  Validator public immutable validator;
+  STOracle public immutable oracle;
+  STValidator public immutable validator;
 
   event Staked(address indexed account, uint256 amount);
   event Unstaked(address indexed account, uint256 amount);
@@ -19,8 +19,8 @@ contract StakeTogether is Ownable, ReentrancyGuard, CETH {
   event Referral(address indexed account, address delegated, address indexed referral, uint256 amount);
 
   constructor(address _oracle, address _validator) payable {
-    oracle = Oracle(_oracle);
-    validator = Validator(_validator);
+    oracle = STOracle(_oracle);
+    validator = STValidator(_validator);
     _bootstrap();
   }
 

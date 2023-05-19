@@ -1,7 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 
-import { Oracle__factory, StakeTogether__factory, Validator__factory } from '../../typechain'
+import { STOracle__factory, STValidator__factory, StakeTogether__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
 import { formatAddressToWithdrawalCredentials } from '../utils/formatWithdrawal'
 
@@ -22,9 +22,9 @@ export async function defaultFixture() {
   let user9: SignerWithAddress
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
-  const Oracle = await new Oracle__factory().connect(owner).deploy()
+  const STOracle = await new STOracle__factory().connect(owner).deploy()
 
-  const Validator = await new Validator__factory()
+  const STValidator = await new STValidator__factory()
     .connect(owner)
     .deploy(
       process.env.GOERLI_DEPOSIT_ADDRESS as string,
@@ -34,7 +34,7 @@ export async function defaultFixture() {
 
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
-    .deploy(await Oracle.getAddress(), await Validator.getAddress(), {
+    .deploy(await STOracle.getAddress(), await STValidator.getAddress(), {
       value: 1n
     })
 
@@ -45,12 +45,12 @@ export async function defaultFixture() {
   await StakeTogether.addCommunity(user3.address)
   await StakeTogether.addCommunity(user4.address)
 
-  await Oracle.addNode(user1.address)
-  await Oracle.addNode(user2.address)
-  await Oracle.setStakeTogether(await StakeTogether.getAddress())
+  await STOracle.addNode(user1.address)
+  await STOracle.addNode(user2.address)
+  await STOracle.setStakeTogether(await StakeTogether.getAddress())
 
-  await Validator.setStakeTogether(await StakeTogether.getAddress())
-  await Validator.setWithdrawalCredentials(
+  await STValidator.setStakeTogether(await StakeTogether.getAddress())
+  await STValidator.setWithdrawalCredentials(
     formatAddressToWithdrawalCredentials(await StakeTogether.getAddress())
   )
 
@@ -66,8 +66,8 @@ export async function defaultFixture() {
     user7,
     user8,
     user9,
-    Oracle,
-    Validator,
+    STOracle,
+    STValidator,
     StakeTogether
   }
 }
