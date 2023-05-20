@@ -15,11 +15,13 @@ describe('StakeTogether: Fee Distribution', function () {
   }
 
   it('Should stake and distribute fee', async function () {
-    const { StakeTogether, STOracle, owner, user1, user2, user9 } = await loadFixture(defaultFixture)
+    const { StakeTogether, STOracle, owner, user1, user2, user9, nullAddress } = await loadFixture(
+      defaultFixture
+    )
 
     const stakeAmount = ethers.parseEther('1')
 
-    await connect(StakeTogether, user1).stake(user2, {
+    await connect(StakeTogether, user1).stake(user2, nullAddress, {
       value: stakeAmount
     })
 

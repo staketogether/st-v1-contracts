@@ -35,18 +35,17 @@ contract StakeTogether is Ownable, ReentrancyGuard, CETH {
   uint256 private beaconBalance = 0;
 
   function stake(address _delegated, address referral) external payable nonReentrant whenNotPaused {
-    require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_isCommunity(_delegated), 'Only can stake for Communities');
-    require(msg.value > 0, 'Amount must be greater than 0');
+    require(_isCommunity(_delegated), 'NON_COMMUNITY_DELEGATE');
+    require(msg.value > 0, 'ZERO_VALUE');
 
     _mintShares(msg.sender, msg.value);
     _mintDelegatedShares(msg.sender, _delegated, msg.value);
 
+    emit Staked(msg.sender, msg.value);
+
     if (referral != address(0)) {
       emit Referral(msg.sender, _delegated, referral, msg.value);
     }
-
-    emit Staked(msg.sender, msg.value);
   }
 
   function unstake(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
