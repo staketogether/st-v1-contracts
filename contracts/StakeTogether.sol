@@ -5,7 +5,6 @@ pragma solidity ^0.8.18;
 import './CETH.sol';
 import './STOracle.sol';
 import './STValidator.sol';
-import 'hardhat/console.sol';
 
 contract StakeTogether is CETH {
   STOracle public immutable stOracle;
