@@ -290,7 +290,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_recipient != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegate != address(0), 'MINT_TO_ZERO_ADDR');
     require(delegators[_delegate].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
-    require(_isCommunity(_delegate), 'Only can mintShares for communities');
+    require(_isCommunity(_delegate), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
 
     uint256 preDelegatedShares = delegatedShares[_delegate];
     uint256 preTotalDelegatedShares = totalDelegatedShares;
@@ -461,18 +461,18 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function addCommunity(address community) external onlyOwner {
     require(community != address(0), 'ZERO_ADDR');
-    require(!_isCommunity(community), 'Community already exists');
-    require(!_isStakeTogetherFeeRecipient(community), 'Community cannot be the st fee recipient');
-    require(!_isOperatorFeeRecipient(community), 'Community cannot be the operator fee recipient');
+    require(!_isCommunity(community), 'NON_COMMUNITY');
+    require(!_isStakeTogetherFeeRecipient(community), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
+    require(!_isOperatorFeeRecipient(community), 'IS_OPERATOR_FEE_RECIPIENT');
     // TODO: check if this is necessary
-    // require(sharesOf(community) == 0, 'Community need to do not have shares');
+    // require(sharesOf(community) == 0, 'COMMUNITY_ALREADY_HAS_SHARES');
 
     communities.push(community);
     emit CommunityAdded(community);
   }
 
   function removeCommunity(address community) external onlyOwner {
-    require(_isCommunity(community), 'Community does not exist');
+    require(_isCommunity(community), 'COMMUNITY_NOT_FOUND');
 
     for (uint256 i = 0; i < communities.length; i++) {
       if (communities[i] == community) {

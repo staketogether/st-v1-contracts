@@ -29,12 +29,12 @@ abstract contract STValidator is Ownable {
   }
 
   modifier onlyStakeTogether() {
-    require(msg.sender == address(stakeTogether), 'Only StakeTogether contract can call this function');
+    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER');
     _;
   }
 
   function setStakeTogether(address _stakeTogether) external onlyOwner {
-    require(address(stakeTogether) == address(0), 'StakeTogether address can only be set once');
+    require(address(stakeTogether) == address(0), 'ST_ALREADY_SET');
     stakeTogether = StakeTogether(_stakeTogether);
   }
 
@@ -57,7 +57,7 @@ abstract contract STValidator is Ownable {
     bytes memory signature,
     bytes32 deposit_data_root
   ) external payable onlyStakeTogether {
-    require(msg.value == 32 ether, 'Must deposit 32 ether');
+    require(msg.value == 32 ether, 'MUST_SEND_32_ETH');
 
     depositContract.deposit{ value: msg.value }(
       pubkey,
@@ -156,18 +156,15 @@ abstract contract STValidator is Ownable {
   }
 
   function withdrawSSVToken(uint256 amount) external onlyOwner {
-    require(amount > 0, 'Amount must be greater than 0');
+    require(amount > 0, 'ZERO_AMOUNT');
     uint256 contractBalance = ssvToken.balanceOf(address(this));
-    require(contractBalance >= amount, 'Not enough SSV tokens in the contract');
+    require(contractBalance >= amount, 'NO_ENOUGHT_SSV_BALANCE');
 
     ssvToken.transfer(owner(), amount);
   }
 
-  function withdrawAllEthToStakeTogether() external onlyOwner {
-    require(
-      address(stakeTogether) != address(0),
-      'StakeTogether address must be set before withdrawing ETH'
-    );
+  function withdrawETHToStakeTogether() external onlyOwner {
+    require(address(stakeTogether) != address(0), 'NEED_TO_SET_STAKE_TOGETHER_ADDRESS_FIRST');
     uint256 contractBalance = address(this).balance;
     payable(address(stakeTogether)).transfer(contractBalance);
   }

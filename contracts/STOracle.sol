@@ -37,21 +37,21 @@ contract STOracle is Ownable, Pausable {
   event NodeBlacklisted(address node);
 
   modifier onlyNodes() {
-    require(_isNode(msg.sender), 'Caller should be a registered node');
+    require(_isNode(msg.sender), 'ONLY_NODES');
     _;
   }
 
   function setStakeTogether(address _stakeTogether) external onlyOwner {
-    require(address(stakeTogether) == address(0), 'StakeTogether address can only be set once');
+    require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(_stakeTogether);
   }
 
   function report(uint256 reportBlock, uint256 reportBalance) public onlyNodes whenNotPaused {
-    require(address(stakeTogether) != address(0), 'StakeTogether should be set');
-    require(reportBalance > 0, 'Report balance must be greater than 0');
-    require(reportBlock == reportNextBlock, 'Report is not for the next block');
-    require(block.number >= reportNextBlock, 'Block window not yet reached');
-    require(nodeReports[msg.sender][reportBlock] == 0, 'Node has already reported for this block');
+    require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
+    require(reportBalance > 0, 'ZERO_VALUE');
+    require(reportBlock == reportNextBlock, 'NON_NEXT_BLOCK');
+    require(block.number >= reportNextBlock, 'TOO_EARLY_TO_REPORT');
+    require(nodeReports[msg.sender][reportBlock] == 0, 'NODE_ALREADY_REPORTED');
 
     nodeReports[msg.sender][reportNextBlock] = reportBalance;
     reportCount[reportNextBlock]++;
@@ -113,8 +113,8 @@ contract STOracle is Ownable, Pausable {
   }
 
   function setReportQuorum(uint256 newQuorum) external onlyOwner {
-    require(newQuorum >= 1, 'Quorum must be at least 1');
-    require(newQuorum <= nodes.length, 'Quorum cannot exceed current number of nodes');
+    require(newQuorum >= 1, 'QUORUM_NEEDS_TO_BE_AT_LEAST_1');
+    require(newQuorum <= nodes.length, 'QUORUM_CAN_NOT_BE_GREATER_THAN_NODES');
     reportQuorum = newQuorum;
     emit ReportQuorumChanged(newQuorum);
   }
@@ -132,7 +132,7 @@ contract STOracle is Ownable, Pausable {
   }
 
   function addNode(address node) external onlyOwner {
-    require(!_isNode(node), 'Node already exists');
+    require(!_isNode(node), 'NODE_ALREADY_EXISTS');
     nodes.push(node);
     emit NodeAdded(node);
   }
@@ -159,7 +159,7 @@ contract STOracle is Ownable, Pausable {
   }
 
   function _removeNode(address node) internal {
-    require(_isNode(node), 'Node does not exist');
+    require(_isNode(node), 'NODE_DOES_NOT_EXIST');
 
     for (uint256 i = 0; i < nodes.length; i++) {
       if (nodes[i] == node) {
