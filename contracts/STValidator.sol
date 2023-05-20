@@ -39,7 +39,7 @@ abstract contract STValidator is Ownable {
   }
 
   /*****************
-   ** DVT **
+   ** ETH Validator **
    *****************/
 
   event ValidatorCreated(
