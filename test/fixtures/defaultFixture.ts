@@ -21,8 +21,7 @@ export async function defaultFixture() {
   let user8: SignerWithAddress
   let user9: SignerWithAddress
   let nullAddress: string = '0x0000000000000000000000000000000000000000'
-  ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9, nullAddress] =
-    await ethers.getSigners()
+  ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
   const STOracle = await new STOracle__factory().connect(owner).deploy()
 
