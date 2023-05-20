@@ -8,11 +8,11 @@ import './STValidator.sol';
 
 contract StakeTogether is CETH {
   STOracle public immutable stOracle;
-  STValidator public immutable validator;
+  STValidator public immutable stValidator;
 
-  constructor(address _oracle, address _validator) payable {
-    stOracle = STOracle(_oracle);
-    validator = STValidator(_validator);
+  constructor(address _stOracle, address _stValidator) payable {
+    stOracle = STOracle(_stOracle);
+    stValidator = STValidator(_stValidator);
     _bootstrap();
   }
 
@@ -154,6 +154,6 @@ contract StakeTogether is CETH {
     bytes32 deposit_data_root
   ) external onlyOwner nonReentrant {
     require(_getPoolBalance() >= poolSize, 'Not enough ether on poolBalance to create validator');
-    validator.createValidator{ value: poolSize }(pubkey, signature, deposit_data_root);
+    stValidator.createValidator{ value: poolSize }(pubkey, signature, deposit_data_root);
   }
 }

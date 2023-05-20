@@ -8,21 +8,39 @@ import './interfaces/IDepositContract.sol';
 import './interfaces/ISSVNetwork.sol';
 import './StakeTogether.sol';
 
-contract STValidator is Ownable {
-  struct EthValidator {
-    bytes pubkey;
-    bytes signature;
-    bytes32 deposit_data_root;
-  }
-
+abstract contract STValidator is Ownable {
   StakeTogether public stakeTogether;
   IDepositContract public immutable depositContract;
   ISSVNetwork public immutable ssvNetwork;
   IERC20 public immutable ssvToken;
 
-  bytes[] public validators;
-
   bytes public withdrawalCredentials;
+
+  constructor(
+    address _depositContract,
+    address _ssvNetwork,
+    address _ssvToken,
+    bytes memory _withdrawalCredentials
+  ) {
+    depositContract = IDepositContract(_depositContract);
+    ssvNetwork = ISSVNetwork(_ssvNetwork);
+    ssvToken = IERC20(_ssvToken);
+    withdrawalCredentials = _withdrawalCredentials;
+  }
+
+  modifier onlyStakeTogether() {
+    require(msg.sender == address(stakeTogether), 'Only StakeTogether contract can call this function');
+    _;
+  }
+
+  function setStakeTogether(address _stakeTogether) external onlyOwner {
+    require(address(stakeTogether) == address(0), 'StakeTogether address can only be set once');
+    stakeTogether = StakeTogether(_stakeTogether);
+  }
+
+  /*****************
+   ** DVT **
+   *****************/
 
   event ValidatorCreated(
     address indexed creator,
@@ -32,44 +50,7 @@ contract STValidator is Ownable {
     bytes32 deposit_data_root
   );
 
-  event SSVNetworkRegistered(bytes publicKey, uint64[] operatorIds, uint256 amount, uint256 clusterIndex);
-  event SSVNetworkRemoved(bytes publicKey, uint64[] operatorIds, uint256 clusterIndex);
-  event SSVNetworkLiquidated(address owner, uint64[] operatorIds, uint256 clusterIndex);
-  event SSVNetworkReactivated(uint64[] operatorIds, uint256 amount, uint256 clusterIndex);
-
-  modifier onlyStakeTogether() {
-    require(msg.sender == address(stakeTogether), 'Only StakeTogether contract can call this function');
-    _;
-  }
-
-  constructor(address _depositContract, address _ssvNetwork, address _ssvToken) {
-    depositContract = IDepositContract(_depositContract);
-    ssvNetwork = ISSVNetwork(_ssvNetwork);
-    ssvToken = IERC20(_ssvToken);
-  }
-
-  function setStakeTogether(address _stakeTogether) external onlyOwner {
-    require(address(stakeTogether) == address(0), 'StakeTogether address can only be set once');
-    stakeTogether = StakeTogether(_stakeTogether);
-  }
-
-  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyOwner {
-    require(withdrawalCredentials.length == 0, 'Withdrawal Credentials can only be set once');
-    withdrawalCredentials = _withdrawalCredentials;
-  }
-
-  function getValidators() external view returns (bytes[] memory) {
-    return validators;
-  }
-
-  function isValidator(bytes memory pubkey) external view returns (bool) {
-    for (uint256 i = 0; i < validators.length; i++) {
-      if (keccak256(validators[i]) == keccak256(pubkey)) {
-        return true;
-      }
-    }
-    return false;
-  }
+  bytes[] public validators;
 
   function createValidator(
     bytes memory pubkey,
@@ -90,6 +71,24 @@ contract STValidator is Ownable {
     emit ValidatorCreated(msg.sender, pubkey, withdrawalCredentials, signature, deposit_data_root);
   }
 
+  function isValidator(bytes memory pubkey) public view returns (bool) {
+    for (uint256 i = 0; i < validators.length; i++) {
+      if (keccak256(validators[i]) == keccak256(pubkey)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /*****************
+   ** DVT **
+   *****************/
+
+  event SSVNetworkRegistered(bytes publicKey, uint64[] operatorIds, uint256 amount, uint256 clusterIndex);
+  event SSVNetworkRemoved(bytes publicKey, uint64[] operatorIds, uint256 clusterIndex);
+  event SSVNetworkLiquidated(address owner, uint64[] operatorIds, uint256 clusterIndex);
+  event SSVNetworkReactivated(uint64[] operatorIds, uint256 amount, uint256 clusterIndex);
+
   function registerValidator(
     bytes calldata publicKey,
     uint64[] calldata operatorIds,
@@ -97,6 +96,7 @@ contract STValidator is Ownable {
     uint256 amount,
     ISSVNetwork.Cluster calldata cluster
   ) external onlyOwner {
+    require(isValidator(publicKey), 'NON_ST_VALIDATOR');
     ssvNetwork.registerValidator(publicKey, operatorIds, sharesEncrypted, amount, cluster);
 
     emit SSVNetworkRegistered(publicKey, operatorIds, amount, cluster.index);
@@ -107,6 +107,7 @@ contract STValidator is Ownable {
     uint64[] calldata operatorIds,
     ISSVNetwork.Cluster calldata cluster
   ) external onlyOwner {
+    require(isValidator(publicKey), 'NON_ST_VALIDATOR');
     ssvNetwork.removeValidator(publicKey, operatorIds, cluster);
     emit SSVNetworkRemoved(publicKey, operatorIds, cluster.index);
   }
