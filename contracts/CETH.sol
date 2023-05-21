@@ -8,6 +8,7 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import 'hardhat/console.sol';
 
 abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
   mapping(address => uint256) private shares;
@@ -372,9 +373,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   address public operatorFeeRecipient = owner();
 
   // Fee Basis Points (1% = 1000, 100% = 100000, 1e5)
-  uint16 public stakeTogetherFee = 3000;
-  uint16 public operatorFee = 3000;
-  uint16 public communityFee = 3000;
+  uint256 public basisPoints = 100000;
+  uint256 public stakeTogetherFee = 3000;
+  uint256 public operatorFee = 3000;
+  uint256 public communityFee = 3000;
 
   function setStakeTogetherFeeRecipient(address _recipient) external onlyOwner {
     require(_recipient != address(0), 'NON_ZERO_ADDR');
@@ -386,15 +388,15 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     operatorFeeRecipient = _recipient;
   }
 
-  function setStakeTogetherFee(uint16 _fee) external onlyOwner {
+  function setStakeTogetherFee(uint256 _fee) external onlyOwner {
     stakeTogetherFee = _fee;
   }
 
-  function setCommunityFee(uint16 _fee) external onlyOwner {
+  function setCommunityFee(uint256 _fee) external onlyOwner {
     communityFee = _fee;
   }
 
-  function setOperatorFee(uint16 _fee) external onlyOwner {
+  function setOperatorFee(uint256 _fee) external onlyOwner {
     communityFee = _fee;
   }
 
@@ -403,36 +405,28 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function _processRewards(uint256 _preClBalance, uint256 _postClBalance) internal {
     if (_postClBalance > _preClBalance) {
       uint256 rewards = _postClBalance - _preClBalance;
-      uint256 totalPooledEtherWithRewards = _getTotalPooledEther() + rewards;
-      uint256 growthFactor = (rewards * 1 ether) / _getTotalPooledEther();
+      uint256 totalFee = stakeTogetherFee + operatorFee + communityFee; // 9%
 
-      // Fee Adjust
-      uint256 stakeTogetherFeeAdjust = stakeTogetherFee + ((stakeTogetherFee * growthFactor) / 1 ether);
-      uint256 operatorFeeAjust = operatorFee + ((operatorFee * growthFactor) / 1 ether);
-      uint256 communityFeeAjust = communityFee + ((communityFee * growthFactor) / 1 ether);
-      uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAjust + communityFeeAjust;
+      console.log('rewards', rewards);
+      console.log('totalFee', totalFee);
+      console.log('_preClBalance', _preClBalance);
 
-      // New shares minted as fees
-      uint256 sharesMintedAsFees = (rewards * totalFee * totalShares) /
-        (totalPooledEtherWithRewards * 1 ether - rewards * totalFee);
+      uint256 sharesToMint = (rewards * totalShares) / (_getTotalPooledEther() - rewards);
 
-      _mintShares(stakeTogetherFeeRecipient, sharesMintedAsFees);
+      uint256 stakeTogetherFeeShares = (sharesToMint * stakeTogetherFee) / basisPoints;
+      uint256 operatorFeeShares = (sharesToMint * operatorFee) / basisPoints;
+      uint256 communityFeeShares = (sharesToMint * communityFee) / basisPoints;
 
-      //   uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
-      //   _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+      _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+      _mintShares(operatorFeeRecipient, operatorFeeShares);
 
-      //   uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
-      //   _mintShares(operatorFeeRecipient, operatorFeeShares);
-
-      //   uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
-
-      //   for (uint i = 0; i < communities.length; i++) {
-      //     address community = communities[i];
-      //     uint256 communityProportion = delegatedSharesOf(community);
-      //     uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
-      //     _mintShares(community, communityShares);
-      //     _mintDelegatedShares(community, community, communityShares);
-      //   }
+      for (uint i = 0; i < communities.length; i++) {
+        address community = communities[i];
+        uint256 communityProportion = delegatedSharesOf(community);
+        uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
+        _mintShares(community, communityShares);
+        _mintDelegatedShares(community, community, communityShares);
+      }
     }
   }
 
@@ -452,8 +446,12 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event CommunityRemoved(address community);
 
   address[] public communities;
+  bool public requireOwner = true;
 
-  function addCommunity(address community) external onlyOwner {
+  function addCommunity(address community) external {
+    if (requireOwner) {
+      require(msg.sender == owner(), 'NOT_OWNER');
+    }
     require(community != address(0), 'ZERO_ADDR');
     require(!_isCommunity(community), 'NON_COMMUNITY');
     require(!_isStakeTogetherFeeRecipient(community), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
@@ -476,6 +474,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       }
     }
     emit CommunityRemoved(community);
+  }
+
+  function setRestrictOnlyOwner(bool _requireOwner) external onlyOwner {
+    requireOwner = _requireOwner;
   }
 
   function isCommunity(address community) external view returns (bool) {

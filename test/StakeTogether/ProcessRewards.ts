@@ -129,7 +129,7 @@ describe('StakeTogether: Process Rewards', function () {
     // expect(totalShares).to.eq(1047120418848167536n)
     expect(totalSupply).to.eq(initialDeposit + stakeAmount + beaconBalanceEarn + stakeAmount2)
 
-    expect(balanceUser).to.eq(1499999999999995501n)
+    expect(balanceUser).to.eq(1445783132530120482n)
     expect(sharesUser).to.eq(stakeAmount)
 
     // expect(balanceST).to.eq(29999999999999998n)
@@ -142,8 +142,8 @@ describe('StakeTogether: Process Rewards', function () {
     // expect(sharesDelegated).to.eq(15706806282722511n)
     // expect(delegationSharesDelegated).to.eq(stakeAmount)
 
-    expect(balanceUser3).to.eq(stakeAmount)
-    expect(sharesUser3).to.eq(666666666666668666n)
+    expect(balanceUser3).to.eq(999999999999999999n)
+    expect(sharesUser3).to.eq(691666666666666666n)
 
     //  rebase loss
 
@@ -196,10 +196,10 @@ describe('StakeTogether: Process Rewards', function () {
     // expect(totalShares).to.eq(1047120418848167536n)
     expect(totalSupply).to.eq(initialDeposit + stakeAmount + stakeAmount2 + beaconBalanceLoss)
 
-    expect(balanceUser).to.eq(1124999999999996626n)
+    expect(balanceUser).to.eq(1084337349397590362n)
     expect(sharesUser).to.eq(stakeAmount)
 
-    expect(balanceUser3).to.eq(ethers.parseEther('0.75'))
+    expect(balanceUser3).to.eq(749999999999999999n)
     // expect(sharesUser3).to.eq(stakeAmount)
 
     // expect(balanceST).to.eq(22499999999999998n)
@@ -263,10 +263,10 @@ describe('StakeTogether: Process Rewards', function () {
     // expect(totalShares).to.eq(1096461171568761813n)
     expect(totalSupply).to.eq(stakeAmount + initialDeposit + beaconBalanceEarn + beaconBalanceEarn2)
 
-    expect(balanceUser).to.eq(1874999999999987628n)
+    expect(balanceUser).to.eq(1716964724240425868n)
     expect(sharesUser).to.eq(stakeAmount)
 
-    expect(balanceUser3).to.eq(1249999999999995501n)
+    expect(balanceUser3).to.eq(1187567267599627891n)
     // expect(sharesUser3).to.eq(stakeAmount)
 
     // expect(balanceST).to.eq(87974999999999994n)
