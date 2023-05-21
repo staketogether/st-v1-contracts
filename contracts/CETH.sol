@@ -8,7 +8,6 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import 'hardhat/console.sol';
 
 abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
   mapping(address => uint256) private shares;
@@ -406,10 +405,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     if (_postClBalance > _preClBalance) {
       uint256 rewards = _postClBalance - _preClBalance;
       uint256 totalFee = stakeTogetherFee + operatorFee + communityFee; // 9%
-
-      console.log('rewards', rewards);
-      console.log('totalFee', totalFee);
-      console.log('_preClBalance', _preClBalance);
 
       uint256 sharesToMint = (rewards * totalShares) / (_getTotalPooledEther() - rewards);
 
