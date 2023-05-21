@@ -404,7 +404,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function _processRewards(uint256 _preClBalance, uint256 _postClBalance) internal {
     if (_postClBalance > _preClBalance) {
       uint256 rewards = _postClBalance - _preClBalance;
-      uint256 totalFee = stakeTogetherFee + operatorFee + communityFee; // 9%
 
       uint256 sharesToMint = (rewards * totalShares) / (_getTotalPooledEther() - rewards);
 
