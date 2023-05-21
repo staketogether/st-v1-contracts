@@ -4,11 +4,12 @@ pragma solidity ^0.8.18;
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './interfaces/IDepositContract.sol';
 import './interfaces/ISSVNetwork.sol';
 import './StakeTogether.sol';
 
-abstract contract STValidator is Ownable {
+contract STValidator is Ownable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   IDepositContract public immutable depositContract;
   ISSVNetwork public immutable ssvNetwork;
@@ -16,16 +17,10 @@ abstract contract STValidator is Ownable {
 
   bytes public withdrawalCredentials;
 
-  constructor(
-    address _depositContract,
-    address _ssvNetwork,
-    address _ssvToken,
-    bytes memory _withdrawalCredentials
-  ) {
+  constructor(address _depositContract, address _ssvNetwork, address _ssvToken) {
     depositContract = IDepositContract(_depositContract);
     ssvNetwork = ISSVNetwork(_ssvNetwork);
     ssvToken = IERC20(_ssvToken);
-    withdrawalCredentials = _withdrawalCredentials;
   }
 
   modifier onlyStakeTogether() {
@@ -36,6 +31,11 @@ abstract contract STValidator is Ownable {
   function setStakeTogether(address _stakeTogether) external onlyOwner {
     require(address(stakeTogether) == address(0), 'ST_ALREADY_SET');
     stakeTogether = StakeTogether(_stakeTogether);
+  }
+
+  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyOwner {
+    require(withdrawalCredentials.length == 0, 'WITHDRAWAL_CREDENTIALS_ALREADY_SET');
+    withdrawalCredentials = _withdrawalCredentials;
   }
 
   /*****************
@@ -56,7 +56,7 @@ abstract contract STValidator is Ownable {
     bytes memory pubkey,
     bytes memory signature,
     bytes32 deposit_data_root
-  ) external payable onlyStakeTogether {
+  ) external payable onlyStakeTogether nonReentrant {
     require(msg.value == 32 ether, 'MUST_SEND_32_ETH');
 
     depositContract.deposit{ value: msg.value }(
@@ -95,7 +95,7 @@ abstract contract STValidator is Ownable {
     bytes calldata sharesEncrypted,
     uint256 amount,
     ISSVNetwork.Cluster calldata cluster
-  ) external onlyOwner {
+  ) external onlyOwner nonReentrant {
     require(isValidator(publicKey), 'NON_ST_VALIDATOR');
     ssvNetwork.registerValidator(publicKey, operatorIds, sharesEncrypted, amount, cluster);
 
@@ -106,26 +106,26 @@ abstract contract STValidator is Ownable {
     bytes calldata publicKey,
     uint64[] calldata operatorIds,
     ISSVNetwork.Cluster calldata cluster
-  ) external onlyOwner {
+  ) external onlyOwner nonReentrant {
     require(isValidator(publicKey), 'NON_ST_VALIDATOR');
     ssvNetwork.removeValidator(publicKey, operatorIds, cluster);
     emit SSVNetworkRemoved(publicKey, operatorIds, cluster.index);
   }
 
   function liquidateSSVNetwork(
-    address owner,
+    address _owner,
     uint64[] calldata operatorIds,
     ISSVNetwork.Cluster calldata cluster
-  ) external {
-    ssvNetwork.liquidate(owner, operatorIds, cluster);
-    emit SSVNetworkLiquidated(owner, operatorIds, cluster.index);
+  ) external onlyOwner nonReentrant {
+    ssvNetwork.liquidate(_owner, operatorIds, cluster);
+    emit SSVNetworkLiquidated(_owner, operatorIds, cluster.index);
   }
 
   function reactivateSSV(
     uint64[] calldata operatorIds,
     uint256 amount,
     ISSVNetwork.Cluster calldata cluster
-  ) external payable onlyOwner {
+  ) external payable onlyOwner nonReentrant {
     ssvNetwork.reactivate(operatorIds, amount, cluster);
     emit SSVNetworkReactivated(operatorIds, amount, cluster.index);
   }
@@ -134,7 +134,7 @@ abstract contract STValidator is Ownable {
     uint64[] calldata operatorIds,
     uint256 amount,
     ISSVNetwork.Cluster calldata cluster
-  ) external onlyOwner {
+  ) external onlyOwner nonReentrant {
     ssvNetwork.deposit(address(this), operatorIds, amount, cluster);
   }
 
@@ -142,25 +142,25 @@ abstract contract STValidator is Ownable {
     uint64[] calldata operatorIds,
     uint256 amount,
     ISSVNetwork.Cluster calldata cluster
-  ) external onlyOwner {
+  ) external onlyOwner nonReentrant {
     ssvNetwork.withdraw(operatorIds, amount, cluster);
   }
 
-  function approve() external onlyOwner {
+  function approve() external onlyOwner returns (bool) {
     uint256 maxValue = type(uint256).max;
-    ssvToken.approve(address(ssvToken), maxValue);
+    return ssvToken.approve(address(ssvToken), maxValue);
   }
 
   function setFeeRecipientAddress(address account) external onlyOwner {
     ssvNetwork.setFeeRecipientAddress(account);
   }
 
-  function withdrawSSVToken(uint256 amount) external onlyOwner {
+  function withdrawSSVToken(uint256 amount) external onlyOwner returns (bool) {
     require(amount > 0, 'ZERO_AMOUNT');
     uint256 contractBalance = ssvToken.balanceOf(address(this));
     require(contractBalance >= amount, 'NO_ENOUGHT_SSV_BALANCE');
 
-    ssvToken.transfer(owner(), amount);
+    return ssvToken.transfer(owner(), amount);
   }
 
   function withdrawETHToStakeTogether() external onlyOwner {

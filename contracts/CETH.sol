@@ -121,14 +121,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return true;
   }
 
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 amount
-  ) internal override whenNotPaused {
-    super._beforeTokenTransfer(from, to, amount);
-  }
-
   function _getTotalPooledEther() internal view virtual returns (uint256);
 
   function _sharesOf(address _account) internal view returns (uint256) {

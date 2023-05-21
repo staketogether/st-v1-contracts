@@ -130,6 +130,8 @@ contract StakeTogether is CETH {
    ** REWARDS **
    *****************/
 
+  event ConsensusLayerBalanceUpdated(uint256 balance);
+
   function setClBalance(uint256 _balance) external override nonReentrant {
     require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
 
@@ -137,6 +139,8 @@ contract StakeTogether is CETH {
     clBalance = _balance;
 
     _processRewards(preClBalance, clBalance);
+
+    emit ConsensusLayerBalanceUpdated(clBalance);
   }
 
   /*****************
