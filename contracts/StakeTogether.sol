@@ -5,6 +5,7 @@ pragma solidity ^0.8.18;
 import './CETH.sol';
 import './STOracle.sol';
 import './STValidator.sol';
+import 'hardhat/console.sol';
 
 contract StakeTogether is CETH {
   STOracle public immutable stOracle;
@@ -42,11 +43,24 @@ contract StakeTogether is CETH {
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minAmount, 'NON_MIN_AMOUNT');
 
+    console.log('Pre totalPooledEther', _getTotalPooledEther());
+    console.log('Pre TotalShares', totalShares);
+
     // uint256 sharesAmount = getSharesByPooledEth(msg.value);
-    uint256 sharesAmount = msg.value;
+    uint256 sharesAmount = (msg.value * totalShares) / (_getTotalPooledEther() - msg.value);
+
+    console.log('SharesAmount', sharesAmount);
 
     _mintShares(msg.sender, sharesAmount);
     _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
+
+    console.log('Pos TotalShares', totalShares);
+
+    console.log('msg.value', msg.value);
+    console.log('shares_value', getPooledEthByShares(sharesAmount));
+    console.log('Pos totalPooledEther', _getTotalPooledEther());
+
+    console.log('\n\n');
 
     emit Staked(msg.sender, msg.value);
 

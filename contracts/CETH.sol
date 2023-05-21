@@ -416,21 +416,23 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       uint256 sharesMintedAsFees = (rewards * totalFee * totalShares) /
         (totalPooledEtherWithRewards * 1 ether - rewards * totalFee);
 
-      uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
-      _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+      _mintShares(stakeTogetherFeeRecipient, sharesMintedAsFees);
 
-      uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
-      _mintShares(operatorFeeRecipient, operatorFeeShares);
+      //   uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
+      //   _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
 
-      uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
+      //   uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
+      //   _mintShares(operatorFeeRecipient, operatorFeeShares);
 
-      for (uint i = 0; i < communities.length; i++) {
-        address community = communities[i];
-        uint256 communityProportion = delegatedSharesOf(community);
-        uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
-        _mintShares(community, communityShares);
-        _mintDelegatedShares(community, community, communityShares);
-      }
+      //   uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
+
+      //   for (uint i = 0; i < communities.length; i++) {
+      //     address community = communities[i];
+      //     uint256 communityProportion = delegatedSharesOf(community);
+      //     uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
+      //     _mintShares(community, communityShares);
+      //     _mintDelegatedShares(community, community, communityShares);
+      //   }
     }
   }
 
