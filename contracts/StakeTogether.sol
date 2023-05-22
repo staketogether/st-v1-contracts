@@ -35,7 +35,7 @@ contract StakeTogether is CETH {
   event Referral(address indexed account, address delegated, address indexed referral, uint256 amount);
 
   uint256 public immutable poolSize = 32 ether;
-  uint256 public minAmount = 0.001 ether;
+  uint256 public minAmount = 0.000000000000000001 ether;
 
   function stake(address _delegated, address referral) external payable nonReentrant whenNotPaused {
     require(_isCommunity(_delegated), 'NON_COMMUNITY_DELEGATE');

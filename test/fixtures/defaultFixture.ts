@@ -21,6 +21,7 @@ export async function defaultFixture() {
   let user8: SignerWithAddress
   let user9: SignerWithAddress
   let nullAddress: string = '0x0000000000000000000000000000000000000000'
+  const initialDeposit = 1n
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
   const STOracle = await new STOracle__factory().connect(owner).deploy()
@@ -36,7 +37,7 @@ export async function defaultFixture() {
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
     .deploy(await STOracle.getAddress(), await STValidator.getAddress(), {
-      value: 1n
+      value: initialDeposit
     })
 
   await StakeTogether.setStakeTogetherFeeRecipient(owner.address)
@@ -68,6 +69,7 @@ export async function defaultFixture() {
     user8,
     user9,
     nullAddress,
+    initialDeposit,
     STOracle,
     STValidator,
     StakeTogether
