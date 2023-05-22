@@ -7,13 +7,10 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
-import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import 'hardhat/console.sol';
 
 abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
-  using Math for uint256;
-
   mapping(address => uint256) private shares;
   uint256 public totalShares = 0;
   mapping(address => mapping(address => uint256)) private allowances;
@@ -58,11 +55,11 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function getSharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return Math.mulDiv(_ethAmount, totalShares, getTotalPooledEther());
+    return (_ethAmount * totalShares) / getTotalPooledEther();
   }
 
   function getPooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, getTotalPooledEther(), totalShares);
+    return (_sharesAmount * getTotalPooledEther()) / totalShares;
   }
 
   function transfer(address _recipient, uint256 _amount) public override returns (bool) {
@@ -367,11 +364,11 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   address public stakeTogetherFeeRecipient = owner();
   address public operatorFeeRecipient = owner();
 
-  // Fee Basis Points (1% = 1000, 100% = 100000, 1e5)
-  uint256 public basisPoints = 100000;
-  uint256 public stakeTogetherFee = 3000;
-  uint256 public operatorFee = 3000;
-  uint256 public communityFee = 3000;
+  // Todo: Define Basis point before audit
+  uint256 public basisPoints = 1 ether;
+  uint256 public stakeTogetherFee = 0.03 ether;
+  uint256 public operatorFee = 0.03 ether;
+  uint256 public communityFee = 0.03 ether;
 
   function setStakeTogetherFeeRecipient(address _recipient) external onlyOwner {
     require(_recipient != address(0), 'NON_ZERO_ADDR');
@@ -392,41 +389,42 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function setOperatorFee(uint256 _fee) external onlyOwner {
-    communityFee = _fee;
+    operatorFee = _fee;
   }
 
   function setClBalance(uint256 _balance) external virtual {}
 
-  function _processRewards(uint256 _preClBalance, uint256 _postClBalance) internal {
-    if (_postClBalance > _preClBalance) {
-      uint256 rewards = _postClBalance - _preClBalance;
+  function _processRewards(uint256 _preClBalance, uint256 _posClBalance) internal {
+    if (_posClBalance <= _preClBalance) {
+      return;
+    }
 
-      uint256 sharesToMint = Math.mulDiv(rewards, totalShares, getTotalPooledEther() - rewards);
+    uint256 rewards = _posClBalance - _preClBalance;
+    uint256 totalPooledEtherWithRewards = getTotalPooledEther() + rewards;
+    uint256 growthFactor = (rewards * basisPoints) / getTotalPooledEther();
 
-      uint256 stakeTogetherFeeShares = Math.mulDiv(sharesToMint, stakeTogetherFee, basisPoints);
-      uint256 operatorFeeShares = Math.mulDiv(sharesToMint, operatorFee, basisPoints);
-      uint256 communityFeeShares = Math.mulDiv(sharesToMint, communityFee, basisPoints);
+    uint256 stakeTogetherFeeAdjust = stakeTogetherFee + (stakeTogetherFee * growthFactor) / basisPoints;
+    uint256 operatorFeeAjust = operatorFee + (operatorFee * growthFactor) / basisPoints;
+    uint256 communityFeeAjust = communityFee + (communityFee * growthFactor) / basisPoints;
 
-      console.log('StakeTogetherFeeShares\t', stakeTogetherFeeShares);
-      console.log('OperatorFeeShares\t', operatorFeeShares);
+    uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAjust + communityFeeAjust;
 
-      _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
-      _mintShares(operatorFeeRecipient, operatorFeeShares);
+    uint256 sharesMintedAsFees = (rewards * totalFee * totalShares) /
+      (totalPooledEtherWithRewards * basisPoints - rewards * totalFee);
 
-      for (uint i = 0; i < communities.length; i++) {
-        address community = communities[i];
-        uint256 communityProportion = delegatedSharesOf(community);
+    uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
+    uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
+    uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
 
-        uint256 communityShares = Math.mulDiv(
-          communityFeeShares,
-          communityProportion,
-          totalDelegatedShares
-        );
+    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    _mintShares(operatorFeeRecipient, operatorFeeShares);
 
-        console.log('CommunityShares\t\t', communityShares);
-        _mintShares(community, communityShares);
-        _mintDelegatedShares(community, community, communityShares);
-      }
+    for (uint i = 0; i < communities.length; i++) {
+      address community = communities[i];
+      uint256 communityProportion = delegatedSharesOf(community);
+      uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
+      _mintShares(community, communityShares);
+      _mintDelegatedShares(community, community, communityShares);
     }
   }
 
