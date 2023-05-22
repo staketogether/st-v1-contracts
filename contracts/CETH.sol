@@ -21,7 +21,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 preTotalShares,
     uint256 postTotalShares,
     uint256 preRecipientShares,
-    uint256 postRecipientShares
+    uint256 postRecipientShares,
+    bool isRewards
   );
   event BurnShares(
     address indexed account,
@@ -150,7 +151,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit Approval(_owner, _spender, _amount);
   }
 
-  function _mintShares(address _recipient, uint256 _sharesAmount) internal whenNotPaused {
+  function _mintShares(address _recipient, uint256 _sharesAmount, bool isRewards) internal whenNotPaused {
     require(_recipient != address(0), 'MINT_TO_ZERO_ADDR');
 
     uint256 preTotalShares = totalShares;
@@ -165,7 +166,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       preTotalShares,
       totalShares,
       preRecipientShares,
-      shares[_recipient]
+      shares[_recipient],
+      isRewards
     );
   }
 
@@ -214,7 +216,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 preDelegatedShares,
     uint256 postDelegatedShares,
     uint256 preTotalDelegatedShares,
-    uint256 postTotalDelegatedShares
+    uint256 postTotalDelegatedShares,
+    bool isRewards
   );
 
   event BurnDelegatedShares(
@@ -270,7 +273,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function _mintDelegatedShares(
     address _recipient,
     address _delegate,
-    uint256 _sharesAmount
+    uint256 _sharesAmount,
+    bool isRewards
   ) internal whenNotPaused {
     require(_recipient != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegate != address(0), 'MINT_TO_ZERO_ADDR');
@@ -301,7 +305,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       preDelegatedShares,
       delegatedShares[_delegate],
       preTotalDelegatedShares,
-      totalDelegatedShares
+      totalDelegatedShares,
+      isRewards
     );
   }
 
@@ -416,15 +421,15 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
     uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
 
-    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
-    _mintShares(operatorFeeRecipient, operatorFeeShares);
+    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares, true);
+    _mintShares(operatorFeeRecipient, operatorFeeShares, true);
 
     for (uint i = 0; i < communities.length; i++) {
       address community = communities[i];
       uint256 communityProportion = delegatedSharesOf(community);
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
-      _mintShares(community, communityShares);
-      _mintDelegatedShares(community, community, communityShares);
+      _mintShares(community, communityShares, true);
+      _mintDelegatedShares(community, community, communityShares, true);
     }
   }
 
@@ -458,8 +463,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(!_isCommunity(community), 'NON_COMMUNITY');
     require(!_isStakeTogetherFeeRecipient(community), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
     require(!_isOperatorFeeRecipient(community), 'IS_OPERATOR_FEE_RECIPIENT');
-    // TODO: check if this is necessary
-    // require(sharesOf(community) == 0, 'COMMUNITY_ALREADY_HAS_SHARES');
 
     communities.push(community);
     emit CommunityAdded(community);

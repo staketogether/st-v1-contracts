@@ -4,9 +4,10 @@ pragma solidity ^0.8.18;
 
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './StakeTogether.sol';
 
-contract STOracle is Ownable, Pausable {
+contract STOracle is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   uint256 public beaconBalance;
   uint256 public beaconLastReportBlock = 0;
@@ -85,7 +86,7 @@ contract STOracle is Ownable, Pausable {
     }
   }
 
-  function rebase(uint256 consensusBalance) internal {
+  function rebase(uint256 consensusBalance) internal nonReentrant {
     beaconBalance = consensusBalance;
     beaconLastReportBlock = reportNextBlock;
     reportNextBlock = block.number + reportFrequency;

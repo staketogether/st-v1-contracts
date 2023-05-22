@@ -22,16 +22,16 @@ contract StakeTogether is CETH {
 
     require(balance > 0, 'NON_ZERO_VALUE');
 
-    _mintShares(stakeTogether, balance);
-    _mintDelegatedShares(stakeTogether, stakeTogether, balance);
+    _mintShares(stakeTogether, balance, false);
+    _mintDelegatedShares(stakeTogether, stakeTogether, balance, false);
   }
 
   /*****************
    ** STAKE **
    *****************/
 
-  event Staked(address indexed account, uint256 amount);
-  event Unstaked(address indexed account, uint256 amount);
+  event Deposit(address indexed account, uint256 amount);
+  event Withdraw(address indexed account, uint256 amount);
   event Referral(address indexed account, address delegated, address indexed referral, uint256 amount);
 
   uint256 public immutable poolSize = 32 ether;
@@ -44,10 +44,10 @@ contract StakeTogether is CETH {
 
     uint256 sharesAmount = (msg.value * totalShares) / (getTotalPooledEther() - msg.value);
 
-    _mintShares(msg.sender, sharesAmount);
-    _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
+    _mintShares(msg.sender, sharesAmount, false);
+    _mintDelegatedShares(msg.sender, _delegated, sharesAmount, false);
 
-    emit Staked(msg.sender, msg.value);
+    emit Deposit(msg.sender, msg.value);
 
     if (referral != address(0)) {
       emit Referral(msg.sender, _delegated, referral, msg.value);
@@ -69,7 +69,7 @@ contract StakeTogether is CETH {
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
 
-    emit Unstaked(msg.sender, _amount);
+    emit Withdraw(msg.sender, _amount);
 
     payable(msg.sender).transfer(_amount);
   }
