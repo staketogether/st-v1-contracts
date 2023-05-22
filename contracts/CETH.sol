@@ -443,8 +443,12 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event CommunityAdded(address community);
   event CommunityRemoved(address community);
 
-  address[] public communities;
+  address[] private communities;
   bool public requireOwner = true;
+
+  function getCommunities() public view returns (address[] memory) {
+    return communities;
+  }
 
   function addCommunity(address community) external {
     if (requireOwner) {
