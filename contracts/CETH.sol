@@ -7,9 +7,13 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import 'hardhat/console.sol';
 
 abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
+  using Math for uint256;
+
   mapping(address => uint256) private shares;
   uint256 public totalShares = 0;
   mapping(address => mapping(address => uint256)) private allowances;
@@ -42,27 +46,23 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function totalSupply() public view override returns (uint256) {
-    return _getTotalPooledEther();
-  }
-
-  function getTotalPooledEther() public view returns (uint256) {
-    return _getTotalPooledEther();
+    return getTotalPooledEther();
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return getPooledEthByShares(_sharesOf(_account));
+    return getPooledEthByShares(sharesOf(_account));
   }
 
   function sharesOf(address _account) public view returns (uint256) {
-    return _sharesOf(_account);
+    return shares[_account];
   }
 
   function getSharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return (_ethAmount * totalShares) / _getTotalPooledEther();
+    return Math.mulDiv(_ethAmount, totalShares, getTotalPooledEther());
   }
 
   function getPooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return (_sharesAmount * _getTotalPooledEther()) / totalShares;
+    return Math.mulDiv(_sharesAmount, getTotalPooledEther(), totalShares);
   }
 
   function transfer(address _recipient, uint256 _amount) public override returns (bool) {
@@ -121,11 +121,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return true;
   }
 
-  function _getTotalPooledEther() internal view virtual returns (uint256);
-
-  function _sharesOf(address _account) internal view returns (uint256) {
-    return shares[_account];
-  }
+  function getTotalPooledEther() public view virtual returns (uint256);
 
   function _transfer(address _sender, address _recipient, uint256 _amount) internal override {
     uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
@@ -405,11 +401,14 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     if (_postClBalance > _preClBalance) {
       uint256 rewards = _postClBalance - _preClBalance;
 
-      uint256 sharesToMint = (rewards * totalShares) / (_getTotalPooledEther() - rewards);
+      uint256 sharesToMint = Math.mulDiv(rewards, totalShares, getTotalPooledEther() - rewards);
 
-      uint256 stakeTogetherFeeShares = (sharesToMint * stakeTogetherFee) / basisPoints;
-      uint256 operatorFeeShares = (sharesToMint * operatorFee) / basisPoints;
-      uint256 communityFeeShares = (sharesToMint * communityFee) / basisPoints;
+      uint256 stakeTogetherFeeShares = Math.mulDiv(sharesToMint, stakeTogetherFee, basisPoints);
+      uint256 operatorFeeShares = Math.mulDiv(sharesToMint, operatorFee, basisPoints);
+      uint256 communityFeeShares = Math.mulDiv(sharesToMint, communityFee, basisPoints);
+
+      console.log('StakeTogetherFeeShares\t', stakeTogetherFeeShares);
+      console.log('OperatorFeeShares\t', operatorFeeShares);
 
       _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
       _mintShares(operatorFeeRecipient, operatorFeeShares);
@@ -417,7 +416,14 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       for (uint i = 0; i < communities.length; i++) {
         address community = communities[i];
         uint256 communityProportion = delegatedSharesOf(community);
-        uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
+
+        uint256 communityShares = Math.mulDiv(
+          communityFeeShares,
+          communityProportion,
+          totalDelegatedShares
+        );
+
+        console.log('CommunityShares\t\t', communityShares);
         _mintShares(community, communityShares);
         _mintDelegatedShares(community, community, communityShares);
       }

@@ -36,7 +36,7 @@ export async function defaultFixture() {
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
     .deploy(await STOracle.getAddress(), await STValidator.getAddress(), {
-      value: ethers.parseEther('1') // Todo: Evalueate if need to 1e18
+      value: 1n
     })
 
   await StakeTogether.setStakeTogetherFeeRecipient(owner.address)

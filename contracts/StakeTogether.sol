@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
+import '@openzeppelin/contracts/utils/math/Math.sol';
 import './CETH.sol';
 import './STOracle.sol';
 import './STValidator.sol';
@@ -10,6 +11,7 @@ import 'hardhat/console.sol';
 contract StakeTogether is CETH {
   STOracle public immutable stOracle;
   STValidator public immutable stValidator;
+  using Math for uint256;
 
   constructor(address _stOracle, address _stValidator) payable {
     stOracle = STOracle(_stOracle);
@@ -43,22 +45,22 @@ contract StakeTogether is CETH {
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minAmount, 'NON_MIN_AMOUNT');
 
-    console.log('Pre totalPooledEther', _getTotalPooledEther());
-    console.log('Pre TotalShares', totalShares);
+    console.log('\n\nSTAKE\n');
+    console.log('Pre totalPooledEther\t', getTotalPooledEther());
+    console.log('Pre TotalShares\t\t', totalShares);
 
-    // uint256 sharesAmount = getSharesByPooledEth(msg.value);
-    uint256 sharesAmount = (msg.value * totalShares) / (_getTotalPooledEther() - msg.value);
+    uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, getTotalPooledEther() - msg.value);
 
-    console.log('SharesAmount', sharesAmount);
+    console.log('SharesAmount\t\t', sharesAmount);
 
     _mintShares(msg.sender, sharesAmount);
     _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
 
-    console.log('Pos TotalShares', totalShares);
+    console.log('Pos TotalShares\t\t', totalShares);
 
-    console.log('msg.value', msg.value);
-    console.log('shares_value', getPooledEthByShares(sharesAmount));
-    console.log('Pos totalPooledEther', _getTotalPooledEther());
+    console.log('msg.value\t\t', msg.value);
+    console.log('shares_value\t\t', getPooledEthByShares(sharesAmount));
+    console.log('Pos totalPooledEther\t', getTotalPooledEther());
 
     console.log('\n\n');
 
@@ -79,14 +81,14 @@ contract StakeTogether is CETH {
 
     require(_amount <= userBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
-    uint256 sharesToBurn = (_amount * _sharesOf(msg.sender)) / userBalance;
+    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), userBalance);
 
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
 
-    payable(msg.sender).transfer(_amount);
-
     emit Unstaked(msg.sender, _amount);
+
+    payable(msg.sender).transfer(_amount);
   }
 
   function setMinimumStakeAmount(uint256 amount) external onlyOwner {
@@ -94,18 +96,14 @@ contract StakeTogether is CETH {
   }
 
   function getPoolBalance() public view returns (uint256) {
-    return _getPoolBalance();
-  }
-
-  function _getPoolBalance() internal view returns (uint256) {
     return address(this).balance - withdrawalsBuffer;
   }
 
-  function _getTotalPooledEther() internal view override returns (uint256) {
+  function getTotalPooledEther() public view override returns (uint256) {
     return (clBalance + address(this).balance) - withdrawalsBuffer;
   }
 
-  function _getTotalEtherSupply() internal view returns (uint256) {
+  function getTotalEtherSupply() public view returns (uint256) {
     return clBalance + address(this).balance + withdrawalsBuffer;
   }
 
@@ -166,7 +164,7 @@ contract StakeTogether is CETH {
     bytes calldata signature,
     bytes32 deposit_data_root
   ) external onlyOwner nonReentrant {
-    require(_getPoolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+    require(getPoolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
     stValidator.createValidator{ value: poolSize }(pubkey, signature, deposit_data_root);
   }
 }

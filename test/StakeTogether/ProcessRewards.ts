@@ -39,44 +39,45 @@ describe('StakeTogether: Process Rewards', function () {
     let balanceOperator = await StakeTogether.balanceOf(user9.address)
     let sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-    let balanceDelegated = await StakeTogether.balanceOf(user2.address)
-    let sharesDelegated = await StakeTogether.sharesOf(user2.address)
+    let balanceCommunity = await StakeTogether.balanceOf(user2.address)
+    let sharesCommunity = await StakeTogether.sharesOf(user2.address)
     let delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
 
-    // console.log('---------------------------------------------')
-    // console.log('balanceUser\t\t', balanceUser.toString())
-    // console.log('balanceST\t\t', balanceST.toString())
-    // console.log('balanceOperator\t\t', balanceOperator.toString())
-    // console.log('balanceDelegated\t', balanceDelegated.toString())
-    // console.log('totalPooledEther\t', totalPooledEther.toString())
-    // console.log('totalBalances\t\t', balanceUser + balanceST + balanceDelegated)
-    // console.log(
-    //   'loss\t\t\t',
-    //   totalPooledEther - (balanceUser + balanceST + balanceOperator + balanceDelegated)
-    // )
-    // console.log('---------------------------------------------')
+    console.log('---------------------------------------------')
+    console.log('balanceUser\t\t', balanceUser.toString())
+    console.log('balanceST\t\t', balanceST.toString())
+    console.log('balanceOperator\t\t', balanceOperator.toString())
+    console.log('balanceCommunity\t', balanceCommunity.toString())
+    console.log('totalPooledEther\t', totalPooledEther.toString())
+    console.log('totalBalances\t\t', initialDeposit + balanceUser + balanceST + balanceCommunity)
+    console.log(
+      'loss\t\t\t',
+      totalPooledEther - (initialDeposit + balanceUser + balanceST + balanceOperator + balanceCommunity)
+    )
+    console.log('---------------------------------------------\n\n')
 
-    // expect(totalPooledEther).to.eq(stakeAmount + 1n)
-    // expect(totalShares).to.eq(stakeAmount + 1n)
-    // expect(totalSupply).to.eq(stakeAmount + 1n)
+    expect(totalPooledEther).to.eq(initialDeposit + stakeAmount)
+    expect(totalShares).to.eq(initialDeposit + stakeAmount)
+    expect(totalSupply).to.eq(initialDeposit + stakeAmount)
 
-    // expect(balanceUser).to.eq(stakeAmount)
-    // expect(sharesUser).to.eq(stakeAmount)
+    expect(balanceUser).to.eq(stakeAmount)
+    expect(sharesUser).to.eq(stakeAmount)
 
-    // expect(balanceST).to.eq(0n)
-    // expect(sharesST).to.eq(0n)
+    expect(balanceST).to.eq(0n)
+    expect(sharesST).to.eq(0n)
 
-    // expect(balanceOperator).to.eq(0n)
-    // expect(sharesOperator).to.eq(0n)
+    expect(balanceOperator).to.eq(0n)
+    expect(sharesOperator).to.eq(0n)
 
-    // expect(balanceDelegated).to.eq(0n)
-    // expect(sharesDelegated).to.eq(0n)
+    expect(balanceCommunity).to.eq(0n)
+    expect(sharesCommunity).to.eq(0n)
 
     // rebase earn
 
     await blockTimeSkip()
 
     const beaconBalanceEarn = ethers.parseEther('1')
+    console.log('\nEARN\t\t\t', beaconBalanceEarn.toString(), '\n')
 
     let blockNumber = await ethers.provider.getBlockNumber()
     expect(blockNumber).to.equal(5774)
@@ -86,10 +87,10 @@ describe('StakeTogether: Process Rewards', function () {
     await connect(STOracle, user1).report(reportNextBlock, beaconBalanceEarn)
     await connect(STOracle, user2).report(reportNextBlock, beaconBalanceEarn)
 
-    const stakeAmount2 = ethers.parseEther('1')
+    const stakeAmount3 = ethers.parseEther('1')
 
     await connect(StakeTogether, user3).stake(user4, nullAddress, {
-      value: stakeAmount2
+      value: stakeAmount3
     })
 
     totalPooledEther = await StakeTogether.getTotalPooledEther()
@@ -108,48 +109,57 @@ describe('StakeTogether: Process Rewards', function () {
     balanceOperator = await StakeTogether.balanceOf(user9.address)
     sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-    balanceDelegated = await StakeTogether.balanceOf(user2.address)
-    sharesDelegated = await StakeTogether.sharesOf(user2.address)
+    balanceCommunity = await StakeTogether.balanceOf(user2.address)
+    sharesCommunity = await StakeTogether.sharesOf(user2.address)
+
     delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+    let delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
 
-    // console.log('---------------------------------------------')
-    // console.log('balanceUser\t\t', balanceUser.toString())
-    // console.log('balanceST\t\t', balanceST.toString())
-    // console.log('balanceOperator\t\t', balanceOperator.toString())
-    // console.log('balanceDelegated\t', balanceDelegated.toString())
-    // console.log('totalPooledEther\t', totalPooledEther.toString())
-    // console.log('totalBalances\t\t', balanceUser + balanceST + balanceDelegated)
-    // console.log(
-    //   'loss\t\t\t',
-    //   totalPooledEther - (balanceUser + balanceST + balanceOperator + balanceDelegated)
-    // )
-    // console.log('---------------------------------------------')
+    console.log('---------------------------------------------')
+    console.log('balanceUser\t\t', balanceUser.toString())
+    console.log('balanceUser3\t\t', balanceUser3.toString())
+    console.log('balanceST\t\t', balanceST.toString())
+    console.log('balanceOperator\t\t', balanceOperator.toString())
+    console.log('balanceCommunity\t', balanceCommunity.toString())
+    console.log('totalPooledEther\t', totalPooledEther.toString())
+    console.log(
+      'totalBalances\t\t',
+      initialDeposit + balanceUser + balanceUser3 + balanceST + balanceOperator + balanceCommunity
+    )
+    console.log(
+      'loss\t\t\t',
+      totalPooledEther -
+        (initialDeposit + balanceUser + balanceUser3 + balanceST + balanceOperator + balanceCommunity)
+    )
+    console.log('---------------------------------------------\n\n')
 
-    expect(totalPooledEther).to.eq(initialDeposit + stakeAmount + beaconBalanceEarn + stakeAmount2)
-    // expect(totalShares).to.eq(1047120418848167536n)
-    expect(totalSupply).to.eq(initialDeposit + stakeAmount + beaconBalanceEarn + stakeAmount2)
+    expect(totalPooledEther).to.eq(initialDeposit + stakeAmount + beaconBalanceEarn + stakeAmount3)
+    expect(totalShares).to.eq(1634999999999999999n)
+    expect(totalSupply).to.eq(initialDeposit + stakeAmount + beaconBalanceEarn + stakeAmount3)
 
-    expect(balanceUser).to.eq(1445783132530120482n)
+    expect(balanceUser).to.eq(1834862385321100919n)
     expect(sharesUser).to.eq(stakeAmount)
 
-    // expect(balanceST).to.eq(29999999999999998n)
-    // expect(sharesST).to.eq(15706806282722512n)
-
-    // expect(balanceOperator).to.eq(29999999999999998n)
-    // expect(sharesOperator).to.eq(15706806282722512n)
-
-    // expect(balanceDelegated).to.eq(29999999999999996n)
-    // expect(sharesDelegated).to.eq(15706806282722511n)
-    // expect(delegationSharesDelegated).to.eq(stakeAmount)
-
     expect(balanceUser3).to.eq(999999999999999999n)
-    expect(sharesUser3).to.eq(691666666666666666n)
+    expect(sharesUser3).to.eq(544999999999999999n)
+
+    expect(balanceST).to.eq(55045871559633027n)
+    expect(sharesST).to.eq(30000000000000000n)
+
+    expect(balanceOperator).to.eq(55045871559633027n)
+    expect(sharesOperator).to.eq(30000000000000000n)
+
+    expect(balanceCommunity).to.eq(55045871559633025n)
+    expect(sharesCommunity).to.eq(29999999999999999n)
+    expect(delegationSharesDelegated).to.eq(1029999999999999999n)
+    expect(delegationSharesDelegated4).to.eq(544999999999999999n)
 
     //  rebase loss
 
     await blockTimeSkip()
 
     const beaconBalanceLoss = 1n
+    console.log('\nLOSS\t\t\t', beaconBalanceLoss.toString(), '\n')
 
     blockNumber = await ethers.provider.getBlockNumber()
     expect(blockNumber).to.equal(11537)
@@ -175,48 +185,56 @@ describe('StakeTogether: Process Rewards', function () {
     balanceOperator = await StakeTogether.balanceOf(user9.address)
     sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-    balanceDelegated = await StakeTogether.balanceOf(user2.address)
-    sharesDelegated = await StakeTogether.sharesOf(user2.address)
+    balanceCommunity = await StakeTogether.balanceOf(user2.address)
+    sharesCommunity = await StakeTogether.sharesOf(user2.address)
     delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+    delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
 
-    // console.log('---------------------------------------------')
-    // console.log('balanceUser\t\t', balanceUser.toString())
-    // console.log('balanceST\t\t', balanceST.toString())
-    // console.log('balanceOperator\t\t', balanceOperator.toString())
-    // console.log('balanceDelegated\t', balanceDelegated.toString())
-    // console.log('totalPooledEther\t', totalPooledEther.toString())
-    // console.log('totalBalances\t\t', balanceUser + balanceST + balanceDelegated)
-    // console.log(
-    //   'loss\t\t\t',
-    //   totalPooledEther - (balanceUser + balanceST + balanceOperator + balanceDelegated)
-    // )
-    // console.log('---------------------------------------------')
+    console.log('---------------------------------------------')
+    console.log('balanceUser\t\t', balanceUser.toString())
+    console.log('balanceUser3\t\t', balanceUser3.toString())
+    console.log('balanceST\t\t', balanceST.toString())
+    console.log('balanceOperator\t\t', balanceOperator.toString())
+    console.log('balanceCommunity\t', balanceCommunity.toString())
+    console.log('totalPooledEther\t', totalPooledEther.toString())
+    console.log(
+      'totalBalances\t\t',
+      initialDeposit + balanceUser + balanceUser3 + balanceST + balanceOperator + balanceCommunity
+    )
+    console.log(
+      'loss\t\t\t',
+      totalPooledEther -
+        (initialDeposit + balanceUser + balanceUser3 + balanceST + balanceOperator + balanceCommunity)
+    )
+    console.log('---------------------------------------------\n\n')
 
-    expect(totalPooledEther).to.eq(initialDeposit + stakeAmount + stakeAmount2 + beaconBalanceLoss)
-    // expect(totalShares).to.eq(1047120418848167536n)
-    expect(totalSupply).to.eq(initialDeposit + stakeAmount + stakeAmount2 + beaconBalanceLoss)
+    expect(totalPooledEther).to.eq(initialDeposit + stakeAmount + stakeAmount3 + beaconBalanceLoss)
+    expect(totalShares).to.eq(1634999999999999999n)
+    expect(totalSupply).to.eq(initialDeposit + stakeAmount + stakeAmount3 + beaconBalanceLoss)
 
-    expect(balanceUser).to.eq(1084337349397590362n)
+    expect(balanceUser).to.eq(1223241590214067280n)
     expect(sharesUser).to.eq(stakeAmount)
 
-    expect(balanceUser3).to.eq(749999999999999999n)
-    // expect(sharesUser3).to.eq(stakeAmount)
+    expect(balanceUser3).to.eq(666666666666666666n)
+    expect(sharesUser3).to.eq(544999999999999999n)
 
-    // expect(balanceST).to.eq(22499999999999998n)
-    // expect(sharesST).to.eq(15706806282722512n)
+    expect(balanceST).to.eq(36697247706422018n)
+    expect(sharesST).to.eq(30000000000000000n)
 
-    // expect(balanceOperator).to.eq(22499999999999998n)
-    // expect(sharesOperator).to.eq(15706806282722512n)
+    expect(balanceOperator).to.eq(36697247706422018n)
+    expect(sharesOperator).to.eq(30000000000000000n)
 
-    // expect(balanceDelegated).to.eq(22499999999999997n)
-    // expect(sharesDelegated).to.eq(15706806282722511n)
-    // expect(delegationSharesDelegated).to.eq(stakeAmount)
+    expect(balanceCommunity).to.eq(36697247706422017n)
+    expect(sharesCommunity).to.eq(29999999999999999n)
+    expect(delegationSharesDelegated).to.eq(1029999999999999999n)
+    expect(delegationSharesDelegated4).to.eq(544999999999999999n)
 
     // rebase earn2
 
     await blockTimeSkip()
 
     const beaconBalanceEarn2 = ethers.parseEther('2')
+    console.log('\nEARN\t\t\t', beaconBalanceEarn2.toString(), '\n')
 
     blockNumber = await ethers.provider.getBlockNumber()
     expect(blockNumber).to.equal(17299)
@@ -242,41 +260,50 @@ describe('StakeTogether: Process Rewards', function () {
     balanceOperator = await StakeTogether.balanceOf(user9.address)
     sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-    balanceDelegated = await StakeTogether.balanceOf(user2.address)
-    sharesDelegated = await StakeTogether.sharesOf(user2.address)
-    delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+    balanceCommunity = await StakeTogether.balanceOf(user2.address)
+    sharesCommunity = await StakeTogether.sharesOf(user2.address)
 
-    // console.log('---------------------------------------------')
-    // console.log('balanceUser\t\t', balanceUser.toString())
-    // console.log('balanceST\t\t', balanceST.toString())
-    // console.log('balanceOperator\t\t', balanceOperator.toString())
-    // console.log('balanceDelegated\t', balanceDelegated.toString())
-    // console.log('totalPooledEther\t', totalPooledEther.toString())
-    // console.log('totalBalances\t\t', balanceUser + balanceST + balanceDelegated)
-    // console.log(
-    //   'loss\t\t\t',
-    //   totalPooledEther - (balanceUser + balanceST + balanceOperator + balanceDelegated)
-    // )
-    // console.log('---------------------------------------------')
+    delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+    delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
+
+    console.log('---------------------------------------------')
+    console.log('balanceUser\t\t', balanceUser.toString())
+    console.log('balanceUser3\t\t', balanceUser3.toString())
+    console.log('balanceST\t\t', balanceST.toString())
+    console.log('balanceOperator\t\t', balanceOperator.toString())
+    console.log('balanceCommunity\t', balanceCommunity.toString())
+    console.log('totalPooledEther\t', totalPooledEther.toString())
+    console.log(
+      'totalBalances\t\t',
+      initialDeposit + balanceUser + balanceUser3 + balanceST + balanceOperator + balanceCommunity
+    )
+    console.log(
+      'loss\t\t\t',
+      totalPooledEther -
+        (initialDeposit + balanceUser + balanceUser3 + balanceST + balanceOperator + balanceCommunity)
+    )
+    console.log('---------------------------------------------\n\n')
 
     expect(totalPooledEther).to.eq(stakeAmount + initialDeposit + beaconBalanceEarn + beaconBalanceEarn2)
-    // expect(totalShares).to.eq(1096461171568761813n)
+    expect(totalShares).to.eq(1781811223006197836n)
     expect(totalSupply).to.eq(stakeAmount + initialDeposit + beaconBalanceEarn + beaconBalanceEarn2)
 
-    expect(balanceUser).to.eq(1716964724240425868n)
+    expect(balanceUser).to.eq(2244906726567456600n)
     expect(sharesUser).to.eq(stakeAmount)
 
-    expect(balanceUser3).to.eq(1187567267599627891n)
-    // expect(sharesUser3).to.eq(stakeAmount)
+    expect(balanceUser3).to.eq(1223474165979263845n)
+    expect(sharesUser3).to.eq(544999999999999999n)
 
-    // expect(balanceST).to.eq(87974999999999994n)
-    // expect(sharesST).to.eq(32153723856253938n)
+    expect(balanceST).to.eq(177459876735157442n)
+    expect(sharesST).to.eq(79049999999999999n)
 
-    // expect(balanceOperator).to.eq(87974999999999994n)
-    // expect(sharesOperator).to.eq(32153723856253938n)
+    expect(balanceOperator).to.eq(177459876735157442n)
+    expect(sharesOperator).to.eq(79049999999999999n)
 
-    // expect(balanceDelegated).to.eq(87974999999999988n)
-    // expect(sharesDelegated).to.eq(32153723856253936n)
-    // expect(delegationSharesDelegated).to.eq(stakeAmount)
+    expect(balanceCommunity).to.eq(139357395566088936n)
+    expect(sharesCommunity).to.eq(62077142857142855n)
+
+    expect(delegationSharesDelegated).to.eq(1062077142857142855n)
+    expect(delegationSharesDelegated4).to.eq(561634080149054982n)
   })
 })
