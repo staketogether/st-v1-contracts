@@ -41,6 +41,9 @@ contract StakeTogether is CETH {
     if (referral != address(0)) {
       emit Referral(msg.sender, _delegated, referral, msg.value);
     }
+
+    // Todo: temp remove before audit
+    tempUserBalanceHistory[msg.sender] += msg.value;
   }
 
   function unstake(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
@@ -61,6 +64,9 @@ contract StakeTogether is CETH {
     emit Withdraw(msg.sender, _amount);
 
     payable(msg.sender).transfer(_amount);
+
+    // Todo: temp remove before audit
+    tempUserBalanceHistory[msg.sender] -= _amount;
   }
 
   function setMinimumStakeAmount(uint256 amount) external onlyOwner {

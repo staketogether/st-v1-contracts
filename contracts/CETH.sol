@@ -332,6 +332,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public operatorFee = 0.03 ether;
   uint256 public communityFee = 0.03 ether;
 
+  // Todo: Remove rewards temp var before audit
+  mapping(address => uint256) internal tempUserBalanceHistory;
+  mapping(address => uint256) internal tempCommunityRewards;
+
   event ProcessRewards(
     uint256 preClBalance,
     uint256 posClBalance,
@@ -369,6 +373,16 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function setClBalance(uint256 _balance) external virtual {}
 
+  // Todo: temp remove before audit
+  function getTempUserRewards(address _account) external view returns (uint256) {
+    return getPooledEthByShares(sharesOf(_account)) - tempUserBalanceHistory[_account];
+  }
+
+  // Todo: temp remove before audit
+  function getTempCommunitySharesRewards(address _account) external view returns (uint256) {
+    return getPooledEthByShares(tempCommunityRewards[_account]);
+  }
+
   function _processRewards(uint256 _preClBalance, uint256 _posClBalance) internal {
     if (_posClBalance <= _preClBalance) {
       return;
@@ -400,6 +414,9 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
       _mintShares(community, communityShares);
       _mintDelegatedShares(community, community, communityShares);
+
+      // Todo: remove before audit
+      tempCommunityRewards[community] += communityShares;
     }
 
     emit ProcessRewards(
