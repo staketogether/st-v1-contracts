@@ -13,17 +13,6 @@ contract StakeTogether is CETH {
   constructor(address _stOracle, address _stValidator) payable {
     stOracle = STOracle(_stOracle);
     stValidator = STValidator(_stValidator);
-    _bootstrap();
-  }
-
-  function _bootstrap() internal {
-    address stakeTogether = address(this);
-    uint256 balance = stakeTogether.balance;
-
-    require(balance > 0, 'NON_ZERO_VALUE');
-
-    _mintShares(stakeTogether, balance, false);
-    _mintDelegatedShares(stakeTogether, stakeTogether, balance, false);
   }
 
   /*****************
@@ -44,8 +33,8 @@ contract StakeTogether is CETH {
 
     uint256 sharesAmount = (msg.value * totalShares) / (getTotalPooledEther() - msg.value);
 
-    _mintShares(msg.sender, sharesAmount, false);
-    _mintDelegatedShares(msg.sender, _delegated, sharesAmount, false);
+    _mintShares(msg.sender, sharesAmount);
+    _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
 
     emit Deposit(msg.sender, msg.value);
 

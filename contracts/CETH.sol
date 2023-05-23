@@ -11,20 +11,15 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import 'hardhat/console.sol';
 
 abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
+  constructor() ERC20('Community Ether', 'CETH') ERC20Permit('Community Ether') {
+    _bootstrap();
+  }
+
   mapping(address => uint256) private shares;
   uint256 public totalShares = 0;
   mapping(address => mapping(address => uint256)) private allowances;
 
-  event MintShares(
-    address indexed recipient,
-    uint256 sharesAmount,
-    uint256 preTotalShares,
-    uint256 postTotalShares,
-    uint256 preRecipientShares,
-    uint256 postRecipientShares,
-    bool isRewards
-  );
-  event BurnShares(
+  event SharesBurnt(
     address indexed account,
     uint256 preRebaseTokenAmount,
     uint256 postRebaseTokenAmount,
@@ -33,7 +28,15 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   event TransferShares(address indexed from, address indexed to, uint256 sharesValue);
 
-  constructor() ERC20('Community Ether', 'CETH') ERC20Permit('Community Ether') {}
+  function _bootstrap() internal {
+    address stakeTogether = address(this);
+    uint256 balance = stakeTogether.balance;
+
+    require(balance > 0, 'NON_ZERO_VALUE');
+
+    _mintShares(stakeTogether, balance);
+    _mintDelegatedShares(stakeTogether, stakeTogether, balance);
+  }
 
   function pause() public onlyOwner {
     _pause();
@@ -63,38 +66,32 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return (_sharesAmount * getTotalPooledEther()) / totalShares;
   }
 
-  function transfer(address _recipient, uint256 _amount) public override returns (bool) {
-    _transfer(msg.sender, _recipient, _amount);
+  function transfer(address _to, uint256 _amount) public override returns (bool) {
+    _transfer(msg.sender, _to, _amount);
     return true;
   }
 
-  function transferFrom(
-    address _sender,
-    address _recipient,
-    uint256 _amount
-  ) public override returns (bool) {
-    _spendAllowance(_sender, msg.sender, _amount);
-    _transfer(_sender, _recipient, _amount);
+  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
 
     return true;
   }
 
-  function transferShares(address _recipient, uint256 _sharesAmount) public returns (uint256) {
-    _transferShares(msg.sender, _recipient, _sharesAmount);
+  function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
+    _transferShares(msg.sender, _to, _sharesAmount);
     uint256 tokensAmount = getPooledEthByShares(_sharesAmount);
-    _emitTransferEvents(msg.sender, _recipient, tokensAmount, _sharesAmount);
     return tokensAmount;
   }
 
   function transferSharesFrom(
-    address _sender,
-    address _recipient,
+    address _from,
+    address _to,
     uint256 _sharesAmount
   ) external returns (uint256) {
     uint256 tokensAmount = getPooledEthByShares(_sharesAmount);
-    _spendAllowance(_sender, msg.sender, tokensAmount);
-    _transferShares(_sender, _recipient, _sharesAmount);
-    _emitTransferEvents(_sender, _recipient, tokensAmount, _sharesAmount);
+    _spendAllowance(_from, msg.sender, tokensAmount);
+    _transferShares(_from, _to, _sharesAmount);
     return tokensAmount;
   }
 
@@ -121,26 +118,24 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function getTotalPooledEther() public view virtual returns (uint256);
 
-  function _transfer(address _sender, address _recipient, uint256 _amount) internal override {
+  function _transfer(address _from, address _to, uint256 _amount) internal override {
     uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
-    _transferShares(_sender, _recipient, _sharesToTransfer);
-    _emitTransferEvents(_sender, _recipient, _amount, _sharesToTransfer);
+    _transferShares(_from, _to, _sharesToTransfer);
+    emit Transfer(_from, _to, _amount);
   }
 
-  function _transferShares(
-    address _sender,
-    address _recipient,
-    uint256 _sharesAmount
-  ) internal whenNotPaused {
-    require(_sender != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_recipient != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_recipient != address(this), 'TRANSFER_TO_STETH_CONTRACT');
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
+    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
+    require(_to != address(this), 'TRANSFER_TO_STETH_CONTRACT');
 
-    uint256 currentSenderShares = shares[_sender];
+    uint256 currentSenderShares = shares[_from];
     require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
 
-    shares[_sender] = currentSenderShares - _sharesAmount;
-    shares[_recipient] = shares[_recipient] + _sharesAmount;
+    shares[_from] = currentSenderShares - _sharesAmount;
+    shares[_to] = shares[_to] + _sharesAmount;
+
+    emit TransferShares(_from, _to, _sharesAmount);
   }
 
   function _approve(address _owner, address _spender, uint256 _amount) internal override {
@@ -151,24 +146,13 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit Approval(_owner, _spender, _amount);
   }
 
-  function _mintShares(address _recipient, uint256 _sharesAmount, bool isRewards) internal whenNotPaused {
-    require(_recipient != address(0), 'MINT_TO_ZERO_ADDR');
-
-    uint256 preTotalShares = totalShares;
-    uint256 preRecipientShares = shares[_recipient];
+  function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
+    require(_to != address(0), 'MINT_TO_ZERO_ADDR');
 
     totalShares += _sharesAmount;
-    shares[_recipient] = shares[_recipient] + _sharesAmount;
+    shares[_to] = shares[_to] + _sharesAmount;
 
-    emit MintShares(
-      _recipient,
-      _sharesAmount,
-      preTotalShares,
-      totalShares,
-      preRecipientShares,
-      shares[_recipient],
-      isRewards
-    );
+    emit TransferShares(address(0), _to, _sharesAmount);
   }
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
@@ -184,7 +168,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     uint256 postRebaseTokenAmount = getPooledEthByShares(_sharesAmount);
 
-    emit BurnShares(_account, preRebaseTokenAmount, postRebaseTokenAmount, _sharesAmount);
+    emit SharesBurnt(_account, preRebaseTokenAmount, postRebaseTokenAmount, _sharesAmount);
   }
 
   function _spendAllowance(address _owner, address _spender, uint256 _amount) internal override {
@@ -195,30 +179,9 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     }
   }
 
-  function _emitTransferEvents(
-    address _from,
-    address _to,
-    uint _tokenAmount,
-    uint256 _sharesAmount
-  ) internal {
-    emit Transfer(_from, _to, _tokenAmount);
-    emit TransferShares(_from, _to, _sharesAmount);
-  }
-
   /*****************
    ** DELEGATIONS **
    *****************/
-
-  event MintDelegatedShares(
-    address indexed recipient,
-    address indexed delegate,
-    uint256 sharesAmount,
-    uint256 preDelegatedShares,
-    uint256 postDelegatedShares,
-    uint256 preTotalDelegatedShares,
-    uint256 postTotalDelegatedShares,
-    bool isRewards
-  );
 
   event BurnDelegatedShares(
     address indexed from,
@@ -228,6 +191,13 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 postDelegatedShares,
     uint256 preTotalDelegatedShares,
     uint256 postTotalDelegatedShares
+  );
+
+  event TransferDelegatedShares(
+    address indexed from,
+    address indexed to,
+    address indexed delegate,
+    uint256 sharesValue
   );
 
   uint256 public maxDelegations = 128;
@@ -271,43 +241,30 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function _mintDelegatedShares(
-    address _recipient,
+    address _to,
     address _delegate,
-    uint256 _sharesAmount,
-    bool isRewards
+    uint256 _sharesAmount
   ) internal whenNotPaused {
-    require(_recipient != address(0), 'MINT_TO_ZERO_ADDR');
+    require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegate != address(0), 'MINT_TO_ZERO_ADDR');
     require(delegators[_delegate].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
     require(_isCommunity(_delegate), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
 
-    uint256 preDelegatedShares = delegatedShares[_delegate];
-    uint256 preTotalDelegatedShares = totalDelegatedShares;
-
     delegatedShares[_delegate] += _sharesAmount;
-    delegations[_delegate][_recipient] += _sharesAmount;
+    delegations[_delegate][_to] += _sharesAmount;
     totalDelegatedShares += _sharesAmount;
 
-    if (!alreadyDelegating[_recipient][_delegate]) {
-      delegators[_recipient].push(_delegate);
-      alreadyDelegating[_recipient][_delegate] = true;
+    if (!alreadyDelegating[_to][_delegate]) {
+      delegators[_to].push(_delegate);
+      alreadyDelegating[_to][_delegate] = true;
     }
 
-    if (!alreadyDelegated[_delegate][_recipient]) {
-      delegates[_delegate].push(_recipient);
-      alreadyDelegated[_delegate][_recipient] = true;
+    if (!alreadyDelegated[_delegate][_to]) {
+      delegates[_delegate].push(_to);
+      alreadyDelegated[_delegate][_to] = true;
     }
 
-    emit MintDelegatedShares(
-      _recipient,
-      _delegate,
-      _sharesAmount,
-      preDelegatedShares,
-      delegatedShares[_delegate],
-      preTotalDelegatedShares,
-      totalDelegatedShares,
-      isRewards
-    );
+    emit TransferDelegatedShares(address(0), _to, _delegate, _sharesAmount);
   }
 
   function _burnDelegatedShares(
@@ -375,14 +332,14 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public operatorFee = 0.03 ether;
   uint256 public communityFee = 0.03 ether;
 
-  function setStakeTogetherFeeRecipient(address _recipient) external onlyOwner {
-    require(_recipient != address(0), 'NON_ZERO_ADDR');
-    stakeTogetherFeeRecipient = _recipient;
+  function setStakeTogetherFeeRecipient(address _to) external onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    stakeTogetherFeeRecipient = _to;
   }
 
-  function setOperatorFeeRecipient(address _recipient) external onlyOwner {
-    require(_recipient != address(0), 'NON_ZERO_ADDR');
-    operatorFeeRecipient = _recipient;
+  function setOperatorFeeRecipient(address _to) external onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    operatorFeeRecipient = _to;
   }
 
   function setStakeTogetherFee(uint256 _fee) external onlyOwner {
@@ -421,15 +378,15 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
     uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
 
-    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares, true);
-    _mintShares(operatorFeeRecipient, operatorFeeShares, true);
+    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    _mintShares(operatorFeeRecipient, operatorFeeShares);
 
     for (uint i = 0; i < communities.length; i++) {
       address community = communities[i];
       uint256 communityProportion = delegatedSharesOf(community);
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
-      _mintShares(community, communityShares, true);
-      _mintDelegatedShares(community, community, communityShares, true);
+      _mintShares(community, communityShares);
+      _mintDelegatedShares(community, community, communityShares);
     }
   }
 
