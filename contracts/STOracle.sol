@@ -9,7 +9,9 @@ import './StakeTogether.sol';
 
 contract STOracle is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
+
   uint256 public beaconBalance;
+  uint256 public beaconValidators;
   uint256 public beaconLastReportBlock = 0;
 
   uint256 public reportFrequency = 5760;
@@ -17,7 +19,6 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportNextBlock = 5760;
 
   address[] public nodes;
-
   mapping(address => mapping(uint256 => uint256)) private nodeReports;
   mapping(uint256 => uint256) private reportCount;
   mapping(uint256 => uint256) private blockConsensus;
@@ -80,13 +81,13 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     if (maxCount >= reportQuorum) {
       blockConsensus[reportNextBlock] = consensusBalance;
       checkForNonConsensusReports(consensusBalance);
-      rebase(consensusBalance);
+      approveConsensus(consensusBalance);
     } else {
       emit ConsensusFail(reportNextBlock);
     }
   }
 
-  function rebase(uint256 consensusBalance) internal nonReentrant {
+  function approveConsensus(uint256 consensusBalance) internal nonReentrant {
     beaconBalance = consensusBalance;
     beaconLastReportBlock = reportNextBlock;
     reportNextBlock = block.number + reportFrequency;

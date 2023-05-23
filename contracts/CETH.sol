@@ -206,12 +206,12 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   mapping(address => mapping(address => uint256)) private delegations;
   mapping(address => address[]) private delegators;
-  mapping(address => address[]) private delegates;
+  mapping(address => address[]) private delegateds;
   mapping(address => mapping(address => bool)) private alreadyDelegating;
   mapping(address => mapping(address => bool)) private alreadyDelegated;
 
-  function delegationSharesOf(address _account, address _delegate) public view returns (uint256) {
-    return delegations[_account][_delegate];
+  function delegationSharesOf(address _account, address _delegated) public view returns (uint256) {
+    return delegations[_account][_delegated];
   }
 
   function delegatedSharesOf(address _account) public view returns (uint256) {
@@ -230,7 +230,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function getDelegatesOf(address _address) public view returns (address[] memory, uint256[] memory) {
-    address[] memory _delegatedAddresses = delegates[_address];
+    address[] memory _delegatedAddresses = delegateds[_address];
     uint256[] memory _delegatedShares = new uint256[](_delegatedAddresses.length);
 
     for (uint i = 0; i < _delegatedAddresses.length; i++) {
@@ -242,51 +242,51 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function _mintDelegatedShares(
     address _to,
-    address _delegate,
+    address _delegated,
     uint256 _sharesAmount
   ) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_delegate != address(0), 'MINT_TO_ZERO_ADDR');
-    require(delegators[_delegate].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
-    require(_isCommunity(_delegate), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
+    require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
+    require(delegators[_delegated].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+    require(_isCommunity(_delegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
 
-    delegatedShares[_delegate] += _sharesAmount;
-    delegations[_delegate][_to] += _sharesAmount;
+    delegatedShares[_delegated] += _sharesAmount;
+    delegations[_delegated][_to] += _sharesAmount;
     totalDelegatedShares += _sharesAmount;
 
-    if (!alreadyDelegating[_to][_delegate]) {
-      delegators[_to].push(_delegate);
-      alreadyDelegating[_to][_delegate] = true;
+    if (!alreadyDelegating[_to][_delegated]) {
+      delegators[_to].push(_delegated);
+      alreadyDelegating[_to][_delegated] = true;
     }
 
-    if (!alreadyDelegated[_delegate][_to]) {
-      delegates[_delegate].push(_to);
-      alreadyDelegated[_delegate][_to] = true;
+    if (!alreadyDelegated[_delegated][_to]) {
+      delegateds[_delegated].push(_to);
+      alreadyDelegated[_delegated][_to] = true;
     }
 
-    emit TransferDelegatedShares(address(0), _to, _delegate, _sharesAmount);
+    emit TransferDelegatedShares(address(0), _to, _delegated, _sharesAmount);
   }
 
   function _burnDelegatedShares(
     address _from,
-    address _delegate,
+    address _delegated,
     uint256 _sharesAmount
   ) internal whenNotPaused {
     require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_delegate != address(0), 'BURN_FROM_ZERO_ADDR');
+    require(_delegated != address(0), 'BURN_FROM_ZERO_ADDR');
 
-    uint256 preDelegatedShares = delegatedShares[_delegate];
+    uint256 preDelegatedShares = delegatedShares[_delegated];
     uint256 preTotalDelegatedShares = totalDelegatedShares;
 
-    delegatedShares[_delegate] -= _sharesAmount;
-    delegations[_delegate][_from] -= _sharesAmount;
+    delegatedShares[_delegated] -= _sharesAmount;
+    delegations[_delegated][_from] -= _sharesAmount;
     totalDelegatedShares -= _sharesAmount;
 
-    if (delegations[_delegate][_from] == 0) {
-      alreadyDelegating[_from][_delegate] = false;
+    if (delegations[_delegated][_from] == 0) {
+      alreadyDelegating[_from][_delegated] = false;
 
       for (uint i = 0; i < delegators[_from].length - 1; i++) {
-        if (delegators[_from][i] == _delegate) {
+        if (delegators[_from][i] == _delegated) {
           delegators[_from][i] = delegators[_from][delegators[_from].length - 1];
           break;
         }
@@ -294,24 +294,24 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       delegators[_from].pop();
     }
 
-    if (delegatedShares[_delegate] == 0) {
-      alreadyDelegated[_delegate][_from] = false;
+    if (delegatedShares[_delegated] == 0) {
+      alreadyDelegated[_delegated][_from] = false;
 
-      for (uint i = 0; i < delegates[_delegate].length - 1; i++) {
-        if (delegates[_delegate][i] == _from) {
-          delegates[_delegate][i] = delegates[_delegate][delegates[_delegate].length - 1];
+      for (uint i = 0; i < delegateds[_delegated].length - 1; i++) {
+        if (delegateds[_delegated][i] == _from) {
+          delegateds[_delegated][i] = delegateds[_delegated][delegateds[_delegated].length - 1];
           break;
         }
       }
-      delegates[_delegate].pop();
+      delegateds[_delegated].pop();
     }
 
     emit BurnDelegatedShares(
       _from,
-      _delegate,
+      _delegated,
       _sharesAmount,
       preDelegatedShares,
-      delegatedShares[_delegate],
+      delegatedShares[_delegated],
       preTotalDelegatedShares,
       totalDelegatedShares
     );
@@ -331,6 +331,19 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public stakeTogetherFee = 0.03 ether;
   uint256 public operatorFee = 0.03 ether;
   uint256 public communityFee = 0.03 ether;
+
+  event ProcessRewards(
+    uint256 preClBalance,
+    uint256 posClBalance,
+    uint256 rewards,
+    uint256 growthFactor,
+    uint256 stakeTogetherFee,
+    uint256 operatorFee,
+    uint256 communityFee,
+    uint256 stakeTogetherFeeShares,
+    uint256 operatorFeeShares,
+    uint256 communityFeeShares
+  );
 
   function setStakeTogetherFeeRecipient(address _to) external onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
@@ -388,6 +401,19 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       _mintShares(community, communityShares);
       _mintDelegatedShares(community, community, communityShares);
     }
+
+    emit ProcessRewards(
+      _preClBalance,
+      _posClBalance,
+      rewards,
+      growthFactor,
+      stakeTogetherFee,
+      operatorFee,
+      communityFee,
+      stakeTogetherFeeShares,
+      operatorFeeShares,
+      communityFeeShares
+    );
   }
 
   function _isStakeTogetherFeeRecipient(address account) internal view returns (bool) {
@@ -402,57 +428,49 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** COMMUNITIES **
    *****************/
 
-  event CommunityAdded(address community);
-  event CommunityRemoved(address community);
+  event CommunityAdded(address account);
+  event CommunityRemoved(address account);
 
   address[] private communities;
-  bool public requireOwner = true;
 
   function getCommunities() public view returns (address[] memory) {
     return communities;
   }
 
-  function addCommunity(address community) external {
-    if (requireOwner) {
-      require(msg.sender == owner(), 'NOT_OWNER');
-    }
-    require(community != address(0), 'ZERO_ADDR');
-    require(!_isCommunity(community), 'NON_COMMUNITY');
-    require(!_isStakeTogetherFeeRecipient(community), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
-    require(!_isOperatorFeeRecipient(community), 'IS_OPERATOR_FEE_RECIPIENT');
+  function addCommunity(address account) external onlyOwner {
+    require(account != address(0), 'ZERO_ADDR');
+    require(!_isCommunity(account), 'NON_COMMUNITY');
+    require(!_isStakeTogetherFeeRecipient(account), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
+    require(!_isOperatorFeeRecipient(account), 'IS_OPERATOR_FEE_RECIPIENT');
 
-    communities.push(community);
-    emit CommunityAdded(community);
+    communities.push(account);
+    emit CommunityAdded(account);
   }
 
-  function removeCommunity(address community) external onlyOwner {
-    require(_isCommunity(community), 'COMMUNITY_NOT_FOUND');
+  function removeCommunity(address account) external onlyOwner {
+    require(_isCommunity(account), 'COMMUNITY_NOT_FOUND');
 
     for (uint256 i = 0; i < communities.length; i++) {
-      if (communities[i] == community) {
+      if (communities[i] == account) {
         communities[i] = communities[communities.length - 1];
         communities.pop();
         break;
       }
     }
-    emit CommunityRemoved(community);
+    emit CommunityRemoved(account);
   }
 
-  function setRestrictOnlyOwner(bool _requireOwner) external onlyOwner {
-    requireOwner = _requireOwner;
+  function isCommunity(address account) external view returns (bool) {
+    return _isCommunity(account);
   }
 
-  function isCommunity(address community) external view returns (bool) {
-    return _isCommunity(community);
-  }
-
-  function _isCommunity(address community) internal view returns (bool) {
-    if (community == address(this)) {
+  function _isCommunity(address account) internal view returns (bool) {
+    if (account == address(this)) {
       return true;
     }
 
     for (uint256 i = 0; i < communities.length; i++) {
-      if (communities[i] == community) {
+      if (communities[i] == account) {
         return true;
       }
     }
