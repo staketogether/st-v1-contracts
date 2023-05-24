@@ -10,9 +10,19 @@ contract StakeTogether is CETH {
   STOracle public immutable stOracle;
   STValidator public immutable stValidator;
 
+  event EtherReceived(address indexed sender, uint amount);
+
   constructor(address _stOracle, address _stValidator) payable {
     stOracle = STOracle(_stOracle);
     stValidator = STValidator(_stValidator);
+  }
+
+  receive() external payable {
+    emit EtherReceived(msg.sender, msg.value);
+  }
+
+  fallback() external payable {
+    emit EtherReceived(msg.sender, msg.value);
   }
 
   /*****************
@@ -26,6 +36,7 @@ contract StakeTogether is CETH {
     address delegated,
     address referral
   );
+
   event Withdraw(address indexed account, uint256 amount, uint256 shares, address delegated);
 
   uint256 public immutable poolSize = 32 ether;
@@ -68,17 +79,21 @@ contract StakeTogether is CETH {
     minAmount = _amount;
   }
 
+  function getBalance() public view returns (uint) {
+    return address(this).balance;
+  }
+
   function getPoolBalance() public view returns (uint256) {
-    return address(this).balance - withdrawalsBuffer;
+    return address(this).balance - withdrawalsBalance;
   }
 
   function getTotalPooledEther() public view override returns (uint256) {
     // Todo: Implement Transient Balance
-    return (clBalance + address(this).balance) - withdrawalsBuffer;
+    return (clBalance + address(this).balance) - withdrawalsBalance;
   }
 
   function getTotalEtherSupply() public view returns (uint256) {
-    return clBalance + address(this).balance + withdrawalsBuffer;
+    return clBalance + address(this).balance + withdrawalsBalance;
   }
 
   /*****************
@@ -88,20 +103,20 @@ contract StakeTogether is CETH {
   event DepositBuffer(address indexed account, uint256 amount);
   event WithdrawBuffer(address indexed account, uint256 amount);
 
-  uint256 public withdrawalsBuffer = 0;
+  uint256 public withdrawalsBalance = 0;
 
   function depositBuffer() external payable onlyOwner nonReentrant whenNotPaused {
     require(msg.value > 0, 'ZERO_VALUE');
-    withdrawalsBuffer += msg.value;
+    withdrawalsBalance += msg.value;
 
     emit DepositBuffer(msg.sender, msg.value);
   }
 
   function withdrawBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(withdrawalsBuffer > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+    require(withdrawalsBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
 
-    withdrawalsBuffer -= _amount;
+    withdrawalsBalance -= _amount;
 
     payable(owner()).transfer(_amount);
 
@@ -109,14 +124,12 @@ contract StakeTogether is CETH {
   }
 
   function getWithdrawalsBalance() public view returns (uint256) {
-    return address(this).balance + withdrawalsBuffer;
+    return address(this).balance + withdrawalsBalance;
   }
 
   /*****************
    ** REWARDS **
    *****************/
-
-  event ConsensusLayerBalanceUpdated(uint256 _balance);
 
   function setClBalance(uint256 _balance) external override nonReentrant {
     require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
@@ -126,12 +139,21 @@ contract StakeTogether is CETH {
 
     _processRewards(preClBalance, clBalance);
 
-    emit ConsensusLayerBalanceUpdated(clBalance);
+    emit ConsensusLayerBalanceSet(clBalance);
   }
 
   /*****************
    ** VALIDATOR **
    *****************/
+
+  event ValidatorCreated(
+    address indexed creator,
+    uint256 indexed amount,
+    bytes publicKey,
+    bytes withdrawalCredentials,
+    bytes signature,
+    bytes32 depositDataRoot
+  );
 
   function createValidator(
     bytes calldata _publicKey,
@@ -140,5 +162,14 @@ contract StakeTogether is CETH {
   ) external onlyOwner nonReentrant {
     require(getPoolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
     stValidator.createValidator{ value: poolSize }(_publicKey, _signature, _depositDataRoot);
+
+    emit ValidatorCreated(
+      msg.sender,
+      poolSize,
+      _publicKey,
+      stValidator.withdrawalCredentials(),
+      _signature,
+      _depositDataRoot
+    );
   }
 }

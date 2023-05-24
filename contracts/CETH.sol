@@ -15,9 +15,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     _bootstrap();
   }
 
-  mapping(address => uint256) private shares;
-  uint256 public totalShares = 0;
-  mapping(address => mapping(address => uint256)) private allowances;
+  event Bootstrap(address sender, uint256 balance);
 
   event SharesBurnt(
     address indexed account,
@@ -28,6 +26,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   event TransferShares(address indexed from, address indexed to, uint256 sharesValue);
 
+  mapping(address => uint256) private shares;
+  uint256 public totalShares = 0;
+  mapping(address => mapping(address => uint256)) private allowances;
+
   function _bootstrap() internal {
     address stakeTogether = address(this);
     uint256 balance = stakeTogether.balance;
@@ -36,6 +38,11 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     _mintShares(stakeTogether, balance);
     _mintDelegatedShares(stakeTogether, stakeTogether, balance);
+
+    setStakeTogetherFeeRecipient(msg.sender);
+    setOperatorFeeRecipient(msg.sender);
+
+    emit Bootstrap(msg.sender, balance);
   }
 
   function pause() public onlyOwner {
@@ -243,8 +250,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   uint256 public clBalance = 0;
 
-  address public stakeTogetherFeeRecipient = owner();
-  address public operatorFeeRecipient = owner();
+  address public stakeTogetherFeeRecipient;
+  address public operatorFeeRecipient;
 
   // Todo: Define Basis point before audit
   uint256 public basisPoints = 1 ether;
@@ -252,7 +259,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public operatorFee = 0.03 ether;
   uint256 public communityFee = 0.03 ether;
 
-  event ProcessRewards(
+  event RewardsProcessed(
     uint256 preClBalance,
     uint256 posClBalance,
     uint256 rewards,
@@ -265,28 +272,39 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 communityFeeShares
   );
 
-  event TransferRewards(address indexed from, address indexed to, uint256 amount);
+  event TransferRewardsShares(address indexed from, address indexed to, uint256 shares);
+  event StakeTogetherFeeRecipientSet(address indexed to);
+  event OperatorFeeRecipientSet(address indexed to);
+  event StakeTogetherFeeSet(uint256 fee);
+  event OperatorFeeSet(uint256 fee);
+  event CommunityFeeSet(uint256 fee);
+  event ConsensusLayerBalanceSet(uint256 balance);
 
-  function setStakeTogetherFeeRecipient(address _to) external onlyOwner {
+  function setStakeTogetherFeeRecipient(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
     stakeTogetherFeeRecipient = _to;
+    emit StakeTogetherFeeRecipientSet(_to);
   }
 
-  function setOperatorFeeRecipient(address _to) external onlyOwner {
+  function setOperatorFeeRecipient(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeRecipient = _to;
+    emit OperatorFeeRecipientSet(_to);
   }
 
   function setStakeTogetherFee(uint256 _fee) external onlyOwner {
     stakeTogetherFee = _fee;
+    emit StakeTogetherFeeSet(_fee);
   }
 
   function setCommunityFee(uint256 _fee) external onlyOwner {
     communityFee = _fee;
+    emit CommunityFeeSet(_fee);
   }
 
   function setOperatorFee(uint256 _fee) external onlyOwner {
     operatorFee = _fee;
+    emit OperatorFeeSet(_fee);
   }
 
   function setClBalance(uint256 _balance) external virtual {}
@@ -301,23 +319,23 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 growthFactor = (rewards * basisPoints) / getTotalPooledEther();
 
     uint256 stakeTogetherFeeAdjust = stakeTogetherFee + (stakeTogetherFee * growthFactor) / basisPoints;
-    uint256 operatorFeeAjust = operatorFee + (operatorFee * growthFactor) / basisPoints;
-    uint256 communityFeeAjust = communityFee + (communityFee * growthFactor) / basisPoints;
+    uint256 operatorFeeAdjust = operatorFee + (operatorFee * growthFactor) / basisPoints;
+    uint256 communityFeeAdjust = communityFee + (communityFee * growthFactor) / basisPoints;
 
-    uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAjust + communityFeeAjust;
+    uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAdjust + communityFeeAdjust;
 
     uint256 sharesMintedAsFees = (rewards * totalFee * totalShares) /
       (totalPooledEtherWithRewards * basisPoints - rewards * totalFee);
 
     uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
-    uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAjust) / totalFee;
-    uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
+    uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
+    uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAdjust) / totalFee;
 
     _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
-    emit TransferRewards(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    emit TransferRewardsShares(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
 
     _mintShares(operatorFeeRecipient, operatorFeeShares);
-    emit TransferRewards(address(0), operatorFeeRecipient, operatorFeeShares);
+    emit TransferRewardsShares(address(0), operatorFeeRecipient, operatorFeeShares);
 
     for (uint i = 0; i < communities.length; i++) {
       address community = communities[i];
@@ -325,10 +343,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
       _mintShares(community, communityShares);
       _mintDelegatedShares(community, community, communityShares);
-      emit TransferRewards(address(0), community, communityShares);
+      emit TransferRewardsShares(address(0), community, communityShares);
     }
 
-    emit ProcessRewards(
+    emit RewardsProcessed(
       _preClBalance,
       _posClBalance,
       rewards,

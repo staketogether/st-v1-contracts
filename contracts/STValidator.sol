@@ -30,7 +30,7 @@ contract STValidator is Ownable, ReentrancyGuard {
 
   function setStakeTogether(address _stakeTogether) external onlyOwner {
     require(address(stakeTogether) == address(0), 'ST_ALREADY_SET');
-    stakeTogether = StakeTogether(_stakeTogether);
+    stakeTogether = StakeTogether(payable(_stakeTogether));
   }
 
   function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyOwner {

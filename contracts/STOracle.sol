@@ -45,7 +45,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
 
   function setStakeTogether(address _stakeTogether) external onlyOwner {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
-    stakeTogether = StakeTogether(_stakeTogether);
+    stakeTogether = StakeTogether(payable(_stakeTogether));
   }
 
   function report(uint256 reportBlock, uint256 reportBalance) public onlyNodes whenNotPaused {
