@@ -19,13 +19,19 @@ contract StakeTogether is CETH {
    ** STAKE **
    *****************/
 
-  event Deposit(address indexed account, uint256 amount, address delegated, address refferal);
-  event Withdraw(address indexed account, uint256 amount, address delegated);
+  event Deposit(
+    address indexed account,
+    uint256 amount,
+    uint256 shares,
+    address delegated,
+    address refferal
+  );
+  event Withdraw(address indexed account, uint256 amount, uint256 shares, address delegated);
 
   uint256 public immutable poolSize = 32 ether;
   uint256 public minAmount = 0.000000000000000001 ether;
 
-  function stake(address _delegated, address referral) external payable nonReentrant whenNotPaused {
+  function deposit(address _delegated, address referral) external payable nonReentrant whenNotPaused {
     require(_isCommunity(_delegated), 'NON_COMMUNITY_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minAmount, 'NON_MIN_AMOUNT');
@@ -35,17 +41,14 @@ contract StakeTogether is CETH {
     _mintShares(msg.sender, sharesAmount);
     _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
 
-    emit Deposit(msg.sender, msg.value, _delegated, referral);
-
-    // Todo: temp remove before audit
-    tempUserBalanceHistory[msg.sender] += msg.value;
+    emit Deposit(msg.sender, msg.value, sharesAmount, _delegated, referral);
   }
 
-  function unstake(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
+  function withdraw(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
     require(_amount <= getWithdrawalsBalance(), 'NOT_ENOUGHT_CONTRACT_BALANCE');
-    require(delegationSharesOf(_delegated, msg.sender) > 0, 'NOT_DELEGATED_SHARES');
+    require(delegatedSharesOf(_delegated) > 0, 'NOT_DELEGATED_SHARES');
 
     uint256 userBalance = balanceOf(msg.sender);
 
@@ -56,12 +59,9 @@ contract StakeTogether is CETH {
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
 
-    emit Withdraw(msg.sender, _amount, _delegated);
+    emit Withdraw(msg.sender, _amount, sharesToBurn, _delegated);
 
     payable(msg.sender).transfer(_amount);
-
-    // Todo: temp remove before audit
-    tempUserBalanceHistory[msg.sender] -= _amount;
   }
 
   function setMinimumStakeAmount(uint256 amount) external onlyOwner {
@@ -73,7 +73,7 @@ contract StakeTogether is CETH {
   }
 
   function getTotalPooledEther() public view override returns (uint256) {
-    // Todo: Implement
+    // Todo: Implement Transient Balance
     return (clBalance + address(this).balance) - withdrawalsBuffer;
   }
 
@@ -85,8 +85,8 @@ contract StakeTogether is CETH {
    ** WITHDRAWALS **
    *****************/
 
-  event BufferDeposited(address indexed account, uint256 amount);
-  event BufferWithdrawn(address indexed account, uint256 amount);
+  event DepositBuffer(address indexed account, uint256 amount);
+  event WithdrawBuffer(address indexed account, uint256 amount);
 
   uint256 public withdrawalsBuffer = 0;
 
@@ -94,7 +94,7 @@ contract StakeTogether is CETH {
     require(msg.value > 0, 'ZERO_VALUE');
     withdrawalsBuffer += msg.value;
 
-    emit BufferDeposited(msg.sender, msg.value);
+    emit DepositBuffer(msg.sender, msg.value);
   }
 
   function withdrawBuffer(uint256 amount) external onlyOwner nonReentrant whenNotPaused {
@@ -105,7 +105,7 @@ contract StakeTogether is CETH {
 
     payable(owner()).transfer(amount);
 
-    emit BufferWithdrawn(msg.sender, amount);
+    emit WithdrawBuffer(msg.sender, amount);
   }
 
   function getWithdrawalsBalance() public view returns (uint256) {

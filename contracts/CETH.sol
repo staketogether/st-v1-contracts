@@ -183,15 +183,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** DELEGATIONS **
    *****************/
 
-  event BurnDelegatedShares(
-    address indexed from,
-    address indexed delegate,
-    uint256 sharesAmount,
-    uint256 preDelegatedShares,
-    uint256 postDelegatedShares,
-    uint256 preTotalDelegatedShares,
-    uint256 postTotalDelegatedShares
-  );
+  event BurnDelegatedShares(address indexed from, address indexed delegate, uint256 sharesAmount);
 
   event TransferDelegatedShares(
     address indexed from,
@@ -204,40 +196,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   mapping(address => uint256) private delegatedShares;
   uint256 public totalDelegatedShares = 0;
 
-  mapping(address => mapping(address => uint256)) private delegations;
-  mapping(address => address[]) private delegators;
-  mapping(address => address[]) private delegateds;
-  mapping(address => mapping(address => bool)) private alreadyDelegating;
-  mapping(address => mapping(address => bool)) private alreadyDelegated;
-
-  function delegationSharesOf(address _account, address _delegated) public view returns (uint256) {
-    return delegations[_account][_delegated];
-  }
-
   function delegatedSharesOf(address _account) public view returns (uint256) {
     return delegatedShares[_account];
-  }
-
-  function getDelegationsOf(address _address) public view returns (address[] memory, uint256[] memory) {
-    address[] memory _delegatorAddresses = delegators[_address];
-    uint256[] memory _delegatedAmount = new uint256[](_delegatorAddresses.length);
-
-    for (uint i = 0; i < _delegatorAddresses.length; i++) {
-      _delegatedAmount[i] = getPooledEthByShares(delegations[_delegatorAddresses[i]][_address]);
-    }
-
-    return (_delegatorAddresses, _delegatedAmount);
-  }
-
-  function getDelegatesOf(address _address) public view returns (address[] memory, uint256[] memory) {
-    address[] memory _delegatedAddresses = delegateds[_address];
-    uint256[] memory _delegatedAmount = new uint256[](_delegatedAddresses.length);
-
-    for (uint i = 0; i < _delegatedAddresses.length; i++) {
-      _delegatedAmount[i] = getPooledEthByShares(delegations[_address][_delegatedAddresses[i]]);
-    }
-
-    return (_delegatedAddresses, _delegatedAmount);
   }
 
   function _mintDelegatedShares(
@@ -247,22 +207,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(delegators[_delegated].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
     require(_isCommunity(_delegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
 
     delegatedShares[_delegated] += _sharesAmount;
-    delegations[_delegated][_to] += _sharesAmount;
     totalDelegatedShares += _sharesAmount;
-
-    if (!alreadyDelegating[_to][_delegated]) {
-      delegators[_to].push(_delegated);
-      alreadyDelegating[_to][_delegated] = true;
-    }
-
-    if (!alreadyDelegated[_delegated][_to]) {
-      delegateds[_delegated].push(_to);
-      alreadyDelegated[_delegated][_to] = true;
-    }
 
     emit TransferDelegatedShares(address(0), _to, _delegated, _sharesAmount);
   }
@@ -274,47 +222,12 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
     require(_delegated != address(0), 'BURN_FROM_ZERO_ADDR');
-
-    uint256 preDelegatedShares = delegatedShares[_delegated];
-    uint256 preTotalDelegatedShares = totalDelegatedShares;
+    require(_isCommunity(_delegated), 'ONLY_CAN_BURN_FROM_COMMUNITY');
 
     delegatedShares[_delegated] -= _sharesAmount;
-    delegations[_delegated][_from] -= _sharesAmount;
     totalDelegatedShares -= _sharesAmount;
 
-    if (delegations[_delegated][_from] == 0) {
-      alreadyDelegating[_from][_delegated] = false;
-
-      for (uint i = 0; i < delegators[_from].length - 1; i++) {
-        if (delegators[_from][i] == _delegated) {
-          delegators[_from][i] = delegators[_from][delegators[_from].length - 1];
-          break;
-        }
-      }
-      delegators[_from].pop();
-    }
-
-    if (delegatedShares[_delegated] == 0) {
-      alreadyDelegated[_delegated][_from] = false;
-
-      for (uint i = 0; i < delegateds[_delegated].length - 1; i++) {
-        if (delegateds[_delegated][i] == _from) {
-          delegateds[_delegated][i] = delegateds[_delegated][delegateds[_delegated].length - 1];
-          break;
-        }
-      }
-      delegateds[_delegated].pop();
-    }
-
-    emit BurnDelegatedShares(
-      _from,
-      _delegated,
-      _sharesAmount,
-      preDelegatedShares,
-      delegatedShares[_delegated],
-      preTotalDelegatedShares,
-      totalDelegatedShares
-    );
+    emit BurnDelegatedShares(_from, _delegated, _sharesAmount);
   }
 
   /*****************
@@ -332,10 +245,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public operatorFee = 0.03 ether;
   uint256 public communityFee = 0.03 ether;
 
-  // Todo: Remove rewards temp var before audit
-  mapping(address => uint256) internal tempUserBalanceHistory;
-  mapping(address => uint256) internal tempCommunityRewards;
-
   event ProcessRewards(
     uint256 preClBalance,
     uint256 posClBalance,
@@ -348,6 +257,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares,
     uint256 communityFeeShares
   );
+
+  event TransferRewards(address indexed from, address indexed to, uint256 amount);
 
   function setStakeTogetherFeeRecipient(address _to) external onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
@@ -373,16 +284,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function setClBalance(uint256 _balance) external virtual {}
 
-  // Todo: temp remove before audit
-  function getTempUserRewards(address _account) external view returns (uint256) {
-    return getPooledEthByShares(sharesOf(_account)) - tempUserBalanceHistory[_account];
-  }
-
-  // Todo: temp remove before audit
-  function getTempCommunityRewards(address _account) external view returns (uint256) {
-    return getPooledEthByShares(tempCommunityRewards[_account]);
-  }
-
   function _processRewards(uint256 _preClBalance, uint256 _posClBalance) internal {
     if (_posClBalance <= _preClBalance) {
       return;
@@ -406,7 +307,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAjust) / totalFee;
 
     _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    emit TransferRewards(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+
     _mintShares(operatorFeeRecipient, operatorFeeShares);
+    emit TransferRewards(address(0), operatorFeeRecipient, operatorFeeShares);
 
     for (uint i = 0; i < communities.length; i++) {
       address community = communities[i];
@@ -414,9 +318,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
       _mintShares(community, communityShares);
       _mintDelegatedShares(community, community, communityShares);
-
-      // Todo: remove before audit
-      tempCommunityRewards[community] += communityShares;
+      emit TransferRewards(address(0), community, communityShares);
     }
 
     emit ProcessRewards(
