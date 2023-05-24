@@ -220,24 +220,24 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function getDelegationsOf(address _address) public view returns (address[] memory, uint256[] memory) {
     address[] memory _delegatorAddresses = delegators[_address];
-    uint256[] memory _delegatedShares = new uint256[](_delegatorAddresses.length);
+    uint256[] memory _delegatedAmount = new uint256[](_delegatorAddresses.length);
 
     for (uint i = 0; i < _delegatorAddresses.length; i++) {
-      _delegatedShares[i] = delegations[_delegatorAddresses[i]][_address];
+      _delegatedAmount[i] = getPooledEthByShares(delegations[_delegatorAddresses[i]][_address]);
     }
 
-    return (_delegatorAddresses, _delegatedShares);
+    return (_delegatorAddresses, _delegatedAmount);
   }
 
   function getDelegatesOf(address _address) public view returns (address[] memory, uint256[] memory) {
     address[] memory _delegatedAddresses = delegateds[_address];
-    uint256[] memory _delegatedShares = new uint256[](_delegatedAddresses.length);
+    uint256[] memory _delegatedAmount = new uint256[](_delegatedAddresses.length);
 
     for (uint i = 0; i < _delegatedAddresses.length; i++) {
-      _delegatedShares[i] = delegations[_address][_delegatedAddresses[i]];
+      _delegatedAmount[i] = getPooledEthByShares(delegations[_address][_delegatedAddresses[i]]);
     }
 
-    return (_delegatedAddresses, _delegatedShares);
+    return (_delegatedAddresses, _delegatedAmount);
   }
 
   function _mintDelegatedShares(
@@ -379,7 +379,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   // Todo: temp remove before audit
-  function getTempCommunitySharesRewards(address _account) external view returns (uint256) {
+  function getTempCommunityRewards(address _account) external view returns (uint256) {
     return getPooledEthByShares(tempCommunityRewards[_account]);
   }
 

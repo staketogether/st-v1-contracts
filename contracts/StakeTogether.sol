@@ -19,9 +19,8 @@ contract StakeTogether is CETH {
    ** STAKE **
    *****************/
 
-  event Deposit(address indexed account, uint256 amount);
-  event Withdraw(address indexed account, uint256 amount);
-  event Referral(address indexed account, address delegated, address indexed referral, uint256 amount);
+  event Deposit(address indexed account, uint256 amount, address delegated, address refferal);
+  event Withdraw(address indexed account, uint256 amount, address delegated);
 
   uint256 public immutable poolSize = 32 ether;
   uint256 public minAmount = 0.000000000000000001 ether;
@@ -36,11 +35,7 @@ contract StakeTogether is CETH {
     _mintShares(msg.sender, sharesAmount);
     _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
 
-    emit Deposit(msg.sender, msg.value);
-
-    if (referral != address(0)) {
-      emit Referral(msg.sender, _delegated, referral, msg.value);
-    }
+    emit Deposit(msg.sender, msg.value, _delegated, referral);
 
     // Todo: temp remove before audit
     tempUserBalanceHistory[msg.sender] += msg.value;
@@ -61,7 +56,7 @@ contract StakeTogether is CETH {
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
 
-    emit Withdraw(msg.sender, _amount);
+    emit Withdraw(msg.sender, _amount, _delegated);
 
     payable(msg.sender).transfer(_amount);
 
