@@ -183,6 +183,11 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** DELEGATIONS **
    *****************/
 
+  uint256 public maxDelegations = 128;
+  mapping(address => uint256) private delegatedShares;
+  mapping(address => mapping(address => uint256)) private delegationsShares;
+  uint256 public totalDelegatedShares = 0;
+
   event BurnDelegatedShares(address indexed from, address indexed delegate, uint256 sharesAmount);
 
   event TransferDelegatedShares(
@@ -192,12 +197,12 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 sharesValue
   );
 
-  uint256 public maxDelegations = 128;
-  mapping(address => uint256) private delegatedShares;
-  uint256 public totalDelegatedShares = 0;
-
   function delegatedSharesOf(address _account) public view returns (uint256) {
     return delegatedShares[_account];
+  }
+
+  function delegationSharesOf(address _account, address _delegate) public view returns (uint256) {
+    return delegationsShares[_account][_delegate];
   }
 
   function _mintDelegatedShares(
@@ -210,6 +215,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_isCommunity(_delegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
 
     delegatedShares[_delegated] += _sharesAmount;
+    delegationsShares[_to][_delegated] += _sharesAmount;
     totalDelegatedShares += _sharesAmount;
 
     emit TransferDelegatedShares(address(0), _to, _delegated, _sharesAmount);
@@ -225,6 +231,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_isCommunity(_delegated), 'ONLY_CAN_BURN_FROM_COMMUNITY');
 
     delegatedShares[_delegated] -= _sharesAmount;
+    delegationsShares[_from][_delegated] -= _sharesAmount;
     totalDelegatedShares -= _sharesAmount;
 
     emit BurnDelegatedShares(_from, _delegated, _sharesAmount);
