@@ -228,6 +228,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
     require(_isCommunity(_delegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
+    require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
 
     delegatedShares[_delegated] += _sharesAmount;
     delegationsShares[_to][_delegated] += _sharesAmount;
