@@ -199,6 +199,10 @@ contract StakeTogether is CETH {
     );
   }
 
+  function getValidators() public view returns (bytes[] memory) {
+    return validators;
+  }
+
   function isValidator(bytes memory publicKey) public view returns (bool) {
     for (uint256 i = 0; i < validators.length; i++) {
       if (keccak256(validators[i]) == keccak256(publicKey)) {
