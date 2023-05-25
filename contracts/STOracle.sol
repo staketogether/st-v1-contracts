@@ -15,8 +15,8 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   uint256 public beaconLastReportBlock = 0;
 
   uint256 public reportFrequency = 5760;
-  uint256 public reportQuorum = 2;
-  uint256 public reportNextBlock = 5760;
+  uint256 public reportQuorum = 1;
+  uint256 public reportNextBlock = 1;
 
   address[] public nodes;
   mapping(address => mapping(uint256 => uint256)) private nodeReports;
@@ -32,11 +32,12 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     uint256 reportedBalance,
     uint256 consensusBalance
   );
-  event ReportMaxFrequencyChanged(uint256 newFrequency);
-  event ReportQuorumChanged(uint256 newQuorum);
-  event NodeAdded(address node);
-  event NodeRemoved(address node);
-  event NodeBlacklisted(address node);
+  event SetStakeTogether(address stakeTogether);
+  event SetReportMaxFrequency(uint256 newFrequency);
+  event SetReportQuorum(uint256 newQuorum);
+  event AddNode(address node);
+  event RemoveNode(address node);
+  event BlacklistNode(address node);
 
   modifier onlyNodes() {
     require(_isNode(msg.sender), 'ONLY_NODES');
@@ -46,6 +47,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   function setStakeTogether(address _stakeTogether) external onlyOwner {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
+    emit SetStakeTogether(_stakeTogether);
   }
 
   function report(uint256 reportBlock, uint256 reportBalance) public onlyNodes whenNotPaused {
@@ -111,14 +113,14 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   function setReportMaxFrequency(uint256 newFrequency) external onlyOwner {
     // require(newFrequency >= 240, 'Frequency must be at least 1 hour (approx 240 blocks)');
     reportFrequency = newFrequency;
-    emit ReportMaxFrequencyChanged(newFrequency);
+    emit SetReportMaxFrequency(newFrequency);
   }
 
   function setReportQuorum(uint256 newQuorum) external onlyOwner {
     require(newQuorum >= 1, 'QUORUM_NEEDS_TO_BE_AT_LEAST_1');
     require(newQuorum <= nodes.length, 'QUORUM_CAN_NOT_BE_GREATER_THAN_NODES');
     reportQuorum = newQuorum;
-    emit ReportQuorumChanged(newQuorum);
+    emit SetReportQuorum(newQuorum);
   }
 
   function getNodes() external view returns (address[] memory) {
@@ -136,7 +138,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   function addNode(address node) external onlyOwner {
     require(!_isNode(node), 'NODE_ALREADY_EXISTS');
     nodes.push(node);
-    emit NodeAdded(node);
+    emit AddNode(node);
   }
 
   function removeNode(address node) external onlyOwner {
@@ -170,7 +172,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
         break;
       }
     }
-    emit NodeRemoved(node);
+    emit RemoveNode(node);
 
     if (nodes.length < reportQuorum) {
       _pause();
@@ -179,6 +181,6 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
 
   function _blacklistNode(address node) internal {
     _removeNode(node);
-    emit NodeBlacklisted(node);
+    emit BlacklistNode(node);
   }
 }

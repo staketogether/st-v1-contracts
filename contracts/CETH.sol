@@ -334,7 +334,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public operatorFee = 0.03 ether;
   uint256 public communityFee = 0.03 ether;
 
-  event RewardsProcessed(
+  event ProcessRewards(
     uint256 preClBalance,
     uint256 posClBalance,
     uint256 rewards,
@@ -347,34 +347,33 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 communityFeeShares
   );
 
-  event TransferRewardsShares(address indexed from, address indexed to, uint256 shares);
-  event StakeTogetherFeeRecipientSet(address indexed to);
-  event OperatorFeeRecipientSet(address indexed to);
-  event StakeTogetherFeeSet(uint256 fee);
+  event TransferRewardsShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event SetStakeTogetherFeeRecipient(address indexed to);
+  event SetOperatorFeeRecipient(address indexed to);
+  event SetStakeTogetherFee(uint256 fee);
   event OperatorFeeSet(uint256 fee);
-  event CommunityFeeSet(uint256 fee);
-  event ConsensusLayerBalanceSet(uint256 balance);
+  event SetCommunityFee(uint256 fee);
 
   function setStakeTogetherFeeRecipient(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
     stakeTogetherFeeRecipient = _to;
-    emit StakeTogetherFeeRecipientSet(_to);
+    emit SetStakeTogetherFeeRecipient(_to);
   }
 
   function setOperatorFeeRecipient(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeRecipient = _to;
-    emit OperatorFeeRecipientSet(_to);
+    emit SetOperatorFeeRecipient(_to);
   }
 
   function setStakeTogetherFee(uint256 _fee) external onlyOwner {
     stakeTogetherFee = _fee;
-    emit StakeTogetherFeeSet(_fee);
+    emit SetStakeTogetherFee(_fee);
   }
 
   function setCommunityFee(uint256 _fee) external onlyOwner {
     communityFee = _fee;
-    emit CommunityFeeSet(_fee);
+    emit SetCommunityFee(_fee);
   }
 
   function setOperatorFee(uint256 _fee) external onlyOwner {
@@ -421,7 +420,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       emit TransferRewardsShares(address(0), community, communityShares);
     }
 
-    emit RewardsProcessed(
+    emit ProcessRewards(
       _preClBalance,
       _posClBalance,
       rewards,
@@ -447,8 +446,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** COMMUNITIES **
    *****************/
 
-  event CommunityAdded(address account);
-  event CommunityRemoved(address account);
+  event AddCommunity(address account);
+  event RemoveCommunity(address account);
 
   address[] private communities;
 
@@ -463,7 +462,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(!_isOperatorFeeRecipient(account), 'IS_OPERATOR_FEE_RECIPIENT');
 
     communities.push(account);
-    emit CommunityAdded(account);
+    emit AddCommunity(account);
   }
 
   function removeCommunity(address account) external onlyOwner {
@@ -476,7 +475,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
         break;
       }
     }
-    emit CommunityRemoved(account);
+    emit RemoveCommunity(account);
   }
 
   function isCommunity(address account) external view returns (bool) {

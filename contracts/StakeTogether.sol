@@ -4,17 +4,18 @@ pragma solidity ^0.8.18;
 
 import './CETH.sol';
 import './STOracle.sol';
-import './STValidator.sol';
+import './interfaces/IDepositContract.sol';
 
 contract StakeTogether is CETH {
   STOracle public immutable stOracle;
-  STValidator public immutable stValidator;
+  IDepositContract public immutable depositContract;
+  bytes public withdrawalCredentials;
 
   event EtherReceived(address indexed sender, uint amount);
 
-  constructor(address _stOracle, address _stValidator) payable {
+  constructor(address _stOracle, address _depositContract) payable {
     stOracle = STOracle(_stOracle);
-    stValidator = STValidator(_stValidator);
+    depositContract = IDepositContract(_depositContract);
   }
 
   receive() external payable {
@@ -29,7 +30,7 @@ contract StakeTogether is CETH {
    ** STAKE **
    *****************/
 
-  event Deposit(
+  event DepositPool(
     address indexed account,
     uint256 amount,
     uint256 shares,
@@ -37,7 +38,10 @@ contract StakeTogether is CETH {
     address referral
   );
 
-  event Withdraw(address indexed account, uint256 amount, uint256 shares, address delegated);
+  event WithdrawPool(address indexed account, uint256 amount, uint256 shares, address delegated);
+
+  event SetWithdrawalCredentials(bytes withdrawalCredentials);
+  event SetMinDepositPoolAmount(uint256 amount);
 
   uint256 public immutable poolSize = 32 ether;
   uint256 public minAmount = 0.000000000000000001 ether;
@@ -52,7 +56,7 @@ contract StakeTogether is CETH {
     _mintShares(msg.sender, sharesAmount);
     _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
 
-    emit Deposit(msg.sender, msg.value, sharesAmount, _delegated, _referral);
+    emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
   }
 
   function withdraw(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
@@ -70,13 +74,20 @@ contract StakeTogether is CETH {
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
 
-    emit Withdraw(msg.sender, _amount, sharesToBurn, _delegated);
+    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _delegated);
 
     payable(msg.sender).transfer(_amount);
   }
 
-  function setMinimumStakeAmount(uint256 _amount) external onlyOwner {
+  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyOwner {
+    require(withdrawalCredentials.length == 0, 'WITHDRAWAL_CREDENTIALS_ALREADY_SET');
+    withdrawalCredentials = _withdrawalCredentials;
+    emit SetWithdrawalCredentials(_withdrawalCredentials);
+  }
+
+  function setMinDepositPoolAmount(uint256 _amount) external onlyOwner {
     minAmount = _amount;
+    emit SetMinDepositPoolAmount(_amount);
   }
 
   function getBalance() public view returns (uint) {
@@ -131,6 +142,8 @@ contract StakeTogether is CETH {
    ** REWARDS **
    *****************/
 
+  event SetConsensusLayerBalance(uint256 amount);
+
   function setClBalance(uint256 _balance) external override nonReentrant {
     require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
 
@@ -139,14 +152,16 @@ contract StakeTogether is CETH {
 
     _processRewards(preClBalance, clBalance);
 
-    emit ConsensusLayerBalanceSet(clBalance);
+    emit SetConsensusLayerBalance(clBalance);
   }
 
   /*****************
    ** VALIDATOR **
    *****************/
 
-  event ValidatorCreated(
+  bytes[] public validators;
+
+  event CreateValidator(
     address indexed creator,
     uint256 indexed amount,
     bytes publicKey,
@@ -161,15 +176,32 @@ contract StakeTogether is CETH {
     bytes32 _depositDataRoot
   ) external onlyOwner nonReentrant {
     require(getPoolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
-    stValidator.createValidator{ value: poolSize }(_publicKey, _signature, _depositDataRoot);
 
-    emit ValidatorCreated(
-      msg.sender,
-      poolSize,
+    depositContract.deposit{ value: poolSize }(
       _publicKey,
-      stValidator.withdrawalCredentials(),
+      withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
+
+    validators.push(_publicKey);
+
+    emit CreateValidator(
+      msg.sender,
+      poolSize,
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+  }
+
+  function isValidator(bytes memory publicKey) public view returns (bool) {
+    for (uint256 i = 0; i < validators.length; i++) {
+      if (keccak256(validators[i]) == keccak256(publicKey)) {
+        return true;
+      }
+    }
+    return false;
   }
 }
