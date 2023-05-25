@@ -122,6 +122,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function _transfer(address _from, address _to, uint256 _amount) internal override {
     uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
+    _transferDelegationShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
   }
 
@@ -180,10 +181,12 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** DELEGATIONS **
    *****************/
 
-  uint256 public maxDelegations = 128;
+  uint256 public maxDelegations = 64;
   mapping(address => uint256) private delegatedShares;
-  mapping(address => mapping(address => uint256)) private delegationsShares;
   uint256 public totalDelegatedShares = 0;
+  mapping(address => mapping(address => uint256)) private delegationsShares;
+  mapping(address => address[]) private delegates;
+  mapping(address => mapping(address => bool)) private isDelegator;
 
   event TransferDelegatedShares(
     address indexed from,
@@ -230,6 +233,11 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     delegationsShares[_to][_delegated] += _sharesAmount;
     totalDelegatedShares += _sharesAmount;
 
+    if (!isDelegator[_to][_delegated]) {
+      delegates[_to].push(_delegated);
+      isDelegator[_to][_delegated] = true;
+    }
+
     emit TransferDelegatedShares(address(0), _to, _delegated, _sharesAmount);
   }
 
@@ -246,16 +254,46 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     delegationsShares[_from][_delegated] -= _sharesAmount;
     totalDelegatedShares -= _sharesAmount;
 
+    if (delegationsShares[_from][_delegated] == 0) {
+      isDelegator[_from][_delegated] = false;
+    }
+
     emit BurnDelegatedShares(_from, _delegated, _sharesAmount);
   }
 
-  function _transferDelegatedShares(
+  function _transferDelegationShares(
     address _from,
     address _to,
-    address _delegated,
-    uint256 _sharesAmount
+    uint256 _sharesToTransfer
   ) internal whenNotPaused {
-    // Todo: Implement
+    require(_sharesToTransfer <= sharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
+
+    // Transfer delegation shares proportionally
+    for (uint256 i = 0; i < delegates[_from].length; i++) {
+      address delegate = delegates[_from][i];
+      uint256 delegationSharesToTransfer = (delegationSharesOf(_from, delegate) * _sharesToTransfer) /
+        sharesOf(_from);
+
+      // Subtract from the sender
+      delegationsShares[_from][delegate] -= delegationSharesToTransfer;
+
+      // If the recipient is not already a delegator for this delegate, add them
+      if (!isDelegator[_to][delegate]) {
+        require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+        delegates[_to].push(delegate);
+        isDelegator[_to][delegate] = true;
+      }
+
+      // Add to the recipient
+      delegationsShares[_to][delegate] += delegationSharesToTransfer;
+
+      // If the sender no longer has any delegation shares for this delegate, remove them as a delegator
+      if (delegationSharesOf(_from, delegate) == 0) {
+        isDelegator[_from][delegate] = false;
+      }
+
+      emit TransferDelegatedShares(_from, _to, delegate, delegationSharesToTransfer);
+    }
   }
 
   function _transferPoolDelegatedShares(
