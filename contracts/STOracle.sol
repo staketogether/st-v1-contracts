@@ -14,7 +14,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   uint256 public beaconValidators;
   uint256 public beaconLastReportBlock = 0;
 
-  uint256 public reportFrequency = 5760;
+  uint256 public reportFrequency = 1;
   uint256 public reportQuorum = 1;
   uint256 public reportNextBlock = 1;
 
