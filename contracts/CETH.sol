@@ -17,14 +17,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   event Bootstrap(address sender, uint256 balance);
 
-  event SharesBurnt(
-    address indexed account,
-    uint256 preRebaseTokenAmount,
-    uint256 postRebaseTokenAmount,
-    uint256 sharesAmount
-  );
-
-  event TransferShares(address indexed from, address indexed to, uint256 sharesValue);
+  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event BurnShares(address indexed account, uint256 sharesAmount);
 
   mapping(address => uint256) private shares;
   uint256 public totalShares = 0;
@@ -134,7 +128,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_to != address(this), 'TRANSFER_TO_STETH_CONTRACT');
+    require(_to != address(this), 'TRANSFER_TO_CETH_CONTRACT');
 
     uint256 currentSenderShares = shares[_from];
     require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
@@ -168,14 +162,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 accountShares = shares[_account];
     require(_sharesAmount <= accountShares, 'BALANCE_EXCEEDED');
 
-    uint256 preRebaseTokenAmount = getPooledEthByShares(_sharesAmount);
-
     shares[_account] = accountShares - _sharesAmount;
     totalShares -= _sharesAmount;
 
-    uint256 postRebaseTokenAmount = getPooledEthByShares(_sharesAmount);
-
-    emit SharesBurnt(_account, preRebaseTokenAmount, postRebaseTokenAmount, _sharesAmount);
+    emit BurnShares(_account, _sharesAmount);
   }
 
   function _spendAllowance(address _owner, address _spender, uint256 _amount) internal override {
@@ -195,14 +185,21 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   mapping(address => mapping(address => uint256)) private delegationsShares;
   uint256 public totalDelegatedShares = 0;
 
-  event BurnDelegatedShares(address indexed from, address indexed delegate, uint256 sharesAmount);
-
   event TransferDelegatedShares(
     address indexed from,
     address indexed to,
     address indexed delegate,
-    uint256 sharesValue
+    uint256 sharesAmount
   );
+
+  event TransferPoolDelegatedShares(
+    address indexed account,
+    address indexed fromDelegate,
+    address indexed toDelegate,
+    uint256 sharesAmount
+  );
+
+  event BurnDelegatedShares(address indexed from, address indexed delegate, uint256 sharesAmount);
 
   function delegatedSharesOf(address _account) public view returns (uint256) {
     return delegatedShares[_account];
@@ -210,6 +207,14 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function delegationSharesOf(address _account, address _delegate) public view returns (uint256) {
     return delegationsShares[_account][_delegate];
+  }
+
+  function transferPoolDelegatedShares(
+    address _fromDelegated,
+    address _toDelegated,
+    uint256 _sharesAmount
+  ) external {
+    _transferPoolDelegatedShares(msg.sender, _fromDelegated, _toDelegated, _sharesAmount);
   }
 
   function _mintDelegatedShares(
@@ -242,6 +247,38 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     totalDelegatedShares -= _sharesAmount;
 
     emit BurnDelegatedShares(_from, _delegated, _sharesAmount);
+  }
+
+  function _transferDelegatedShares(
+    address _from,
+    address _to,
+    address _delegated,
+    uint256 _sharesAmount
+  ) internal whenNotPaused {
+    // Todo: Implement
+  }
+
+  function _transferPoolDelegatedShares(
+    address _account,
+    address _fromDelegated,
+    address _toDelegated,
+    uint256 _sharesAmount
+  ) internal whenNotPaused {
+    require(_fromDelegated != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_toDelegated != address(0), 'TRANSFER_TO_ZERO_ADDR');
+    require(_toDelegated != address(this), 'TRANSFER_TO_CETH_CONTRACT');
+    require(_isCommunity(_toDelegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
+
+    uint256 currentSenderShares = delegationsShares[_account][_fromDelegated];
+    require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
+
+    delegatedShares[_fromDelegated] -= _sharesAmount;
+    delegationsShares[_account][_fromDelegated] -= _sharesAmount;
+
+    delegatedShares[_toDelegated] += _sharesAmount;
+    delegationsShares[_account][_toDelegated] += _sharesAmount;
+
+    emit TransferPoolDelegatedShares(_account, _fromDelegated, _toDelegated, _sharesAmount);
   }
 
   /*****************
