@@ -131,7 +131,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     return _isNode(node);
   }
 
-  function isNodeBlaclisted(address node) external view returns (bool) {
+  function isNodeBlacklisted(address node) external view returns (bool) {
     return !_isNode(node);
   }
 
