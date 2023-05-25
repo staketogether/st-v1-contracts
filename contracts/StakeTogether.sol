@@ -46,7 +46,10 @@ contract StakeTogether is CETH {
   uint256 public immutable poolSize = 32 ether;
   uint256 public minAmount = 0.000000000000000001 ether;
 
-  function deposit(address _delegated, address _referral) external payable nonReentrant whenNotPaused {
+  function depositPool(
+    address _delegated,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
     require(_isCommunity(_delegated), 'NON_COMMUNITY_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minAmount, 'NON_MIN_AMOUNT');
@@ -59,7 +62,7 @@ contract StakeTogether is CETH {
     emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
   }
 
-  function withdraw(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
+  function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
     require(_amount <= getWithdrawalsBalance(), 'NOT_ENOUGH_CONTRACT_BALANCE');
