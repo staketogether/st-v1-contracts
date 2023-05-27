@@ -18,7 +18,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportQuorum = 1;
   uint256 public reportNextBlock = 1;
 
-  address[] public nodes;
+  address[] private nodes;
   mapping(address => mapping(uint256 => uint256)) private nodeReports;
   mapping(uint256 => uint256) private reportCount;
   mapping(uint256 => uint256) private blockConsensus;
