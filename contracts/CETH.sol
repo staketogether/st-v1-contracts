@@ -48,7 +48,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function totalSupply() public view override returns (uint256) {
-    return getTotalPooledEther();
+    return totalPooledEther();
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
@@ -60,11 +60,11 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function getSharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return (_ethAmount * totalShares) / getTotalPooledEther();
+    return (_ethAmount * totalShares) / totalPooledEther();
   }
 
   function getPooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return (_sharesAmount * getTotalPooledEther()) / totalShares;
+    return (_sharesAmount * totalPooledEther()) / totalShares;
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -117,7 +117,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return true;
   }
 
-  function getTotalPooledEther() public view virtual returns (uint256);
+  function totalPooledEther() public view virtual returns (uint256);
 
   function _transfer(address _from, address _to, uint256 _amount) internal override {
     uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
@@ -191,14 +191,14 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event TransferDelegatedShares(
     address indexed from,
     address indexed to,
-    address indexed delegate,
+    address indexed delegated,
     uint256 sharesAmount
   );
 
   event TransferPoolDelegatedShares(
     address indexed account,
-    address indexed fromDelegate,
-    address indexed toDelegate,
+    address indexed fromDelegated,
+    address indexed toDelegated,
     uint256 sharesAmount
   );
 
@@ -324,7 +324,9 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** REWARDS **
    *****************/
 
-  uint256 public clBalance = 0;
+  uint256 public contractBalance = address(this).balance;
+  uint256 public transientBalance = 0;
+  uint256 public beaconBalance = 0;
 
   address public stakeTogetherFeeRecipient;
   address public operatorFeeRecipient;
@@ -382,7 +384,9 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit OperatorFeeSet(_fee);
   }
 
-  function setClBalance(uint256 _balance) external virtual {}
+  function setTransientBalance(uint256 _transientBalance) external virtual {}
+
+  function setBeaconBalance(uint256 _beaconBalance) external virtual {}
 
   function _processRewards(uint256 _preClBalance, uint256 _posClBalance) internal {
     if (_posClBalance <= _preClBalance) {
@@ -390,8 +394,8 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     }
 
     uint256 rewards = _posClBalance - _preClBalance;
-    uint256 totalPooledEtherWithRewards = getTotalPooledEther() + rewards;
-    uint256 growthFactor = (rewards * basisPoints) / getTotalPooledEther();
+    uint256 totalPooledEtherWithRewards = totalPooledEther() + rewards;
+    uint256 growthFactor = (rewards * basisPoints) / totalPooledEther();
 
     uint256 stakeTogetherFeeAdjust = stakeTogetherFee + (stakeTogetherFee * growthFactor) / basisPoints;
     uint256 operatorFeeAdjust = operatorFee + (operatorFee * growthFactor) / basisPoints;

@@ -10,27 +10,36 @@ import './StakeTogether.sol';
 contract STOracle is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
 
-  uint256 public beaconBalance;
-  uint256 public beaconValidators;
-  uint256 public beaconLastReportBlock = 0;
+  struct Report {
+    uint256 beaconBalance;
+    uint256 transientBalance;
+    uint256 totalBeaconValidators;
+    uint256 totalTransientValidators;
+    uint256 totalExitedValidators;
+  }
 
+  uint256 public beaconBalance;
+  uint256 public transientBalance;
+
+  uint256 public reportLastBlock = 0;
+  uint256 public reportNextBlock = 1;
   uint256 public reportFrequency = 1;
   uint256 public reportQuorum = 1;
-  uint256 public reportNextBlock = 1;
 
   address[] private nodes;
-  mapping(address => mapping(uint256 => uint256)) private nodeReports;
-  mapping(uint256 => uint256) private reportCount;
-  mapping(uint256 => uint256) private blockConsensus;
-  mapping(uint256 => mapping(uint256 => uint256)) private balanceCount;
+  mapping(address => mapping(uint256 => uint256)) private nodesReports;
 
-  event ConsensusApproved(uint256 indexed blockNumber, uint256 balance);
+  mapping(uint256 => uint256) private consensusBlock;
+  mapping(uint256 => uint256) private reportsCount;
+  mapping(uint256 => mapping(uint256 => uint256)) private reportsBalanceCount;
+
+  event ConsensusApproved(uint256 indexed blockNumber, uint256 transientBalance, uint256 beaconBalance);
   event ConsensusFail(uint256 indexed blockNumber);
   event NonConsensusValueReported(
     address indexed node,
     uint256 reportedBlock,
     uint256 reportedBalance,
-    uint256 consensusBalance
+    uint256 beaconBalance
   );
   event SetStakeTogether(address stakeTogether);
   event SetReportMaxFrequency(uint256 newFrequency);
@@ -50,61 +59,66 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function report(uint256 reportBlock, uint256 reportBalance) public onlyNodes whenNotPaused {
+  function report(uint256 _reportBlock, Report memory _report) public onlyNodes whenNotPaused {
     require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
-    require(reportBalance > 0, 'ZERO_VALUE');
-    require(reportBlock == reportNextBlock, 'NON_NEXT_BLOCK');
+    require(_report.beaconBalance > 0, 'ZERO_VALUE');
+    require(_reportBlock == reportNextBlock, 'NON_NEXT_BLOCK');
     require(block.number >= reportNextBlock, 'TOO_EARLY_TO_REPORT');
-    require(nodeReports[msg.sender][reportBlock] == 0, 'NODE_ALREADY_REPORTED');
+    require(nodesReports[msg.sender][_reportBlock] == 0, 'NODE_ALREADY_REPORTED');
 
-    nodeReports[msg.sender][reportNextBlock] = reportBalance;
-    reportCount[reportNextBlock]++;
-    balanceCount[reportNextBlock][reportBalance]++;
+    uint256 consensusBalance = _report.transientBalance + _report.beaconBalance;
 
-    if (reportCount[reportNextBlock] >= reportQuorum) {
-      checkForConsensus();
+    nodesReports[msg.sender][reportNextBlock] = consensusBalance;
+    reportsCount[reportNextBlock]++;
+    reportsBalanceCount[reportNextBlock][consensusBalance]++;
+
+    if (reportsCount[reportNextBlock] >= reportQuorum) {
+      validConsensus(_report.transientBalance, _report.beaconBalance);
     }
   }
 
-  function checkForConsensus() internal {
+  function validConsensus(uint256 _transientBalance, uint256 _beaconBalance) internal {
+    uint256 totalReports = 0;
     uint256 consensusBalance = 0;
-    uint256 maxCount = 0;
 
     for (uint256 i = 0; i < nodes.length; i++) {
-      uint256 balance = nodeReports[nodes[i]][reportNextBlock];
-      uint256 count = balanceCount[reportNextBlock][balance];
+      uint256 balance = nodesReports[nodes[i]][reportNextBlock];
+      uint256 count = reportsBalanceCount[reportNextBlock][balance];
 
-      if (count > maxCount) {
-        maxCount = count;
+      if (count > totalReports) {
+        totalReports = count;
         consensusBalance = balance;
       }
     }
 
-    if (maxCount >= reportQuorum) {
-      blockConsensus[reportNextBlock] = consensusBalance;
+    if (totalReports >= reportQuorum) {
+      consensusBlock[reportNextBlock] = consensusBalance;
       checkForNonConsensusReports(consensusBalance);
-      approveConsensus(consensusBalance);
+      approveConsensus(_transientBalance, _beaconBalance);
     } else {
+      // Todo: set next report block to current block
       emit ConsensusFail(reportNextBlock);
     }
   }
 
-  function approveConsensus(uint256 consensusBalance) internal nonReentrant {
-    beaconBalance = consensusBalance;
-    beaconLastReportBlock = reportNextBlock;
+  function approveConsensus(uint256 _transientBalance, uint256 _beaconBalance) internal nonReentrant {
+    transientBalance = _transientBalance;
+    beaconBalance = _beaconBalance;
+    reportLastBlock = reportNextBlock;
     reportNextBlock = block.number + reportFrequency;
 
-    stakeTogether.setClBalance(beaconBalance);
+    stakeTogether.setBeaconBalance(_transientBalance);
+    stakeTogether.setBeaconBalance(_beaconBalance);
 
-    emit ConsensusApproved(reportNextBlock, beaconBalance);
+    emit ConsensusApproved(reportNextBlock, _transientBalance, _beaconBalance);
   }
 
-  function checkForNonConsensusReports(uint256 consensusBalance) internal {
+  function checkForNonConsensusReports(uint256 _consensusBalance) internal {
     for (uint256 i = 0; i < nodes.length; i++) {
       address node = nodes[i];
-      uint256 reportedBalance = nodeReports[node][reportNextBlock];
-      if (reportedBalance != consensusBalance && reportedBalance > 0) {
-        emit NonConsensusValueReported(node, reportNextBlock, reportedBalance, consensusBalance);
+      uint256 reportedBalance = nodesReports[node][reportNextBlock];
+      if (reportedBalance != beaconBalance && reportedBalance > 0) {
+        emit NonConsensusValueReported(node, reportNextBlock, reportedBalance, _consensusBalance);
         _blacklistNode(node);
       }
     }
@@ -146,11 +160,11 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   }
 
   function getNodeReportByBlock(address node, uint256 blockNumber) external view returns (uint256) {
-    return nodeReports[node][blockNumber];
+    return nodesReports[node][blockNumber];
   }
 
   function getNodeReports(address node, uint256 blockNumber) external view returns (uint256) {
-    return nodeReports[node][blockNumber];
+    return nodesReports[node][blockNumber];
   }
 
   function _isNode(address node) internal view returns (bool) {
