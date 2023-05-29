@@ -197,7 +197,8 @@ contract StakeTogether is CETH {
    ** VALIDATOR **
    *****************/
 
-  bytes[] public validators;
+  bytes[] private validators;
+  uint256 public totalValidators = 0;
 
   event CreateValidator(
     address indexed creator,
@@ -223,6 +224,7 @@ contract StakeTogether is CETH {
     );
 
     validators.push(_publicKey);
+    totalValidators++;
     transientBalance += poolSize;
 
     emit CreateValidator(
