@@ -47,12 +47,16 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     _unpause();
   }
 
+  function contractBalance() public view returns (uint256) {
+    return address(this).balance;
+  }
+
   function totalSupply() public view override returns (uint256) {
     return totalPooledEther();
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return getPooledEthByShares(sharesOf(_account));
+    return pooledEthByShares(sharesOf(_account));
   }
 
   function sharesOf(address _account) public view returns (uint256) {
@@ -63,7 +67,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return (_ethAmount * totalShares) / totalPooledEther();
   }
 
-  function getPooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
+  function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
     return (_sharesAmount * totalPooledEther()) / totalShares;
   }
 
@@ -81,7 +85,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
-    uint256 tokensAmount = getPooledEthByShares(_sharesAmount);
+    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
     return tokensAmount;
   }
 
@@ -90,7 +94,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     address _to,
     uint256 _sharesAmount
   ) external returns (uint256) {
-    uint256 tokensAmount = getPooledEthByShares(_sharesAmount);
+    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
     _spendAllowance(_from, msg.sender, tokensAmount);
     _transferShares(_from, _to, _sharesAmount);
     return tokensAmount;
@@ -323,8 +327,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   /*****************
    ** REWARDS **
    *****************/
-
-  uint256 public contractBalance = address(this).balance;
   uint256 public transientBalance = 0;
   uint256 public beaconBalance = 0;
 

@@ -9,10 +9,10 @@
 // export async function executeTxs() {
 //   checkVariables()
 
-//   await unstakeEth()
+//   await stakeEth()
 // }
 
-// async function unstakeEth() {
+// async function stakeEth() {
 //   const [owner] = await ethers.getSigners()
 
 //   const StakeTogether = StakeTogether__factory.connect(
@@ -27,9 +27,11 @@
 //     }
 //   ]
 
-//   const tx = await connect(StakeTogether, owner).unstake(delegations, ethers.parseEther('32.1'))
+//   const tx = await connect(StakeTogether, owner).depositPool(delegations, {
+//     value: ethers.parseEther('32.1')
+//   })
 
-//   console.log('TX Unstake', tx.hash)
+//   console.log('TX Stake', tx.hash)
 // }
 
 // executeTxs().catch(error => {

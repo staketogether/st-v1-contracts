@@ -65,7 +65,7 @@ contract StakeTogether is CETH {
   function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_amount <= getWithdrawalsBalance(), 'NOT_ENOUGH_CONTRACT_BALANCE');
+    require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_CONTRACT_BALANCE');
     require(delegationSharesOf(msg.sender, _delegated) > 0, 'NOT_DELEGATION_SHARES');
 
     uint256 userBalance = balanceOf(msg.sender);
@@ -94,15 +94,15 @@ contract StakeTogether is CETH {
   }
 
   function bufferedBalance() public view returns (uint256) {
-    return contractBalance - liquidityBalance;
+    return contractBalance() - liquidityBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return (contractBalance + transientBalance + beaconBalance) - liquidityBalance;
+    return (contractBalance() + transientBalance + beaconBalance) - liquidityBalance;
   }
 
   function totalEtherSupply() public view returns (uint256) {
-    return contractBalance + transientBalance + beaconBalance + liquidityBalance;
+    return contractBalance() + transientBalance + beaconBalance + liquidityBalance;
   }
 
   /*****************
@@ -132,8 +132,8 @@ contract StakeTogether is CETH {
     emit WithdrawLiquidityBuffer(msg.sender, _amount);
   }
 
-  function getWithdrawalsBalance() public view returns (uint256) {
-    return contractBalance + liquidityBalance;
+  function withdrawalsBalance() public view returns (uint256) {
+    return contractBalance() + liquidityBalance;
   }
 
   /*****************

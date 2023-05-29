@@ -1,9 +1,8 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 
-import { STOracle__factory, STValidator__factory, StakeTogether__factory } from '../../typechain'
+import { STOracle__factory, StakeTogether__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
-import { formatAddressToWithdrawalCredentials } from '../utils/formatWithdrawal'
 
 export async function defaultFixture() {
   checkVariables()
@@ -26,17 +25,9 @@ export async function defaultFixture() {
 
   const STOracle = await new STOracle__factory().connect(owner).deploy()
 
-  const STValidator = await new STValidator__factory()
-    .connect(owner)
-    .deploy(
-      process.env.GOERLI_DEPOSIT_ADDRESS as string,
-      process.env.GOERLI_SSV_NETWORK_ADDRESS as string,
-      process.env.GOERLI_SSV_TOKEN_ADDRESS as string
-    )
-
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
-    .deploy(await STOracle.getAddress(), await STValidator.getAddress(), {
+    .deploy(await STOracle.getAddress(), process.env.GOERLI_DEPOSIT_ADDRESS as string, {
       value: initialDeposit
     })
 
@@ -50,11 +41,6 @@ export async function defaultFixture() {
   await STOracle.addNode(user1.address)
   await STOracle.addNode(user2.address)
   await STOracle.setStakeTogether(await StakeTogether.getAddress())
-
-  await STValidator.setStakeTogether(await StakeTogether.getAddress())
-  await STValidator.setWithdrawalCredentials(
-    formatAddressToWithdrawalCredentials(await StakeTogether.getAddress())
-  )
 
   return {
     provider,
@@ -71,7 +57,6 @@ export async function defaultFixture() {
     nullAddress,
     initialDeposit,
     STOracle,
-    STValidator,
     StakeTogether
   }
 }
