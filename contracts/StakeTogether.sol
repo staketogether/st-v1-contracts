@@ -133,7 +133,7 @@ contract StakeTogether is CETH {
   }
 
   function withdrawalsBalance() public view returns (uint256) {
-    return contractBalance() + liquidityBalance;
+    return bufferedBalance() + liquidityBalance;
   }
 
   /*****************
