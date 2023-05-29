@@ -107,7 +107,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     reportLastBlock = reportNextBlock;
     reportNextBlock = block.number + reportFrequency;
 
-    stakeTogether.setBeaconBalance(_transientBalance);
+    stakeTogether.setTransientBalance(_transientBalance);
     stakeTogether.setBeaconBalance(_beaconBalance);
 
     emit ConsensusApproved(reportNextBlock, _transientBalance, _beaconBalance);
