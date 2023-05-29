@@ -19,16 +19,6 @@ export async function deployContracts() {
   verifyContracts(oracleAddress, stakeTogether)
 }
 
-async function verifyContracts(oracleAddress: string, stakeTogether: string) {
-  console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
-  console.log(
-    `\nnpx hardhat verify --network goerli ${oracleAddress} && 
-      npx hardhat verify --network goerli ${stakeTogether} ${oracleAddress} ${
-      process.env.GOERLI_DEPOSIT_ADDRESS as string
-    }`
-  )
-}
-
 async function deployOracle(owner: CustomEthersSigner) {
   const STOracle = await new STOracle__factory().connect(owner).deploy()
 
@@ -57,6 +47,16 @@ async function deployStakeTogether(owner: CustomEthersSigner, oracleAddress: str
   await STOracle.setStakeTogether(address)
 
   return address
+}
+
+async function verifyContracts(oracleAddress: string, stakeTogether: string) {
+  console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
+  console.log(
+    `\nnpx hardhat verify --network goerli ${oracleAddress} && 
+      npx hardhat verify --network goerli ${stakeTogether} ${oracleAddress} ${
+      process.env.GOERLI_DEPOSIT_ADDRESS as string
+    }`
+  )
 }
 
 deployContracts().catch(error => {
