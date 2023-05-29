@@ -117,7 +117,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     for (uint256 i = 0; i < nodes.length; i++) {
       address node = nodes[i];
       uint256 reportedBalance = nodesReports[node][reportNextBlock];
-      if (reportedBalance != beaconBalance && reportedBalance > 0) {
+      if (reportedBalance != _consensusBalance && reportedBalance > 0) {
         emit NonConsensusValueReported(node, reportNextBlock, reportedBalance, _consensusBalance);
         _blacklistNode(node);
       }
@@ -125,7 +125,6 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   }
 
   function setReportMaxFrequency(uint256 newFrequency) external onlyOwner {
-    // require(newFrequency >= 240, 'Frequency must be at least 1 hour (approx 240 blocks)');
     reportFrequency = newFrequency;
     emit SetReportMaxFrequency(newFrequency);
   }
