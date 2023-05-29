@@ -137,6 +137,37 @@ contract StakeTogether is CETH {
   }
 
   /*****************
+   ** BOOST APR **
+   *****************/
+
+  event DepositExtendedBuffer(address indexed account, uint256 amount);
+  event WithdrawExtendedBuffer(address indexed account, uint256 amount);
+
+  uint256 public extendedBalance = 0;
+
+  function depositExtendedBuffer() external payable onlyOwner nonReentrant whenNotPaused {
+    require(msg.value > 0, 'ZERO_VALUE');
+    extendedBalance += msg.value;
+
+    emit DepositExtendedBuffer(msg.sender, msg.value);
+  }
+
+  function withdrawExtendedBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
+    require(_amount > 0, 'ZERO_VALUE');
+    require(extendedBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+
+    extendedBalance -= _amount;
+
+    payable(owner()).transfer(_amount);
+
+    emit WithdrawExtendedBuffer(msg.sender, _amount);
+  }
+
+  function extendedBufferedBalance() public view returns (uint256) {
+    return bufferedBalance() + extendedBalance;
+  }
+
+  /*****************
    ** REWARDS **
    *****************/
 
@@ -182,7 +213,7 @@ contract StakeTogether is CETH {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyOwner nonReentrant {
-    require(bufferedBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+    require(extendedBufferedBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
     depositContract.deposit{ value: poolSize }(
       _publicKey,
