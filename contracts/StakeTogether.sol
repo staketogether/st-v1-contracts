@@ -94,7 +94,11 @@ contract StakeTogether is CETH {
   }
 
   function poolBalance() public view returns (uint256) {
-    return contractBalance() - liquidityBufferBalance;
+    return contractBalance() - liquidityBufferBalance - poolBufferBalance;
+  }
+
+  function poolBalanceWithBuffer() public view returns (uint256) {
+    return poolBalance() + poolBufferBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
@@ -165,10 +169,6 @@ contract StakeTogether is CETH {
     emit WithdrawPoolBuffer(msg.sender, _amount);
   }
 
-  function poolWithBufferBalance() public view returns (uint256) {
-    return poolBalance() + poolBufferBalance;
-  }
-
   /*****************
    ** REWARDS **
    *****************/
@@ -216,7 +216,7 @@ contract StakeTogether is CETH {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyOwner nonReentrant {
-    require(poolWithBufferBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+    require(poolBalanceWithBuffer() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
     depositContract.deposit{ value: poolSize }(
       _publicKey,
