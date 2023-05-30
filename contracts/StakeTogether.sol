@@ -94,25 +94,31 @@ contract StakeTogether is CETH {
   }
 
   function poolBalance() public view returns (uint256) {
-    return contractBalance() - liquidityBufferBalance - poolBufferBalance;
+    return contractBalance() - liquidityBufferBalance - validatorBufferBalance;
   }
 
-  function poolBalanceWithBuffer() public view returns (uint256) {
-    return poolBalance() + poolBufferBalance;
+  function poolBufferBalance() public view returns (uint256) {
+    return poolBalance() + validatorBufferBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
     return
-      (contractBalance() + transientBalance + beaconBalance) - liquidityBufferBalance - poolBufferBalance;
+      (contractBalance() + transientBalance + beaconBalance) -
+      liquidityBufferBalance -
+      validatorBufferBalance;
   }
 
   function totalEtherSupply() public view returns (uint256) {
     return
-      contractBalance() + transientBalance + beaconBalance + liquidityBufferBalance + poolBufferBalance;
+      contractBalance() +
+      transientBalance +
+      beaconBalance +
+      liquidityBufferBalance +
+      validatorBufferBalance;
   }
 
   /*****************
-   ** WITHDRAWALS **
+   ** LIQUIDITY BUFFER **
    *****************/
 
   event DepositLiquidityBuffer(address indexed account, uint256 amount);
@@ -143,30 +149,30 @@ contract StakeTogether is CETH {
   }
 
   /*****************
-   ** Pool Buffer **
+   ** VALIDATOR BUFFER **
    *****************/
 
-  event DepositPoolBuffer(address indexed account, uint256 amount);
-  event WithdrawPoolBuffer(address indexed account, uint256 amount);
+  event DepositValidatorBuffer(address indexed account, uint256 amount);
+  event WithdrawValidatorBuffer(address indexed account, uint256 amount);
 
-  uint256 public poolBufferBalance = 0;
+  uint256 public validatorBufferBalance = 0;
 
-  function depositPoolBuffer() external payable onlyOwner nonReentrant whenNotPaused {
+  function depositValidatorBuffer() external payable onlyOwner nonReentrant whenNotPaused {
     require(msg.value > 0, 'ZERO_VALUE');
-    poolBufferBalance += msg.value;
+    validatorBufferBalance += msg.value;
 
-    emit DepositPoolBuffer(msg.sender, msg.value);
+    emit DepositValidatorBuffer(msg.sender, msg.value);
   }
 
-  function withdrawPoolBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
+  function withdrawValidatorBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(poolBufferBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+    require(validatorBufferBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
 
-    poolBufferBalance -= _amount;
+    validatorBufferBalance -= _amount;
 
     payable(owner()).transfer(_amount);
 
-    emit WithdrawPoolBuffer(msg.sender, _amount);
+    emit WithdrawValidatorBuffer(msg.sender, _amount);
   }
 
   /*****************
@@ -216,7 +222,7 @@ contract StakeTogether is CETH {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyOwner nonReentrant {
-    require(poolBalanceWithBuffer() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+    require(poolBufferBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
     depositContract.deposit{ value: poolSize }(
       _publicKey,
