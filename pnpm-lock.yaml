@@ -1,9 +1,13 @@
-lockfileVersion: '6.0'
+lockfileVersion: '6.1'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
 
 dependencies:
   '@openzeppelin/contracts':
-    specifier: 4.9.0-rc.0
-    version: 4.9.0-rc.0
+    specifier: 4.9.0
+    version: 4.9.0
   dotenv:
     specifier: ^16.0.3
     version: 16.0.3
@@ -1070,8 +1074,8 @@ packages:
       - supports-color
     dev: true
 
-  /@openzeppelin/contracts@4.9.0-rc.0:
-    resolution: {integrity: sha512-gD1V+kF1v8rPZ1CREstOTqKDeIsvvhlN4W+P0GKMHaM68hkmkumPjR1I35kg5pGhIBPockH51/tnOerklH+mGQ==}
+  /@openzeppelin/contracts@4.9.0:
+    resolution: {integrity: sha512-DUP74AFGKlic2sQb/CmgrN2aUPMFGxRrmCTUxLHsiU2RzwWqVuMPZBxiAyvlff6Pea77uylAX6B5x9W6evEbhA==}
     dev: false
 
   /@scure/base@1.1.1:
