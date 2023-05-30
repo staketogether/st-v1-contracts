@@ -65,7 +65,7 @@ contract StakeTogether is CETH {
   function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_CONTRACT_BALANCE');
+    require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_WITHDRAWALS_BALANCE');
     require(delegationSharesOf(msg.sender, _delegated) > 0, 'NOT_DELEGATION_SHARES');
 
     uint256 userBalance = balanceOf(msg.sender);
@@ -93,16 +93,18 @@ contract StakeTogether is CETH {
     emit SetMinDepositPoolAmount(_amount);
   }
 
-  function bufferedBalance() public view returns (uint256) {
-    return contractBalance() - liquidityBalance;
+  function poolBalance() public view returns (uint256) {
+    return contractBalance() - liquidityBufferBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return (contractBalance() + transientBalance + beaconBalance) - liquidityBalance;
+    return
+      (contractBalance() + transientBalance + beaconBalance) - liquidityBufferBalance - poolBufferBalance;
   }
 
   function totalEtherSupply() public view returns (uint256) {
-    return contractBalance() + transientBalance + beaconBalance + liquidityBalance;
+    return
+      contractBalance() + transientBalance + beaconBalance + liquidityBufferBalance + poolBufferBalance;
   }
 
   /*****************
@@ -112,20 +114,20 @@ contract StakeTogether is CETH {
   event DepositLiquidityBuffer(address indexed account, uint256 amount);
   event WithdrawLiquidityBuffer(address indexed account, uint256 amount);
 
-  uint256 public liquidityBalance = 0;
+  uint256 public liquidityBufferBalance = 0;
 
   function depositLiquidityBuffer() external payable onlyOwner nonReentrant whenNotPaused {
     require(msg.value > 0, 'ZERO_VALUE');
-    liquidityBalance += msg.value;
+    liquidityBufferBalance += msg.value;
 
     emit DepositLiquidityBuffer(msg.sender, msg.value);
   }
 
   function withdrawLiquidityBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(liquidityBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+    require(liquidityBufferBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
 
-    liquidityBalance -= _amount;
+    liquidityBufferBalance -= _amount;
 
     payable(owner()).transfer(_amount);
 
@@ -133,38 +135,38 @@ contract StakeTogether is CETH {
   }
 
   function withdrawalsBalance() public view returns (uint256) {
-    return bufferedBalance() + liquidityBalance;
+    return poolBalance() + liquidityBufferBalance;
   }
 
   /*****************
-   ** BOOST APR **
+   ** Pool Buffer **
    *****************/
 
-  event DepositExtendedBuffer(address indexed account, uint256 amount);
-  event WithdrawExtendedBuffer(address indexed account, uint256 amount);
+  event DepositPoolBuffer(address indexed account, uint256 amount);
+  event WithdrawPoolBuffer(address indexed account, uint256 amount);
 
-  uint256 public extendedBalance = 0;
+  uint256 public poolBufferBalance = 0;
 
-  function depositExtendedBuffer() external payable onlyOwner nonReentrant whenNotPaused {
+  function depositPoolBuffer() external payable onlyOwner nonReentrant whenNotPaused {
     require(msg.value > 0, 'ZERO_VALUE');
-    extendedBalance += msg.value;
+    poolBufferBalance += msg.value;
 
-    emit DepositExtendedBuffer(msg.sender, msg.value);
+    emit DepositPoolBuffer(msg.sender, msg.value);
   }
 
-  function withdrawExtendedBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
+  function withdrawPoolBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(extendedBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+    require(poolBufferBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
 
-    extendedBalance -= _amount;
+    poolBufferBalance -= _amount;
 
     payable(owner()).transfer(_amount);
 
-    emit WithdrawExtendedBuffer(msg.sender, _amount);
+    emit WithdrawPoolBuffer(msg.sender, _amount);
   }
 
-  function extendedBufferedBalance() public view returns (uint256) {
-    return bufferedBalance() + extendedBalance;
+  function poolWithBufferBalance() public view returns (uint256) {
+    return poolBalance() + poolBufferBalance;
   }
 
   /*****************
@@ -214,7 +216,7 @@ contract StakeTogether is CETH {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyOwner nonReentrant {
-    require(extendedBufferedBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+    require(poolWithBufferBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
     depositContract.deposit{ value: poolSize }(
       _publicKey,
