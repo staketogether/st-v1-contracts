@@ -206,7 +206,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 sharesAmount
   );
 
-  event BurnDelegatedShares(address indexed from, address indexed delegate, uint256 sharesAmount);
+  event BurnDelegatedShares(address indexed from, address indexed delegated, uint256 sharesAmount);
 
   function delegatedSharesOf(address _account) public view returns (uint256) {
     return delegatedShares[_account];
