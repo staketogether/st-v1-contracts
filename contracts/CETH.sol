@@ -8,7 +8,6 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-import 'hardhat/console.sol';
 
 abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
   constructor() ERC20('Community Ether', 'CETH') ERC20Permit('Community Ether') {
