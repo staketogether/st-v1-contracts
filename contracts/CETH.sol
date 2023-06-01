@@ -351,7 +351,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 communityFeeShares
   );
 
-  event TransferRewardsShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event TransferOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event TransferStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event TransferCommunityRewards(address indexed from, address indexed to, uint256 sharesAmount);
+
   event SetStakeTogetherFeeRecipient(address indexed to);
   event SetOperatorFeeRecipient(address indexed to);
   event SetStakeTogetherFee(uint256 fee);
@@ -411,17 +414,17 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
     uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAdjust) / totalFee;
 
-    emit TransferRewardsShares(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
-    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
-
-    emit TransferRewardsShares(address(0), operatorFeeRecipient, operatorFeeShares);
+    emit TransferOperatorRewards(address(0), operatorFeeRecipient, operatorFeeShares);
     _mintShares(operatorFeeRecipient, operatorFeeShares);
+
+    emit TransferStakeTogetherRewards(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
 
     for (uint i = 0; i < communities.length; i++) {
       address community = communities[i];
       uint256 communityProportion = delegatedSharesOf(community);
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
-      emit TransferRewardsShares(address(0), community, communityShares);
+      emit TransferCommunityRewards(address(0), community, communityShares);
       _mintShares(community, communityShares);
       _mintDelegatedShares(community, community, communityShares);
     }
