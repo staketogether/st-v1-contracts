@@ -29,13 +29,13 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     require(balance > 0, 'NON_ZERO_VALUE');
 
+    emit Bootstrap(msg.sender, balance);
+
     _mintShares(stakeTogether, balance);
     _mintDelegatedShares(stakeTogether, stakeTogether, balance);
 
     setStakeTogetherFeeRecipient(msg.sender);
     setOperatorFeeRecipient(msg.sender);
-
-    emit Bootstrap(msg.sender, balance);
   }
 
   function pause() public onlyOwner {
