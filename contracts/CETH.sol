@@ -411,19 +411,19 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
     uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAdjust) / totalFee;
 
-    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
     emit TransferRewardsShares(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
 
-    _mintShares(operatorFeeRecipient, operatorFeeShares);
     emit TransferRewardsShares(address(0), operatorFeeRecipient, operatorFeeShares);
+    _mintShares(operatorFeeRecipient, operatorFeeShares);
 
     for (uint i = 0; i < communities.length; i++) {
       address community = communities[i];
       uint256 communityProportion = delegatedSharesOf(community);
       uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
+      emit TransferRewardsShares(address(0), community, communityShares);
       _mintShares(community, communityShares);
       _mintDelegatedShares(community, community, communityShares);
-      emit TransferRewardsShares(address(0), community, communityShares);
     }
 
     emit ProcessRewards(

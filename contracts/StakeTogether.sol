@@ -56,10 +56,10 @@ contract StakeTogether is CETH {
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
+    emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
+
     _mintShares(msg.sender, sharesAmount);
     _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
-
-    emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
   }
 
   function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
@@ -74,10 +74,10 @@ contract StakeTogether is CETH {
 
     uint256 sharesToBurn = (_amount * sharesOf(msg.sender)) / userBalance;
 
+    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _delegated);
+
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
-
-    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _delegated);
 
     payable(msg.sender).transfer(_amount);
   }
