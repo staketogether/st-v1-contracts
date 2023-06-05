@@ -161,11 +161,9 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_CETH_CONTRACT');
+    require(_sharesAmount <= shares[_from], 'BALANCE_EXCEEDED');
 
-    uint256 currentSenderShares = shares[_from];
-    require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
-
-    shares[_from] = currentSenderShares - _sharesAmount;
+    shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
 
     emit TransferShares(_from, _to, _sharesAmount);
