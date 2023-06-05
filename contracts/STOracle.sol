@@ -25,6 +25,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportNextBlock = 1;
   uint256 public reportFrequency = 1;
   uint256 public reportQuorum = 1;
+  bool public isInConsensus = false;
 
   address[] private nodes;
   mapping(address => mapping(uint256 => uint256)) private nodesReports;
@@ -35,6 +36,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
 
   event ConsensusApproved(uint256 indexed blockNumber, uint256 transientBalance, uint256 beaconBalance);
   event ConsensusFail(uint256 indexed blockNumber);
+  event ReportQuorumNotAchieved(uint256 indexed blockNumber);
   event NonConsensusValueReported(
     address indexed node,
     uint256 reportedBlock,
@@ -59,7 +61,7 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function report(uint256 _reportBlock, Report memory _report) public onlyNodes whenNotPaused {
+  function report(uint256 _reportBlock, Report memory _report) public onlyNodes {
     require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
     require(_report.beaconBalance > 0, 'ZERO_VALUE');
     require(_reportBlock == reportNextBlock, 'NON_NEXT_BLOCK');
@@ -74,6 +76,8 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
 
     if (reportsCount[reportNextBlock] >= reportQuorum) {
       validConsensus(_report.transientBalance, _report.beaconBalance);
+    } else {
+      emit ReportQuorumNotAchieved(reportNextBlock);
     }
   }
 
@@ -94,10 +98,11 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
     if (totalReports >= reportQuorum) {
       consensusBlock[reportNextBlock] = consensusBalance;
       checkForNonConsensusReports(consensusBalance);
-      approveConsensus(_transientBalance, _beaconBalance);
-    } else {
-      // Todo: set next report block to current block
-      emit ConsensusFail(reportNextBlock);
+      if (isInConsensus) {
+        approveConsensus(_transientBalance, _beaconBalance);
+      } else {
+        emit ConsensusFail(reportNextBlock);
+      }
     }
   }
 
@@ -114,14 +119,17 @@ contract STOracle is Ownable, Pausable, ReentrancyGuard {
   }
 
   function checkForNonConsensusReports(uint256 _consensusBalance) internal {
+    bool checkConsensus = true;
     for (uint256 i = 0; i < nodes.length; i++) {
       address node = nodes[i];
       uint256 reportedBalance = nodesReports[node][reportNextBlock];
       if (reportedBalance != _consensusBalance && reportedBalance > 0) {
         emit NonConsensusValueReported(node, reportNextBlock, reportedBalance, _consensusBalance);
         _blacklistNode(node);
+        checkConsensus = false;
       }
     }
+    isInConsensus = checkConsensus;
   }
 
   function setReportMaxFrequency(uint256 newFrequency) external onlyOwner {
