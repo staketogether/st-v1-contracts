@@ -10,7 +10,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
 abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
-  constructor() ERC20('Staked Ether', 'SETH') ERC20Permit('Staked Ether') {
+  constructor() ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     _bootstrap();
   }
 
