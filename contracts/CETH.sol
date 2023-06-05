@@ -16,6 +16,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   event Bootstrap(address sender, uint256 balance);
 
+  event MintShares(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
 
@@ -154,19 +155,17 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
 
-    totalShares += _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
+    totalShares += _sharesAmount;
 
-    emit TransferShares(address(0), _to, _sharesAmount);
+    emit MintShares(address(0), _to, _sharesAmount);
   }
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
+    require(_sharesAmount <= shares[_account], 'BALANCE_EXCEEDED');
 
-    uint256 accountShares = shares[_account];
-    require(_sharesAmount <= accountShares, 'BALANCE_EXCEEDED');
-
-    shares[_account] = accountShares - _sharesAmount;
+    shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
 
     emit BurnShares(_account, _sharesAmount);
@@ -190,6 +189,13 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   mapping(address => mapping(address => uint256)) private delegationsShares;
   mapping(address => address[]) private delegates;
   mapping(address => mapping(address => bool)) private isDelegator;
+
+  event MintDelegatedShares(
+    address indexed from,
+    address indexed to,
+    address indexed delegated,
+    uint256 sharesAmount
+  );
 
   event TransferDelegatedShares(
     address indexed from,
@@ -242,7 +248,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       isDelegator[_to][_delegated] = true;
     }
 
-    emit TransferDelegatedShares(address(0), _to, _delegated, _sharesAmount);
+    emit MintDelegatedShares(address(0), _to, _delegated, _sharesAmount);
   }
 
   function _burnDelegatedShares(
@@ -272,26 +278,21 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_sharesToTransfer <= sharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
 
-    // Transfer delegation shares proportionally
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address delegate = delegates[_from][i];
       uint256 delegationSharesToTransfer = (delegationSharesOf(_from, delegate) * _sharesToTransfer) /
         sharesOf(_from);
 
-      // Subtract from the sender
       delegationsShares[_from][delegate] -= delegationSharesToTransfer;
 
-      // If the recipient is not already a delegator for this delegate, add them
       if (!isDelegator[_to][delegate]) {
         require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
         delegates[_to].push(delegate);
         isDelegator[_to][delegate] = true;
       }
 
-      // Add to the recipient
       delegationsShares[_to][delegate] += delegationSharesToTransfer;
 
-      // If the sender no longer has any delegation shares for this delegate, remove them as a delegator
       if (delegationSharesOf(_from, delegate) == 0) {
         isDelegator[_from][delegate] = false;
       }
@@ -311,8 +312,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_toDelegated != address(this), 'TRANSFER_TO_CETH_CONTRACT');
     require(_isCommunity(_toDelegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
 
-    uint256 currentSenderShares = delegationsShares[_account][_fromDelegated];
-    require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= delegationsShares[_account][_fromDelegated], 'BALANCE_EXCEEDED');
 
     delegatedShares[_fromDelegated] -= _sharesAmount;
     delegationsShares[_account][_fromDelegated] -= _sharesAmount;
