@@ -386,9 +386,9 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 poolFeeShares
   );
 
-  event TransferOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event TransferStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event TransferPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event MintOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event MintStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event MintPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
 
   event SetStakeTogetherFee(uint256 fee);
   event SetOperatorFee(uint256 fee);
@@ -435,17 +435,17 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
     uint256 poolFeeShares = (sharesMintedAsFees * poolFeeAdjust) / totalFee;
 
-    emit TransferOperatorRewards(address(0), operatorFeeAddress, operatorFeeShares);
+    emit MintOperatorRewards(address(0), operatorFeeAddress, operatorFeeShares);
     _mintShares(operatorFeeAddress, operatorFeeShares);
 
-    emit TransferStakeTogetherRewards(address(0), stakeTogetherFeeAddress, stakeTogetherFeeShares);
+    emit MintStakeTogetherRewards(address(0), stakeTogetherFeeAddress, stakeTogetherFeeShares);
     _mintShares(stakeTogetherFeeAddress, stakeTogetherFeeShares);
 
     for (uint i = 0; i < pools.length; i++) {
       address pool = pools[i];
       uint256 poolProportion = delegatedSharesOf(pool);
       uint256 poolShares = (poolFeeShares * poolProportion) / totalDelegatedShares;
-      emit TransferPoolRewards(address(0), pool, poolShares);
+      emit MintPoolRewards(address(0), pool, poolShares);
       _mintShares(pool, poolShares);
       _mintDelegatedShares(pool, pool, poolShares);
     }
