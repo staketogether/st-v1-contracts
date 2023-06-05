@@ -42,8 +42,9 @@ contract StakeTogether is SETH {
 
   event SetWithdrawalCredentials(bytes withdrawalCredentials);
   event SetMinDepositPoolAmount(uint256 amount);
+  event SetPoolSize(uint256 amount);
 
-  uint256 public immutable poolSize = 32 ether;
+  uint256 public poolSize = 32 ether;
   uint256 public minDepositAmount = 0.000000000000000001 ether;
 
   function depositPool(
@@ -91,6 +92,12 @@ contract StakeTogether is SETH {
   function setMinDepositPoolAmount(uint256 _amount) external onlyOwner {
     minDepositAmount = _amount;
     emit SetMinDepositPoolAmount(_amount);
+  }
+
+  function setPoolSize(uint256 _amount) external onlyOwner {
+    require(_amount >= 32 ether, 'POOL_SIZE_TOO_LOW');
+    poolSize = _amount;
+    emit SetPoolSize(_amount);
   }
 
   function poolBalance() public view returns (uint256) {
