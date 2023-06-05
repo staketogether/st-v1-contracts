@@ -123,27 +123,6 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function totalPooledEther() public view virtual returns (uint256);
 
-  function _transfer(address _from, address _to, uint256 _amount) internal override {
-    uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
-    _transferShares(_from, _to, _sharesToTransfer);
-    _transferDelegationShares(_from, _to, _sharesToTransfer);
-    emit Transfer(_from, _to, _amount);
-  }
-
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
-    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_to != address(this), 'TRANSFER_TO_CETH_CONTRACT');
-
-    uint256 currentSenderShares = shares[_from];
-    require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
-
-    shares[_from] = currentSenderShares - _sharesAmount;
-    shares[_to] = shares[_to] + _sharesAmount;
-
-    emit TransferShares(_from, _to, _sharesAmount);
-  }
-
   function _approve(address _owner, address _spender, uint256 _amount) internal override {
     require(_owner != address(0), 'APPROVE_FROM_ZERO_ADDR');
     require(_spender != address(0), 'APPROVE_TO_ZERO_ADDR');
@@ -169,6 +148,27 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     totalShares -= _sharesAmount;
 
     emit BurnShares(_account, _sharesAmount);
+  }
+
+  function _transfer(address _from, address _to, uint256 _amount) internal override {
+    uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
+    _transferShares(_from, _to, _sharesToTransfer);
+    _transferDelegationShares(_from, _to, _sharesToTransfer);
+    emit Transfer(_from, _to, _amount);
+  }
+
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
+    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
+    require(_to != address(this), 'TRANSFER_TO_CETH_CONTRACT');
+
+    uint256 currentSenderShares = shares[_from];
+    require(_sharesAmount <= currentSenderShares, 'BALANCE_EXCEEDED');
+
+    shares[_from] = currentSenderShares - _sharesAmount;
+    shares[_to] = shares[_to] + _sharesAmount;
+
+    emit TransferShares(_from, _to, _sharesAmount);
   }
 
   function _spendAllowance(address _owner, address _spender, uint256 _amount) internal override {
