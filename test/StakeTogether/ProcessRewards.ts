@@ -39,21 +39,21 @@
 //     let balanceOperator = await StakeTogether.balanceOf(user9.address)
 //     let sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-//     let balanceCommunity = await StakeTogether.balanceOf(user2.address)
+//     let balancePool = await StakeTogether.balanceOf(user2.address)
 
-//     let sharesCommunity = await StakeTogether.sharesOf(user2.address)
+//     let sharesPool = await StakeTogether.sharesOf(user2.address)
 //     let delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
 
 //     console.log('---------------------------------------------')
 //     console.log('balanceUser\t\t', balanceUser.toString())
 //     console.log('balanceST\t\t', balanceST.toString())
 //     console.log('balanceOperator\t\t', balanceOperator.toString())
-//     console.log('balanceCommunity\t', balanceCommunity.toString())
+//     console.log('balancePool\t', balancePool.toString())
 //     console.log('totalPooledEther\t', totalPooledEther.toString())
-//     console.log('totalBalances\t\t', initialDeposit + balanceUser + balanceST + balanceCommunity)
+//     console.log('totalBalances\t\t', initialDeposit + balanceUser + balanceST + balancePool)
 //     console.log(
 //       'loss\t\t\t',
-//       totalPooledEther - (initialDeposit + balanceUser + balanceST + balanceOperator + balanceCommunity)
+//       totalPooledEther - (initialDeposit + balanceUser + balanceST + balanceOperator + balancePool)
 //     )
 //     console.log('---------------------------------------------\n\n')
 
@@ -70,8 +70,8 @@
 //     expect(balanceOperator).to.eq(0n)
 //     expect(sharesOperator).to.eq(0n)
 
-//     expect(balanceCommunity).to.eq(0n)
-//     expect(sharesCommunity).to.eq(0n)
+//     expect(balancePool).to.eq(0n)
+//     expect(sharesPool).to.eq(0n)
 
 //     // rebase earn
 
@@ -110,10 +110,10 @@
 //     balanceOperator = await StakeTogether.balanceOf(user9.address)
 //     sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-//     balanceCommunity = await StakeTogether.balanceOf(user2.address)
-//     let balanceCommunity4 = await StakeTogether.balanceOf(user4.address)
+//     balancePool = await StakeTogether.balanceOf(user2.address)
+//     let balancePool4 = await StakeTogether.balanceOf(user4.address)
 
-//     sharesCommunity = await StakeTogether.sharesOf(user2.address)
+//     sharesPool = await StakeTogether.sharesOf(user2.address)
 //     delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
 //     let delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
 
@@ -122,8 +122,8 @@
 //     console.log('balanceUser3\t\t', balanceUser3.toString())
 //     console.log('balanceST\t\t', balanceST.toString())
 //     console.log('balanceOperator\t\t', balanceOperator.toString())
-//     console.log('balanceCommunity\t', balanceCommunity.toString())
-//     console.log('balanceCommunity4\t', balanceCommunity4.toString())
+//     console.log('balancePool\t', balancePool.toString())
+//     console.log('balancePool4\t', balancePool4.toString())
 //     console.log('totalPooledEther\t', totalPooledEther.toString())
 //     console.log(
 //       'totalBalances\t\t',
@@ -132,8 +132,8 @@
 //         balanceUser3 +
 //         balanceST +
 //         balanceOperator +
-//         balanceCommunity +
-//         balanceCommunity4
+//         balancePool +
+//         balancePool4
 //     )
 //     console.log(
 //       'loss\t\t\t',
@@ -143,8 +143,8 @@
 //           balanceUser3 +
 //           balanceST +
 //           balanceOperator +
-//           balanceCommunity +
-//           balanceCommunity4)
+//           balancePool +
+//           balancePool4)
 //     )
 //     console.log('---------------------------------------------\n\n')
 
@@ -164,10 +164,10 @@
 //     expect(balanceOperator).to.eq(29999999999999998n)
 //     // expect(sharesOperator).to.eq(30000000000000000n)
 
-//     expect(balanceCommunity).to.eq(29999999999999996n)
-//     expect(balanceCommunity4).to.eq(0n)
+//     expect(balancePool).to.eq(29999999999999996n)
+//     expect(balancePool4).to.eq(0n)
 
-//     // expect(sharesCommunity).to.eq(29999999999999999n)
+//     // expect(sharesPool).to.eq(29999999999999999n)
 //     // expect(delegationSharesDelegated).to.eq(1029999999999999999n)
 //     // expect(delegationSharesDelegated4).to.eq(544999999999999999n)
 
@@ -202,10 +202,10 @@
 //     balanceOperator = await StakeTogether.balanceOf(user9.address)
 //     // sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-//     balanceCommunity = await StakeTogether.balanceOf(user2.address)
-//     balanceCommunity4 = await StakeTogether.balanceOf(user4.address)
+//     balancePool = await StakeTogether.balanceOf(user2.address)
+//     balancePool4 = await StakeTogether.balanceOf(user4.address)
 
-//     // sharesCommunity = await StakeTogether.sharesOf(user2.address)
+//     // sharesPool = await StakeTogether.sharesOf(user2.address)
 //     // delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
 //     // delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
 
@@ -214,8 +214,8 @@
 //     console.log('balanceUser3\t\t', balanceUser3.toString())
 //     console.log('balanceST\t\t', balanceST.toString())
 //     console.log('balanceOperator\t\t', balanceOperator.toString())
-//     console.log('balanceCommunity\t', balanceCommunity.toString())
-//     console.log('balanceCommunity4\t', balanceCommunity4.toString())
+//     console.log('balancePool\t', balancePool.toString())
+//     console.log('balancePool4\t', balancePool4.toString())
 //     console.log('totalPooledEther\t', totalPooledEther.toString())
 //     console.log(
 //       'totalBalances\t\t',
@@ -224,8 +224,8 @@
 //         balanceUser3 +
 //         balanceST +
 //         balanceOperator +
-//         balanceCommunity +
-//         balanceCommunity4
+//         balancePool +
+//         balancePool4
 //     )
 //     console.log(
 //       'loss\t\t\t',
@@ -235,8 +235,8 @@
 //           balanceUser3 +
 //           balanceST +
 //           balanceOperator +
-//           balanceCommunity +
-//           balanceCommunity4)
+//           balancePool +
+//           balancePool4)
 //     )
 //     console.log('---------------------------------------------\n\n')
 
@@ -256,10 +256,10 @@
 //     expect(balanceOperator).to.eq(19999999999999998n)
 //     // expect(sharesOperator).to.eq(30000000000000000n)
 
-//     expect(balanceCommunity).to.eq(19999999999999997n)
-//     expect(balanceCommunity4).to.eq(0n)
+//     expect(balancePool).to.eq(19999999999999997n)
+//     expect(balancePool4).to.eq(0n)
 
-//     // expect(sharesCommunity).to.eq(29999999999999999n)
+//     // expect(sharesPool).to.eq(29999999999999999n)
 //     // expect(delegationSharesDelegated).to.eq(1029999999999999999n)
 //     // expect(delegationSharesDelegated4).to.eq(544999999999999999n)
 
@@ -294,10 +294,10 @@
 //     balanceOperator = await StakeTogether.balanceOf(user9.address)
 //     sharesOperator = await StakeTogether.sharesOf(user9.address)
 
-//     balanceCommunity = await StakeTogether.balanceOf(user2.address)
-//     balanceCommunity4 = await StakeTogether.balanceOf(user4.address)
+//     balancePool = await StakeTogether.balanceOf(user2.address)
+//     balancePool4 = await StakeTogether.balanceOf(user4.address)
 
-//     sharesCommunity = await StakeTogether.sharesOf(user2.address)
+//     sharesPool = await StakeTogether.sharesOf(user2.address)
 
 //     delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
 //     delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
@@ -307,8 +307,8 @@
 //     console.log('balanceUser3\t\t', balanceUser3.toString())
 //     console.log('balanceST\t\t', balanceST.toString())
 //     console.log('balanceOperator\t\t', balanceOperator.toString())
-//     console.log('balanceCommunity\t', balanceCommunity.toString())
-//     console.log('balanceCommunity4\t', balanceCommunity4.toString())
+//     console.log('balancePool\t', balancePool.toString())
+//     console.log('balancePool4\t', balancePool4.toString())
 //     console.log('totalPooledEther\t', totalPooledEther.toString())
 //     console.log(
 //       'totalBalances\t\t',
@@ -317,8 +317,8 @@
 //         balanceUser3 +
 //         balanceST +
 //         balanceOperator +
-//         balanceCommunity +
-//         balanceCommunity4
+//         balancePool +
+//         balancePool4
 //     )
 //     console.log(
 //       'loss\t\t\t',
@@ -328,8 +328,8 @@
 //           balanceUser3 +
 //           balanceST +
 //           balanceOperator +
-//           balanceCommunity +
-//           balanceCommunity4)
+//           balancePool +
+//           balancePool4)
 //     )
 //     console.log('---------------------------------------------\n\n')
 
@@ -349,10 +349,10 @@
 //     expect(balanceOperator).to.eq(98205243555772670n)
 //     // expect(sharesOperator).to.eq(79049999999999999n)
 
-//     expect(balanceCommunity).to.eq(77795990561929889n)
-//     expect(balanceCommunity4).to.eq(20195666200658449n)
+//     expect(balancePool).to.eq(77795990561929889n)
+//     expect(balancePool4).to.eq(20195666200658449n)
 
-//     // expect(sharesCommunity).to.eq(62077142857142855n)
+//     // expect(sharesPool).to.eq(62077142857142855n)
 //     // expect(delegationSharesDelegated).to.eq(1062077142857142855n)
 //     // expect(delegationSharesDelegated4).to.eq(561634080149054982n)
 //   })

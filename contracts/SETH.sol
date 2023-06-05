@@ -9,8 +9,8 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
-abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
-  constructor() ERC20('Community Ether', 'CETH') ERC20Permit('Community Ether') {
+abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
+  constructor() ERC20('Staked Ether', 'SETH') ERC20Permit('Staked Ether') {
     _bootstrap();
   }
 
@@ -234,7 +234,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_isCommunity(_delegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
+    require(_isPool(_delegated), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
 
     delegatedShares[_delegated] += _sharesAmount;
@@ -256,7 +256,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
     require(_delegated != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_isCommunity(_delegated), 'ONLY_CAN_BURN_FROM_COMMUNITY');
+    require(_isPool(_delegated), 'ONLY_CAN_BURN_FROM_POOL');
 
     delegatedShares[_delegated] -= _sharesAmount;
     delegationsShares[_from][_delegated] -= _sharesAmount;
@@ -308,7 +308,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_fromDelegated != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_toDelegated != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_toDelegated != address(this), 'TRANSFER_TO_CETH_CONTRACT');
-    require(_isCommunity(_toDelegated), 'ONLY_CAN_DELEGATE_TO_COMMUNITY');
+    require(_isPool(_toDelegated), 'ONLY_CAN_DELEGATE_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromDelegated], 'BALANCE_EXCEEDED');
 
@@ -334,7 +334,7 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public basisPoints = 1 ether;
   uint256 public stakeTogetherFee = 0.03 ether;
   uint256 public operatorFee = 0.03 ether;
-  uint256 public communityFee = 0.03 ether;
+  uint256 public poolFee = 0.03 ether;
 
   event ProcessRewards(
     uint256 preClBalance,
@@ -343,21 +343,21 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 growthFactor,
     uint256 stakeTogetherFee,
     uint256 operatorFee,
-    uint256 communityFee,
+    uint256 poolFee,
     uint256 stakeTogetherFeeShares,
     uint256 operatorFeeShares,
-    uint256 communityFeeShares
+    uint256 poolFeeShares
   );
 
   event TransferOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event TransferCommunityRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event TransferPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
 
   event SetStakeTogetherFeeRecipient(address indexed to);
   event SetOperatorFeeRecipient(address indexed to);
   event SetStakeTogetherFee(uint256 fee);
-  event OperatorFeeSet(uint256 fee);
-  event SetCommunityFee(uint256 fee);
+  event SetOperatorFee(uint256 fee);
+  event SetPoolFee(uint256 fee);
 
   function setStakeTogetherFeeRecipient(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
@@ -376,14 +376,14 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit SetStakeTogetherFee(_fee);
   }
 
-  function setCommunityFee(uint256 _fee) external onlyOwner {
-    communityFee = _fee;
-    emit SetCommunityFee(_fee);
+  function setPoolFee(uint256 _fee) external onlyOwner {
+    poolFee = _fee;
+    emit SetPoolFee(_fee);
   }
 
   function setOperatorFee(uint256 _fee) external onlyOwner {
     operatorFee = _fee;
-    emit OperatorFeeSet(_fee);
+    emit SetOperatorFee(_fee);
   }
 
   function setTransientBalance(uint256 _transientBalance) external virtual {}
@@ -401,16 +401,16 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     uint256 stakeTogetherFeeAdjust = stakeTogetherFee + (stakeTogetherFee * growthFactor) / basisPoints;
     uint256 operatorFeeAdjust = operatorFee + (operatorFee * growthFactor) / basisPoints;
-    uint256 communityFeeAdjust = communityFee + (communityFee * growthFactor) / basisPoints;
+    uint256 poolFeeAdjust = poolFee + (poolFee * growthFactor) / basisPoints;
 
-    uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAdjust + communityFeeAdjust;
+    uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAdjust + poolFeeAdjust;
 
     uint256 sharesMintedAsFees = (rewards * totalFee * totalShares) /
       (totalPooledEtherWithRewards * basisPoints - rewards * totalFee);
 
     uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
-    uint256 communityFeeShares = (sharesMintedAsFees * communityFeeAdjust) / totalFee;
+    uint256 poolFeeShares = (sharesMintedAsFees * poolFeeAdjust) / totalFee;
 
     emit TransferOperatorRewards(address(0), operatorFeeRecipient, operatorFeeShares);
     _mintShares(operatorFeeRecipient, operatorFeeShares);
@@ -418,13 +418,13 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit TransferStakeTogetherRewards(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
     _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
 
-    for (uint i = 0; i < communities.length; i++) {
-      address community = communities[i];
-      uint256 communityProportion = delegatedSharesOf(community);
-      uint256 communityShares = (communityFeeShares * communityProportion) / totalDelegatedShares;
-      emit TransferCommunityRewards(address(0), community, communityShares);
-      _mintShares(community, communityShares);
-      _mintDelegatedShares(community, community, communityShares);
+    for (uint i = 0; i < pools.length; i++) {
+      address pool = pools[i];
+      uint256 poolProportion = delegatedSharesOf(pool);
+      uint256 poolShares = (poolFeeShares * poolProportion) / totalDelegatedShares;
+      emit TransferPoolRewards(address(0), pool, poolShares);
+      _mintShares(pool, poolShares);
+      _mintDelegatedShares(pool, pool, poolShares);
     }
 
     emit ProcessRewards(
@@ -434,10 +434,10 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       growthFactor,
       stakeTogetherFee,
       operatorFee,
-      communityFee,
+      poolFee,
       stakeTogetherFeeShares,
       operatorFeeShares,
-      communityFeeShares
+      poolFeeShares
     );
   }
 
@@ -450,52 +450,52 @@ abstract contract CETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   /*****************
-   ** COMMUNITIES **
+   ** POOLS **
    *****************/
 
-  event AddCommunity(address account);
-  event RemoveCommunity(address account);
+  event AddPool(address account);
+  event RemovePool(address account);
 
-  address[] private communities;
+  address[] private pools;
 
-  function getCommunities() public view returns (address[] memory) {
-    return communities;
+  function getPools() public view returns (address[] memory) {
+    return pools;
   }
 
-  function addCommunity(address account) external onlyOwner {
+  function addPool(address account) external onlyOwner {
     require(account != address(0), 'ZERO_ADDR');
-    require(!_isCommunity(account), 'NON_COMMUNITY');
+    require(!_isPool(account), 'NON_POOL');
     require(!_isStakeTogetherFeeRecipient(account), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
     require(!_isOperatorFeeRecipient(account), 'IS_OPERATOR_FEE_RECIPIENT');
 
-    communities.push(account);
-    emit AddCommunity(account);
+    pools.push(account);
+    emit AddPool(account);
   }
 
-  function removeCommunity(address account) external onlyOwner {
-    require(_isCommunity(account), 'COMMUNITY_NOT_FOUND');
+  function removePool(address account) external onlyOwner {
+    require(_isPool(account), 'POOL_NOT_FOUND');
 
-    for (uint256 i = 0; i < communities.length; i++) {
-      if (communities[i] == account) {
-        communities[i] = communities[communities.length - 1];
-        communities.pop();
+    for (uint256 i = 0; i < pools.length; i++) {
+      if (pools[i] == account) {
+        pools[i] = pools[pools.length - 1];
+        pools.pop();
         break;
       }
     }
-    emit RemoveCommunity(account);
+    emit RemovePool(account);
   }
 
-  function isCommunity(address account) external view returns (bool) {
-    return _isCommunity(account);
+  function isPool(address account) external view returns (bool) {
+    return _isPool(account);
   }
 
-  function _isCommunity(address account) internal view returns (bool) {
+  function _isPool(address account) internal view returns (bool) {
     if (account == address(this)) {
       return true;
     }
 
-    for (uint256 i = 0; i < communities.length; i++) {
-      if (communities[i] == account) {
+    for (uint256 i = 0; i < pools.length; i++) {
+      if (pools[i] == account) {
         return true;
       }
     }

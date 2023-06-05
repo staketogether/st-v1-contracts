@@ -34,9 +34,9 @@ export async function defaultFixture() {
   await StakeTogether.setStakeTogetherFeeRecipient(owner.address)
   await StakeTogether.setOperatorFeeRecipient(user9.address)
 
-  await StakeTogether.addCommunity(user2.address)
-  await StakeTogether.addCommunity(user3.address)
-  await StakeTogether.addCommunity(user4.address)
+  await StakeTogether.addPool(user2.address)
+  await StakeTogether.addPool(user3.address)
+  await StakeTogether.addPool(user4.address)
 
   await STOracle.addNode(user1.address)
   await STOracle.addNode(user2.address)

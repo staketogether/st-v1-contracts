@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
-import './CETH.sol';
+import './SETH.sol';
 import './STOracle.sol';
 import './interfaces/IDepositContract.sol';
 
-contract StakeTogether is CETH {
+contract StakeTogether is SETH {
   STOracle public immutable stOracle;
   IDepositContract public immutable depositContract;
   bytes public withdrawalCredentials;
@@ -50,7 +50,7 @@ contract StakeTogether is CETH {
     address _delegated,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    require(_isCommunity(_delegated), 'NON_COMMUNITY_DELEGATE');
+    require(_isPool(_delegated), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 
