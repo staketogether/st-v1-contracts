@@ -208,6 +208,11 @@ contract StakeTogether is SETH {
   bytes[] private validators;
   uint256 public totalValidators = 0;
 
+  modifier onlyValidatorModule() {
+    require(msg.sender == validatorModuleAddress, 'ONLY_VALIDATOR_MODULE');
+    _;
+  }
+
   event CreateValidator(
     address indexed creator,
     uint256 indexed amount,
@@ -221,7 +226,7 @@ contract StakeTogether is SETH {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external onlyOwner nonReentrant {
+  ) external onlyValidatorModule nonReentrant {
     require(poolBufferBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
     depositContract.deposit{ value: poolSize }(

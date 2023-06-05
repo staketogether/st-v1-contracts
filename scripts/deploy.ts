@@ -36,8 +36,8 @@ async function deployStakeTogether(owner: CustomEthersSigner, oracleAddress: str
       value: 1n
     })
 
-  await StakeTogether.setOperatorFeeRecipient(await owner.getAddress())
-  await StakeTogether.setStakeTogetherFeeRecipient(await owner.getAddress())
+  await StakeTogether.setOperatorFeeAddress(await owner.getAddress())
+  await StakeTogether.setStakeTogetherFeeAddress(await owner.getAddress())
 
   const address = await StakeTogether.getAddress()
 

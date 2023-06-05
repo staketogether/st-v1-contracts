@@ -31,8 +31,8 @@ export async function defaultFixture() {
       value: initialDeposit
     })
 
-  await StakeTogether.setStakeTogetherFeeRecipient(owner.address)
-  await StakeTogether.setOperatorFeeRecipient(user9.address)
+  await StakeTogether.setStakeTogetherFeeAddress(owner.address)
+  await StakeTogether.setOperatorFeeAddress(user9.address)
 
   await StakeTogether.addPool(user2.address)
   await StakeTogether.addPool(user3.address)

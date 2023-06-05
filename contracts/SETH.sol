@@ -35,8 +35,10 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     _mintShares(stakeTogether, balance);
     _mintDelegatedShares(stakeTogether, stakeTogether, balance);
 
-    setStakeTogetherFeeRecipient(msg.sender);
-    setOperatorFeeRecipient(msg.sender);
+    setStakeTogetherFeeAddress(msg.sender);
+    setOperatorFeeAddress(msg.sender);
+    setValidatorModuleAddress(msg.sender);
+    setPoolModuleAddress(msg.sender);
   }
 
   function pause() public onlyOwner {
@@ -322,13 +324,48 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   /*****************
+   ** ADDRESSES **
+   *****************/
+
+  address public stakeTogetherFeeAddress;
+  address public operatorFeeAddress;
+  address public validatorModuleAddress;
+  address public poolModuleAddress;
+
+  event SetStakeTogetherFeeAddress(address indexed to);
+  event SetOperatorFeeAddress(address indexed to);
+  event SetValidatorModuleAddress(address indexed to);
+  event SetPoolModuleAddress(address indexed to);
+
+  function setStakeTogetherFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    stakeTogetherFeeAddress = _to;
+    emit SetStakeTogetherFeeAddress(_to);
+  }
+
+  function setOperatorFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    operatorFeeAddress = _to;
+    emit SetOperatorFeeAddress(_to);
+  }
+
+  function setValidatorModuleAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    validatorModuleAddress = _to;
+    emit SetValidatorModuleAddress(_to);
+  }
+
+  function setPoolModuleAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    poolModuleAddress = _to;
+    emit SetPoolModuleAddress(_to);
+  }
+
+  /*****************
    ** REWARDS **
    *****************/
   uint256 public transientBalance = 0;
   uint256 public beaconBalance = 0;
-
-  address public stakeTogetherFeeRecipient;
-  address public operatorFeeRecipient;
 
   // Todo: Define Basis point before audit
   uint256 public basisPoints = 1 ether;
@@ -353,23 +390,9 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event TransferStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
 
-  event SetStakeTogetherFeeRecipient(address indexed to);
-  event SetOperatorFeeRecipient(address indexed to);
   event SetStakeTogetherFee(uint256 fee);
   event SetOperatorFee(uint256 fee);
   event SetPoolFee(uint256 fee);
-
-  function setStakeTogetherFeeRecipient(address _to) public onlyOwner {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    stakeTogetherFeeRecipient = _to;
-    emit SetStakeTogetherFeeRecipient(_to);
-  }
-
-  function setOperatorFeeRecipient(address _to) public onlyOwner {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    operatorFeeRecipient = _to;
-    emit SetOperatorFeeRecipient(_to);
-  }
 
   function setStakeTogetherFee(uint256 _fee) external onlyOwner {
     stakeTogetherFee = _fee;
@@ -412,11 +435,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
     uint256 poolFeeShares = (sharesMintedAsFees * poolFeeAdjust) / totalFee;
 
-    emit TransferOperatorRewards(address(0), operatorFeeRecipient, operatorFeeShares);
-    _mintShares(operatorFeeRecipient, operatorFeeShares);
+    emit TransferOperatorRewards(address(0), operatorFeeAddress, operatorFeeShares);
+    _mintShares(operatorFeeAddress, operatorFeeShares);
 
-    emit TransferStakeTogetherRewards(address(0), stakeTogetherFeeRecipient, stakeTogetherFeeShares);
-    _mintShares(stakeTogetherFeeRecipient, stakeTogetherFeeShares);
+    emit TransferStakeTogetherRewards(address(0), stakeTogetherFeeAddress, stakeTogetherFeeShares);
+    _mintShares(stakeTogetherFeeAddress, stakeTogetherFeeShares);
 
     for (uint i = 0; i < pools.length; i++) {
       address pool = pools[i];
@@ -441,38 +464,43 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     );
   }
 
-  function _isStakeTogetherFeeRecipient(address account) internal view returns (bool) {
-    return address(stakeTogetherFeeRecipient) == account;
+  function _isStakeTogetherFeeAddress(address account) internal view returns (bool) {
+    return address(stakeTogetherFeeAddress) == account;
   }
 
-  function _isOperatorFeeRecipient(address account) internal view returns (bool) {
-    return address(operatorFeeRecipient) == account;
+  function _isOperatorFeeAddress(address account) internal view returns (bool) {
+    return address(operatorFeeAddress) == account;
   }
 
   /*****************
    ** POOLS **
    *****************/
 
+  address[] private pools;
+
+  modifier onlyPoolModule() {
+    require(msg.sender == poolModuleAddress, 'ONLY_POOL_MODULE');
+    _;
+  }
+
   event AddPool(address account);
   event RemovePool(address account);
-
-  address[] private pools;
 
   function getPools() public view returns (address[] memory) {
     return pools;
   }
 
-  function addPool(address account) external onlyOwner {
+  function addPool(address account) external onlyPoolModule {
     require(account != address(0), 'ZERO_ADDR');
     require(!_isPool(account), 'NON_POOL');
-    require(!_isStakeTogetherFeeRecipient(account), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
-    require(!_isOperatorFeeRecipient(account), 'IS_OPERATOR_FEE_RECIPIENT');
+    require(!_isStakeTogetherFeeAddress(account), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
+    require(!_isOperatorFeeAddress(account), 'IS_OPERATOR_FEE_RECIPIENT');
 
     pools.push(account);
     emit AddPool(account);
   }
 
-  function removePool(address account) external onlyOwner {
+  function removePool(address account) external onlyPoolModule {
     require(_isPool(account), 'POOL_NOT_FOUND');
 
     for (uint256 i = 0; i < pools.length; i++) {
