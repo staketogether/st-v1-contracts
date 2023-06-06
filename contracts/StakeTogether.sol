@@ -2,178 +2,232 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import './CETH.sol';
-import './Oracle.sol';
-import './Validator.sol';
+import './SETH.sol';
+import './STOracle.sol';
+import './interfaces/IDepositContract.sol';
 
-contract StakeTogether is Ownable, ReentrancyGuard, CETH {
-  Oracle public immutable oracle;
-  Validator public immutable validator;
+contract StakeTogether is SETH {
+  STOracle public immutable stOracle;
+  IDepositContract public immutable depositContract;
+  bytes public withdrawalCredentials;
 
-  event Staked(address indexed account, uint256 amount);
-  event Unstaked(address indexed account, uint256 amount);
-  event BufferDeposited(address indexed account, uint256 amount);
-  event BufferWithdrawn(address indexed account, uint256 amount);
-  event Referral(address indexed account, address delegated, address indexed referral, uint256 amount);
+  event EtherReceived(address indexed sender, uint amount);
 
-  constructor(address _oracle, address _validator) payable {
-    oracle = Oracle(_oracle);
-    validator = Validator(_validator);
-    _bootstrap();
+  constructor(address _stOracle, address _depositContract) payable {
+    stOracle = STOracle(_stOracle);
+    depositContract = IDepositContract(_depositContract);
+  }
+
+  receive() external payable {
+    emit EtherReceived(msg.sender, msg.value);
+  }
+
+  fallback() external payable {
+    emit EtherReceived(msg.sender, msg.value);
   }
 
   /*****************
    ** STAKE **
    *****************/
 
-  uint256 private immutable poolSize = 32 ether;
-  uint256 private withdrawalsBuffer = 0;
-  uint256 private minStakeAmount = 0.01 ether;
+  event DepositPool(
+    address indexed account,
+    uint256 amount,
+    uint256 sharesAmount,
+    address delegated,
+    address referral
+  );
 
-  uint256 private beaconBalance = 0;
+  event WithdrawPool(address indexed account, uint256 amount, uint256 sharesAmount, address delegated);
 
-  function stake(address _delegated, address referral) external payable nonReentrant whenNotPaused {
-    require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_isCommunity(_delegated), 'Only can stake for Communities');
-    require(msg.value > 0, 'Amount must be greater than 0');
+  event SetWithdrawalCredentials(bytes withdrawalCredentials);
+  event SetMinDepositPoolAmount(uint256 amount);
+  event SetPoolSize(uint256 amount);
 
-    _mintShares(msg.sender, msg.value);
-    _mintDelegatedShares(msg.sender, _delegated, msg.value);
+  uint256 public poolSize = 32 ether;
+  uint256 public minDepositAmount = 0.000000000000000001 ether;
 
-    if (referral != address(0)) {
-      emit Referral(msg.sender, _delegated, referral, msg.value);
-    }
+  function depositPool(
+    address _delegated,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
+    require(isPool(_delegated), 'NON_POOL_DELEGATE');
+    require(msg.value > 0, 'ZERO_VALUE');
+    require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 
-    emit Staked(msg.sender, msg.value);
+    uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
+
+    emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
+
+    _mintShares(msg.sender, sharesAmount);
+    _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
   }
 
-  function unstake(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
-    require(_amount > 0, 'Amount must be greater than 0');
-    require(_amount >= minStakeAmount, 'Amount must be greater or equal than minimum stake amount');
+  function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
+    require(_amount > 0, 'ZERO_VALUE');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_amount <= _getWithdrawalBalance(), 'Insufficient withdrawn balance');
-    require(_delegationsOf(_delegated, msg.sender) > 0, 'No shares delegated to this address');
+    require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_WITHDRAWALS_BALANCE');
+    require(delegationSharesOf(msg.sender, _delegated) > 0, 'NOT_DELEGATION_SHARES');
 
     uint256 userBalance = balanceOf(msg.sender);
 
-    require(_amount <= userBalance, 'Unstake amount exceeds balance');
+    require(_amount <= userBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
-    uint256 sharesToBurn = (_amount * _sharesOf(msg.sender)) / userBalance;
+    uint256 sharesToBurn = (_amount * sharesOf(msg.sender)) / userBalance;
+
+    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _delegated);
 
     _burnShares(msg.sender, sharesToBurn);
     _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
 
     payable(msg.sender).transfer(_amount);
-
-    emit Unstaked(msg.sender, _amount);
   }
 
-  function depositBuffer() external payable onlyOwner nonReentrant whenNotPaused {
-    require(msg.value > 0, 'Value sent must be greater than 0');
-    withdrawalsBuffer += msg.value;
-
-    emit BufferDeposited(msg.sender, msg.value);
+  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyOwner {
+    require(withdrawalCredentials.length == 0, 'WITHDRAWAL_CREDENTIALS_ALREADY_SET');
+    withdrawalCredentials = _withdrawalCredentials;
+    emit SetWithdrawalCredentials(_withdrawalCredentials);
   }
 
-  function withdrawBuffer(uint256 amount) external onlyOwner nonReentrant whenNotPaused {
-    require(amount > 0, 'Withdrawal amount must be greater than 0');
-    require(withdrawalsBuffer > amount, 'Withdrawal amount exceeds buffer balance');
-
-    withdrawalsBuffer -= amount;
-
-    payable(owner()).transfer(amount);
-
-    emit BufferWithdrawn(msg.sender, amount);
+  function setMinDepositPoolAmount(uint256 _amount) external onlyOwner {
+    minDepositAmount = _amount;
+    emit SetMinDepositPoolAmount(_amount);
   }
 
-  function getPoolSize() public pure returns (uint256) {
-    return poolSize;
+  function setPoolSize(uint256 _amount) external onlyOwner {
+    require(_amount >= 32 ether, 'POOL_SIZE_TOO_LOW');
+    poolSize = _amount;
+    emit SetPoolSize(_amount);
   }
 
-  function getPoolBalance() public view returns (uint256) {
-    return _getPoolBalance();
+  function poolBalance() public view returns (uint256) {
+    return contractBalance() - liquidityBufferBalance;
   }
 
-  function getBufferBalance() public view returns (uint256) {
-    return withdrawalsBuffer;
+  function totalPooledEther() public view override returns (uint256) {
+    return (contractBalance() + transientBalance + beaconBalance) - liquidityBufferBalance;
   }
 
-  function getWithdrawalBalance() public view returns (uint256) {
-    return _getWithdrawalBalance();
-  }
-
-  function setBeaconBalance(uint256 newBalance) external nonReentrant {
-    require(msg.sender == address(oracle), 'Only oracle can call this function');
-
-    uint256 lastBeaconBalance = beaconBalance;
-
-    beaconBalance = newBalance;
-
-    _distributeFee(beaconBalance, lastBeaconBalance);
-  }
-
-  function _getPoolBalance() internal view returns (uint256) {
-    return address(this).balance - withdrawalsBuffer;
-  }
-
-  function _getTotalPooledEther() internal view override returns (uint256) {
-    return (beaconBalance + address(this).balance) - withdrawalsBuffer;
-  }
-
-  function _getTotalEtherSupply() internal view returns (uint256) {
-    return beaconBalance + address(this).balance + withdrawalsBuffer;
-  }
-
-  function _getWithdrawalBalance() internal view returns (uint256) {
-    return address(this).balance + withdrawalsBuffer;
-  }
-
-  function _bootstrap() internal {
-    address stakeTogether = address(this);
-    uint256 balance = stakeTogether.balance;
-
-    require(balance > 0, 'Contract balance must be greater than 0');
-
-    _mintShares(stakeTogether, balance);
-    _mintDelegatedShares(stakeTogether, stakeTogether, balance);
-  }
-
-  function setMinimumStakeAmount(uint256 amount) external onlyOwner {
-    minStakeAmount = amount;
+  function totalEtherSupply() public view returns (uint256) {
+    return contractBalance() + transientBalance + beaconBalance + liquidityBufferBalance;
   }
 
   /*****************
-   ** DELEGATION **
+   ** LIQUIDITY BUFFER **
    *****************/
 
-  function transfer(address _recipient, uint256 _amount) public override returns (bool) {
-    _transfer(msg.sender, _recipient, _amount);
-    return true;
+  event DepositLiquidityBuffer(address indexed account, uint256 amount);
+  event WithdrawLiquidityBuffer(address indexed account, uint256 amount);
+
+  uint256 public liquidityBufferBalance = 0;
+
+  function depositLiquidityBuffer() external payable onlyOwner nonReentrant whenNotPaused {
+    require(msg.value > 0, 'ZERO_VALUE');
+    liquidityBufferBalance += msg.value;
+
+    emit DepositLiquidityBuffer(msg.sender, msg.value);
   }
 
-  function transferFrom(
-    address _sender,
-    address _recipient,
-    uint256 _amount
-  ) public override returns (bool) {
-    _spendAllowance(_sender, msg.sender, _amount);
-    _transfer(_sender, _recipient, _amount);
+  function withdrawLiquidityBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
+    require(_amount > 0, 'ZERO_VALUE');
+    require(_amount <= liquidityBufferBalance, 'AMOUNT_EXCEEDS_BUFFER');
 
-    return true;
+    liquidityBufferBalance -= _amount;
+
+    payable(owner()).transfer(_amount);
+
+    emit WithdrawLiquidityBuffer(msg.sender, _amount);
+  }
+
+  function withdrawalsBalance() public view returns (uint256) {
+    return poolBalance() + liquidityBufferBalance;
+  }
+
+  /*****************
+   ** REWARDS **
+   *****************/
+
+  event SetTransientBalance(uint256 amount);
+  event SetBeaconBalance(uint256 amount);
+
+  function setTransientBalance(uint256 _transientBalance) external override nonReentrant {
+    require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
+
+    transientBalance = _transientBalance;
+
+    emit SetTransientBalance(_transientBalance);
+  }
+
+  function setBeaconBalance(uint256 _beaconBalance) external override nonReentrant {
+    require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
+
+    uint256 preClBalance = beaconBalance;
+    beaconBalance = _beaconBalance;
+
+    _processRewards(preClBalance, _beaconBalance);
+
+    emit SetBeaconBalance(_beaconBalance);
   }
 
   /*****************
    ** VALIDATOR **
    *****************/
 
+  bytes[] private validators;
+  uint256 public totalValidators = 0;
+
+  modifier onlyValidatorModule() {
+    require(msg.sender == validatorModuleAddress, 'ONLY_VALIDATOR_MODULE');
+    _;
+  }
+
+  event CreateValidator(
+    address indexed creator,
+    uint256 indexed amount,
+    bytes publicKey,
+    bytes withdrawalCredentials,
+    bytes signature,
+    bytes32 depositDataRoot
+  );
+
   function createValidator(
-    bytes calldata pubkey,
-    bytes calldata signature,
-    bytes32 deposit_data_root
-  ) external onlyOwner nonReentrant {
-    require(_getPoolBalance() >= poolSize, 'Not enough ether on poolBalance to create validator');
-    validator.createValidator{ value: poolSize }(pubkey, signature, deposit_data_root);
+    bytes calldata _publicKey,
+    bytes calldata _signature,
+    bytes32 _depositDataRoot
+  ) external onlyValidatorModule nonReentrant {
+    require(poolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+
+    depositContract.deposit{ value: poolSize }(
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+
+    validators.push(_publicKey);
+    totalValidators++;
+    transientBalance += poolSize;
+
+    emit CreateValidator(
+      msg.sender,
+      poolSize,
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+  }
+
+  function getValidators() public view returns (bytes[] memory) {
+    return validators;
+  }
+
+  function isValidator(bytes memory publicKey) public view returns (bool) {
+    for (uint256 i = 0; i < validators.length; i++) {
+      if (keccak256(validators[i]) == keccak256(publicKey)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

@@ -1,9 +1,9 @@
 {
   "version": "0.2",
-  "ignorePaths": ["*.*"],
+  "ignorePaths": [],
   "dictionaryDefinitions": [],
   "dictionaries": [],
-  "words": ["delegators", "pubkey", "Reentrancy", "struct", "unstake"],
+  "words": ["CETH", "Pausable", "Reentrancy", "struct"],
   "ignoreWords": [],
   "import": []
 }

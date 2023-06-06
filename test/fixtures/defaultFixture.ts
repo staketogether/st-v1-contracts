@@ -1,9 +1,8 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 
-import { Oracle__factory, StakeTogether__factory, Validator__factory } from '../../typechain'
+import { STOracle__factory, StakeTogether__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
-import { formatAddressToWithdrawalCredentials } from '../utils/formatWithdrawal'
 
 export async function defaultFixture() {
   checkVariables()
@@ -20,39 +19,28 @@ export async function defaultFixture() {
   let user7: SignerWithAddress
   let user8: SignerWithAddress
   let user9: SignerWithAddress
+  let nullAddress: string = '0x0000000000000000000000000000000000000000'
+  const initialDeposit = 1n
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
-  const Oracle = await new Oracle__factory().connect(owner).deploy()
-
-  const Validator = await new Validator__factory()
-    .connect(owner)
-    .deploy(
-      process.env.GOERLI_DEPOSIT_ADDRESS as string,
-      process.env.GOERLI_SSV_NETWORK_ADDRESS as string,
-      process.env.GOERLI_SSV_TOKEN_ADDRESS as string
-    )
+  const STOracle = await new STOracle__factory().connect(owner).deploy()
 
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
-    .deploy(await Oracle.getAddress(), await Validator.getAddress(), {
-      value: 1n
+    .deploy(await STOracle.getAddress(), process.env.GOERLI_DEPOSIT_ADDRESS as string, {
+      value: initialDeposit
     })
 
-  await StakeTogether.setStakeTogetherFeeRecipient(owner.address)
-  await StakeTogether.setOperatorFeeRecipient(user9.address)
+  await StakeTogether.setStakeTogetherFeeAddress(owner.address)
+  await StakeTogether.setOperatorFeeAddress(user9.address)
 
-  await StakeTogether.addCommunity(user2.address)
-  await StakeTogether.addCommunity(user3.address)
-  await StakeTogether.addCommunity(user4.address)
+  await StakeTogether.addPool(user2.address)
+  await StakeTogether.addPool(user3.address)
+  await StakeTogether.addPool(user4.address)
 
-  await Oracle.addNode(user1.address)
-  await Oracle.addNode(user2.address)
-  await Oracle.setStakeTogether(await StakeTogether.getAddress())
-
-  await Validator.setStakeTogether(await StakeTogether.getAddress())
-  await Validator.setWithdrawalCredentials(
-    formatAddressToWithdrawalCredentials(await StakeTogether.getAddress())
-  )
+  await STOracle.addNode(user1.address)
+  await STOracle.addNode(user2.address)
+  await STOracle.setStakeTogether(await StakeTogether.getAddress())
 
   return {
     provider,
@@ -66,8 +54,9 @@ export async function defaultFixture() {
     user7,
     user8,
     user9,
-    Oracle,
-    Validator,
+    nullAddress,
+    initialDeposit,
+    STOracle,
     StakeTogether
   }
 }
