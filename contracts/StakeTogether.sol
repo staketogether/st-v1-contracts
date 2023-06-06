@@ -101,27 +101,15 @@ contract StakeTogether is SETH {
   }
 
   function poolBalance() public view returns (uint256) {
-    return contractBalance() - liquidityBufferBalance - validatorBufferBalance;
-  }
-
-  function poolBufferBalance() public view returns (uint256) {
-    return poolBalance() + validatorBufferBalance;
+    return contractBalance() - liquidityBufferBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return
-      (contractBalance() + transientBalance + beaconBalance) -
-      liquidityBufferBalance -
-      validatorBufferBalance;
+    return (contractBalance() + transientBalance + beaconBalance) - liquidityBufferBalance;
   }
 
   function totalEtherSupply() public view returns (uint256) {
-    return
-      contractBalance() +
-      transientBalance +
-      beaconBalance +
-      liquidityBufferBalance +
-      validatorBufferBalance;
+    return contractBalance() + transientBalance + beaconBalance + liquidityBufferBalance;
   }
 
   /*****************
@@ -153,33 +141,6 @@ contract StakeTogether is SETH {
 
   function withdrawalsBalance() public view returns (uint256) {
     return poolBalance() + liquidityBufferBalance;
-  }
-
-  /*****************
-   ** VALIDATOR BUFFER **
-   *****************/
-
-  event DepositValidatorBuffer(address indexed account, uint256 amount);
-  event WithdrawValidatorBuffer(address indexed account, uint256 amount);
-
-  uint256 public validatorBufferBalance = 0;
-
-  function depositValidatorBuffer() external payable onlyOwner nonReentrant whenNotPaused {
-    require(msg.value > 0, 'ZERO_VALUE');
-    validatorBufferBalance += msg.value;
-
-    emit DepositValidatorBuffer(msg.sender, msg.value);
-  }
-
-  function withdrawValidatorBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
-    require(_amount > 0, 'ZERO_VALUE');
-    require(_amount <= validatorBufferBalance, 'AMOUNT_EXCEEDS_BUFFER');
-
-    validatorBufferBalance -= _amount;
-
-    payable(owner()).transfer(_amount);
-
-    emit WithdrawValidatorBuffer(msg.sender, _amount);
   }
 
   /*****************
@@ -234,7 +195,7 @@ contract StakeTogether is SETH {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyValidatorModule nonReentrant {
-    require(poolBufferBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+    require(poolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
     depositContract.deposit{ value: poolSize }(
       _publicKey,
