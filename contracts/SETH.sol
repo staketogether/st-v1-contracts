@@ -236,7 +236,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_isPool(_delegated), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(isPool(_delegated), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
 
     delegatedShares[_delegated] += _sharesAmount;
@@ -258,7 +258,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   ) internal whenNotPaused {
     require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
     require(_delegated != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_isPool(_delegated), 'ONLY_CAN_BURN_FROM_POOL');
+    require(isPool(_delegated), 'ONLY_CAN_BURN_FROM_POOL');
 
     delegatedShares[_delegated] -= _sharesAmount;
     delegationsShares[_from][_delegated] -= _sharesAmount;
@@ -310,7 +310,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_fromDelegated != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_toDelegated != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_toDelegated != address(this), 'TRANSFER_TO_CETH_CONTRACT');
-    require(_isPool(_toDelegated), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(isPool(_toDelegated), 'ONLY_CAN_DELEGATE_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromDelegated], 'BALANCE_EXCEEDED');
 
@@ -492,7 +492,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function addPool(address account) external onlyPoolModule {
     require(account != address(0), 'ZERO_ADDR');
-    require(!_isPool(account), 'NON_POOL');
+    require(!isPool(account), 'NON_POOL');
     require(!_isStakeTogetherFeeAddress(account), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
     require(!_isOperatorFeeAddress(account), 'IS_OPERATOR_FEE_RECIPIENT');
 
@@ -501,7 +501,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function removePool(address account) external onlyPoolModule {
-    require(_isPool(account), 'POOL_NOT_FOUND');
+    require(isPool(account), 'POOL_NOT_FOUND');
 
     for (uint256 i = 0; i < pools.length; i++) {
       if (pools[i] == account) {
@@ -513,11 +513,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit RemovePool(account);
   }
 
-  function isPool(address account) external view returns (bool) {
-    return _isPool(account);
-  }
-
-  function _isPool(address account) internal view returns (bool) {
+  function isPool(address account) internal view returns (bool) {
     if (account == address(this)) {
       return true;
     }

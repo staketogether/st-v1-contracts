@@ -51,7 +51,7 @@ contract StakeTogether is SETH {
     address _delegated,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    require(_isPool(_delegated), 'NON_POOL_DELEGATE');
+    require(isPool(_delegated), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 
@@ -142,7 +142,7 @@ contract StakeTogether is SETH {
 
   function withdrawLiquidityBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(liquidityBufferBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+    require(_amount <= liquidityBufferBalance, 'AMOUNT_EXCEEDS_BUFFER');
 
     liquidityBufferBalance -= _amount;
 
@@ -173,7 +173,7 @@ contract StakeTogether is SETH {
 
   function withdrawValidatorBuffer(uint256 _amount) external onlyOwner nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(validatorBufferBalance > _amount, 'AMOUNT_EXCEEDS_BUFFER');
+    require(_amount <= validatorBufferBalance, 'AMOUNT_EXCEEDS_BUFFER');
 
     validatorBufferBalance -= _amount;
 
