@@ -197,7 +197,7 @@ contract StakeTogether is SETH {
   ) external onlyValidatorModule nonReentrant {
     require(poolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
 
-    depositContract.deposit{ value: poolSize }(
+    depositContract.deposit{ value: 32 ether }(
       _publicKey,
       withdrawalCredentials,
       _signature,
