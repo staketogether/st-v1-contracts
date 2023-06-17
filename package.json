@@ -1,5 +1,6 @@
 {
-  "name": "hardhat-project",
+  "name": "st-contracts",
+  "license": "BUSL-1.1",
   "dependencies": {
     "@openzeppelin/contracts": "4.9.0",
     "dotenv": "^16.0.3"
