@@ -455,6 +455,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** POOLS **
    *****************/
 
+  uint256 public maxPools = 100000;
   address[] private pools;
 
   modifier onlyPoolModule() {
@@ -469,36 +470,41 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return pools;
   }
 
-  function addPool(address account) external onlyPoolModule {
-    require(account != address(0), 'ZERO_ADDR');
-    require(!isPool(account), 'NON_POOL');
-    require(!_isStakeTogetherFeeAddress(account), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
-    require(!_isOperatorFeeAddress(account), 'IS_OPERATOR_FEE_RECIPIENT');
-
-    pools.push(account);
-    emit AddPool(account);
+  function setMaxPools(uint256 _maxPools) external onlyOwner {
+    maxPools = _maxPools;
   }
 
-  function removePool(address account) external onlyPoolModule {
-    require(isPool(account), 'POOL_NOT_FOUND');
+  function addPool(address _pool) external onlyPoolModule {
+    require(_pool != address(0), 'ZERO_ADDR');
+    require(!isPool(_pool), 'NON_POOL');
+    require(!_isStakeTogetherFeeAddress(_pool), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
+    require(!_isOperatorFeeAddress(_pool), 'IS_OPERATOR_FEE_RECIPIENT');
+    require(pools.length < maxPools, 'MAX_POOLS_REACHED');
+
+    pools.push(_pool);
+    emit AddPool(_pool);
+  }
+
+  function removePool(address _pool) external onlyPoolModule {
+    require(isPool(_pool), 'POOL_NOT_FOUND');
 
     for (uint256 i = 0; i < pools.length; i++) {
-      if (pools[i] == account) {
+      if (pools[i] == _pool) {
         pools[i] = pools[pools.length - 1];
         pools.pop();
         break;
       }
     }
-    emit RemovePool(account);
+    emit RemovePool(_pool);
   }
 
-  function isPool(address account) internal view returns (bool) {
-    if (account == address(this)) {
+  function isPool(address _pool) internal view returns (bool) {
+    if (_pool == address(this)) {
       return true;
     }
 
     for (uint256 i = 0; i < pools.length; i++) {
-      if (pools[i] == account) {
+      if (pools[i] == _pool) {
         return true;
       }
     }
