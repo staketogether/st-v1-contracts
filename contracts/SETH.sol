@@ -32,7 +32,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit Bootstrap(msg.sender, balance);
 
     _mintShares(stakeTogether, balance);
-    _mintDelegatedShares(stakeTogether, stakeTogether, balance);
+    _mintPoolShares(stakeTogether, stakeTogether, balance);
 
     setStakeTogetherFeeAddress(msg.sender);
     setOperatorFeeAddress(msg.sender);
@@ -183,91 +183,72 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    *****************/
 
   uint256 public maxDelegations = 64;
-  mapping(address => uint256) private delegatedShares;
-  uint256 public totalDelegatedShares = 0;
+  mapping(address => uint256) private poolShares;
+  uint256 public totalPoolShares = 0;
   mapping(address => mapping(address => uint256)) private delegationsShares;
   mapping(address => address[]) private delegates;
   mapping(address => mapping(address => bool)) private isDelegator;
 
-  event MintDelegatedShares(
+  event MintPoolShares(
     address indexed from,
     address indexed to,
-    address indexed delegated,
+    address indexed pool,
     uint256 sharesAmount
   );
 
-  event TransferDelegatedShares(
+  event TransferPoolShares(
     address indexed from,
     address indexed to,
-    address indexed delegated,
+    address indexed pool,
     uint256 sharesAmount
   );
 
-  event TransferPoolDelegatedShares(
-    address indexed account,
-    address indexed fromDelegated,
-    address indexed toDelegated,
-    uint256 sharesAmount
-  );
+  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
 
-  event BurnDelegatedShares(address indexed from, address indexed delegated, uint256 sharesAmount);
-
-  function delegatedSharesOf(address _account) public view returns (uint256) {
-    return delegatedShares[_account];
+  function poolSharesOf(address _account) public view returns (uint256) {
+    return poolShares[_account];
   }
 
-  function delegationSharesOf(address _account, address _delegate) public view returns (uint256) {
-    return delegationsShares[_account][_delegate];
+  function delegationSharesOf(address _account, address _pool) public view returns (uint256) {
+    return delegationsShares[_account][_pool];
   }
 
-  function transferPoolDelegatedShares(
-    address _fromDelegated,
-    address _toDelegated,
-    uint256 _sharesAmount
-  ) external {
-    _transferPoolDelegatedShares(msg.sender, _fromDelegated, _toDelegated, _sharesAmount);
+  function transferPoolShares(address _from, address _to, uint256 _sharesAmount) external {
+    _transferPoolShares(msg.sender, _from, _to, _sharesAmount);
   }
 
-  function _mintDelegatedShares(
-    address _to,
-    address _delegated,
-    uint256 _sharesAmount
-  ) internal whenNotPaused {
+  function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
-    require(isPool(_delegated), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
+    require(isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
 
-    delegatedShares[_delegated] += _sharesAmount;
-    delegationsShares[_to][_delegated] += _sharesAmount;
-    totalDelegatedShares += _sharesAmount;
+    poolShares[_pool] += _sharesAmount;
+    delegationsShares[_to][_pool] += _sharesAmount;
+    totalPoolShares += _sharesAmount;
 
-    if (!isDelegator[_to][_delegated]) {
-      delegates[_to].push(_delegated);
-      isDelegator[_to][_delegated] = true;
+    if (!isDelegator[_to][_pool]) {
+      delegates[_to].push(_pool);
+      isDelegator[_to][_pool] = true;
     }
 
-    emit MintDelegatedShares(address(0), _to, _delegated, _sharesAmount);
+    emit MintPoolShares(address(0), _to, _pool, _sharesAmount);
   }
 
-  function _burnDelegatedShares(
-    address _from,
-    address _delegated,
-    uint256 _sharesAmount
-  ) internal whenNotPaused {
+  function _burnPoolShares(address _from, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_delegated != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(isPool(_delegated), 'ONLY_CAN_BURN_FROM_POOL');
+    require(_pool != address(0), 'BURN_FROM_ZERO_ADDR');
+    require(isPool(_pool), 'ONLY_CAN_BURN_FROM_POOL');
 
-    delegatedShares[_delegated] -= _sharesAmount;
-    delegationsShares[_from][_delegated] -= _sharesAmount;
-    totalDelegatedShares -= _sharesAmount;
+    poolShares[_pool] -= _sharesAmount;
+    delegationsShares[_from][_pool] -= _sharesAmount;
+    totalPoolShares -= _sharesAmount;
 
-    if (delegationsShares[_from][_delegated] == 0) {
-      isDelegator[_from][_delegated] = false;
+    if (delegationsShares[_from][_pool] == 0) {
+      isDelegator[_from][_pool] = false;
     }
 
-    emit BurnDelegatedShares(_from, _delegated, _sharesAmount);
+    emit BurnPoolShares(_from, _pool, _sharesAmount);
   }
 
   function _transferDelegationShares(
@@ -278,48 +259,48 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_sharesToTransfer <= sharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
-      address delegate = delegates[_from][i];
-      uint256 delegationSharesToTransfer = (delegationSharesOf(_from, delegate) * _sharesToTransfer) /
+      address pool = delegates[_from][i];
+      uint256 delegationSharesToTransfer = (delegationSharesOf(_from, pool) * _sharesToTransfer) /
         sharesOf(_from);
 
-      delegationsShares[_from][delegate] -= delegationSharesToTransfer;
+      delegationsShares[_from][pool] -= delegationSharesToTransfer;
 
-      if (!isDelegator[_to][delegate]) {
+      if (!isDelegator[_to][pool]) {
         require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
-        delegates[_to].push(delegate);
-        isDelegator[_to][delegate] = true;
+        delegates[_to].push(pool);
+        isDelegator[_to][pool] = true;
       }
 
-      delegationsShares[_to][delegate] += delegationSharesToTransfer;
+      delegationsShares[_to][pool] += delegationSharesToTransfer;
 
-      if (delegationSharesOf(_from, delegate) == 0) {
-        isDelegator[_from][delegate] = false;
+      if (delegationSharesOf(_from, pool) == 0) {
+        isDelegator[_from][pool] = false;
       }
 
-      emit TransferDelegatedShares(_from, _to, delegate, delegationSharesToTransfer);
+      emit TransferPoolShares(_from, _to, pool, delegationSharesToTransfer);
     }
   }
 
-  function _transferPoolDelegatedShares(
+  function _transferPoolShares(
     address _account,
-    address _fromDelegated,
-    address _toDelegated,
+    address _from,
+    address _to,
     uint256 _sharesAmount
   ) internal whenNotPaused {
-    require(_fromDelegated != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_toDelegated != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_toDelegated != address(this), 'TRANSFER_TO_CETH_CONTRACT');
-    require(isPool(_toDelegated), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
+    require(_to != address(this), 'TRANSFER_TO_SETH_CONTRACT');
+    require(isPool(_to), 'ONLY_CAN_STAKE_TO_POOL');
 
-    require(_sharesAmount <= delegationsShares[_account][_fromDelegated], 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= delegationsShares[_account][_from], 'BALANCE_EXCEEDED');
 
-    delegatedShares[_fromDelegated] -= _sharesAmount;
-    delegationsShares[_account][_fromDelegated] -= _sharesAmount;
+    poolShares[_from] -= _sharesAmount;
+    delegationsShares[_account][_from] -= _sharesAmount;
 
-    delegatedShares[_toDelegated] += _sharesAmount;
-    delegationsShares[_account][_toDelegated] += _sharesAmount;
+    poolShares[_to] += _sharesAmount;
+    delegationsShares[_account][_to] += _sharesAmount;
 
-    emit TransferPoolDelegatedShares(_account, _fromDelegated, _toDelegated, _sharesAmount);
+    emit TransferPoolShares(_account, _from, _to, _sharesAmount);
   }
 
   /*****************
@@ -442,11 +423,10 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     for (uint i = 0; i < pools.length; i++) {
       address pool = pools[i];
-      uint256 poolProportion = delegatedSharesOf(pool);
-      uint256 poolShares = (poolFeeShares * poolProportion) / totalDelegatedShares;
-      emit MintPoolRewards(address(0), pool, poolShares);
-      _mintShares(pool, poolShares);
-      _mintDelegatedShares(pool, pool, poolShares);
+      uint256 poolRewards = (poolFeeShares * poolSharesOf(pool)) / totalPoolShares;
+      emit MintPoolRewards(address(0), pool, poolRewards);
+      _mintShares(pool, poolRewards);
+      _mintPoolShares(pool, pool, poolRewards);
     }
 
     emit ProcessRewards(

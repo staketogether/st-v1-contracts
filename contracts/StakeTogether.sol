@@ -59,7 +59,7 @@ contract StakeTogether is SETH {
     emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
 
     _mintShares(msg.sender, sharesAmount);
-    _mintDelegatedShares(msg.sender, _delegated, sharesAmount);
+    _mintPoolShares(msg.sender, _delegated, sharesAmount);
   }
 
   function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
@@ -77,7 +77,7 @@ contract StakeTogether is SETH {
     emit WithdrawPool(msg.sender, _amount, sharesToBurn, _delegated);
 
     _burnShares(msg.sender, sharesToBurn);
-    _burnDelegatedShares(msg.sender, _delegated, sharesToBurn);
+    _burnPoolShares(msg.sender, _delegated, sharesToBurn);
 
     payable(msg.sender).transfer(_amount);
   }
