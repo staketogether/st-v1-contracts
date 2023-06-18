@@ -42,14 +42,17 @@ contract StakeTogether is SETH {
   event SetMinDepositPoolAmount(uint256 amount);
   event SetPoolSize(uint256 amount);
   event SetDepositLimit(uint256 newLimit);
+  event SetWalletDepositLimit(uint256 newLimit);
   event SetWithdrawalLimit(uint256 newLimit);
   event SetBlocksInterval(uint256 blocksInterval);
   event DepositLimitReached(address indexed sender, uint256 amount);
+  event WalletDepositLimitReached(address indexed sender, uint256 amount);
   event WithdrawalLimitReached(address indexed sender, uint256 amount);
 
   uint256 public poolSize = 32 ether;
   uint256 public minDepositAmount = 0.001 ether;
   uint256 public depositLimit = 1000 ether;
+  uint256 public walletDepositLimit = 2 ether;
   uint256 public withdrawalLimit = 1000 ether;
   uint256 public blocksPerDay = 6500;
   uint256 public lastResetBlock;
@@ -63,6 +66,11 @@ contract StakeTogether is SETH {
     require(isPool(_delegated), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
+
+    if (walletDepositLimit > 0) {
+      require(balanceOf(msg.sender) + msg.value <= walletDepositLimit, 'WALLET_DEPOSIT_LIMIT_REACHED');
+    }
+
     if (msg.value + totalDeposited > depositLimit) {
       emit DepositLimitReached(msg.sender, msg.value);
       revert('DEPOSIT_LIMIT_REACHED');
@@ -124,6 +132,11 @@ contract StakeTogether is SETH {
   function setWithdrawalLimit(uint256 _newLimit) external onlyOwner {
     withdrawalLimit = _newLimit;
     emit SetWithdrawalLimit(_newLimit);
+  }
+
+  function setWalletDepositLimit(uint256 _newLimit) external onlyOwner {
+    walletDepositLimit = _newLimit;
+    emit SetWalletDepositLimit(_newLimit);
   }
 
   function setBlocksInterval(uint256 _newBlocksInterval) external onlyOwner {
