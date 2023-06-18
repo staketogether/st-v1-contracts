@@ -38,13 +38,12 @@ contract StakeTogether is SETH {
   );
 
   event WithdrawPool(address indexed account, uint256 amount, uint256 sharesAmount, address delegated);
-
   event SetWithdrawalCredentials(bytes withdrawalCredentials);
   event SetMinDepositPoolAmount(uint256 amount);
   event SetPoolSize(uint256 amount);
 
   uint256 public poolSize = 32 ether;
-  uint256 public minDepositAmount = 0.000000000000000001 ether;
+  uint256 public minDepositAmount = 0.001 ether;
 
   function depositPool(
     address _delegated,
