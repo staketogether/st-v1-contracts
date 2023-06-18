@@ -465,6 +465,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   event AddPool(address account);
   event RemovePool(address account);
+  event SetMaxPools(uint256 maxPools);
 
   function getPools() public view returns (address[] memory) {
     return pools;
@@ -472,6 +473,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function setMaxPools(uint256 _maxPools) external onlyOwner {
     maxPools = _maxPools;
+    emit SetMaxPools(_maxPools);
   }
 
   function addPool(address _pool) external onlyPoolModule {
