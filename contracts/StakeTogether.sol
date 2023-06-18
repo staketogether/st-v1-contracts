@@ -217,8 +217,14 @@ contract StakeTogether is SETH {
     );
   }
 
-  function getValidators() public view returns (bytes[] memory) {
-    return validators;
+  function getValidators() public view returns (string[] memory) {
+    string[] memory publicKeys = new string[](validators.length);
+
+    for (uint i = 0; i < validators.length; i++) {
+      publicKeys[i] = string(validators[i]);
+    }
+
+    return publicKeys;
   }
 
   function isValidator(bytes memory publicKey) public view returns (bool) {
