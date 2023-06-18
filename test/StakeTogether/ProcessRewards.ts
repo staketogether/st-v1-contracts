@@ -15,7 +15,7 @@
 //   }
 
 //   it('Should stake and distribute fee', async function () {
-//     const { StakeTogether, STOracle, owner, user1, user2, user3, user4, user9, nullAddress } =
+//     const { StakeTogether, Rewards, owner, user1, user2, user3, user4, user9, nullAddress } =
 //       await loadFixture(defaultFixture)
 
 //     const initialDeposit = await StakeTogether.balanceOf(await StakeTogether.getAddress())
@@ -83,10 +83,10 @@
 //     let blockNumber = await ethers.provider.getBlockNumber()
 //     expect(blockNumber).to.equal(5774)
 
-//     let reportNextBlock = await STOracle.reportNextBlock()
+//     let reportNextBlock = await Rewards.reportNextBlock()
 
-//     await connect(STOracle, user1).report(reportNextBlock, beaconBalanceEarn)
-//     await connect(STOracle, user2).report(reportNextBlock, beaconBalanceEarn)
+//     await connect(Rewards, user1).report(reportNextBlock, beaconBalanceEarn)
+//     await connect(Rewards, user2).report(reportNextBlock, beaconBalanceEarn)
 
 //     const stakeAmount3 = ethers.parseEther('1')
 
@@ -181,10 +181,10 @@
 //     blockNumber = await ethers.provider.getBlockNumber()
 //     expect(blockNumber).to.equal(11537)
 
-//     reportNextBlock = await STOracle.reportNextBlock()
+//     reportNextBlock = await Rewards.reportNextBlock()
 
-//     await connect(STOracle, user1).report(reportNextBlock, beaconBalanceLoss)
-//     await connect(STOracle, user2).report(reportNextBlock, beaconBalanceLoss)
+//     await connect(Rewards, user1).report(reportNextBlock, beaconBalanceLoss)
+//     await connect(Rewards, user2).report(reportNextBlock, beaconBalanceLoss)
 
 //     totalPooledEther = await StakeTogether.getTotalPooledEther()
 //     // totalShares = await StakeTogether.totalShares()
@@ -273,10 +273,10 @@
 //     blockNumber = await ethers.provider.getBlockNumber()
 //     expect(blockNumber).to.equal(17299)
 
-//     reportNextBlock = await STOracle.reportNextBlock()
+//     reportNextBlock = await Rewards.reportNextBlock()
 
-//     await connect(STOracle, user1).report(reportNextBlock, beaconBalanceEarn2)
-//     await connect(STOracle, user2).report(reportNextBlock, beaconBalanceEarn2)
+//     await connect(Rewards, user1).report(reportNextBlock, beaconBalanceEarn2)
+//     await connect(Rewards, user2).report(reportNextBlock, beaconBalanceEarn2)
 
 //     totalPooledEther = await StakeTogether.getTotalPooledEther()
 //     totalShares = await StakeTogether.totalShares()

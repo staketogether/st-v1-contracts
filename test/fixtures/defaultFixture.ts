@@ -23,11 +23,11 @@ export async function defaultFixture() {
   const initialDeposit = 1n
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
-  const STOracle = await new STOracle__factory().connect(owner).deploy()
+  const Rewards = await new STOracle__factory().connect(owner).deploy()
 
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
-    .deploy(await STOracle.getAddress(), process.env.GOERLI_DEPOSIT_ADDRESS as string, {
+    .deploy(await Rewards.getAddress(), process.env.GOERLI_DEPOSIT_ADDRESS as string, {
       value: initialDeposit
     })
 
@@ -38,9 +38,9 @@ export async function defaultFixture() {
   await StakeTogether.addPool(user3.address)
   await StakeTogether.addPool(user4.address)
 
-  await STOracle.addNode(user1.address)
-  await STOracle.addNode(user2.address)
-  await STOracle.setStakeTogether(await StakeTogether.getAddress())
+  await Rewards.addNode(user1.address)
+  await Rewards.addNode(user2.address)
+  await Rewards.setStakeTogether(await StakeTogether.getAddress())
 
   return {
     provider,
@@ -56,7 +56,7 @@ export async function defaultFixture() {
     user9,
     nullAddress,
     initialDeposit,
-    STOracle,
+    Rewards,
     StakeTogether
   }
 }

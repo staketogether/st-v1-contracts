@@ -2,18 +2,18 @@
 pragma solidity ^0.8.18;
 
 import './SETH.sol';
-import './STOracle.sol';
+import './Rewards.sol';
 import './interfaces/IDepositContract.sol';
 
 contract StakeTogether is SETH {
-  STOracle public immutable stOracle;
+  Rewards public immutable stOracle;
   IDepositContract public immutable depositContract;
   bytes public withdrawalCredentials;
 
   event EtherReceived(address indexed sender, uint amount);
 
   constructor(address _stOracle, address _depositContract) payable {
-    stOracle = STOracle(_stOracle);
+    stOracle = Rewards(_stOracle);
     depositContract = IDepositContract(_depositContract);
   }
 

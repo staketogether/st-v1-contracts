@@ -6,7 +6,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './StakeTogether.sol';
 
-contract STOracle is Ownable, Pausable, ReentrancyGuard {
+contract Rewards is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
 
   struct Report {

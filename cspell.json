@@ -3,7 +3,7 @@
   "ignorePaths": [],
   "dictionaryDefinitions": [],
   "dictionaries": [],
-  "words": ["CETH", "Pausable", "Reentrancy", "struct"],
+  "words": ["Pausable", "Reentrancy", "struct", "keccak"],
   "ignoreWords": [],
   "import": []
 }

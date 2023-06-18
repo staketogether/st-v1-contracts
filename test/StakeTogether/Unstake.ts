@@ -15,7 +15,7 @@
 //   }
 
 //   it('Should unstake and distribute fee successfully', async function () {
-//     const { StakeTogether, STOracle, owner, user1, user2, user3, user4, nullAddress, initialDeposit } =
+//     const { StakeTogether, Rewards, owner, user1, user2, user3, user4, nullAddress, initialDeposit } =
 //       await loadFixture(defaultFixture)
 
 //     const stakeAmount = ethers.parseEther('1')
@@ -34,10 +34,10 @@
 //     let blockNumber = await ethers.provider.getBlockNumber()
 //     expect(blockNumber).to.equal(5775)
 
-//     let reportNextBlock = await STOracle.reportNextBlock()
+//     let reportNextBlock = await Rewards.reportNextBlock()
 
-//     await connect(STOracle, user1).report(reportNextBlock, newBeaconBalance)
-//     await connect(STOracle, user2).report(reportNextBlock, newBeaconBalance)
+//     await connect(Rewards, user1).report(reportNextBlock, newBeaconBalance)
+//     await connect(Rewards, user2).report(reportNextBlock, newBeaconBalance)
 
 //     const unstakeAmount = 1091002042649965437n
 //     await connect(StakeTogether, user1).unstake(unstakeAmount, user2)
