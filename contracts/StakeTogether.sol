@@ -41,9 +41,20 @@ contract StakeTogether is SETH {
   event SetWithdrawalCredentials(bytes withdrawalCredentials);
   event SetMinDepositPoolAmount(uint256 amount);
   event SetPoolSize(uint256 amount);
+  event SetDepositLimit(uint256 newLimit);
+  event SetWithdrawalLimit(uint256 newLimit);
+  event SetBlocksInterval(uint256 blocksInterval);
+  event DepositLimitReached(address indexed sender, uint256 amount);
+  event WithdrawalLimitReached(address indexed sender, uint256 amount);
 
   uint256 public poolSize = 32 ether;
   uint256 public minDepositAmount = 0.001 ether;
+  uint256 public depositLimit = 1000 ether;
+  uint256 public withdrawalLimit = 1000 ether;
+  uint256 public blocksPerDay = 6500;
+  uint256 public lastResetBlock;
+  uint256 public totalDeposited;
+  uint256 public totalWithdrawn;
 
   function depositPool(
     address _delegated,
@@ -52,6 +63,10 @@ contract StakeTogether is SETH {
     require(isPool(_delegated), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
+    if (msg.value + totalDeposited > depositLimit) {
+      emit DepositLimitReached(msg.sender, msg.value);
+      revert('DEPOSIT_LIMIT_REACHED');
+    }
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
@@ -59,6 +74,14 @@ contract StakeTogether is SETH {
 
     _mintShares(msg.sender, sharesAmount);
     _mintPoolShares(msg.sender, _delegated, sharesAmount);
+
+    totalDeposited += msg.value;
+
+    if (block.number > lastResetBlock + blocksPerDay) {
+      totalDeposited = msg.value;
+      totalWithdrawn = 0;
+      lastResetBlock = block.number;
+    }
   }
 
   function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
@@ -67,8 +90,12 @@ contract StakeTogether is SETH {
     require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_WITHDRAWALS_BALANCE');
     require(delegationSharesOf(msg.sender, _delegated) > 0, 'NOT_DELEGATION_SHARES');
 
-    uint256 userBalance = balanceOf(msg.sender);
+    if (_amount + totalWithdrawn > withdrawalLimit) {
+      emit WithdrawalLimitReached(msg.sender, _amount);
+      revert('WITHDRAWAL_LIMIT_REACHED');
+    }
 
+    uint256 userBalance = balanceOf(msg.sender);
     require(_amount <= userBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
     uint256 sharesToBurn = (_amount * sharesOf(msg.sender)) / userBalance;
@@ -79,6 +106,29 @@ contract StakeTogether is SETH {
     _burnPoolShares(msg.sender, _delegated, sharesToBurn);
 
     payable(msg.sender).transfer(_amount);
+
+    totalWithdrawn += _amount;
+
+    if (block.number > lastResetBlock + blocksPerDay) {
+      totalDeposited = 0;
+      totalWithdrawn = _amount;
+      lastResetBlock = block.number;
+    }
+  }
+
+  function setDepositLimit(uint256 _newLimit) external onlyOwner {
+    depositLimit = _newLimit;
+    emit SetDepositLimit(_newLimit);
+  }
+
+  function setWithdrawalLimit(uint256 _newLimit) external onlyOwner {
+    withdrawalLimit = _newLimit;
+    emit SetWithdrawalLimit(_newLimit);
+  }
+
+  function setBlocksInterval(uint256 _newBlocksInterval) external onlyOwner {
+    blocksPerDay = _newBlocksInterval;
+    emit SetBlocksInterval(_newBlocksInterval);
   }
 
   function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyOwner {
