@@ -1,7 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers } from 'hardhat'
 
-import { STOracle__factory, StakeTogether__factory } from '../../typechain'
+import { Rewards__factory, StakeTogether__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
 
 export async function defaultFixture() {
@@ -23,7 +23,7 @@ export async function defaultFixture() {
   const initialDeposit = 1n
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
-  const Rewards = await new STOracle__factory().connect(owner).deploy()
+  const Rewards = await new Rewards__factory().connect(owner).deploy()
 
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)

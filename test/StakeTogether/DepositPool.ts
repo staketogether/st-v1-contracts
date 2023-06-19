@@ -7,7 +7,7 @@ import connect from '../utils/connect'
 
 dotenv.config()
 
-describe('StakeTogether: Stake', function () {
+describe.only('StakeTogether: Stake', function () {
   it('Should stake successfuly', async function () {
     const { StakeTogether, owner, user1, user2, nullAddress } = await loadFixture(defaultFixture)
 
@@ -27,7 +27,7 @@ describe('StakeTogether: Stake', function () {
     const sharesST = await StakeTogether.sharesOf(owner.address)
 
     const sharesDelegated = await StakeTogether.sharesOf(user2.address)
-    const delegatedSharedDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+    const delegatedSharedDelegated = await StakeTogether.poolSharesOf(user2.address)
 
     expect(totalPooledEther).to.eq(stakeAmount + 1n)
     expect(totalShares).to.eq(stakeAmount + 1n)
