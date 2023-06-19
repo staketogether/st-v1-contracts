@@ -311,12 +311,16 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   address public stakeTogetherFeeAddress;
   address public operatorFeeAddress;
   address public validatorFeeAddress;
+  address public liquidityFeeAddress;
+  address public newPoolFeeAddress;
   address public validatorModuleAddress;
   address public poolModuleAddress;
 
   event SetStakeTogetherFeeAddress(address indexed to);
   event SetOperatorFeeAddress(address indexed to);
   event SetValidatorFeeAddress(address indexed to);
+  event SetLiquidityFeeAddress(address indexed to);
+  event SetNewPoolFeeAddress(address indexed to);
   event SetValidatorModuleAddress(address indexed to);
   event SetPoolModuleAddress(address indexed to);
 
@@ -335,6 +339,16 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   function setValidatorFeeAddress(address _to) public onlyOwner {
     validatorFeeAddress = _to;
     emit SetValidatorFeeAddress(_to);
+  }
+
+  function setLiquidityFeeAddress(address _to) public onlyOwner {
+    liquidityFeeAddress = _to;
+    emit SetLiquidityFeeAddress(_to);
+  }
+
+  function setPoolFeeAddress(address _to) public onlyOwner {
+    newPoolFeeAddress = _to;
+    emit SetNewPoolFeeAddress(_to);
   }
 
   function setValidatorModuleAddress(address _to) public onlyOwner {
@@ -464,6 +478,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    *****************/
 
   uint256 public maxPools = 100000;
+  uint256 public newPoolFee = 0.1 ether;
   address[] private pools;
 
   modifier onlyPoolModule() {
@@ -474,6 +489,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event AddPool(address account);
   event RemovePool(address account);
   event SetMaxPools(uint256 maxPools);
+  event SetNewPoolFee(uint256 newPoolFee);
 
   function getPools() public view returns (address[] memory) {
     return pools;
@@ -484,7 +500,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit SetMaxPools(_maxPools);
   }
 
-  function addPool(address _pool) external onlyPoolModule {
+  function addPool(address _pool) external payable onlyPoolModule {
     require(_pool != address(0), 'ZERO_ADDR');
     require(!isPool(_pool), 'NON_POOL');
     require(!_isStakeTogetherFeeAddress(_pool), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
@@ -493,6 +509,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     pools.push(_pool);
     emit AddPool(_pool);
+
+    if (msg.sender != owner() && msg.sender != poolModuleAddress) {
+      require(msg.value >= newPoolFee, 'NOT_ENOUGH_POOL_CREATION_FEE');
+      payable(newPoolFeeAddress).transfer(newPoolFee);
+    }
   }
 
   function removePool(address _pool) external onlyPoolModule {
@@ -506,6 +527,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       }
     }
     emit RemovePool(_pool);
+  }
+
+  function setNewPoolFee(uint256 _newFee) external onlyOwner {
+    newPoolFee = _newFee;
+    emit SetNewPoolFee(_newFee);
   }
 
   function isPool(address _pool) internal view returns (bool) {
