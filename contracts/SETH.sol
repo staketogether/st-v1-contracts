@@ -38,6 +38,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     setOperatorFeeAddress(msg.sender);
     setValidatorModuleAddress(msg.sender);
     setPoolModuleAddress(msg.sender);
+    setValidatorFeeAddress(msg.sender);
   }
 
   function pause() public onlyOwner {
@@ -309,11 +310,13 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   address public stakeTogetherFeeAddress;
   address public operatorFeeAddress;
+  address public validatorFeeAddress;
   address public validatorModuleAddress;
   address public poolModuleAddress;
 
   event SetStakeTogetherFeeAddress(address indexed to);
   event SetOperatorFeeAddress(address indexed to);
+  event SetValidatorFeeAddress(address indexed to);
   event SetValidatorModuleAddress(address indexed to);
   event SetPoolModuleAddress(address indexed to);
 
@@ -327,6 +330,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeAddress = _to;
     emit SetOperatorFeeAddress(_to);
+  }
+
+  function setValidatorFeeAddress(address _to) public onlyOwner {
+    validatorFeeAddress = _to;
+    emit SetValidatorFeeAddress(_to);
   }
 
   function setValidatorModuleAddress(address _to) public onlyOwner {

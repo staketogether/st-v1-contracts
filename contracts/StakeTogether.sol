@@ -15,7 +15,6 @@ contract StakeTogether is SETH {
   constructor(address _rewardsContract, address _depositContract) payable {
     rewardsContract = Rewards(_rewardsContract);
     depositContract = IDepositContract(_depositContract);
-    validatorFeeRecipient = msg.sender;
   }
 
   receive() external payable {
@@ -262,7 +261,7 @@ contract StakeTogether is SETH {
 
   mapping(bytes => bool) public validators;
   uint256 public totalValidators = 0;
-  address public validatorFeeRecipient;
+
   uint256 public validatorFee = 0.001 ether;
   uint256 public validatorSize = 32 ether;
 
@@ -281,17 +280,11 @@ contract StakeTogether is SETH {
   );
   event DestroyValidator(address indexed destroyer, bytes publicKey);
   event SetValidatorFee(uint256 newFee);
-  event SetValidatorFeeRecipient(address newRecipient);
   event SetValidatorSize(uint256 newValidatorSize);
 
   function setValidatorFee(uint256 _newFee) external onlyOwner {
     validatorFee = _newFee;
     emit SetValidatorFee(_newFee);
-  }
-
-  function setValidatorFeeRecipient(address _newRecipient) external onlyOwner {
-    validatorFeeRecipient = _newRecipient;
-    emit SetValidatorFeeRecipient(_newRecipient);
   }
 
   function setValidatorSize(uint256 _newSize) external onlyOwner {
@@ -319,7 +312,7 @@ contract StakeTogether is SETH {
     totalValidators++;
     transientBalance += poolSize;
 
-    payable(validatorFeeRecipient).transfer(validatorFee);
+    payable(validatorFeeAddress).transfer(validatorFee);
 
     emit CreateValidator(
       msg.sender,
