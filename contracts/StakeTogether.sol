@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
@@ -5,6 +6,7 @@ import './SETH.sol';
 import './Rewards.sol';
 import './interfaces/IDepositContract.sol';
 
+/// @custom:security-contact security@staketogether.app
 contract StakeTogether is SETH {
   Rewards public immutable rewardsContract;
   IDepositContract public immutable depositContract;

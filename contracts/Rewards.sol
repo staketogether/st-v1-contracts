@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
@@ -6,6 +7,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './StakeTogether.sol';
 
+/// @custom:security-contact security@staketogether.app
 contract Rewards is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
 

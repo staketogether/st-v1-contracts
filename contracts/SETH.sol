@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
@@ -8,6 +9,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
+/// @custom:security-contact security@staketogether.app
 abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
   constructor() ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     _bootstrap();
