@@ -25,6 +25,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportFrequency = 1;
   uint256 public reportQuorum = 1;
   bool public isInConsensus = false;
+  bool public bunkerMode = false;
 
   address[] private nodes;
   mapping(address => mapping(uint256 => uint256)) private nodesReports;
@@ -48,6 +49,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   event AddNode(address node);
   event RemoveNode(address node);
   event BlacklistNode(address node);
+  event SetBunkerMode(bool bunkerMode);
 
   modifier onlyNodes() {
     require(_isNode(msg.sender), 'ONLY_NODES');
@@ -58,6 +60,11 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
+  }
+
+  function setBunkerMode(bool _bunkerMode) external onlyOwner {
+    bunkerMode = _bunkerMode;
+    emit SetBunkerMode(_bunkerMode);
   }
 
   function report(uint256 _reportBlock, Report memory _report) public onlyNodes {
