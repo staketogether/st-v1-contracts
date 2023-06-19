@@ -239,6 +239,7 @@ contract StakeTogether is SETH {
   uint256 public totalValidators = 0;
   address public validatorFeeRecipient;
   uint256 public validatorFee = 0.001 ether;
+  uint256 public validatorSize = 32 ether;
 
   modifier onlyValidatorModule() {
     require(msg.sender == validatorModuleAddress, 'ONLY_VALIDATOR_MODULE');
@@ -256,6 +257,7 @@ contract StakeTogether is SETH {
   event DestroyValidator(address indexed destroyer, bytes publicKey);
   event SetValidatorFee(uint256 newFee);
   event SetValidatorFeeRecipient(address newRecipient);
+  event SetValidatorSize(uint256 newValidatorSize);
 
   function setValidatorFee(uint256 _newFee) external onlyOwner {
     validatorFee = _newFee;
@@ -267,6 +269,12 @@ contract StakeTogether is SETH {
     emit SetValidatorFeeRecipient(_newRecipient);
   }
 
+  function setValidatorSize(uint256 _newSize) external onlyOwner {
+    require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
+    validatorSize = _newSize;
+    emit SetValidatorSize(_newSize);
+  }
+
   function createValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
@@ -275,7 +283,7 @@ contract StakeTogether is SETH {
     require(poolBalance() >= poolSize + validatorFee, 'NOT_ENOUGH_POOL_BALANCE');
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
-    depositContract.deposit{ value: 32 ether }(
+    depositContract.deposit{ value: validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,
