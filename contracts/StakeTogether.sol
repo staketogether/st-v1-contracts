@@ -38,6 +38,15 @@ contract StakeTogether is SETH {
     address referral
   );
 
+  event DonationDepositPool(
+    address indexed donor,
+    address indexed account,
+    uint256 amount,
+    uint256 sharesAmount,
+    address delegated,
+    address referral
+  );
+
   event WithdrawPool(address indexed account, uint256 amount, uint256 sharesAmount, address delegated);
   event SetWithdrawalCredentials(bytes withdrawalCredentials);
   event SetMinDepositPoolAmount(uint256 amount);
@@ -60,29 +69,30 @@ contract StakeTogether is SETH {
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  function depositPool(
-    address _delegated,
-    address _referral
-  ) external payable nonReentrant whenNotPaused {
-    require(isPool(_delegated), 'NON_POOL_DELEGATE');
+  function depositBase(address _pool, address _referral, address _to, bool _isDonation) internal {
+    require(isPool(_pool), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 
     if (walletDepositLimit > 0) {
-      require(balanceOf(msg.sender) + msg.value <= walletDepositLimit, 'WALLET_DEPOSIT_LIMIT_REACHED');
+      require(balanceOf(_to) + msg.value <= walletDepositLimit, 'WALLET_DEPOSIT_LIMIT_REACHED');
     }
 
     if (msg.value + totalDeposited > depositLimit) {
-      emit DepositLimitReached(msg.sender, msg.value);
+      emit DepositLimitReached(_to, msg.value);
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
-    emit DepositPool(msg.sender, msg.value, sharesAmount, _delegated, _referral);
+    if (_isDonation) {
+      emit DonationDepositPool(msg.sender, _to, msg.value, sharesAmount, _pool, _referral);
+    } else {
+      emit DepositPool(_to, msg.value, sharesAmount, _pool, _referral);
+    }
 
-    _mintShares(msg.sender, sharesAmount);
-    _mintPoolShares(msg.sender, _delegated, sharesAmount);
+    _mintShares(_to, sharesAmount);
+    _mintPoolShares(_to, _pool, sharesAmount);
 
     totalDeposited += msg.value;
 
@@ -93,11 +103,26 @@ contract StakeTogether is SETH {
     }
   }
 
-  function withdrawPool(uint256 _amount, address _delegated) external nonReentrant whenNotPaused {
+  function depositPool(
+    address _delegated,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
+    depositBase(_delegated, _referral, msg.sender, false);
+  }
+
+  function donationDepositPool(
+    address _delegated,
+    address _referral,
+    address _to
+  ) external payable nonReentrant whenNotPaused {
+    depositBase(_delegated, _referral, _to, true);
+  }
+
+  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
-    require(_delegated != address(0), 'MINT_TO_ZERO_ADDR');
+    require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
     require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_WITHDRAWALS_BALANCE');
-    require(delegationSharesOf(msg.sender, _delegated) > 0, 'NOT_DELEGATION_SHARES');
+    require(delegationSharesOf(msg.sender, _pool) > 0, 'NOT_DELEGATION_SHARES');
 
     if (_amount + totalWithdrawn > withdrawalLimit) {
       emit WithdrawalLimitReached(msg.sender, _amount);
@@ -109,10 +134,10 @@ contract StakeTogether is SETH {
 
     uint256 sharesToBurn = (_amount * sharesOf(msg.sender)) / userBalance;
 
-    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _delegated);
+    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _pool);
 
     _burnShares(msg.sender, sharesToBurn);
-    _burnPoolShares(msg.sender, _delegated, sharesToBurn);
+    _burnPoolShares(msg.sender, _pool, sharesToBurn);
 
     payable(msg.sender).transfer(_amount);
 
