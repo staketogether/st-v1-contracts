@@ -6,15 +6,16 @@ import './Rewards.sol';
 import './interfaces/IDepositContract.sol';
 
 contract StakeTogether is SETH {
-  Rewards public immutable stOracle;
+  Rewards public immutable rewardsContract;
   IDepositContract public immutable depositContract;
   bytes public withdrawalCredentials;
 
   event EtherReceived(address indexed sender, uint amount);
 
-  constructor(address _stOracle, address _depositContract) payable {
-    stOracle = Rewards(_stOracle);
+  constructor(address _rewardsContract, address _depositContract) payable {
+    rewardsContract = Rewards(_rewardsContract);
     depositContract = IDepositContract(_depositContract);
+    validatorFeeRecipient = msg.sender;
   }
 
   receive() external payable {
@@ -212,7 +213,7 @@ contract StakeTogether is SETH {
   event SetBeaconBalance(uint256 amount);
 
   function setTransientBalance(uint256 _transientBalance) external override nonReentrant {
-    require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
 
     transientBalance = _transientBalance;
 
@@ -220,7 +221,7 @@ contract StakeTogether is SETH {
   }
 
   function setBeaconBalance(uint256 _beaconBalance) external override nonReentrant {
-    require(msg.sender == address(stOracle), 'ONLY_ST_ORACLE');
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
 
     uint256 preClBalance = beaconBalance;
     beaconBalance = _beaconBalance;
@@ -236,6 +237,8 @@ contract StakeTogether is SETH {
 
   mapping(bytes => bool) public validators;
   uint256 public totalValidators = 0;
+  address public validatorFeeRecipient;
+  uint256 public validatorFee = 0.001 ether;
 
   modifier onlyValidatorModule() {
     require(msg.sender == validatorModuleAddress, 'ONLY_VALIDATOR_MODULE');
@@ -250,16 +253,26 @@ contract StakeTogether is SETH {
     bytes signature,
     bytes32 depositDataRoot
   );
-
   event DestroyValidator(address indexed destroyer, bytes publicKey);
+  event SetValidatorFee(uint256 newFee);
+  event SetValidatorFeeRecipient(address newRecipient);
+
+  function setValidatorFee(uint256 _newFee) external onlyOwner {
+    validatorFee = _newFee;
+    emit SetValidatorFee(_newFee);
+  }
+
+  function setValidatorFeeRecipient(address _newRecipient) external onlyOwner {
+    validatorFeeRecipient = _newRecipient;
+    emit SetValidatorFeeRecipient(_newRecipient);
+  }
 
   function createValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyValidatorModule nonReentrant {
-    require(poolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
-
+    require(poolBalance() >= poolSize + validatorFee, 'NOT_ENOUGH_POOL_BALANCE');
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
     depositContract.deposit{ value: 32 ether }(
@@ -272,6 +285,8 @@ contract StakeTogether is SETH {
     validators[_publicKey] = true;
     totalValidators++;
     transientBalance += poolSize;
+
+    payable(validatorFeeRecipient).transfer(validatorFee);
 
     emit CreateValidator(
       msg.sender,
