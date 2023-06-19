@@ -234,7 +234,7 @@ contract StakeTogether is SETH {
    ** VALIDATOR **
    *****************/
 
-  bytes[] private validators;
+  mapping(bytes => bool) public validators;
   uint256 public totalValidators = 0;
 
   modifier onlyValidatorModule() {
@@ -251,12 +251,16 @@ contract StakeTogether is SETH {
     bytes32 depositDataRoot
   );
 
+  event DestroyValidator(address indexed destroyer, bytes publicKey);
+
   function createValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external onlyValidatorModule nonReentrant {
     require(poolBalance() >= poolSize, 'NOT_ENOUGH_POOL_BALANCE');
+
+    require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
     depositContract.deposit{ value: 32 ether }(
       _publicKey,
@@ -265,7 +269,7 @@ contract StakeTogether is SETH {
       _depositDataRoot
     );
 
-    validators.push(_publicKey);
+    validators[_publicKey] = true;
     totalValidators++;
     transientBalance += poolSize;
 
@@ -279,22 +283,16 @@ contract StakeTogether is SETH {
     );
   }
 
-  function getValidators() public view returns (string[] memory) {
-    string[] memory publicKeys = new string[](validators.length);
+  function destroyValidator(bytes calldata _publicKey) external onlyValidatorModule nonReentrant {
+    require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
-    for (uint i = 0; i < validators.length; i++) {
-      publicKeys[i] = string(validators[i]);
-    }
+    validators[_publicKey] = false;
+    totalValidators--;
 
-    return publicKeys;
+    emit DestroyValidator(msg.sender, _publicKey);
   }
 
-  function isValidator(bytes memory publicKey) public view returns (bool) {
-    for (uint256 i = 0; i < validators.length; i++) {
-      if (keccak256(validators[i]) == keccak256(publicKey)) {
-        return true;
-      }
-    }
-    return false;
+  function isValidator(bytes memory _publicKey) public view returns (bool) {
+    return validators[_publicKey];
   }
 }
