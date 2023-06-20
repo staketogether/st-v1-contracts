@@ -164,6 +164,59 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     _removeNode(node);
   }
 
+  // function _sanityCheck(
+  //   Reward memory _stakeTogetherReward,
+  //   Reward memory _operatorReward,
+  //   Reward[] memory _poolRewards,
+  //   RewardReport memory _rewardReport
+  // ) internal view {
+  //   require(_rewardReport.reportBlock > 0, 'INVALID_REPORT_BLOCK');
+  //   require(_rewardReport.reportPart > 0, 'INVALID_REPORT_PART');
+  //   require(_rewardReport.reportPart <= _rewardReport.reportTotalParts, 'INVALID_REPORT_TOTAL_PART');
+  //   require(_stakeTogetherReward.recipient == stakeTogetherFeeAddress, 'INVALID_STAKE_TOGETHER_ADDRESS');
+  //   require(_operatorReward.recipient == operatorFeeAddress, 'INVALID_OPERATOR_ADDRESS');
+  //   require(
+  //     _rewardReport.totalRewardsShares == getSharesByPooledEth(_rewardReport.totalRewardsAmount),
+  //     'INVALID_TOTAL_SHARES'
+  //   );
+  //   require(
+  //     _rewardReport.totalRewardsAmount == pooledEthByShares(_rewardReport.totalRewardsShares),
+  //     'INVALID_TOTAL_AMOUNT'
+  //   );
+  //   require(
+  //     _rewardReport.stakeTogetherShares <= _rewardReport.totalRewardsShares,
+  //     'INVALID_STAKE_TOGETHER_SHARES'
+  //   );
+  //   require(
+  //     _rewardReport.operatorShares <= _rewardReport.totalRewardsShares,
+  //     'INVALID_STAKE_TOGETHER_AMOUNT'
+  //   );
+  //   for (uint i = 0; i < _poolRewards.length; i++) {
+  //     Reward memory poolReward = _poolRewards[i];
+  //     require(poolReward.shares <= totalPoolShares, 'POOL_SHARES_EXCEED_TOTAL');
+  //   }
+
+  //   uint256 maxTotalRewards = Math.mulDiv(totalPooledEther(), rewardsSanityLimit, 1 ether);
+  //   require(_rewardReport.totalRewardsAmount <= maxTotalRewards, 'EXCEED_SANITY_LIMIT');
+  //   require(
+  //     pooledEthByShares(_rewardReport.totalRewardsAmount) <= maxTotalRewards,
+  //     'EXCEED_SANITY_LIMIT'
+  //   );
+
+  //   uint256 maxStakeTogetherRewards = Math.mulDiv(
+  //     _rewardReport.totalRewardsAmount,
+  //     stakeTogetherFee,
+  //     1 ether
+  //   );
+  //   require(_rewardReport.stakeTogetherAmount <= maxStakeTogetherRewards, 'EXCEED_STAKE_TOGETHER_LIMIT');
+
+  //   uint256 maxOperatorRewards = Math.mulDiv(_rewardReport.totalRewardsAmount, operatorFee, 1 ether);
+  //   require(_rewardReport.operatorAmount <= maxOperatorRewards, 'EXCEED_OPERATOR_LIMIT');
+
+  //   uint256 maxPoolRewards = Math.mulDiv(_rewardReport.totalRewardsAmount, poolFee, 1 ether);
+  //   require(_rewardReport.poolAmount <= maxPoolRewards, 'EXCEED_POOL_LIMIT');
+  // }
+
   function _isNode(address node) internal view returns (bool) {
     for (uint256 i = 0; i < nodes.length; i++) {
       if (nodes[i] == node) {
