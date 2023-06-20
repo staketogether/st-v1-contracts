@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import './SETH.sol';
-import './Rewards.sol';
-import './interfaces/IDepositContract.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import './SETH.sol';
+import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is SETH {
-  Rewards public immutable rewardsContract;
   IDepositContract public immutable depositContract;
   bytes public withdrawalCredentials;
 
@@ -194,11 +192,11 @@ contract StakeTogether is SETH {
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return (contractBalance() + transientBalance + beaconBalance) - liquidityBufferBalance;
+    return (contractBalance() + beaconBalance) - liquidityBufferBalance;
   }
 
   function totalEtherSupply() public view returns (uint256) {
-    return contractBalance() + transientBalance + beaconBalance + liquidityBufferBalance;
+    return contractBalance() + beaconBalance + liquidityBufferBalance;
   }
 
   /*****************
@@ -230,32 +228,6 @@ contract StakeTogether is SETH {
 
   function withdrawalsBalance() public view returns (uint256) {
     return poolBalance() + liquidityBufferBalance;
-  }
-
-  /*****************
-   ** REWARDS **
-   *****************/
-
-  event SetTransientBalance(uint256 amount);
-  event SetBeaconBalance(uint256 amount);
-
-  function setTransientBalance(uint256 _transientBalance) external override nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
-
-    transientBalance = _transientBalance;
-
-    emit SetTransientBalance(_transientBalance);
-  }
-
-  function setBeaconBalance(uint256 _beaconBalance) external override nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
-
-    uint256 preClBalance = beaconBalance;
-    beaconBalance = _beaconBalance;
-
-    _processRewards(preClBalance, _beaconBalance);
-
-    emit SetBeaconBalance(_beaconBalance);
   }
 
   /*****************
@@ -306,7 +278,7 @@ contract StakeTogether is SETH {
 
     validators[_publicKey] = true;
     totalValidators++;
-    transientBalance += poolSize;
+    beaconBalance += validatorSize;
 
     payable(validatorFeeAddress).transfer(validatorFee);
 

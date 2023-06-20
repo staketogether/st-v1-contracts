@@ -9,9 +9,12 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import './Rewards.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
+  Rewards public rewardsContract;
+
   constructor() ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     _bootstrap();
   }
@@ -422,13 +425,21 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   /*****************
    ** REWARDS **
    *****************/
-  uint256 public transientBalance = 0;
   uint256 public beaconBalance = 0;
 
-  event ProcessRewards(
-    uint256 preClBalance,
-    uint256 posClBalance,
-    uint256 rewards,
+  event SetBeaconBalance(uint256 amount);
+  event MintStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event MintOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  event MintPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
+
+  enum RewardType {
+    StakeTogether,
+    Operator,
+    Pool
+  }
+
+  event SetRewards(
+    uint256 rewardsAmount,
     uint256 growthFactor,
     uint256 stakeTogetherFee,
     uint256 operatorFee,
@@ -438,70 +449,78 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     uint256 poolFeeShares
   );
 
-  event MintOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event MintStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event MintPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  function setBeaconBalance(uint256 _beaconBalance) external nonReentrant {
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
+    beaconBalance = _beaconBalance;
+    emit SetBeaconBalance(_beaconBalance);
+  }
 
-  function setTransientBalance(uint256 _transientBalance) external virtual {}
-
-  function setBeaconBalance(uint256 _beaconBalance) external virtual {}
-
-  function _processRewards(uint256 _preClBalance, uint256 _posClBalance) internal {
-    if (_posClBalance <= _preClBalance) {
+  function setRewards(uint256 _rewardsAmount) internal {
+    if (_rewardsAmount <= 0) {
       return;
     }
 
-    uint256 rewards = _posClBalance - _preClBalance;
-    uint256 totalPooledEtherWithRewards = totalPooledEther() + rewards;
-    uint256 growthFactor = Math.mulDiv(rewards, basisPoints, totalPooledEther());
+    uint256 totalPooledEtherWithRewards = totalPooledEther() + _rewardsAmount;
+    uint256 growthFactor = Math.mulDiv(_rewardsAmount, basisPoints, totalPooledEther());
 
-    uint256 stakeTogetherFeeAdjust = stakeTogetherFee +
-      Math.mulDiv(stakeTogetherFee, growthFactor, basisPoints);
-
-    uint256 operatorFeeAdjust = operatorFee + Math.mulDiv(operatorFee, growthFactor, basisPoints);
-
-    uint256 poolFeeAdjust = poolFee + Math.mulDiv(poolFee, growthFactor, basisPoints);
+    uint256 stakeTogetherFeeAdjust = Math.mulDiv(stakeTogetherFee, growthFactor, basisPoints);
+    uint256 operatorFeeAdjust = Math.mulDiv(operatorFee, growthFactor, basisPoints);
+    uint256 poolFeeAdjust = Math.mulDiv(poolFee, growthFactor, basisPoints);
 
     uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAdjust + poolFeeAdjust;
+    uint256 totalSharesDividend = _rewardsAmount * totalFee * totalShares;
+    uint256 totalSharesDivider = totalPooledEtherWithRewards * basisPoints - _rewardsAmount * totalFee;
 
-    uint256 sharesMintedAsFees = Math.mulDiv(
-      1,
-      rewards * totalFee * totalShares,
-      totalPooledEtherWithRewards * basisPoints - rewards * totalFee
+    uint256 sharesMintedAsFees = Math.mulDiv(1, totalSharesDividend, totalSharesDivider);
+
+    _mintRewards(
+      stakeTogetherFeeAddress,
+      stakeTogetherFee,
+      sharesMintedAsFees,
+      totalFee,
+      RewardType.StakeTogether
     );
 
-    uint256 stakeTogetherFeeShares = Math.mulDiv(sharesMintedAsFees, stakeTogetherFeeAdjust, totalFee);
-    uint256 operatorFeeShares = Math.mulDiv(sharesMintedAsFees, operatorFeeAdjust, totalFee);
+    _mintRewards(operatorFeeAddress, operatorFee, sharesMintedAsFees, totalFee, RewardType.Operator);
+
     uint256 poolFeeShares = Math.mulDiv(sharesMintedAsFees, poolFeeAdjust, totalFee);
-
-    emit MintOperatorRewards(address(0), operatorFeeAddress, operatorFeeShares);
-    _mintShares(operatorFeeAddress, operatorFeeShares);
-
-    emit MintStakeTogetherRewards(address(0), stakeTogetherFeeAddress, stakeTogetherFeeShares);
-    _mintShares(stakeTogetherFeeAddress, stakeTogetherFeeShares);
 
     for (uint i = 0; i < pools.length; i++) {
       address pool = pools[i];
-
       uint256 poolRewards = Math.mulDiv(poolFeeShares, poolSharesOf(pool), totalPoolShares);
-
-      emit MintPoolRewards(address(0), pool, poolRewards);
-      _mintShares(pool, poolRewards);
-      _mintPoolShares(pool, pool, poolRewards);
+      _mintRewards(pool, poolRewards, poolFeeShares, totalPoolShares, RewardType.Pool);
     }
 
-    emit ProcessRewards(
-      _preClBalance,
-      _posClBalance,
-      rewards,
+    emit SetRewards(
+      _rewardsAmount,
       growthFactor,
       stakeTogetherFee,
       operatorFee,
       poolFee,
-      stakeTogetherFeeShares,
-      operatorFeeShares,
-      poolFeeShares
+      stakeTogetherFeeAdjust,
+      operatorFeeAdjust,
+      poolFeeAdjust
     );
+  }
+
+  function _mintRewards(
+    address rewardAddress,
+    uint256 rewardFeeAdjust,
+    uint256 sharesMintedAsFees,
+    uint256 totalFee,
+    RewardType rewardType
+  ) internal {
+    uint256 rewardShares = Math.mulDiv(sharesMintedAsFees, rewardFeeAdjust, totalFee);
+    _mintShares(rewardAddress, rewardShares);
+
+    if (rewardType == RewardType.Pool) {
+      emit MintPoolRewards(address(0), rewardAddress, rewardShares);
+      _mintPoolShares(rewardAddress, rewardAddress, rewardShares);
+    } else if (rewardType == RewardType.StakeTogether) {
+      emit MintStakeTogetherRewards(address(0), rewardAddress, rewardShares);
+    } else if (rewardType == RewardType.Operator) {
+      emit MintOperatorRewards(address(0), rewardAddress, rewardShares);
+    }
   }
 
   /*****************

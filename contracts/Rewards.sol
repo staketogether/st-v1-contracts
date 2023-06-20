@@ -13,14 +13,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   struct Report {
     uint256 beaconBalance;
-    uint256 transientBalance;
     uint256 totalBeaconValidators;
     uint256 totalTransientValidators;
     uint256 totalExitedValidators;
   }
 
   uint256 public beaconBalance;
-  uint256 public transientBalance;
 
   uint256 public reportLastBlock = 0;
   uint256 public reportNextBlock = 1;
@@ -36,7 +34,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   mapping(uint256 => uint256) private reportsCount;
   mapping(uint256 => mapping(uint256 => uint256)) private reportsBalanceCount;
 
-  event ConsensusApproved(uint256 indexed blockNumber, uint256 transientBalance, uint256 beaconBalance);
+  event ConsensusApproved(uint256 indexed blockNumber, uint256 beaconBalance);
   event ConsensusFail(uint256 indexed blockNumber);
   event ReportQuorumNotAchieved(uint256 indexed blockNumber);
   event NonConsensusValueReported(
@@ -76,20 +74,20 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     require(block.number >= reportNextBlock, 'TOO_EARLY_TO_REPORT');
     require(nodesReports[msg.sender][_reportBlock] == 0, 'NODE_ALREADY_REPORTED');
 
-    uint256 consensusBalance = _report.transientBalance + _report.beaconBalance;
+    uint256 consensusBalance = _report.beaconBalance;
 
     nodesReports[msg.sender][reportNextBlock] = consensusBalance;
     reportsCount[reportNextBlock]++;
     reportsBalanceCount[reportNextBlock][consensusBalance]++;
 
     if (reportsCount[reportNextBlock] >= reportQuorum) {
-      validConsensus(_report.transientBalance, _report.beaconBalance);
+      validConsensus(_report.beaconBalance);
     } else {
       emit ReportQuorumNotAchieved(reportNextBlock);
     }
   }
 
-  function validConsensus(uint256 _transientBalance, uint256 _beaconBalance) internal {
+  function validConsensus(uint256 _beaconBalance) internal {
     uint256 totalReports = 0;
     uint256 consensusBalance = 0;
 
@@ -107,23 +105,21 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
       consensusBlock[reportNextBlock] = consensusBalance;
       checkForNonConsensusReports(consensusBalance);
       if (isInConsensus) {
-        approveConsensus(_transientBalance, _beaconBalance);
+        approveConsensus(_beaconBalance);
       } else {
         emit ConsensusFail(reportNextBlock);
       }
     }
   }
 
-  function approveConsensus(uint256 _transientBalance, uint256 _beaconBalance) internal nonReentrant {
-    transientBalance = _transientBalance;
+  function approveConsensus(uint256 _beaconBalance) internal nonReentrant {
     beaconBalance = _beaconBalance;
     reportLastBlock = reportNextBlock;
     reportNextBlock = block.number + reportFrequency;
 
-    stakeTogether.setTransientBalance(_transientBalance);
     stakeTogether.setBeaconBalance(_beaconBalance);
 
-    emit ConsensusApproved(reportNextBlock, _transientBalance, _beaconBalance);
+    emit ConsensusApproved(reportNextBlock, _beaconBalance);
   }
 
   function checkForNonConsensusReports(uint256 _consensusBalance) internal {
