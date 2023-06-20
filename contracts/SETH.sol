@@ -8,6 +8,7 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
@@ -68,11 +69,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function getSharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return (_ethAmount * totalShares) / totalPooledEther();
+    return Math.mulDiv(_ethAmount, totalShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return (_sharesAmount * totalPooledEther()) / totalShares;
+    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -263,8 +264,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address pool = delegates[_from][i];
-      uint256 delegationSharesToTransfer = (delegationSharesOf(_from, pool) * _sharesToTransfer) /
-        sharesOf(_from);
+      uint256 delegationSharesToTransfer = Math.mulDiv(
+        delegationSharesOf(_from, pool),
+        _sharesToTransfer,
+        sharesOf(_from)
+      );
 
       delegationsShares[_from][pool] -= delegationSharesToTransfer;
 
@@ -424,20 +428,26 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     uint256 rewards = _posClBalance - _preClBalance;
     uint256 totalPooledEtherWithRewards = totalPooledEther() + rewards;
-    uint256 growthFactor = (rewards * basisPoints) / totalPooledEther();
+    uint256 growthFactor = Math.mulDiv(rewards, basisPoints, totalPooledEther());
 
-    uint256 stakeTogetherFeeAdjust = stakeTogetherFee + (stakeTogetherFee * growthFactor) / basisPoints;
-    uint256 operatorFeeAdjust = operatorFee + (operatorFee * growthFactor) / basisPoints;
-    uint256 poolFeeAdjust = poolFee + (poolFee * growthFactor) / basisPoints;
+    uint256 stakeTogetherFeeAdjust = stakeTogetherFee +
+      Math.mulDiv(stakeTogetherFee, growthFactor, basisPoints);
+
+    uint256 operatorFeeAdjust = operatorFee + Math.mulDiv(operatorFee, growthFactor, basisPoints);
+
+    uint256 poolFeeAdjust = poolFee + Math.mulDiv(poolFee, growthFactor, basisPoints);
 
     uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAdjust + poolFeeAdjust;
 
-    uint256 sharesMintedAsFees = (rewards * totalFee * totalShares) /
-      (totalPooledEtherWithRewards * basisPoints - rewards * totalFee);
+    uint256 sharesMintedAsFees = Math.mulDiv(
+      1,
+      rewards * totalFee * totalShares,
+      totalPooledEtherWithRewards * basisPoints - rewards * totalFee
+    );
 
-    uint256 stakeTogetherFeeShares = (sharesMintedAsFees * stakeTogetherFeeAdjust) / totalFee;
-    uint256 operatorFeeShares = (sharesMintedAsFees * operatorFeeAdjust) / totalFee;
-    uint256 poolFeeShares = (sharesMintedAsFees * poolFeeAdjust) / totalFee;
+    uint256 stakeTogetherFeeShares = Math.mulDiv(sharesMintedAsFees, stakeTogetherFeeAdjust, totalFee);
+    uint256 operatorFeeShares = Math.mulDiv(sharesMintedAsFees, operatorFeeAdjust, totalFee);
+    uint256 poolFeeShares = Math.mulDiv(sharesMintedAsFees, poolFeeAdjust, totalFee);
 
     emit MintOperatorRewards(address(0), operatorFeeAddress, operatorFeeShares);
     _mintShares(operatorFeeAddress, operatorFeeShares);
@@ -447,7 +457,9 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     for (uint i = 0; i < pools.length; i++) {
       address pool = pools[i];
-      uint256 poolRewards = (poolFeeShares * poolSharesOf(pool)) / totalPoolShares;
+
+      uint256 poolRewards = Math.mulDiv(poolFeeShares, poolSharesOf(pool), totalPoolShares);
+
       emit MintPoolRewards(address(0), pool, poolRewards);
       _mintShares(pool, poolRewards);
       _mintPoolShares(pool, pool, poolRewards);

@@ -8,7 +8,7 @@ import connect from '../utils/connect'
 dotenv.config()
 
 describe.only('StakeTogether: Stake', function () {
-  it('Should stake successfuly', async function () {
+  it('Should deposit successfuly', async function () {
     const { StakeTogether, owner, user1, user2, nullAddress } = await loadFixture(defaultFixture)
 
     const stakeAmount = ethers.parseEther('1')
@@ -42,105 +42,120 @@ describe.only('StakeTogether: Stake', function () {
     expect(delegatedSharedDelegated).to.eq(stakeAmount)
   })
 
-  // it('Should stake successfuly with 1 wei loss', async function () {
-  //   const { StakeTogether, owner, user1, user2, nullAddress } = await loadFixture(defaultFixture)
+  it.only('Should deposit and change shares by send ether', async function () {
+    const { StakeTogether, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
+      defaultFixture
+    )
 
-  //   const stakeAmount = 555n
+    const stakeAmount = ethers.parseEther('1')
+    const sendAmount = 334n
 
-  //   await connect(StakeTogether, user1).stake(user2, nullAddress, {
-  //     value: stakeAmount
-  //   })
+    await connect(StakeTogether, user1).depositPool(user2, nullAddress, {
+      value: stakeAmount
+    })
 
-  //   const totalPooledEther = await StakeTogether.getTotalPooledEther()
-  //   const totalShares = await StakeTogether.totalShares()
-  //   const totalSupply = await StakeTogether.totalSupply()
+    await connect(StakeTogether, user2).depositPool(user2, nullAddress, {
+      value: stakeAmount
+    })
 
-  //   const balanceUser = await StakeTogether.balanceOf(user1.address)
-  //   const sharesUser = await StakeTogether.sharesOf(user1.address)
+    await connect(StakeTogether, user3).depositPool(user2, nullAddress, {
+      value: stakeAmount
+    })
 
-  //   const sharesST = await StakeTogether.sharesOf(owner.address)
+    await user4.sendTransaction({
+      to: await StakeTogether.getAddress(),
+      value: sendAmount
+    })
 
-  //   const sharesDelegated = await StakeTogether.sharesOf(user2.address)
-  //   const delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+    const totalPooledEther = await StakeTogether.totalPooledEther()
+    const totalShares = await StakeTogether.totalShares()
+    const totalSupply = await StakeTogether.totalSupply()
 
-  //   expect(totalPooledEther).to.eq(stakeAmount + 1n)
-  //   expect(totalShares).to.eq(stakeAmount + 1n)
-  //   expect(totalSupply).to.eq(stakeAmount + 1n)
+    const balanceUser = await StakeTogether.balanceOf(user1.address)
+    const sharesUser = await StakeTogether.sharesOf(user1.address)
 
-  //   expect(balanceUser).to.eq(stakeAmount)
-  //   expect(sharesUser).to.eq(stakeAmount)
+    const sharesST = await StakeTogether.sharesOf(owner.address)
 
-  //   expect(sharesST).to.eq(0n)
+    const sharesDelegated = await StakeTogether.sharesOf(user2.address)
+    const delegatedSharedDelegated = await StakeTogether.poolSharesOf(user2.address)
 
-  //   expect(sharesDelegated).to.eq(0n)
-  //   expect(delegationSharesDelegated).to.eq(stakeAmount)
-  // })
+    // expect(totalPooledEther).to.eq(stakeAmount + sendAmount)
+    // expect(totalShares).to.eq(stakeAmount + sendAmount)
+    // expect(totalSupply).to.eq(stakeAmount + sendAmount)
 
-  // it('Should stake successfuly in sequence', async function () {
-  //   const { StakeTogether, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
-  //     defaultFixture
-  //   )
+    expect(balanceUser).to.eq(stakeAmount + sendAmount)
+    expect(sharesUser).to.eq(stakeAmount + sendAmount)
 
-  //   const stakeAmount1 = ethers.parseEther('1')
+    expect(sharesST).to.eq(0n)
 
-  //   await connect(StakeTogether, user1).stake(user2, nullAddress, {
-  //     value: stakeAmount1
-  //   })
+    expect(sharesDelegated).to.eq(0n)
+    expect(delegatedSharedDelegated).to.eq(stakeAmount)
+  })
 
-  //   const totalPooledEther1 = await StakeTogether.getTotalPooledEther()
-  //   const totalShares1 = await StakeTogether.totalShares()
-  //   const totalSupply1 = await StakeTogether.totalSupply()
+  it.only('Should stake successfuly in sequence', async function () {
+    const { StakeTogether, owner, user1, user2, user3, user4, nullAddress, initialDeposit } =
+      await loadFixture(defaultFixture)
 
-  //   const balanceUser1 = await StakeTogether.balanceOf(user1.address)
-  //   const sharesUser1 = await StakeTogether.sharesOf(user1.address)
+    const stakeAmount1 = ethers.parseEther('1.3')
 
-  //   const sharesST1 = await StakeTogether.sharesOf(owner.address)
+    await connect(StakeTogether, user1).depositPool(user2, nullAddress, {
+      value: stakeAmount1
+    })
 
-  //   const sharesDelegated1 = await StakeTogether.sharesOf(user2.address)
-  //   const delegationSharesDelegated1 = await StakeTogether.delegatedSharesOf(user2.address)
+    const totalPooledEther1 = await StakeTogether.totalPooledEther()
+    const totalShares1 = await StakeTogether.totalShares()
+    const totalSupply1 = await StakeTogether.totalSupply()
 
-  //   expect(totalPooledEther1).to.eq(stakeAmount1 + 1n)
-  //   expect(totalShares1).to.eq(stakeAmount1 + 1n)
-  //   expect(totalSupply1).to.eq(stakeAmount1 + 1n)
+    const balanceUser1 = await StakeTogether.balanceOf(user1.address)
+    const sharesUser1 = await StakeTogether.sharesOf(user1.address)
 
-  //   expect(balanceUser1).to.eq(stakeAmount1)
-  //   expect(sharesUser1).to.eq(stakeAmount1)
+    const sharesST1 = await StakeTogether.sharesOf(owner.address)
 
-  //   expect(sharesST1).to.eq(0n)
+    const sharesDelegated1 = await StakeTogether.sharesOf(user2.address)
+    const poolShares1 = await StakeTogether.poolSharesOf(user2.address)
 
-  //   expect(sharesDelegated1).to.eq(0n)
-  //   expect(delegationSharesDelegated1).to.eq(stakeAmount1)
+    expect(totalPooledEther1).to.eq(stakeAmount1 + initialDeposit)
+    expect(totalShares1).to.eq(stakeAmount1 + initialDeposit)
+    expect(totalSupply1).to.eq(stakeAmount1 + initialDeposit)
 
-  //   const stakeAmount2 = 555n
+    expect(balanceUser1).to.eq(stakeAmount1)
+    expect(sharesUser1).to.eq(stakeAmount1)
 
-  //   await connect(StakeTogether, user1).stake(user3, nullAddress, {
-  //     value: stakeAmount2
-  //   })
+    expect(sharesST1).to.eq(0n)
 
-  //   const totalPooledEther2 = await StakeTogether.getTotalPooledEther()
-  //   const totalShares2 = await StakeTogether.totalShares()
-  //   const totalSupply2 = await StakeTogether.totalSupply()
+    expect(sharesDelegated1).to.eq(0n)
+    expect(poolShares1).to.eq(stakeAmount1)
 
-  //   const balanceUser2 = await StakeTogether.balanceOf(user1.address)
-  //   const sharesUser2 = await StakeTogether.sharesOf(user1.address)
+    const stakeAmount2 = ethers.parseEther('0.1')
 
-  //   const sharesST2 = await StakeTogether.sharesOf(owner.address)
+    await connect(StakeTogether, user1).depositPool(user3, nullAddress, {
+      value: stakeAmount2
+    })
 
-  //   const sharesDelegated2 = await StakeTogether.sharesOf(user3.address)
-  //   const delegationSharesDelegated2 = await StakeTogether.delegatedSharesOf(user3.address)
+    const totalPooledEther2 = await StakeTogether.totalPooledEther()
+    const totalShares2 = await StakeTogether.totalShares()
+    const totalSupply2 = await StakeTogether.totalSupply()
 
-  //   expect(totalPooledEther2).to.eq(stakeAmount1 + stakeAmount2 + 1n)
-  //   expect(totalShares2).to.eq(stakeAmount1 + stakeAmount2 + 1n)
-  //   expect(totalSupply2).to.eq(stakeAmount1 + stakeAmount2 + 1n)
+    const balanceUser2 = await StakeTogether.balanceOf(user1.address)
+    const sharesUser2 = await StakeTogether.sharesOf(user1.address)
 
-  //   expect(balanceUser2).to.eq(stakeAmount1 + stakeAmount2)
-  //   expect(sharesUser2).to.eq(stakeAmount1 + stakeAmount2)
+    const sharesST2 = await StakeTogether.sharesOf(owner.address)
 
-  //   expect(sharesST2).to.eq(0n)
+    const sharesDelegated2 = await StakeTogether.sharesOf(user3.address)
+    const delegationSharesDelegated2 = await StakeTogether.poolSharesOf(user3.address)
 
-  //   expect(sharesDelegated2).to.eq(0n)
-  //   expect(delegationSharesDelegated2).to.eq(stakeAmount2)
-  // })
+    expect(totalPooledEther2).to.eq(stakeAmount1 + stakeAmount2 + 1n)
+    expect(totalShares2).to.eq(stakeAmount1 + stakeAmount2 + 1n)
+    expect(totalSupply2).to.eq(stakeAmount1 + stakeAmount2 + 1n)
+
+    expect(balanceUser2).to.eq(stakeAmount1 + stakeAmount2)
+    expect(sharesUser2).to.eq(stakeAmount1 + stakeAmount2)
+
+    expect(sharesST2).to.eq(0n)
+
+    expect(sharesDelegated2).to.eq(0n)
+    expect(delegationSharesDelegated2).to.eq(stakeAmount2)
+  })
 
   // it('Should correctly return delegation addresses and shares for an address', async function () {
   //   const { StakeTogether, user1, user2, user3, user4, nullAddress } = await loadFixture(defaultFixture)

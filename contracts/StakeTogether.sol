@@ -5,6 +5,7 @@ pragma solidity ^0.8.18;
 import './SETH.sol';
 import './Rewards.sol';
 import './interfaces/IDepositContract.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is SETH {
@@ -84,7 +85,7 @@ contract StakeTogether is SETH {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
+    uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
 
     if (_isDonation) {
       emit DonationDepositPool(msg.sender, _to, msg.value, sharesAmount, _pool, _referral);
@@ -133,7 +134,7 @@ contract StakeTogether is SETH {
     uint256 userBalance = balanceOf(msg.sender);
     require(_amount <= userBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
-    uint256 sharesToBurn = (_amount * sharesOf(msg.sender)) / userBalance;
+    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), userBalance);
 
     emit WithdrawPool(msg.sender, _amount, sharesToBurn, _pool);
 

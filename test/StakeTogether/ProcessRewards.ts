@@ -14,7 +14,7 @@
 //     }
 //   }
 
-//   it('Should stake and distribute fee', async function () {
+//   it('Should depositPool and distribute fee', async function () {
 //     const { StakeTogether, Rewards, owner, user1, user2, user3, user4, user9, nullAddress } =
 //       await loadFixture(defaultFixture)
 
@@ -22,11 +22,11 @@
 
 //     const stakeAmount = ethers.parseEther('1')
 
-//     await connect(StakeTogether, user1).stake(user2, nullAddress, {
+//     await connect(StakeTogether, user1).depositPool(user2, nullAddress, {
 //       value: stakeAmount
 //     })
 
-//     let totalPooledEther = await StakeTogether.getTotalPooledEther()
+//     let totalPooledEther = await StakeTogether.totalPooledEther()
 //     let totalShares = await StakeTogether.totalShares()
 //     let totalSupply = await StakeTogether.totalSupply()
 
@@ -42,7 +42,7 @@
 //     let balancePool = await StakeTogether.balanceOf(user2.address)
 
 //     let sharesPool = await StakeTogether.sharesOf(user2.address)
-//     let delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
+//     let delegationSharesDelegated = await StakeTogether.poolSharesOf(user2.address)
 
 //     console.log('---------------------------------------------')
 //     console.log('balanceUser\t\t', balanceUser.toString())
@@ -90,11 +90,11 @@
 
 //     const stakeAmount3 = ethers.parseEther('1')
 
-//     await connect(StakeTogether, user3).stake(user4, nullAddress, {
+//     await connect(StakeTogether, user3).depositPool(user4, nullAddress, {
 //       value: stakeAmount3
 //     })
 
-//     totalPooledEther = await StakeTogether.getTotalPooledEther()
+//     totalPooledEther = await StakeTogether.totalPooledEther()
 //     totalShares = await StakeTogether.totalShares()
 //     totalSupply = await StakeTogether.totalSupply()
 
@@ -114,8 +114,8 @@
 //     let balancePool4 = await StakeTogether.balanceOf(user4.address)
 
 //     sharesPool = await StakeTogether.sharesOf(user2.address)
-//     delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
-//     let delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
+//     delegationSharesDelegated = await StakeTogether.poolSharesOf(user2.address)
+//     let delegationSharesDelegated4 = await StakeTogether.poolSharesOf(user4.address)
 
 //     console.log('---------------------------------------------')
 //     console.log('balanceUser\t\t', balanceUser.toString())
@@ -186,7 +186,7 @@
 //     await connect(Rewards, user1).report(reportNextBlock, beaconBalanceLoss)
 //     await connect(Rewards, user2).report(reportNextBlock, beaconBalanceLoss)
 
-//     totalPooledEther = await StakeTogether.getTotalPooledEther()
+//     totalPooledEther = await StakeTogether.totalPooledEther()
 //     // totalShares = await StakeTogether.totalShares()
 //     totalSupply = await StakeTogether.totalSupply()
 
@@ -206,8 +206,8 @@
 //     balancePool4 = await StakeTogether.balanceOf(user4.address)
 
 //     // sharesPool = await StakeTogether.sharesOf(user2.address)
-//     // delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
-//     // delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
+//     // delegationSharesDelegated = await StakeTogether.poolSharesOf(user2.address)
+//     // delegationSharesDelegated4 = await StakeTogether.poolSharesOf(user4.address)
 
 //     console.log('---------------------------------------------')
 //     console.log('balanceUser\t\t', balanceUser.toString())
@@ -278,7 +278,7 @@
 //     await connect(Rewards, user1).report(reportNextBlock, beaconBalanceEarn2)
 //     await connect(Rewards, user2).report(reportNextBlock, beaconBalanceEarn2)
 
-//     totalPooledEther = await StakeTogether.getTotalPooledEther()
+//     totalPooledEther = await StakeTogether.totalPooledEther()
 //     totalShares = await StakeTogether.totalShares()
 //     totalSupply = await StakeTogether.totalSupply()
 
@@ -299,8 +299,8 @@
 
 //     sharesPool = await StakeTogether.sharesOf(user2.address)
 
-//     delegationSharesDelegated = await StakeTogether.delegatedSharesOf(user2.address)
-//     delegationSharesDelegated4 = await StakeTogether.delegatedSharesOf(user4.address)
+//     delegationSharesDelegated = await StakeTogether.poolSharesOf(user2.address)
+//     delegationSharesDelegated4 = await StakeTogether.poolSharesOf(user4.address)
 
 //     console.log('---------------------------------------------')
 //     console.log('balanceUser\t\t', balanceUser.toString())
