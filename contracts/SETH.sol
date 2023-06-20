@@ -425,12 +425,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   /*****************
    ** REWARDS **
    *****************/
-  uint256 public beaconBalance = 0;
-
-  event SetBeaconBalance(uint256 amount);
-  event MintStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event MintOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
-  event MintPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
+  struct Reward {
+    address recipient;
+    uint256 shares;
+    uint256 amount;
+  }
 
   enum RewardType {
     StakeTogether,
@@ -438,16 +437,32 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     Pool
   }
 
-  event SetRewards(
-    uint256 rewardsAmount,
-    uint256 growthFactor,
-    uint256 stakeTogetherFee,
-    uint256 operatorFee,
-    uint256 poolFee,
-    uint256 stakeTogetherFeeShares,
-    uint256 operatorFeeShares,
-    uint256 poolFeeShares
-  );
+  struct RewardReport {
+    uint256 reportBlock;
+    uint256 reportPart;
+    uint256 reportTotalParts;
+    uint256 totalRewardsShares;
+    uint256 totalRewardsAmount;
+    uint256 stakeTogetherShares;
+    uint256 stakeTogetherAmount;
+    uint256 operatorShares;
+    uint256 operatorAmount;
+    uint256 poolShares;
+    uint256 poolAmount;
+  }
+
+  struct RewardReportProcessing {
+    bool isProcessed;
+    uint256 partsProcessed;
+  }
+
+  mapping(uint256 => RewardReportProcessing) public processedReports;
+
+  uint256 public beaconBalance = 0;
+
+  event SetBeaconBalance(uint256 amount);
+  event MintRewards(address indexed to, uint256 sharesAmount, RewardType rewardType);
+  event SetRewards(RewardReport report);
 
   function setBeaconBalance(uint256 _beaconBalance) external nonReentrant {
     require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
@@ -455,72 +470,78 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit SetBeaconBalance(_beaconBalance);
   }
 
-  function setRewards(uint256 _rewardsAmount) internal {
-    if (_rewardsAmount <= 0) {
-      return;
+  function setRewards(
+    Reward memory _stakeTogetherReward,
+    Reward memory _operatorReward,
+    Reward[] memory _poolRewards,
+    RewardReport memory _rewardReport
+  ) external nonReentrant {
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
+    _sanityCheck(_stakeTogetherReward, _operatorReward, _poolRewards, _rewardReport);
+
+    RewardReportProcessing storage reportProcessing = processedReports[_rewardReport.reportBlock];
+    require(!reportProcessing.isProcessed, 'REPORT_ALREADY_PROCESSED');
+    require(reportProcessing.partsProcessed < _rewardReport.reportPart, 'REPORT_PART_ALREADY_PROCESSED');
+
+    _mintRewards(_stakeTogetherReward.recipient, _stakeTogetherReward.shares, RewardType.StakeTogether);
+    _mintRewards(_operatorReward.recipient, _operatorReward.shares, RewardType.Operator);
+
+    for (uint i = 0; i < _poolRewards.length; i++) {
+      Reward memory poolReward = _poolRewards[i];
+      _mintRewards(poolReward.recipient, poolReward.shares, RewardType.Pool);
     }
 
-    uint256 totalPooledEtherWithRewards = totalPooledEther() + _rewardsAmount;
-    uint256 growthFactor = Math.mulDiv(_rewardsAmount, basisPoints, totalPooledEther());
-
-    uint256 stakeTogetherFeeAdjust = Math.mulDiv(stakeTogetherFee, growthFactor, basisPoints);
-    uint256 operatorFeeAdjust = Math.mulDiv(operatorFee, growthFactor, basisPoints);
-    uint256 poolFeeAdjust = Math.mulDiv(poolFee, growthFactor, basisPoints);
-
-    uint256 totalFee = stakeTogetherFeeAdjust + operatorFeeAdjust + poolFeeAdjust;
-    uint256 totalSharesDividend = _rewardsAmount * totalFee * totalShares;
-    uint256 totalSharesDivider = totalPooledEtherWithRewards * basisPoints - _rewardsAmount * totalFee;
-
-    uint256 sharesMintedAsFees = Math.mulDiv(1, totalSharesDividend, totalSharesDivider);
-
-    _mintRewards(
-      stakeTogetherFeeAddress,
-      stakeTogetherFee,
-      sharesMintedAsFees,
-      totalFee,
-      RewardType.StakeTogether
-    );
-
-    _mintRewards(operatorFeeAddress, operatorFee, sharesMintedAsFees, totalFee, RewardType.Operator);
-
-    uint256 poolFeeShares = Math.mulDiv(sharesMintedAsFees, poolFeeAdjust, totalFee);
-
-    for (uint i = 0; i < pools.length; i++) {
-      address pool = pools[i];
-      uint256 poolRewards = Math.mulDiv(poolFeeShares, poolSharesOf(pool), totalPoolShares);
-      _mintRewards(pool, poolRewards, poolFeeShares, totalPoolShares, RewardType.Pool);
+    reportProcessing.partsProcessed = _rewardReport.reportPart;
+    if (reportProcessing.partsProcessed == _rewardReport.reportTotalParts) {
+      reportProcessing.isProcessed = true;
     }
 
-    emit SetRewards(
-      _rewardsAmount,
-      growthFactor,
-      stakeTogetherFee,
-      operatorFee,
-      poolFee,
-      stakeTogetherFeeAdjust,
-      operatorFeeAdjust,
-      poolFeeAdjust
-    );
+    emit SetRewards(_rewardReport);
   }
 
-  function _mintRewards(
-    address rewardAddress,
-    uint256 rewardFeeAdjust,
-    uint256 sharesMintedAsFees,
-    uint256 totalFee,
-    RewardType rewardType
-  ) internal {
-    uint256 rewardShares = Math.mulDiv(sharesMintedAsFees, rewardFeeAdjust, totalFee);
-    _mintShares(rewardAddress, rewardShares);
+  function _mintRewards(address rewardAddress, uint256 sharesAmount, RewardType rewardType) internal {
+    _mintShares(rewardAddress, sharesAmount);
 
     if (rewardType == RewardType.Pool) {
-      emit MintPoolRewards(address(0), rewardAddress, rewardShares);
-      _mintPoolShares(rewardAddress, rewardAddress, rewardShares);
-    } else if (rewardType == RewardType.StakeTogether) {
-      emit MintStakeTogetherRewards(address(0), rewardAddress, rewardShares);
-    } else if (rewardType == RewardType.Operator) {
-      emit MintOperatorRewards(address(0), rewardAddress, rewardShares);
+      _mintPoolShares(rewardAddress, rewardAddress, sharesAmount);
     }
+
+    emit MintRewards(rewardAddress, sharesAmount, rewardType);
+  }
+
+  function _sanityCheck(
+    Reward memory _stakeTogetherReward,
+    Reward memory _operatorReward,
+    Reward[] memory _poolRewards,
+    RewardReport memory _rewardReport
+  ) internal view {
+    require(_rewardReport.reportBlock > 0, 'INVALID_REPORT_BLOCK');
+    require(_rewardReport.reportPart > 0, 'INVALID_REPORT_PART');
+    require(_rewardReport.reportPart <= _rewardReport.reportTotalParts, 'INVALID_REPORT_TOTAL_PART');
+    require(_stakeTogetherReward.recipient == stakeTogetherFeeAddress, 'INVALID_STAKE_TOGETHER_ADDRESS');
+    require(_operatorReward.recipient == operatorFeeAddress, 'INVALID_OPERATOR_ADDRESS');
+    require(
+      _rewardReport.totalRewardsShares == getSharesByPooledEth(_rewardReport.totalRewardsAmount),
+      'INVALID_TOTAL_SHARES'
+    );
+    require(
+      _rewardReport.totalRewardsAmount == pooledEthByShares(_rewardReport.totalRewardsShares),
+      'INVALID_TOTAL_AMOUNT'
+    );
+    require(
+      _rewardReport.stakeTogetherShares <= _rewardReport.totalRewardsShares,
+      'INVALID_STAKE_TOGETHER_SHARES'
+    );
+    require(
+      _rewardReport.operatorShares <= _rewardReport.totalRewardsShares,
+      'INVALID_STAKE_TOGETHER_AMOUNT'
+    );
+    for (uint i = 0; i < _poolRewards.length; i++) {
+      Reward memory poolReward = _poolRewards[i];
+      require(poolReward.shares <= totalPoolShares, 'POOL_SHARES_EXCEED_TOTAL');
+    }
+
+    // Todo: Validate Fee Percentage (X in Y)
   }
 
   /*****************
