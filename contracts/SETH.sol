@@ -459,15 +459,22 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   mapping(uint256 => RewardReportProcessing) public processedReports;
 
   uint256 public beaconBalance = 0;
+  uint256 public rewardsSanityLimit = 0.01 ether;
 
   event SetBeaconBalance(uint256 amount);
   event MintRewards(address indexed to, uint256 sharesAmount, RewardType rewardType);
   event SetRewards(RewardReport report);
+  event SetRewardsSanityLimit(uint256 amount);
 
   function setBeaconBalance(uint256 _beaconBalance) external nonReentrant {
     require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
     beaconBalance = _beaconBalance;
     emit SetBeaconBalance(_beaconBalance);
+  }
+
+  function setRewardsSanityLimit(uint256 _rewardsSanityLimit) external onlyOwner {
+    rewardsSanityLimit = _rewardsSanityLimit;
+    emit SetRewardsSanityLimit(_rewardsSanityLimit);
   }
 
   function setRewards(
@@ -541,7 +548,25 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       require(poolReward.shares <= totalPoolShares, 'POOL_SHARES_EXCEED_TOTAL');
     }
 
-    // Todo: Validate Fee Percentage (X in Y)
+    uint256 maxTotalRewards = Math.mulDiv(totalPooledEther(), rewardsSanityLimit, 1 ether);
+    require(_rewardReport.totalRewardsAmount <= maxTotalRewards, 'EXCEED_SANITY_LIMIT');
+    require(
+      pooledEthByShares(_rewardReport.totalRewardsAmount) <= maxTotalRewards,
+      'EXCEED_SANITY_LIMIT'
+    );
+
+    uint256 maxStakeTogetherRewards = Math.mulDiv(
+      _rewardReport.totalRewardsAmount,
+      stakeTogetherFee,
+      1 ether
+    );
+    require(_rewardReport.stakeTogetherAmount <= maxStakeTogetherRewards, 'EXCEED_STAKE_TOGETHER_LIMIT');
+
+    uint256 maxOperatorRewards = Math.mulDiv(_rewardReport.totalRewardsAmount, operatorFee, 1 ether);
+    require(_rewardReport.operatorAmount <= maxOperatorRewards, 'EXCEED_OPERATOR_LIMIT');
+
+    uint256 maxPoolRewards = Math.mulDiv(_rewardReport.totalRewardsAmount, poolFee, 1 ether);
+    require(_rewardReport.poolAmount <= maxPoolRewards, 'EXCEED_POOL_LIMIT');
   }
 
   /*****************
