@@ -369,17 +369,61 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit SetPoolModuleAddress(_to);
   }
 
+  function _isStakeTogetherFeeAddress(address account) internal view returns (bool) {
+    return address(stakeTogetherFeeAddress) == account;
+  }
+
+  function _isOperatorFeeAddress(address account) internal view returns (bool) {
+    return address(operatorFeeAddress) == account;
+  }
+
+  /*****************
+   ** FEES **
+   *****************/
+
+  uint256 public basisPoints = 1 ether;
+  uint256 public stakeTogetherFee = 0.03 ether;
+  uint256 public operatorFee = 0.03 ether;
+  uint256 public poolFee = 0.03 ether;
+  uint256 public newPoolFee = 0.1 ether;
+  uint256 public validatorFee = 0.001 ether;
+
+  event SetStakeTogetherFee(uint256 fee);
+  event SetPoolFee(uint256 fee);
+  event SetOperatorFee(uint256 fee);
+  event SetNewPoolFee(uint256 newPoolFee);
+  event SetValidatorFee(uint256 newFee);
+
+  function setStakeTogetherFee(uint256 _fee) external onlyOwner {
+    stakeTogetherFee = _fee;
+    emit SetStakeTogetherFee(_fee);
+  }
+
+  function setPoolFee(uint256 _fee) external onlyOwner {
+    poolFee = _fee;
+    emit SetPoolFee(_fee);
+  }
+
+  function setOperatorFee(uint256 _fee) external onlyOwner {
+    operatorFee = _fee;
+    emit SetOperatorFee(_fee);
+  }
+
+  function setNewPoolFee(uint256 _newFee) external onlyOwner {
+    newPoolFee = _newFee;
+    emit SetNewPoolFee(_newFee);
+  }
+
+  function setValidatorFee(uint256 _newFee) external onlyOwner {
+    validatorFee = _newFee;
+    emit SetValidatorFee(_newFee);
+  }
+
   /*****************
    ** REWARDS **
    *****************/
   uint256 public transientBalance = 0;
   uint256 public beaconBalance = 0;
-
-  // Todo: Define Basis point before audit
-  uint256 public basisPoints = 1 ether;
-  uint256 public stakeTogetherFee = 0.03 ether;
-  uint256 public operatorFee = 0.03 ether;
-  uint256 public poolFee = 0.03 ether;
 
   event ProcessRewards(
     uint256 preClBalance,
@@ -397,25 +441,6 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event MintOperatorRewards(address indexed from, address indexed to, uint256 sharesAmount);
   event MintStakeTogetherRewards(address indexed from, address indexed to, uint256 sharesAmount);
   event MintPoolRewards(address indexed from, address indexed to, uint256 sharesAmount);
-
-  event SetStakeTogetherFee(uint256 fee);
-  event SetOperatorFee(uint256 fee);
-  event SetPoolFee(uint256 fee);
-
-  function setStakeTogetherFee(uint256 _fee) external onlyOwner {
-    stakeTogetherFee = _fee;
-    emit SetStakeTogetherFee(_fee);
-  }
-
-  function setPoolFee(uint256 _fee) external onlyOwner {
-    poolFee = _fee;
-    emit SetPoolFee(_fee);
-  }
-
-  function setOperatorFee(uint256 _fee) external onlyOwner {
-    operatorFee = _fee;
-    emit SetOperatorFee(_fee);
-  }
 
   function setTransientBalance(uint256 _transientBalance) external virtual {}
 
@@ -479,20 +504,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     );
   }
 
-  function _isStakeTogetherFeeAddress(address account) internal view returns (bool) {
-    return address(stakeTogetherFeeAddress) == account;
-  }
-
-  function _isOperatorFeeAddress(address account) internal view returns (bool) {
-    return address(operatorFeeAddress) == account;
-  }
-
   /*****************
    ** POOLS **
    *****************/
 
   uint256 public maxPools = 100000;
-  uint256 public newPoolFee = 0.1 ether;
   address[] private pools;
 
   modifier onlyPoolModule() {
@@ -503,7 +519,6 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   event AddPool(address account);
   event RemovePool(address account);
   event SetMaxPools(uint256 maxPools);
-  event SetNewPoolFee(uint256 newPoolFee);
 
   function getPools() public view returns (address[] memory) {
     return pools;
@@ -541,11 +556,6 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
       }
     }
     emit RemovePool(_pool);
-  }
-
-  function setNewPoolFee(uint256 _newFee) external onlyOwner {
-    newPoolFee = _newFee;
-    emit SetNewPoolFee(_newFee);
   }
 
   function isPool(address _pool) internal view returns (bool) {

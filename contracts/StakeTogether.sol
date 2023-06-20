@@ -265,7 +265,6 @@ contract StakeTogether is SETH {
   mapping(bytes => bool) public validators;
   uint256 public totalValidators = 0;
 
-  uint256 public validatorFee = 0.001 ether;
   uint256 public validatorSize = 32 ether;
 
   modifier onlyValidatorModule() {
@@ -282,13 +281,7 @@ contract StakeTogether is SETH {
     bytes32 depositDataRoot
   );
   event DestroyValidator(address indexed destroyer, bytes publicKey);
-  event SetValidatorFee(uint256 newFee);
   event SetValidatorSize(uint256 newValidatorSize);
-
-  function setValidatorFee(uint256 _newFee) external onlyOwner {
-    validatorFee = _newFee;
-    emit SetValidatorFee(_newFee);
-  }
 
   function setValidatorSize(uint256 _newSize) external onlyOwner {
     require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
