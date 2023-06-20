@@ -252,7 +252,7 @@ contract StakeTogether is SETH {
     bytes signature,
     bytes32 depositDataRoot
   );
-  event DestroyValidator(address indexed destroyer, bytes publicKey);
+  event RemoveValidator(address indexed account, bytes publicKey);
   event SetValidatorSize(uint256 newValidatorSize);
 
   function setValidatorSize(uint256 _newSize) external onlyOwner {
@@ -292,13 +292,17 @@ contract StakeTogether is SETH {
     );
   }
 
-  function destroyValidator(bytes calldata _publicKey) external onlyValidatorModule nonReentrant {
-    require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
+  function removeValidators(bytes[] calldata _publicKeys) external nonReentrant {
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
+    for (uint i = 0; i < _publicKeys.length; i++) {
+      bytes calldata publicKey = _publicKeys[i];
+      require(validators[publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
-    validators[_publicKey] = false;
-    totalValidators--;
+      validators[publicKey] = false;
+      totalValidators--;
 
-    emit DestroyValidator(msg.sender, _publicKey);
+      emit RemoveValidator(msg.sender, publicKey);
+    }
   }
 
   function isValidator(bytes memory _publicKey) public view returns (bool) {

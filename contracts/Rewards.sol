@@ -11,14 +11,29 @@ import './StakeTogether.sol';
 contract Rewards is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
 
+  struct RewardReport {
+    uint256 reportPart;
+    uint256 reportTotalParts;
+    uint256 totalRewardsShares;
+    uint256 totalRewardsAmount;
+    uint256 stakeTogetherShares;
+    uint256 stakeTogetherAmount;
+    uint256 operatorShares;
+    uint256 operatorAmount;
+    uint256 poolShares;
+    uint256 poolAmount;
+  }
+
   struct Report {
+    uint256 reportBlock;
+    address reportNode;
     uint256 beaconBalance;
     uint256 totalBeaconValidators;
     uint256 totalTransientValidators;
     uint256 totalExitedValidators;
+    RewardReport rewardReport;
+    bytes[] excludedValidators;
   }
-
-  uint256 public beaconBalance;
 
   uint256 public reportLastBlock = 0;
   uint256 public reportNextBlock = 1;
@@ -28,15 +43,16 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   bool public bunkerMode = false;
 
   address[] private nodes;
-  mapping(address => mapping(uint256 => uint256)) private nodesReports;
+  mapping(bytes32 => Report[]) public nodesReport;
 
   mapping(uint256 => uint256) private consensusBlock;
-  mapping(uint256 => uint256) private reportsCount;
+  mapping(uint256 => uint256) private reportsBlockCount;
+  mapping(bytes32 => uint256) private reportsHashCount;
   mapping(uint256 => mapping(uint256 => uint256)) private reportsBalanceCount;
 
-  event ConsensusApproved(uint256 indexed blockNumber, uint256 beaconBalance);
-  event ConsensusFail(uint256 indexed blockNumber);
-  event ReportQuorumNotAchieved(uint256 indexed blockNumber);
+  event ConsensusApproved(uint256 indexed blockNumber, bytes32 reportHash);
+  event ConsensusFail(uint256 indexed blockNumber, bytes32 reportHash);
+  event ReportQuorumNotAchieved(uint256 indexed blockNumber, bytes32 reportHash);
   event NonConsensusValueReported(
     address indexed node,
     uint256 reportedBlock,
@@ -46,6 +62,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   event SetStakeTogether(address stakeTogether);
   event SetReportMaxFrequency(uint256 newFrequency);
   event SetReportQuorum(uint256 newQuorum);
+  event SetNextBlock(uint256 newBlock);
   event AddNode(address node);
   event RemoveNode(address node);
   event BlacklistNode(address node);
@@ -67,73 +84,50 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     emit SetBunkerMode(_bunkerMode);
   }
 
-  function report(uint256 _reportBlock, Report memory _report) public onlyNodes {
+  function report(uint256 _reportNextBlock, Report[] memory _reports) public onlyNodes {
     require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
-    require(_report.beaconBalance > 0, 'ZERO_VALUE');
-    require(_reportBlock == reportNextBlock, 'NON_NEXT_BLOCK');
+
+    if (block.number >= reportNextBlock + reportFrequency) {
+      reportNextBlock = reportNextBlock + reportFrequency;
+      emit SetNextBlock(reportNextBlock);
+    }
+
     require(block.number >= reportNextBlock, 'TOO_EARLY_TO_REPORT');
-    require(nodesReports[msg.sender][_reportBlock] == 0, 'NODE_ALREADY_REPORTED');
 
-    uint256 consensusBalance = _report.beaconBalance;
+    bytes32 reportsHash = keccak256(abi.encode(_reports));
 
-    nodesReports[msg.sender][reportNextBlock] = consensusBalance;
-    reportsCount[reportNextBlock]++;
-    reportsBalanceCount[reportNextBlock][consensusBalance]++;
+    for (uint256 i = 0; i < _reports.length; i++) {
+      Report memory _report = _reports[i];
 
-    if (reportsCount[reportNextBlock] >= reportQuorum) {
-      validConsensus(_report.beaconBalance);
-    } else {
-      emit ReportQuorumNotAchieved(reportNextBlock);
-    }
-  }
-
-  function validConsensus(uint256 _beaconBalance) internal {
-    uint256 totalReports = 0;
-    uint256 consensusBalance = 0;
-
-    for (uint256 i = 0; i < nodes.length; i++) {
-      uint256 balance = nodesReports[nodes[i]][reportNextBlock];
-      uint256 count = reportsBalanceCount[reportNextBlock][balance];
-
-      if (count > totalReports) {
-        totalReports = count;
-        consensusBalance = balance;
-      }
+      require(_report.reportNode == msg.sender, 'REPORTER_NOT_NODE');
+      require(_report.reportBlock == reportNextBlock, 'NON_NEXT_BLOCK');
+      require(_report.beaconBalance > 0, 'ZERO_VALUE');
+      require(nodesReport[reportsHash].length == 0, 'NODE_ALREADY_REPORTED');
     }
 
-    if (totalReports >= reportQuorum) {
-      consensusBlock[reportNextBlock] = consensusBalance;
-      checkForNonConsensusReports(consensusBalance);
-      if (isInConsensus) {
-        approveConsensus(_beaconBalance);
+    nodesReport[reportsHash] = _reports;
+    reportsHashCount[reportsHash]++;
+    reportsBlockCount[_reportNextBlock]++;
+
+    if (reportsBlockCount[_reportNextBlock] >= reportQuorum) {
+      if (reportsHashCount[reportsHash] >= reportQuorum) {
+        approveConsensus(reportsHash);
       } else {
-        emit ConsensusFail(reportNextBlock);
+        emit ConsensusFail(_reportNextBlock, reportsHash);
       }
     }
   }
 
-  function approveConsensus(uint256 _beaconBalance) internal nonReentrant {
-    beaconBalance = _beaconBalance;
+  function approveConsensus(bytes32 _reportsHash) internal nonReentrant {
+    Report[] memory reports = nodesReport[_reportsHash];
+
     reportLastBlock = reportNextBlock;
     reportNextBlock = block.number + reportFrequency;
+    emit SetNextBlock(reportNextBlock);
 
-    stakeTogether.setBeaconBalance(_beaconBalance);
+    // actions
 
-    emit ConsensusApproved(reportNextBlock, _beaconBalance);
-  }
-
-  function checkForNonConsensusReports(uint256 _consensusBalance) internal {
-    bool checkConsensus = true;
-    for (uint256 i = 0; i < nodes.length; i++) {
-      address node = nodes[i];
-      uint256 reportedBalance = nodesReports[node][reportNextBlock];
-      if (reportedBalance != _consensusBalance && reportedBalance > 0) {
-        emit NonConsensusValueReported(node, reportNextBlock, reportedBalance, _consensusBalance);
-        _blacklistNode(node);
-        checkConsensus = false;
-      }
-    }
-    isInConsensus = checkConsensus;
+    emit ConsensusApproved(reportNextBlock, _reportsHash);
   }
 
   function setReportMaxFrequency(uint256 newFrequency) external onlyOwner {
@@ -168,14 +162,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   function removeNode(address node) external onlyOwner {
     _removeNode(node);
-  }
-
-  function getNodeReportByBlock(address node, uint256 blockNumber) external view returns (uint256) {
-    return nodesReports[node][blockNumber];
-  }
-
-  function getNodeReports(address node, uint256 blockNumber) external view returns (uint256) {
-    return nodesReports[node][blockNumber];
   }
 
   function _isNode(address node) internal view returns (bool) {
