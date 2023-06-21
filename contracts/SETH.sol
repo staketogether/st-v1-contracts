@@ -482,8 +482,8 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(!reportProcessing.isProcessed, 'REPORT_ALREADY_PROCESSED');
     require(reportProcessing.partsProcessed < _rewardReport.reportPart, 'REPORT_PART_ALREADY_PROCESSED');
 
-    _mintRewards(_stakeTogetherReward.recipient, _stakeTogetherReward.shares, RewardType.StakeTogether);
-    _mintRewards(_operatorReward.recipient, _operatorReward.shares, RewardType.Operator);
+    _mintRewards(stakeTogetherFeeAddress, _stakeTogetherReward.shares, RewardType.StakeTogether);
+    _mintRewards(operatorFeeAddress, _operatorReward.shares, RewardType.Operator);
 
     for (uint i = 0; i < _poolRewards.length; i++) {
       Reward memory poolReward = _poolRewards[i];
