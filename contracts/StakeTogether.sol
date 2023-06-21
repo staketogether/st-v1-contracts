@@ -14,7 +14,7 @@ contract StakeTogether is SETH {
   event EtherReceived(address indexed sender, uint amount);
 
   constructor(address _rewardsContract, address _depositContract) payable {
-    rewardsContract = Rewards(_rewardsContract);
+    rewardsContract = Rewards(payable(_rewardsContract));
     depositContract = IDepositContract(_depositContract);
   }
 
