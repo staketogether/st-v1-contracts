@@ -459,22 +459,15 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   mapping(uint256 => RewardReportProcessing) public processedReports;
 
   uint256 public beaconBalance = 0;
-  uint256 public rewardsSanityLimit = 0.01 ether;
 
   event SetBeaconBalance(uint256 amount);
   event MintRewards(address indexed to, uint256 sharesAmount, RewardType rewardType);
   event SetRewards(RewardReport report);
-  event SetRewardsSanityLimit(uint256 amount);
 
   function setBeaconBalance(uint256 _beaconBalance) external nonReentrant {
     require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
     beaconBalance = _beaconBalance;
     emit SetBeaconBalance(_beaconBalance);
-  }
-
-  function setRewardsSanityLimit(uint256 _rewardsSanityLimit) external onlyOwner {
-    rewardsSanityLimit = _rewardsSanityLimit;
-    emit SetRewardsSanityLimit(_rewardsSanityLimit);
   }
 
   function setRewards(
