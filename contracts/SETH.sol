@@ -425,6 +425,12 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   /*****************
    ** REWARDS **
    *****************/
+
+  modifier onlyRewardsContract() {
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTACT');
+    _;
+  }
+
   struct Reward {
     address recipient;
     uint256 shares;
@@ -437,75 +443,34 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     Pool
   }
 
-  struct RewardReport {
-    uint256 reportBlock;
-    uint256 reportPart;
-    uint256 reportTotalParts;
-    uint256 totalRewardsShares;
-    uint256 totalRewardsAmount;
-    uint256 stakeTogetherShares;
-    uint256 stakeTogetherAmount;
-    uint256 operatorShares;
-    uint256 operatorAmount;
-    uint256 poolShares;
-    uint256 poolAmount;
-  }
-
-  struct RewardReportProcessing {
-    bool isProcessed;
-    uint256 partsProcessed;
-  }
-
-  mapping(uint256 => RewardReportProcessing) public processedReports;
-
   uint256 public beaconBalance = 0;
 
-  event SetBeaconBalance(uint256 amount);
-  event MintRewards(address indexed to, uint256 sharesAmount, RewardType rewardType);
-  event SetRewards(RewardReport report);
+  event SetBeaconBalance(uint256 blockNumber, uint256 amount);
+  event MintRewards(uint256 blockNumber, address indexed to, uint256 sharesAmount, RewardType rewardType);
 
-  function setBeaconBalance(uint256 _beaconBalance) external nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
+  function setBeaconBalance(
+    uint256 _blockNumber,
+    uint256 _beaconBalance
+  ) external nonReentrant onlyRewardsContract {
     beaconBalance = _beaconBalance;
-    emit SetBeaconBalance(_beaconBalance);
+    emit SetBeaconBalance(_blockNumber, _beaconBalance);
   }
 
-  function setRewards(
-    Reward memory _stakeTogetherReward,
-    Reward memory _operatorReward,
-    Reward[] memory _poolRewards,
-    RewardReport memory _rewardReport
-  ) external nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
-
-    RewardReportProcessing storage reportProcessing = processedReports[_rewardReport.reportBlock];
-    require(!reportProcessing.isProcessed, 'REPORT_ALREADY_PROCESSED');
-    require(reportProcessing.partsProcessed < _rewardReport.reportPart, 'REPORT_PART_ALREADY_PROCESSED');
-
-    _mintRewards(stakeTogetherFeeAddress, _stakeTogetherReward.shares, RewardType.StakeTogether);
-    _mintRewards(operatorFeeAddress, _operatorReward.shares, RewardType.Operator);
-
-    for (uint i = 0; i < _poolRewards.length; i++) {
-      Reward memory poolReward = _poolRewards[i];
-      _mintRewards(poolReward.recipient, poolReward.shares, RewardType.Pool);
-    }
-
-    reportProcessing.partsProcessed = _rewardReport.reportPart;
-    if (reportProcessing.partsProcessed == _rewardReport.reportTotalParts) {
-      reportProcessing.isProcessed = true;
-    }
-
-    emit SetRewards(_rewardReport);
-  }
-
-  function _mintRewards(address rewardAddress, uint256 sharesAmount, RewardType rewardType) internal {
+  function mintRewards(
+    uint256 blockNumber,
+    address rewardAddress,
+    uint256 sharesAmount
+  ) external payable nonReentrant onlyRewardsContract {
     _mintShares(rewardAddress, sharesAmount);
+    _mintPoolShares(rewardAddress, rewardAddress, sharesAmount);
 
-    if (rewardType == RewardType.Pool) {
-      _mintPoolShares(rewardAddress, rewardAddress, sharesAmount);
+    if (rewardAddress == stakeTogetherFeeAddress) {
+      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.StakeTogether);
+    } else if (rewardAddress == operatorFeeAddress) {
+      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Operator);
+    } else {
+      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Pool);
     }
-
-    emit MintRewards(rewardAddress, sharesAmount, rewardType);
   }
 
   /*****************

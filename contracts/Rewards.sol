@@ -41,6 +41,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   event SetBlockReportGrowthLimit(uint256 newLimit);
 
   // Todo: add missing events
+  // Todo: check if is missing some actions
 
   struct TimeLockedProposal {
     uint256 value;
@@ -209,16 +210,25 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   struct BlockReport {
     uint256 blockNumber;
     uint256 beaconBalance;
-    uint256 totalRewardsAmount;
     uint256 totalRewardsShares;
     uint256 stakeTogetherShares;
     uint256 operatorShares;
     uint256 poolShares;
-    uint256 poolsToSubmit;
-    uint256 poolsSubmitted;
-    uint256 poolsSharesSubmitted;
+    uint256 totalRewardsAmount;
+    uint256 stakeTogetherAmount;
+    uint256 operatorAmount;
+    uint256 poolAmount;
+    uint256 totalPools;
+    uint256 totalPoolsSubmitted;
+    uint256 totalPoolsSharesSubmitted;
     bool consensusExecuted;
     bytes[] exitedValidators;
+  }
+
+  enum RewardType {
+    StakeTogether,
+    Operator,
+    Pool
   }
 
   mapping(bytes32 => BlockReport) public blockReports;
@@ -232,46 +242,60 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportFrequency = 1;
 
   function submitBlockReport(
-    uint256 blockNumber,
-    uint256 beaconBalance,
-    uint256 totalRewardsAmount,
-    uint256 totalRewardsShares,
-    uint256 stakeTogetherShares,
-    uint256 operatorShares,
-    uint256 poolShares,
-    bytes[] calldata exitedValidators,
-    uint256 poolsToSubmit
+    uint256 _blockNumber,
+    uint256 _beaconBalance,
+    uint256 _totalRewardsShares,
+    uint256 _stakeTogetherShares,
+    uint256 _operatorShares,
+    uint256 _poolShares,
+    uint256 _totalRewardsAmount,
+    uint256 _stakeTogetherAmount,
+    uint256 _operatorAmount,
+    uint256 _poolAmount,
+    uint256 _totalPools,
+    uint256 _totalPoolsSubmitted,
+    uint256 _totalPoolsSharesSubmitted,
+    bool _consensusExecuted,
+    bytes[] calldata _exitedValidators
   ) external onlyOracle whenNotPaused {
-    require(blockNumber != reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
-    require(!oracleBlockReport[msg.sender][blockNumber], 'ORACLE_ALREADY_REPORTED');
-    oracleBlockReport[msg.sender][blockNumber] = true;
+    require(_blockNumber != reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
+    require(!oracleBlockReport[msg.sender][_blockNumber], 'ORACLE_ALREADY_REPORTED');
+    oracleBlockReport[msg.sender][_blockNumber] = true;
 
     BlockReport memory blockReport = BlockReport(
-      blockNumber,
-      beaconBalance,
-      totalRewardsAmount,
-      totalRewardsShares,
-      stakeTogetherShares,
-      operatorShares,
-      poolShares,
-      poolsToSubmit,
-      0,
-      0,
-      false,
-      exitedValidators
+      _blockNumber,
+      _beaconBalance,
+      _totalRewardsShares,
+      _stakeTogetherShares,
+      _operatorShares,
+      _poolShares,
+      _totalRewardsAmount,
+      _stakeTogetherAmount,
+      _operatorAmount,
+      _poolAmount,
+      _totalPools,
+      _totalPoolsSubmitted,
+      _totalPoolsSharesSubmitted,
+      _consensusExecuted,
+      _exitedValidators
     );
 
     bytes32 reportHash = keccak256(
-      abi.encode(
-        blockNumber,
-        beaconBalance,
-        totalRewardsAmount,
-        totalRewardsShares,
-        stakeTogetherShares,
-        operatorShares,
-        poolShares,
-        exitedValidators,
-        poolsToSubmit
+      abi.encodePacked(
+        _blockNumber,
+        _beaconBalance,
+        _totalRewardsShares,
+        _stakeTogetherShares,
+        _operatorShares,
+        _poolShares,
+        _totalRewardsAmount,
+        _stakeTogetherAmount,
+        _operatorAmount,
+        _poolAmount,
+        _totalPools,
+        _totalPoolsSubmitted,
+        _totalPoolsSharesSubmitted,
+        _consensusExecuted
       )
     );
 
@@ -281,29 +305,31 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     blockReportsVotes[reportHash]++;
 
     if (blockReportsVotes[reportHash] >= oracleQuorum) {
-      blockConsensusHashByBlock[blockNumber] = reportHash;
+      blockConsensusHashByBlock[_blockNumber] = reportHash;
     }
   }
 
-  function executeBlockConsensus(uint256 blockNumber) external onlyOracle whenNotPaused {
-    bytes32 consensusReportHash = blockConsensusHashByBlock[blockNumber];
-    require(consensusReportHash != bytes32(0), 'INVALID_BLOCK_NUMBER');
+  function executeBlockConsensus(uint256 _blockNumber) external onlyOracle whenNotPaused {
+    bytes32 consensusReportHash = blockConsensusHashByBlock[_blockNumber];
+    require(consensusReportHash != bytes32(0), 'INVALID_CONSENSUS_HASH');
 
     uint256 votes = blockReportsVotes[consensusReportHash];
     BlockReport storage consensusReport = blockReports[consensusReportHash];
 
-    bool isConsensusApproved = consensusReport.poolShares == consensusReport.poolsSharesSubmitted &&
-      consensusReport.poolsToSubmit == consensusReport.poolsSubmitted;
+    _blockExecuteReportValidator(consensusReport);
+
+    bool isConsensusApproved = consensusReport.poolShares == consensusReport.totalPoolsSharesSubmitted &&
+      consensusReport.totalPools == consensusReport.totalPoolsSubmitted;
 
     if (votes >= oracleQuorum && isConsensusApproved) {
       consensusReport.consensusExecuted = true;
       _blockReportActions(consensusReport);
-      emit BlockConsensusApproved(blockNumber, consensusReportHash);
+      emit BlockConsensusApproved(_blockNumber, consensusReportHash);
     }
 
     reportLastBlock = reportNextBlock;
     reportNextBlock += reportFrequency;
-    emit BlockConsensusFail(blockNumber, consensusReportHash);
+    emit BlockConsensusFail(_blockNumber, consensusReportHash);
   }
 
   function isBlockReportReady(uint256 blockNumber) public view returns (bool) {
@@ -315,22 +341,11 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     BlockReport memory _blockReport,
     bytes32 _reportHash
   ) private view {
-    // Todo: Implement Validations
+    // Todo: Check if is missing some validation
     require(_blockReport.blockNumber == reportNextBlock, 'BLOCK_REPORT_IS_NOT_NEXT_EXPECTED');
-    require(_blockReport.beaconBalance >= 0, 'INVALID_BEACON_BALANCE');
-    require(_blockReport.totalRewardsAmount >= 0, 'INVALID_TOTAL_REWARDS_AMOUNT');
-    require(_blockReport.totalRewardsShares >= 0, 'INVALID_TOTAL_REWARDS_SHARES');
-    require(_blockReport.stakeTogetherShares >= 0, 'INVALID_STAKE_TOGETHER_SHARES');
-    require(_blockReport.operatorShares >= 0, 'INVALID_OPERATOR_SHARES');
-    require(_blockReport.poolShares >= 0, 'INVALID_POOL_SHARES');
-    require(_blockReport.poolsToSubmit >= 0, 'INVALID_POOLS_TO_SUBMIT');
-    require(_blockReport.poolsSubmitted == 0, 'INVALID_POOL_SUBMITTED');
-    require(_blockReport.poolsSharesSubmitted == 0, 'INVALID_POOL_SUBMITTED');
+    require(_blockReport.totalPoolsSharesSubmitted == 0, 'INVALID_TOTAL_POOLS_SHARES_SUBMITTED');
+    require(_blockReport.totalPoolsSubmitted == 0, 'INVALID_TOTAL_POOLS_SUBMITTED');
     require(_blockReport.consensusExecuted == false, 'INVALID_CONSENSUS_EXECUTED');
-    require(
-      _blockReport.exitedValidators.length >= 0 && _blockReport.exitedValidators.length <= 64,
-      'INVALID_EXITED_VALIDATORS'
-    );
 
     uint256 totalPooledEther = stakeTogether.totalPooledEther();
     uint256 growthLimit = Math.mulDiv(totalPooledEther, reportGrowthLimit, 100);
@@ -367,17 +382,51 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     require(!blockReports[_reportHash].consensusExecuted, 'BLOCK_ALREADY_EXECUTED');
   }
 
-  function _blockExecuteReportValidator() private {
-    // Validate that the report is not executed
-    // Validate that pools submitted are the same as pools to submit
-    // Validate that pools shares submitted are the same as pools shares to submit
+  function _blockExecuteReportValidator(BlockReport storage consensusReport) private view {
+    require(!consensusReport.consensusExecuted, 'REPORT_ALREADY_EXECUTED');
+
+    require(
+      consensusReport.totalPools == consensusReport.totalPoolsSubmitted,
+      'INVALID_POOLS_SUBMISSION'
+    );
+
+    require(
+      consensusReport.poolShares == consensusReport.totalPoolsSharesSubmitted,
+      'INVALID_POOLS_SHARES_SUBMISSION'
+    );
   }
 
   function _blockReportActions(BlockReport memory _blockReport) private {
+    stakeTogether.setBeaconBalance(_blockReport.blockNumber, _blockReport.beaconBalance);
+
+    stakeTogether.mintRewards{ value: _blockReport.stakeTogetherAmount }(
+      _blockReport.blockNumber,
+      stakeTogether.stakeTogetherFeeAddress(),
+      _blockReport.stakeTogetherShares
+    );
+
+    stakeTogether.mintRewards{ value: _blockReport.operatorAmount }(
+      _blockReport.blockNumber,
+      stakeTogether.operatorFeeAddress(),
+      _blockReport.operatorShares
+    );
+
+    stakeTogether.removeValidators(_blockReport.exitedValidators);
+
     // Todo: Implement Actions
     // stakeTogether.setBeaconBalance(_blockReport.beaconBalance);
     // stakeTogether mintSharesRewards (public function only for oracle)
     // transfer ethereum to stake together (pooledEtherByShares)
+
+    // Todo: Missing
+
+    // uint256 poolShares;
+    // uint256 poolsToSubmit;
+    // uint256 poolsSubmitted;
+    // uint256 poolsSharesSubmitted;
+    // bool consensusExecuted;
+
+    // Todo: Consensus will be executed just when last pool submits the report
   }
 
   /*****************

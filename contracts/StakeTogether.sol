@@ -292,8 +292,7 @@ contract StakeTogether is SETH {
     );
   }
 
-  function removeValidators(bytes[] calldata _publicKeys) external nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
+  function removeValidators(bytes[] calldata _publicKeys) external nonReentrant onlyRewardsContract {
     for (uint i = 0; i < _publicKeys.length; i++) {
       bytes calldata publicKey = _publicKeys[i];
       require(validators[publicKey], 'PUBLIC_KEY_NOT_FOUND');
