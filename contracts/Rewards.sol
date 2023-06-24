@@ -208,6 +208,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   event BlockConsensusFail(uint256 indexed blockNumber, bytes32 reportHash);
 
   struct Meta {
+    address oracle;
     uint256 blockNumber;
     uint256 beaconBalance;
     bool consensusExecuted;
@@ -243,7 +244,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   mapping(bytes32 => BlockReport) public blockReports;
   mapping(uint256 => bytes32) public blockConsensusHashByBlock;
-  mapping(address => mapping(uint256 => bool)) public oracleBlockReport;
+  mapping(bytes32 => bool) public oracleBlockReport;
   mapping(bytes32 => uint256) public blockReportsVotes;
 
   uint256 public reportGrowthLimit = 1;
@@ -257,15 +258,19 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     Amounts memory _amounts,
     Pools memory _pools
   ) external onlyOracle whenNotPaused {
-    require(_meta.blockNumber != reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
-    require(!oracleBlockReport[msg.sender][_meta.blockNumber], 'ORACLE_ALREADY_REPORTED');
-    oracleBlockReport[msg.sender][_meta.blockNumber] = true;
+    require(_meta.blockNumber == reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
+
+    bytes32 reportKey = keccak256(abi.encodePacked(msg.sender, _meta.blockNumber));
+    require(!oracleBlockReport[reportKey], 'ORACLE_ALREADY_REPORTED');
+    oracleBlockReport[reportKey] = true;
 
     BlockReport memory blockReport = BlockReport(_meta, _shares, _amounts, _pools);
 
+    blockReport.meta.oracle = msg.sender;
+
     bytes32 reportHash = keccak256(abi.encode(_meta, _shares, _amounts, _pools));
 
-    _blockSubmitReportValidator(blockReport, reportHash);
+    blockSubmitReportValidation(blockReport, reportHash);
 
     blockReports[reportHash] = blockReport;
     blockReportsVotes[reportHash]++;
@@ -282,7 +287,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     uint256 votes = blockReportsVotes[consensusReportHash];
     BlockReport storage consensusReport = blockReports[consensusReportHash];
 
-    _blockExecuteReportValidator(consensusReport);
+    blockExecuteReportValidation(consensusReport);
 
     bool isConsensusApproved = consensusReport.shares.pools ==
       consensusReport.pools.totalSharesSubmitted &&
@@ -292,11 +297,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
       consensusReport.meta.consensusExecuted = true;
       _blockReportActions(consensusReport);
       emit BlockConsensusApproved(_blockNumber, consensusReportHash);
+    } else {
+      emit BlockConsensusFail(_blockNumber, consensusReportHash);
     }
 
     reportLastBlock = reportNextBlock;
     reportNextBlock += reportFrequency;
-    emit BlockConsensusFail(_blockNumber, consensusReportHash);
   }
 
   function isBlockReportReady(uint256 blockNumber) public view returns (bool) {
@@ -304,10 +310,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     return blockReportsVotes[reportHash] >= oracleQuorum;
   }
 
-  function _blockSubmitReportValidator(
-    BlockReport memory _blockReport,
-    bytes32 _reportHash
-  ) private view {
+  function blockSubmitReportValidation(BlockReport memory _blockReport, bytes32 _reportHash) public view {
     // Todo: Check if is missing some validation
     require(_blockReport.meta.blockNumber == reportNextBlock, 'BLOCK_REPORT_IS_NOT_NEXT_EXPECTED');
     require(_blockReport.meta.consensusExecuted == false, 'INVALID_CONSENSUS_EXECUTED');
@@ -352,7 +355,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     require(!blockReports[_reportHash].meta.consensusExecuted, 'BLOCK_ALREADY_EXECUTED');
   }
 
-  function _blockExecuteReportValidator(BlockReport storage consensusReport) private view {
+  function blockExecuteReportValidation(BlockReport memory consensusReport) public pure {
     require(!consensusReport.meta.consensusExecuted, 'REPORT_ALREADY_EXECUTED');
 
     require(
@@ -383,11 +386,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     stakeTogether.removeValidators(_blockReport.meta.exitedValidators);
 
-    // Todo: Implement Actions
-    // stakeTogether.setBeaconBalance(_blockReport.beaconBalance);
-    // stakeTogether mintSharesRewards (public function only for oracle)
-    // transfer ethereum to stake together (pooledEtherByShares)
-
     // Todo: Missing
 
     // uint256 poolShares;
@@ -403,82 +401,102 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
    ** POOL REPORT **
    *****************/
 
-  event PoolConsensusApproved(uint256 indexed blockNumber, bytes32 reportHash);
-  event PoolConsensusFail(uint256 indexed blockNumber, bytes32 reportHash);
-
   struct PoolReport {
+    address oracle;
+    uint256 blockNumber;
     address pool;
-    address sharesAmount;
-    bytes32 reportHash;
+    uint256 amount;
+    uint256 sharesAmount;
+    bytes32 blockReportHash;
     bool consensusExecuted;
   }
 
   mapping(bytes32 => PoolReport) public poolReports;
-  mapping(bytes32 => PoolReport[]) public poolReportsByBlock;
+  mapping(bytes32 => bool) public oraclePoolReport;
 
-  // function submitPoolReport(
-  //   bytes32 reportHash,
-  //   address[] calldata pools,
-  //   uint256[] calldata sharesAmounts
-  // ) external onlyAfterBlockConsensus(reportHash) onlyOracle whenNotPaused {
-  //   require(reports[reportHash].blockNumber != 0, 'Report not submitted yet');
-  //   require(pools.length == sharesAmounts.length, 'Mismatch in array lengths');
+  event PoolConsensusApproved(uint256 indexed blockNumber, address indexed pool, bytes32 reportHash);
+  event PoolConsensusFail(uint256 indexed blockNumber, address indexed pool, bytes32 reportHash);
 
-  //   bytes32 poolReportHash = keccak256(abi.encode(reportHash, pools, sharesAmounts));
+  function submitPoolReports(PoolReport[] memory _poolReports) external onlyOracle whenNotPaused {
+    for (uint i = 0; i < _poolReports.length; i++) {
+      PoolReport memory _poolReport = _poolReports[i];
 
-  //   for (uint256 i = 0; i < sharesAmounts.length; i++) {
-  //     reports[reportHash].poolSharesSubmitted += sharesAmounts[i];
-  //   }
+      _poolReport.oracle = msg.sender;
 
-  //   poolReports[poolReportHash] = PoolReport(pools, sharesAmounts, reportHash);
-  //   poolReportsByReportHash[reportHash].push(poolReportHash);
-  // }
+      bytes32 reportKey = keccak256(
+        abi.encodePacked(msg.sender, _poolReport.blockNumber, _poolReport.pool)
+      );
+      require(!oraclePoolReport[reportKey], 'ORACLE_ALREADY_REPORTED');
+      oraclePoolReport[reportKey] = true;
 
-  // function executePoolConsensus(
-  //   bytes32 reportHash,
-  //   uint256 blockNumber,
-  //   uint256 pageNumber
-  // ) external onlyAfterBlockConsensus(reportHash) onlyOracle whenNotPaused {
-  //   bytes32[] storage poolBlockReports = poolReportsByBlock[blockNumber];
-  //   uint256 maxVotes = 0;
-  //   bytes32 consensusReportHash;
+      poolSubmitReportValidation(_poolReport);
 
-  //   // Similar loop to find consensus report hash
+      bytes32 reportHash = keccak256(abi.encode(_poolReport));
 
-  //   // If we got more votes than the oracleQuorum,
-  //   // we consider it a valid report and update the state
-  //   if (maxVotes >= oracleQuorum) {
-  //     // Check if consensus was already executed for this pool report
-  //     require(!consensusPoolReport.consensusExecuted, 'Consensus already executed for this pool report');
+      poolReports[reportHash] = _poolReport;
 
-  //     consensusPoolReport.consensusExecuted = true;
-  //     PoolReport memory consensusPoolReport = poolReports[consensusReportHash];
+      BlockReport storage blockReport = blockReports[_poolReport.blockReportHash];
+      require(blockReport.meta.consensusExecuted, 'BLOCK_REPORT_NOT_EXECUTED');
 
-  //     uint256 pageSize = 100; // Define your preferred page size here
-  //     uint256 startIndex = pageNumber * pageSize;
-  //     require(startIndex < consensusPoolReport.pools.length, 'Page number out of range');
+      blockReport.pools.totalSubmitted++;
+      blockReport.amounts.pools += _poolReport.amount;
+      blockReport.shares.pools += _poolReport.sharesAmount;
 
-  //     uint256 endIndex = startIndex + pageSize > consensusPoolReport.pools.length
-  //       ? consensusPoolReport.pools.length
-  //       : startIndex + pageSize;
+      if (blockReport.pools.totalSubmitted == blockReport.pools.total) {
+        blockReport.meta.consensusExecuted = true;
+        emit BlockConsensusApproved(blockReport.meta.blockNumber, _poolReport.blockReportHash);
+      }
+    }
+  }
 
-  //     uint256 totalShares = 0;
-  //     for (uint256 i = startIndex; i < endIndex; i++) {
-  //       totalShares += consensusPoolReport.sharesAmounts[i];
-  //       // Process the pool shares here based on consensusPoolReport.sharesAmounts[i]
-  //     }
+  function executePoolConsensus(uint256 _blockNumber, address _pool) external onlyOracle whenNotPaused {
+    poolExecuteReportValidation(_blockNumber, _pool);
 
-  //     bytes32 generalReportHash = consensusReportHashByBlock[blockNumber];
-  //     Report memory generalReport = reports[generalReportHash];
+    bytes32 blockReportHash = blockConsensusHashByBlock[_blockNumber];
+    require(blockReportHash != bytes32(0), 'INVALID_BLOCK_REPORT_HASH');
+    BlockReport storage blockReport = blockReports[blockReportHash];
+    require(blockReport.meta.consensusExecuted, 'BLOCK_REPORT_NOT_EXECUTED');
 
-  //     require(totalShares <= generalReport.poolShares, 'Mismatch in poolShares total');
+    bytes32 poolReportHash = keccak256(abi.encode(_pool, blockReportHash));
+    PoolReport storage poolReport = poolReports[poolReportHash];
+    require(!poolReport.consensusExecuted, 'POOL_REPORT_ALREADY_EXECUTED');
 
-  //     if (endIndex == consensusPoolReport.pools.length) {
-  //       // We've processed the last page
-  //       emit PoolConsensusApproved(blockNumber, consensusReportHash);
-  //     }
-  //   } else {
-  //     emit PoolConsensusFail(blockNumber, consensusReportHash);
-  //   }
-  // }
+    poolReport.consensusExecuted = true;
+
+    _poolReportActions(poolReport);
+    emit PoolConsensusApproved(_blockNumber, _pool, poolReportHash);
+  }
+
+  function isPoolReportReady(uint256 blockNumber, address pool) public view returns (bool) {
+    bytes32 reportHash = keccak256(abi.encode(pool, blockConsensusHashByBlock[blockNumber]));
+    return poolReports[reportHash].consensusExecuted;
+  }
+
+  function poolSubmitReportValidation(PoolReport memory _poolReport) public view {
+    // Validate the block report
+    BlockReport storage blockReport = blockReports[_poolReport.blockReportHash];
+    require(blockReport.meta.consensusExecuted, 'BLOCK_REPORT_NOT_EXECUTED');
+
+    // Validate the pool
+    // Add your validation logic here
+  }
+
+  function poolExecuteReportValidation(uint256 _blockNumber, address _pool) private view {
+    bytes32 blockReportHash = blockConsensusHashByBlock[_blockNumber];
+    require(blockReportHash != bytes32(0), 'INVALID_BLOCK_REPORT_HASH');
+    BlockReport storage blockReport = blockReports[blockReportHash];
+    require(blockReport.meta.consensusExecuted, 'BLOCK_REPORT_NOT_EXECUTED');
+
+    bytes32 poolReportHash = keccak256(abi.encode(_pool, blockReportHash));
+    PoolReport storage poolReport = poolReports[poolReportHash];
+    require(!poolReport.consensusExecuted, 'POOL_REPORT_ALREADY_EXECUTED');
+  }
+
+  function _poolReportActions(PoolReport memory _poolReport) private {
+    stakeTogether.mintRewards{ value: _poolReport.amount }(
+      _poolReport.blockNumber,
+      _poolReport.pool,
+      _poolReport.sharesAmount
+    );
+  }
 }
