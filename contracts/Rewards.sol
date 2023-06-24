@@ -200,35 +200,45 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
    *****************/
 
   modifier onlyAfterBlockConsensus(bytes32 reportHash) {
-    require(blockReports[reportHash].consensusExecuted, 'BLOCK_REPORT_CONSENSUS_NOT_EXECUTED');
+    require(blockReports[reportHash].meta.consensusExecuted, 'BLOCK_REPORT_CONSENSUS_NOT_EXECUTED');
     _;
   }
 
   event BlockConsensusApproved(uint256 indexed blockNumber, bytes32 reportHash);
   event BlockConsensusFail(uint256 indexed blockNumber, bytes32 reportHash);
 
-  struct BlockReport {
+  struct Meta {
     uint256 blockNumber;
     uint256 beaconBalance;
-    uint256 totalRewardsShares;
-    uint256 stakeTogetherShares;
-    uint256 operatorShares;
-    uint256 poolShares;
-    uint256 totalRewardsAmount;
-    uint256 stakeTogetherAmount;
-    uint256 operatorAmount;
-    uint256 poolAmount;
-    uint256 totalPools;
-    uint256 totalPoolsSubmitted;
-    uint256 totalPoolsSharesSubmitted;
     bool consensusExecuted;
     bytes[] exitedValidators;
   }
 
-  enum RewardType {
-    StakeTogether,
-    Operator,
-    Pool
+  struct Shares {
+    uint256 total;
+    uint256 stakeTogether;
+    uint256 operators;
+    uint256 pools;
+  }
+
+  struct Amounts {
+    uint256 total;
+    uint256 stakeTogether;
+    uint256 operators;
+    uint256 pools;
+  }
+
+  struct Pools {
+    uint256 total;
+    uint256 totalSubmitted;
+    uint256 totalSharesSubmitted;
+  }
+
+  struct BlockReport {
+    Meta meta;
+    Shares shares;
+    Amounts amounts;
+    Pools pools;
   }
 
   mapping(bytes32 => BlockReport) public blockReports;
@@ -242,62 +252,18 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportFrequency = 1;
 
   function submitBlockReport(
-    uint256 _blockNumber,
-    uint256 _beaconBalance,
-    uint256 _totalRewardsShares,
-    uint256 _stakeTogetherShares,
-    uint256 _operatorShares,
-    uint256 _poolShares,
-    uint256 _totalRewardsAmount,
-    uint256 _stakeTogetherAmount,
-    uint256 _operatorAmount,
-    uint256 _poolAmount,
-    uint256 _totalPools,
-    uint256 _totalPoolsSubmitted,
-    uint256 _totalPoolsSharesSubmitted,
-    bool _consensusExecuted,
-    bytes[] calldata _exitedValidators
+    Meta memory _meta,
+    Shares memory _shares,
+    Amounts memory _amounts,
+    Pools memory _pools
   ) external onlyOracle whenNotPaused {
-    require(_blockNumber != reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
-    require(!oracleBlockReport[msg.sender][_blockNumber], 'ORACLE_ALREADY_REPORTED');
-    oracleBlockReport[msg.sender][_blockNumber] = true;
+    require(_meta.blockNumber != reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
+    require(!oracleBlockReport[msg.sender][_meta.blockNumber], 'ORACLE_ALREADY_REPORTED');
+    oracleBlockReport[msg.sender][_meta.blockNumber] = true;
 
-    BlockReport memory blockReport = BlockReport(
-      _blockNumber,
-      _beaconBalance,
-      _totalRewardsShares,
-      _stakeTogetherShares,
-      _operatorShares,
-      _poolShares,
-      _totalRewardsAmount,
-      _stakeTogetherAmount,
-      _operatorAmount,
-      _poolAmount,
-      _totalPools,
-      _totalPoolsSubmitted,
-      _totalPoolsSharesSubmitted,
-      _consensusExecuted,
-      _exitedValidators
-    );
+    BlockReport memory blockReport = BlockReport(_meta, _shares, _amounts, _pools);
 
-    bytes32 reportHash = keccak256(
-      abi.encodePacked(
-        _blockNumber,
-        _beaconBalance,
-        _totalRewardsShares,
-        _stakeTogetherShares,
-        _operatorShares,
-        _poolShares,
-        _totalRewardsAmount,
-        _stakeTogetherAmount,
-        _operatorAmount,
-        _poolAmount,
-        _totalPools,
-        _totalPoolsSubmitted,
-        _totalPoolsSharesSubmitted,
-        _consensusExecuted
-      )
-    );
+    bytes32 reportHash = keccak256(abi.encode(_meta, _shares, _amounts, _pools));
 
     _blockSubmitReportValidator(blockReport, reportHash);
 
@@ -305,7 +271,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     blockReportsVotes[reportHash]++;
 
     if (blockReportsVotes[reportHash] >= oracleQuorum) {
-      blockConsensusHashByBlock[_blockNumber] = reportHash;
+      blockConsensusHashByBlock[_meta.blockNumber] = reportHash;
     }
   }
 
@@ -318,11 +284,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     _blockExecuteReportValidator(consensusReport);
 
-    bool isConsensusApproved = consensusReport.poolShares == consensusReport.totalPoolsSharesSubmitted &&
-      consensusReport.totalPools == consensusReport.totalPoolsSubmitted;
+    bool isConsensusApproved = consensusReport.shares.pools ==
+      consensusReport.pools.totalSharesSubmitted &&
+      consensusReport.pools.total == consensusReport.pools.totalSubmitted;
 
     if (votes >= oracleQuorum && isConsensusApproved) {
-      consensusReport.consensusExecuted = true;
+      consensusReport.meta.consensusExecuted = true;
       _blockReportActions(consensusReport);
       emit BlockConsensusApproved(_blockNumber, consensusReportHash);
     }
@@ -342,76 +309,79 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     bytes32 _reportHash
   ) private view {
     // Todo: Check if is missing some validation
-    require(_blockReport.blockNumber == reportNextBlock, 'BLOCK_REPORT_IS_NOT_NEXT_EXPECTED');
-    require(_blockReport.totalPoolsSharesSubmitted == 0, 'INVALID_TOTAL_POOLS_SHARES_SUBMITTED');
-    require(_blockReport.totalPoolsSubmitted == 0, 'INVALID_TOTAL_POOLS_SUBMITTED');
-    require(_blockReport.consensusExecuted == false, 'INVALID_CONSENSUS_EXECUTED');
+    require(_blockReport.meta.blockNumber == reportNextBlock, 'BLOCK_REPORT_IS_NOT_NEXT_EXPECTED');
+    require(_blockReport.meta.consensusExecuted == false, 'INVALID_CONSENSUS_EXECUTED');
+    require(_blockReport.pools.totalSharesSubmitted == 0, 'INVALID_TOTAL_POOLS_SHARES_SUBMITTED');
+    require(_blockReport.pools.totalSubmitted == 0, 'INVALID_TOTAL_POOLS_SUBMITTED');
 
     uint256 totalPooledEther = stakeTogether.totalPooledEther();
     uint256 growthLimit = Math.mulDiv(totalPooledEther, reportGrowthLimit, 100);
-    require(_blockReport.totalRewardsAmount <= growthLimit, 'GROWTH_LIMIT_EXCEEDED');
+    require(_blockReport.amounts.total <= growthLimit, 'GROWTH_LIMIT_EXCEEDED');
 
     uint256 stakeTogetherFee = Math.mulDiv(totalPooledEther, stakeTogether.stakeTogetherFee(), 100);
     uint256 operatorFee = Math.mulDiv(totalPooledEther, stakeTogether.operatorFee(), 100);
     uint256 poolFee = Math.mulDiv(totalPooledEther, stakeTogether.poolFee(), 100);
     require(
-      stakeTogether.pooledEthByShares(_blockReport.stakeTogetherShares) <= stakeTogetherFee,
+      stakeTogether.pooledEthByShares(_blockReport.shares.stakeTogether) <= stakeTogetherFee,
       'STAKE_TOGETHER_FEE_EXCEEDED'
     );
     require(
-      stakeTogether.pooledEthByShares(_blockReport.operatorShares) <= operatorFee,
+      stakeTogether.pooledEthByShares(_blockReport.shares.operators) <= operatorFee,
       'OPERATOR_FEE_EXCEEDED'
     );
-    require(stakeTogether.pooledEthByShares(_blockReport.poolShares) <= poolFee, 'POOL_FEE_EXCEEDED');
+    require(stakeTogether.pooledEthByShares(_blockReport.shares.pools) <= poolFee, 'POOL_FEE_EXCEEDED');
 
-    uint256 totalShares = _blockReport.stakeTogetherShares +
-      _blockReport.operatorShares +
-      _blockReport.poolShares;
-    require(totalShares == _blockReport.totalRewardsShares, 'INVALID_TOTAL_SHARES');
+    uint256 totalShares = _blockReport.shares.stakeTogether +
+      _blockReport.shares.operators +
+      _blockReport.shares.pools;
+    require(totalShares == _blockReport.shares.total, 'INVALID_TOTAL_SHARES');
 
-    for (uint i = 0; i < _blockReport.exitedValidators.length; i++) {
-      require(stakeTogether.isValidator(_blockReport.exitedValidators[i]), 'INVALID_EXITED_VALIDATOR');
+    for (uint i = 0; i < _blockReport.meta.exitedValidators.length; i++) {
+      require(
+        stakeTogether.isValidator(_blockReport.meta.exitedValidators[i]),
+        'INVALID_EXITED_VALIDATOR'
+      );
     }
 
     uint256 expectedMaxBeaconBalance = stakeTogether.validatorSize() * stakeTogether.totalValidators();
     require(
-      _blockReport.beaconBalance <= expectedMaxBeaconBalance,
+      _blockReport.meta.beaconBalance <= expectedMaxBeaconBalance,
       'BEACON_BALANCE_EXCEEDS_EXPECTED_MAX'
     );
 
-    require(!blockReports[_reportHash].consensusExecuted, 'BLOCK_ALREADY_EXECUTED');
+    require(!blockReports[_reportHash].meta.consensusExecuted, 'BLOCK_ALREADY_EXECUTED');
   }
 
   function _blockExecuteReportValidator(BlockReport storage consensusReport) private view {
-    require(!consensusReport.consensusExecuted, 'REPORT_ALREADY_EXECUTED');
+    require(!consensusReport.meta.consensusExecuted, 'REPORT_ALREADY_EXECUTED');
 
     require(
-      consensusReport.totalPools == consensusReport.totalPoolsSubmitted,
+      consensusReport.pools.total == consensusReport.pools.totalSubmitted,
       'INVALID_POOLS_SUBMISSION'
     );
 
     require(
-      consensusReport.poolShares == consensusReport.totalPoolsSharesSubmitted,
+      consensusReport.shares.pools == consensusReport.pools.totalSharesSubmitted,
       'INVALID_POOLS_SHARES_SUBMISSION'
     );
   }
 
   function _blockReportActions(BlockReport memory _blockReport) private {
-    stakeTogether.setBeaconBalance(_blockReport.blockNumber, _blockReport.beaconBalance);
+    stakeTogether.setBeaconBalance(_blockReport.meta.blockNumber, _blockReport.meta.beaconBalance);
 
-    stakeTogether.mintRewards{ value: _blockReport.stakeTogetherAmount }(
-      _blockReport.blockNumber,
+    stakeTogether.mintRewards{ value: _blockReport.amounts.stakeTogether }(
+      _blockReport.meta.blockNumber,
       stakeTogether.stakeTogetherFeeAddress(),
-      _blockReport.stakeTogetherShares
+      _blockReport.shares.stakeTogether
     );
 
-    stakeTogether.mintRewards{ value: _blockReport.operatorAmount }(
-      _blockReport.blockNumber,
+    stakeTogether.mintRewards{ value: _blockReport.amounts.operators }(
+      _blockReport.meta.blockNumber,
       stakeTogether.operatorFeeAddress(),
-      _blockReport.operatorShares
+      _blockReport.shares.operators
     );
 
-    stakeTogether.removeValidators(_blockReport.exitedValidators);
+    stakeTogether.removeValidators(_blockReport.meta.exitedValidators);
 
     // Todo: Implement Actions
     // stakeTogether.setBeaconBalance(_blockReport.beaconBalance);
