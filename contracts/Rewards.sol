@@ -212,7 +212,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     bytes32 batchReportHash,
     BatchReport report
   );
-
   event SingleConsensusApproved(
     uint256 indexed blockNumber,
     bytes32 singleReportHash,
@@ -222,6 +221,14 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   event BatchConsensusApproved(uint256 indexed blockNumber, bytes32 batchReportHash, BatchReport report);
   event BatchConsensusFail(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
   event SingleAndBatchesConsensusApproved(uint256 indexed blockNumber, bytes32 singleReportHash);
+  event ExecuteSingleReport(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
+  event ExecuteBatchReport(
+    uint256 indexed blockNumber,
+    uint256 indexed batchNumber,
+    bytes32 batchReportHash,
+    BatchReport report
+  );
+  event ReportExecuted(uint256 indexed blockNumber, bytes32 reportHash);
 
   struct Shares {
     uint256 total;
@@ -291,6 +298,9 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   mapping(uint256 => uint256) public batchNumber;
   mapping(bytes32 => bool) public consensusReports;
+
+  mapping(uint256 => bool) public executedSingleReports;
+  mapping(uint256 => uint256) public executedBatchReports;
   mapping(uint256 => bool) public executedReports;
   bool public executionPending = false;
 
@@ -298,8 +308,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   uint256 public reportLastBlock = 0;
   uint256 public reportNextBlock = 1;
   uint256 public reportFrequency = 1;
-
-  // Report Submit
 
   function submitSingleReport(
     uint256 _blockNumber,
@@ -309,7 +317,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     Amounts memory _amounts,
     PoolsBatches memory _poolsBatches,
     ValidatorsBatches memory _validatorsBatches
-  ) external onlyOracle whenNotPaused nonReentrant {
+  ) external onlyOracle whenNotPaused {
     require(!executionPending, 'EXECUTION_PENDING');
     require(reportNextBlock + reportFrequency >= block.number, 'REPORT_FREQUENCY_EXCEEDED');
 
@@ -346,6 +354,8 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     }
 
     emit SubmitSingleReport(msg.sender, _blockNumber, reportHash, singleReport);
+
+    // Todo: Penalize oracle if report is invalid
   }
 
   function submitBatchReports(
@@ -354,13 +364,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     bytes32 _reportHash,
     Pool[] calldata _pools,
     Validator[] calldata _validators
-  ) external onlyOracle whenNotPaused nonReentrant {
+  ) external onlyOracle whenNotPaused {
     require(!executionPending, 'NO_PENDING_EXECUTION');
-
     if (block.number >= reportNextBlock + reportFrequency) {
       reportNextBlock += reportFrequency;
     }
-
+    require(_reportHash != bytes32(0), 'REPORT_HASH_NOT_FOUND');
     require(_blockNumber == reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
     require(singleReportConsensus[_blockNumber] == _reportHash, 'SINGLE_CONSENSUS_NOT_APPROVED');
     require(_batchNumber == batchNumber[_blockNumber] + 1, 'BATCH_REPORT_NOT_IN_SEQUENCE');
@@ -406,6 +415,48 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     }
 
     emit SubmitBatchReport(msg.sender, _blockNumber, _batchNumber, batchReportHash, batchReport);
+
+    // Todo: Penalize oracle if report is invalid
+  }
+
+  function executeSingleReport(uint256 _blockNumber) external onlyOracle whenNotPaused nonReentrant {
+    require(!executionPending, 'EXECUTION_PENDING');
+    bytes32 singleReportHash = singleReportConsensus[_blockNumber];
+    require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
+    require(!executedSingleReports[_blockNumber], 'REPORT_ALREADY_EXECUTED');
+
+    SingleReport memory report = singleReports[singleReportHash];
+
+    // TODO: Execute Single Report
+
+    executedSingleReports[_blockNumber] = true;
+    emit ExecuteSingleReport(_blockNumber, singleReportHash, report);
+  }
+
+  function executeBatchReport(
+    uint256 _blockNumber,
+    uint256 _batchNumber
+  ) external onlyOracle whenNotPaused nonReentrant {
+    require(!executionPending, 'EXECUTION_PENDING');
+    bytes32 singleReportHash = singleReportConsensus[_blockNumber];
+    require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
+    require(executedSingleReports[_blockNumber], 'SINGLE_REPORT_NOT_EXECUTED_YET');
+    require(_batchNumber == executedBatchReports[_blockNumber] + 1, 'BATCH_REPORT_NOT_IN_SEQUENCE');
+
+    bytes32 batchReportHash = batchConsensus[_blockNumber];
+    BatchReport memory report = batchReports[batchReportHash];
+    require(report.batchNumber == _batchNumber, 'BATCH_NUMBER_MISMATCH');
+
+    // TODO: Execute Batch Report
+
+    executedBatchReports[_blockNumber]++;
+
+    if (singleReports[singleReportHash].batchesReports == _batchNumber) {
+      executedReports[_blockNumber] = true;
+      emit ReportExecuted(_blockNumber, singleReportHash);
+    }
+
+    emit ExecuteBatchReport(_blockNumber, _batchNumber, batchReportHash, report);
   }
 
   // function executeSingleReport(uint256 _blockNumber) external onlyOracle whenNotPaused {
