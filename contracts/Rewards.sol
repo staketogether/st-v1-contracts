@@ -193,28 +193,22 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
    ** REPORT **
    *****************/
 
-  event SubmitSingleReport(
-    address indexed oracle,
-    uint256 indexed blockNumber,
-    bytes32 reportHash,
-    SingleReport report
-  );
+  event SubmitSingleReport(address indexed oracle, uint256 indexed blockNumber, bytes32 reportHash);
+  event SingleAndBatchesConsensusApproved(uint256 indexed blockNumber, bytes32 reportHash);
+  event SingleConsensusFail(uint256 indexed blockNumber, bytes32 reportHash);
+
   event SubmitBatchReport(
     address indexed oracle,
     uint256 indexed blockNumber,
     uint256 indexed batchNumber,
-    bytes32 batchReportHash,
-    BatchReport report
+    bytes32 batchReportHash
   );
-  event SingleConsensusApproved(
-    uint256 indexed blockNumber,
-    bytes32 singleReportHash,
-    SingleReport report
-  );
-  event SingleConsensusFail(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
-  event BatchConsensusApproved(uint256 indexed blockNumber, bytes32 batchReportHash, BatchReport report);
+
+  event SingleConsensusApproved(uint256 indexed blockNumber, bytes32 singleReportHash);
+
+  event BatchConsensusApproved(uint256 indexed blockNumber, bytes32 batchReportHash);
   event BatchConsensusFail(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
-  event SingleAndBatchesConsensusApproved(uint256 indexed blockNumber, bytes32 singleReportHash);
+
   event ExecuteSingleReport(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
   event ExecuteBatchReport(
     uint256 indexed blockNumber,
@@ -285,17 +279,17 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     Batch
   }
 
-  mapping(bytes32 => SingleReport) public singleReports;
+  // mapping(bytes32 => SingleReport) public singleReports;
   mapping(bytes32 => uint256) public singleReportsVotes;
   mapping(bytes32 => bool) public singleOracleReport;
   mapping(uint256 => bytes32) public singleReportConsensus;
 
-  mapping(bytes32 => BatchReport) public batchReports;
+  // mapping(bytes32 => BatchReport) public batchReports;
   mapping(bytes32 => uint256) public batchReportsVotes;
   mapping(bytes32 => bool) public batchOracleReport;
-  mapping(uint256 => bytes32) public batchReportConsensus;
+  mapping(bytes32 => bytes32) public batchReportConsensus;
 
-  mapping(uint256 => uint256) public batchNumber;
+  mapping(bytes32 => uint256) public batchNumber;
   mapping(bytes32 => bool) public consensusReports;
 
   mapping(uint256 => bool) public executedSingleReports;
@@ -310,13 +304,18 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   function submitSingleReport(
     uint256 _blockNumber,
-    uint256 _beaconBalance,
-    uint256 _batchesReports,
-    Shares memory _shares,
-    Amounts memory _amounts,
-    PoolsBatches memory _poolsBatches,
-    ValidatorsBatches memory _validatorsBatches
-  ) external onlyOracle whenNotPaused {
+    bytes32 _reportHash
+  )
+    external
+    // uint256 _beaconBalance,
+    // uint256 _batchesReports,
+    // Shares memory _shares,
+    // Amounts memory _amounts,
+    // PoolsBatches memory _poolsBatches,
+    // ValidatorsBatches memory _validatorsBatches
+    onlyOracle
+    whenNotPaused
+  {
     require(!executionPending, 'EXECUTION_PENDING');
     require(reportNextBlock + reportFrequency >= block.number, 'REPORT_FREQUENCY_EXCEEDED');
     require(singleReportConsensus[_blockNumber] == bytes32(0), 'SINGLE_CONSENSUS_NOT_APPROVED');
@@ -324,140 +323,139 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     if (block.number >= reportNextBlock + reportFrequency) {
       reportNextBlock += reportFrequency;
     }
-
     require(_blockNumber == reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
-    bytes32 singleReportKey = keccak256(abi.encodePacked(msg.sender, _blockNumber));
-    require(!singleOracleReport[singleReportKey], 'ORACLE_ALREADY_REPORTED');
-    singleOracleReport[singleReportKey] = true;
+
+    bytes32 singleOracleKey = keccak256(abi.encodePacked(msg.sender, _blockNumber));
+    require(!singleOracleReport[singleOracleKey], 'ORACLE_ALREADY_REPORTED');
+    singleOracleReport[singleOracleKey] = true;
 
     // Todo: Valid Single Report
 
-    SingleReport memory singleReport = SingleReport(
-      msg.sender,
-      _blockNumber,
-      _batchesReports,
-      _beaconBalance,
-      _shares,
-      _amounts,
-      _poolsBatches,
-      _validatorsBatches
-    );
+    // SingleReport memory singleReport = SingleReport(
+    //   msg.sender,
+    //   _blockNumber,
+    //   _batchesReports,
+    //   _beaconBalance,
+    //   _shares,
+    //   _amounts,
+    //   _poolsBatches,
+    //   _validatorsBatches
+    // );
 
-    bytes32 reportHash = keccak256(abi.encode(singleReport));
+    // bytes32 reportHash = keccak256(abi.encode(singleReport));
 
-    singleReports[reportHash] = singleReport;
-    singleReportsVotes[reportHash]++;
+    // singleReports[reportHash] = singleReport;
+    singleReportsVotes[_reportHash]++;
 
-    if (singleReportsVotes[reportHash] >= oracleQuorum) {
-      singleReportConsensus[_blockNumber] = reportHash;
-      emit SingleConsensusApproved(_blockNumber, reportHash, singleReport);
+    if (singleReportsVotes[_reportHash] >= oracleQuorum) {
+      singleReportConsensus[_blockNumber] = _reportHash;
+      emit SingleConsensusApproved(_blockNumber, _reportHash);
 
       // Todo: Penalize oracle if report is invalid
     }
 
-    emit SubmitSingleReport(msg.sender, _blockNumber, reportHash, singleReport);
+    emit SubmitSingleReport(msg.sender, _blockNumber, _reportHash);
   }
 
   function submitBatchReports(
     uint256 _blockNumber,
     uint256 _batchNumber,
-    bytes32 _reportHash,
-    Pool[] calldata _pools,
-    Validator[] calldata _validators
-  ) external onlyOracle whenNotPaused {
+    bytes32 _singleReportHash,
+    bytes32 _batchReportHash
+  )
+    external
+    // Pool[] calldata _pools,
+    // Validator[] calldata _validators
+    onlyOracle
+    whenNotPaused
+  {
     require(!executionPending, 'NO_PENDING_EXECUTION');
+
     if (block.number >= reportNextBlock + reportFrequency) {
       reportNextBlock += reportFrequency;
     }
-    require(_reportHash != bytes32(0), 'REPORT_HASH_NOT_FOUND');
+    require(_singleReportHash != bytes32(0), 'SINGLE_REPORT_HASH_NOT_FOUND');
     require(_blockNumber == reportNextBlock, 'INVALID_REPORT_BLOCK_NUMBER');
-    require(singleReportConsensus[_blockNumber] == _reportHash, 'SINGLE_CONSENSUS_NOT_APPROVED');
-    require(_batchNumber == batchNumber[_blockNumber] + 1, 'BATCH_REPORT_NOT_IN_SEQUENCE');
-    require(
-      singleReports[_reportHash].batchesReports >= _batchNumber,
-      'BATCH_NUMBER_EXCEEDS_DEFINED_BATCHES'
-    );
-    require(batchReportConsensus[_blockNumber] == bytes32(0), 'BATCH_CONSENSUS_NOT_APPROVED');
+    require(singleReportConsensus[_blockNumber] == _singleReportHash, 'SINGLE_CONSENSUS_NOT_APPROVED');
+    // require(_batchNumber == batchNumber[_blockNumber] + 1, 'BATCH_REPORT_NOT_IN_SEQUENCE');
 
-    bytes32 batchReportKey = keccak256(abi.encodePacked(msg.sender, _blockNumber, _batchNumber));
-    require(!batchOracleReport[batchReportKey], 'ORACLE_ALREADY_REPORTED');
-    batchOracleReport[batchReportKey] = true;
+    bytes32 batchReportKey = keccak256(abi.encodePacked(_blockNumber, _batchNumber));
+    require(batchReportConsensus[batchReportKey] == bytes32(0), 'BATCH_CONSENSUS_NOT_APPROVED');
+
+    bytes32 batchOracleKey = keccak256(abi.encodePacked(msg.sender, _blockNumber, _batchNumber));
+    require(!batchOracleReport[batchOracleKey], 'ORACLE_ALREADY_REPORTED');
+    batchOracleReport[batchOracleKey] = true;
 
     // Todo: Validate Batch Report
 
-    BatchReport memory batchReport = BatchReport(
-      msg.sender,
-      _blockNumber,
-      _batchNumber,
-      _reportHash,
-      _pools,
-      _validators
-    );
+    // bytes32 batchReportHash = keccak256(
+    //   abi.encode(msg.sender, _blockNumber, _batchNumber, _reportHash, _pools, _validators)
+    // );
 
-    bytes32 batchReportHash = keccak256(abi.encode(batchReport));
+    // batchReports[batchReportHash] = BatchReport(
+    //   msg.sender,
+    //   _blockNumber,
+    //   _batchNumber,
+    //   _reportHash,
+    //   _pools,
+    //   _validators
+    // );
 
-    batchReports[batchReportHash] = batchReport;
-    batchReportsVotes[batchReportHash]++;
+    batchReportsVotes[_batchReportHash]++;
 
-    if (batchReportsVotes[batchReportHash] >= oracleQuorum) {
-      batchReportConsensus[_blockNumber] = batchReportHash;
-      batchNumber[_blockNumber]++;
-      emit BatchConsensusApproved(_blockNumber, batchReportHash, batchReport);
+    if (batchReportsVotes[_batchReportHash] >= oracleQuorum) {
+      batchReportConsensus[batchReportKey] = _batchReportHash;
+      // batchNumber[batchReportKey]++;
+      emit BatchConsensusApproved(_blockNumber, _batchReportHash);
 
-      if (batchNumber[_blockNumber] == singleReports[_reportHash].batchesReports) {
-        consensusReports[_reportHash] = true;
-        emit SingleAndBatchesConsensusApproved(_blockNumber, _reportHash);
-      }
-    }
-
-    if (batchNumber[_blockNumber] == singleReports[singleReportConsensus[_blockNumber]].batchesReports) {
-      executionPending = false;
-      reportNextBlock += reportFrequency;
+      // if (batchNumber[_blockNumber] == singleReports[_reportHash].batchesReports) {
+      //   consensusReports[_reportHash] = true;
+      //   emit SingleAndBatchesConsensusApproved(_blockNumber, _reportHash);
+      // }
 
       // Todo: Penalize oracle if report is invalid
     }
 
-    emit SubmitBatchReport(msg.sender, _blockNumber, _batchNumber, batchReportHash, batchReport);
+    // if (batchNumber[_blockNumber] == singleReports[singleReportConsensus[_blockNumber]].batchesReports) {
+    //   executionPending = false;
+    //   reportNextBlock += reportFrequency;
+
+    //   // Todo: Penalize oracle if report is invalid
+    // }
+
+    emit SubmitBatchReport(msg.sender, _blockNumber, _batchNumber, _batchReportHash);
   }
 
   function executeSingleReport(uint256 _blockNumber) external onlyOracle whenNotPaused nonReentrant {
-    require(!executionPending, 'EXECUTION_PENDING');
-    bytes32 singleReportHash = singleReportConsensus[_blockNumber];
-    require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
-    require(!executedSingleReports[_blockNumber], 'REPORT_ALREADY_EXECUTED');
-
-    SingleReport memory report = singleReports[singleReportHash];
-
-    // TODO: Execute Single Report
-
-    executedSingleReports[_blockNumber] = true;
-    emit ExecuteSingleReport(_blockNumber, singleReportHash, report);
+    // require(!executionPending, 'EXECUTION_PENDING');
+    // bytes32 singleReportHash = singleReportConsensus[_blockNumber];
+    // require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
+    // require(!executedSingleReports[_blockNumber], 'REPORT_ALREADY_EXECUTED');
+    // SingleReport memory report = singleReports[singleReportHash];
+    // // TODO: Execute Single Report
+    // executedSingleReports[_blockNumber] = true;
+    // emit ExecuteSingleReport(_blockNumber, singleReportHash, report);
   }
 
   function executeBatchReport(
     uint256 _blockNumber,
     uint256 _batchNumber
   ) external onlyOracle whenNotPaused nonReentrant {
-    require(!executionPending, 'EXECUTION_PENDING');
-    bytes32 singleReportHash = singleReportConsensus[_blockNumber];
-    require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
-    require(executedSingleReports[_blockNumber], 'SINGLE_REPORT_NOT_EXECUTED_YET');
-    require(_batchNumber == executedBatchReports[_blockNumber] + 1, 'BATCH_REPORT_NOT_IN_SEQUENCE');
-
-    bytes32 batchReportHash = batchReportConsensus[_blockNumber];
-    BatchReport memory report = batchReports[batchReportHash];
-    require(report.batchNumber == _batchNumber, 'BATCH_NUMBER_MISMATCH');
-
-    // TODO: Execute Batch Report
-
-    executedBatchReports[_blockNumber]++;
-
-    if (singleReports[singleReportHash].batchesReports == _batchNumber) {
-      executedReports[_blockNumber] = true;
-      emit ReportExecuted(_blockNumber, singleReportHash);
-    }
-
-    emit ExecuteBatchReport(_blockNumber, _batchNumber, batchReportHash, report);
+    // require(!executionPending, 'EXECUTION_PENDING');
+    // bytes32 singleReportHash = singleReportConsensus[_blockNumber];
+    // require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
+    // require(executedSingleReports[_blockNumber], 'SINGLE_REPORT_NOT_EXECUTED_YET');
+    // require(_batchNumber == executedBatchReports[_blockNumber] + 1, 'BATCH_REPORT_NOT_IN_SEQUENCE');
+    // bytes32 batchReportHash = batchReportConsensus[_blockNumber];
+    // BatchReport memory report = batchReports[batchReportHash];
+    // require(report.batchNumber == _batchNumber, 'BATCH_NUMBER_MISMATCH');
+    // // TODO: Execute Batch Report
+    // executedBatchReports[_blockNumber]++;
+    // if (singleReports[singleReportHash].batchesReports == _batchNumber) {
+    //   executedReports[_blockNumber] = true;
+    //   emit ReportExecuted(_blockNumber, singleReportHash);
+    // }
+    // emit ExecuteBatchReport(_blockNumber, _batchNumber, batchReportHash, report);
   }
 
   // function _penalizeOraclesWithSingleInvalidReports(
