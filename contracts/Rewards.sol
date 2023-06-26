@@ -263,7 +263,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   struct SingleReport {
     uint256 blockNumber;
     uint256 batchReports;
-    uint256 beaconBalance;
+    uint256 lossAmount;
     Shares shares;
     Amounts amounts;
     PoolBatches poolBatches;
@@ -404,19 +404,25 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     // TODO: Valid Single Report
 
-    stakeTogether.setBeaconBalance(_singleReport.blockNumber, _singleReport.beaconBalance);
+    if (_singleReport.lossAmount > 0) {
+      stakeTogether.mintLoss(_singleReport.blockNumber, _singleReport.lossAmount);
+    }
 
-    stakeTogether.mintRewards{ value: _singleReport.amounts.stakeTogether }(
-      _singleReport.blockNumber,
-      stakeTogether.stakeTogetherFeeAddress(),
-      _singleReport.shares.stakeTogether
-    );
+    if (_singleReport.amounts.stakeTogether > 0) {
+      stakeTogether.mintRewards{ value: _singleReport.amounts.stakeTogether }(
+        _singleReport.blockNumber,
+        stakeTogether.stakeTogetherFeeAddress(),
+        _singleReport.shares.stakeTogether
+      );
+    }
 
-    stakeTogether.mintRewards{ value: _singleReport.amounts.operators }(
-      _singleReport.blockNumber,
-      stakeTogether.operatorFeeAddress(),
-      _singleReport.shares.operators
-    );
+    if (_singleReport.amounts.operators > 0) {
+      stakeTogether.mintRewards{ value: _singleReport.amounts.operators }(
+        _singleReport.blockNumber,
+        stakeTogether.operatorFeeAddress(),
+        _singleReport.shares.operators
+      );
+    }
 
     emit ExecuteSingleReport(msg.sender, _singleReport.blockNumber, singleReportHash, _singleReport);
   }
@@ -459,16 +465,20 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     for (uint i = 0; i < _batchReport.pools.length; i++) {
       Pool memory pool = _batchReport.pools[i];
-      stakeTogether.mintRewards{ value: pool.amount }(
-        _batchReport.blockNumber,
-        pool.account,
-        pool.sharesAmount
-      );
+      if (pool.amount > 0) {
+        stakeTogether.mintRewards{ value: pool.amount }(
+          _batchReport.blockNumber,
+          pool.account,
+          pool.sharesAmount
+        );
+      }
     }
 
     for (uint i = 0; i < _batchReport.validators.length; i++) {
       Validator memory validator = _batchReport.validators[i];
-      stakeTogether.removeValidator{ value: validator.amount }(validator.publicKey);
+      if (validator.amount > 0) {
+        stakeTogether.removeValidator{ value: validator.amount }(validator.publicKey);
+      }
     }
 
     emit ExecuteBatchReport(

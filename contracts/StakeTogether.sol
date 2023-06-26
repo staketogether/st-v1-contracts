@@ -182,7 +182,7 @@ contract StakeTogether is SETH {
   }
 
   function setPoolSize(uint256 _amount) external onlyOwner {
-    require(_amount >= 32 ether, 'POOL_SIZE_TOO_LOW');
+    require(_amount >= validatorSize, 'POOL_SIZE_TOO_LOW');
     poolSize = _amount;
     emit SetPoolSize(_amount);
   }
@@ -255,12 +255,6 @@ contract StakeTogether is SETH {
   event RemoveValidator(address indexed account, bytes publicKey);
   event SetValidatorSize(uint256 newValidatorSize);
 
-  function setValidatorSize(uint256 _newSize) external onlyOwner {
-    require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
-    validatorSize = _newSize;
-    emit SetValidatorSize(_newSize);
-  }
-
   function createValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
@@ -295,10 +289,17 @@ contract StakeTogether is SETH {
   function removeValidator(bytes calldata _publicKey) external payable nonReentrant onlyRewardsContract {
     require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
+    beaconBalance -= msg.value;
     validators[_publicKey] = false;
     totalValidators--;
 
     emit RemoveValidator(msg.sender, _publicKey);
+  }
+
+  function setValidatorSize(uint256 _newSize) external onlyOwner {
+    require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
+    validatorSize = _newSize;
+    emit SetValidatorSize(_newSize);
   }
 
   function isValidator(bytes memory _publicKey) public view returns (bool) {

@@ -445,16 +445,8 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   uint256 public beaconBalance = 0;
 
-  event SetBeaconBalance(uint256 blockNumber, uint256 amount);
   event MintRewards(uint256 blockNumber, address indexed to, uint256 sharesAmount, RewardType rewardType);
-
-  function setBeaconBalance(
-    uint256 _blockNumber,
-    uint256 _beaconBalance
-  ) external nonReentrant onlyRewardsContract {
-    beaconBalance = _beaconBalance;
-    emit SetBeaconBalance(_blockNumber, _beaconBalance);
-  }
+  event MintLoss(uint256 blockNumber, uint256 amount);
 
   function mintRewards(
     uint256 blockNumber,
@@ -471,6 +463,12 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     } else {
       emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Pool);
     }
+  }
+
+  function mintLoss(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyRewardsContract {
+    beaconBalance -= _lossAmount;
+    require(totalPooledEther() >= 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
+    emit MintLoss(_blockNumber, _lossAmount);
   }
 
   /*****************
