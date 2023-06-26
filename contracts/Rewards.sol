@@ -289,13 +289,11 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   mapping(bytes32 => uint256) public singleReportsVotes;
   mapping(bytes32 => bool) public singleOracleReport;
   mapping(uint256 => bytes32) public singleReportConsensus;
-  mapping(uint256 => mapping(address => bytes32[])) public singleOracleReportHistory;
 
   mapping(bytes32 => BatchReport) public batchReports;
   mapping(bytes32 => uint256) public batchReportsVotes;
   mapping(bytes32 => bool) public batchOracleReport;
   mapping(uint256 => bytes32) public batchReportConsensus;
-  mapping(uint256 => mapping(uint256 => mapping(address => bytes32[]))) public batchOracleReportHistory;
 
   mapping(uint256 => uint256) public batchNumber;
   mapping(bytes32 => bool) public consensusReports;
@@ -349,15 +347,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     singleReports[reportHash] = singleReport;
     singleReportsVotes[reportHash]++;
-    // singleOracleReportHistory[_blockNumber][msg.sender].push(reportHash);
 
     if (singleReportsVotes[reportHash] >= oracleQuorum) {
       singleReportConsensus[_blockNumber] = reportHash;
       emit SingleConsensusApproved(_blockNumber, reportHash, singleReport);
 
       // Todo: Penalize oracle if report is invalid
-
-      // _penalizeOraclesWithSingleInvalidReports(_blockNumber, reportHash);
     }
 
     emit SubmitSingleReport(msg.sender, _blockNumber, reportHash, singleReport);
@@ -388,7 +383,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     require(!batchOracleReport[batchReportKey], 'ORACLE_ALREADY_REPORTED');
     batchOracleReport[batchReportKey] = true;
 
-    // Todo: Valid Batch Report
+    // Todo: Validate Batch Report
 
     BatchReport memory batchReport = BatchReport(
       msg.sender,
@@ -403,7 +398,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     batchReports[batchReportHash] = batchReport;
     batchReportsVotes[batchReportHash]++;
-    // batchOracleReportHistory[_blockNumber][_batchNumber][msg.sender].push(_reportHash);
 
     if (batchReportsVotes[batchReportHash] >= oracleQuorum) {
       batchReportConsensus[_blockNumber] = batchReportHash;
