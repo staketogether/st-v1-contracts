@@ -292,16 +292,13 @@ contract StakeTogether is SETH {
     );
   }
 
-  function removeValidators(bytes[] calldata _publicKeys) external nonReentrant onlyRewardsContract {
-    for (uint i = 0; i < _publicKeys.length; i++) {
-      bytes calldata publicKey = _publicKeys[i];
-      require(validators[publicKey], 'PUBLIC_KEY_NOT_FOUND');
+  function removeValidator(bytes calldata _publicKey) external payable nonReentrant onlyRewardsContract {
+    require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
-      validators[publicKey] = false;
-      totalValidators--;
+    validators[_publicKey] = false;
+    totalValidators--;
 
-      emit RemoveValidator(msg.sender, publicKey);
-    }
+    emit RemoveValidator(msg.sender, _publicKey);
   }
 
   function isValidator(bytes memory _publicKey) public view returns (bool) {
