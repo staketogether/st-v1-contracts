@@ -194,8 +194,8 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
    *****************/
 
   event SubmitSingleReport(address indexed oracle, uint256 indexed blockNumber, bytes32 reportHash);
-  event SingleAndBatchesConsensusApproved(uint256 indexed blockNumber, bytes32 reportHash);
-  event SingleConsensusFail(uint256 indexed blockNumber, bytes32 reportHash);
+  event SingleAndBatchesConsensusApprove(uint256 indexed blockNumber, bytes32 reportHash);
+  event SingleConsensusReject(uint256 indexed blockNumber, bytes32 reportHash);
 
   event SubmitBatchReport(
     address indexed oracle,
@@ -204,10 +204,10 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     bytes32 batchReportHash
   );
 
-  event SingleConsensusApproved(uint256 indexed blockNumber, bytes32 singleReportHash);
+  event SingleConsensusApprove(uint256 indexed blockNumber, bytes32 singleReportHash);
 
-  event BatchConsensusApproved(uint256 indexed blockNumber, bytes32 batchReportHash);
-  event BatchConsensusFail(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
+  event BatchConsensusApprove(uint256 indexed blockNumber, bytes32 batchReportHash);
+  event BatchConsensusReject(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
 
   event ExecuteSingleReport(uint256 indexed blockNumber, bytes32 singleReportHash, SingleReport report);
   event ExecuteBatchReport(
@@ -232,13 +232,13 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     uint256 pools;
   }
 
-  struct PoolsBatches {
+  struct PoolBatches {
     uint256 total;
     uint256 totalSubmitted;
     uint256 totalSharesSubmitted;
   }
 
-  struct ValidatorsBatches {
+  struct ValidatorBatches {
     uint256 total;
     uint256 totalSubmitted;
   }
@@ -257,19 +257,19 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   struct SingleReport {
     address oracle;
     uint256 blockNumber;
-    uint256 batchesReports;
+    uint256 batchReports;
     uint256 beaconBalance;
     Shares shares;
     Amounts amounts;
-    PoolsBatches poolsBatches;
-    ValidatorsBatches validatorsBatches;
+    PoolBatches poolBatches;
+    ValidatorBatches validatorBatches;
   }
 
   struct BatchReport {
     address oracle;
     uint256 blockNumber;
     uint256 batchNumber;
-    bytes32 reportHash;
+    bytes32 singleReportHash;
     Pool[] pools;
     Validator[] validators;
   }
@@ -289,7 +289,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   mapping(bytes32 => bool) public batchOracleReport;
   mapping(bytes32 => bytes32) public batchReportConsensus;
 
-  mapping(bytes32 => uint256) public batchNumber;
+  mapping(uint256 => uint256) public batchReportsForBlock;
   mapping(bytes32 => bool) public consensusReports;
 
   mapping(uint256 => bool) public executedSingleReports;
@@ -311,8 +311,8 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     // uint256 _batchesReports,
     // Shares memory _shares,
     // Amounts memory _amounts,
-    // PoolsBatches memory _poolsBatches,
-    // ValidatorsBatches memory _validatorsBatches
+    // PoolBatches memory _poolsBatches,
+    // ValidatorBatches memory _validatorsBatches
     onlyOracle
     whenNotPaused
   {
@@ -349,7 +349,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     if (singleReportsVotes[_reportHash] >= oracleQuorum) {
       singleReportConsensus[_blockNumber] = _reportHash;
-      emit SingleConsensusApproved(_blockNumber, _reportHash);
+      emit SingleConsensusApprove(_blockNumber, _reportHash);
 
       // Todo: Penalize oracle if report is invalid
     }
@@ -406,17 +406,17 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     if (batchReportsVotes[_batchReportHash] >= oracleQuorum) {
       batchReportConsensus[batchReportKey] = _batchReportHash;
       // batchNumber[batchReportKey]++;
-      emit BatchConsensusApproved(_blockNumber, _batchReportHash);
+      emit BatchConsensusApprove(_blockNumber, _batchReportHash);
 
-      // if (batchNumber[_blockNumber] == singleReports[_reportHash].batchesReports) {
+      // if (batchNumber[_blockNumber] == singleReports[_reportHash].batchReports) {
       //   consensusReports[_reportHash] = true;
-      //   emit SingleAndBatchesConsensusApproved(_blockNumber, _reportHash);
+      //   emit SingleAndBatchesConsensusApprove(_blockNumber, _reportHash);
       // }
 
       // Todo: Penalize oracle if report is invalid
     }
 
-    // if (batchNumber[_blockNumber] == singleReports[singleReportConsensus[_blockNumber]].batchesReports) {
+    // if (batchNumber[_blockNumber] == singleReports[singleReportConsensus[_blockNumber]].batchReports) {
     //   executionPending = false;
     //   reportNextBlock += reportFrequency;
 
@@ -426,22 +426,50 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     emit SubmitBatchReport(msg.sender, _blockNumber, _batchNumber, _batchReportHash);
   }
 
-  function executeSingleReport(uint256 _blockNumber) external onlyOracle whenNotPaused nonReentrant {
-    // require(!executionPending, 'EXECUTION_PENDING');
-    // bytes32 singleReportHash = singleReportConsensus[_blockNumber];
-    // require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
-    // require(!executedSingleReports[_blockNumber], 'REPORT_ALREADY_EXECUTED');
-    // SingleReport memory report = singleReports[singleReportHash];
-    // // TODO: Execute Single Report
-    // executedSingleReports[_blockNumber] = true;
-    // emit ExecuteSingleReport(_blockNumber, singleReportHash, report);
+  function executeSingleReport(
+    SingleReport memory _singleReport
+  ) external onlyOracle whenNotPaused nonReentrant {
+    bytes32 singleConsensusHash = singleReportConsensus[_singleReport.blockNumber];
+    bytes32 singleReportHash = keccak256(abi.encode(_singleReport));
+
+    require(!executionPending, 'EXECUTION_PENDING');
+    require(singleConsensusHash != bytes32(0), 'SINGLE_REPORT_HASH_ALREADY_EXECUTED');
+    require(!executedSingleReports[_singleReport.blockNumber], 'SINGLE_REPORT_ALREADY_EXECUTED');
+    require(singleReportHash == singleConsensusHash, 'INVALID_DATA_FOR_SINGLE_REPORT');
+
+    // TODO: Valid Single Report
+
+    stakeTogether.setBeaconBalance(_singleReport.blockNumber, _singleReport.beaconBalance);
+
+    stakeTogether.mintRewards{ value: _singleReport.amounts.stakeTogether }(
+      _singleReport.blockNumber,
+      stakeTogether.stakeTogetherFeeAddress(),
+      _singleReport.shares.stakeTogether
+    );
+
+    stakeTogether.mintRewards{ value: _singleReport.amounts.operators }(
+      _singleReport.blockNumber,
+      stakeTogether.operatorFeeAddress(),
+      _singleReport.shares.operators
+    );
+
+    batchReportsForBlock[_singleReport.blockNumber] = _singleReport.batchReports;
+    executedSingleReports[_singleReport.blockNumber] = true;
+    executionPending = true;
+    emit ExecuteSingleReport(_singleReport.blockNumber, singleReportHash, _singleReport);
   }
 
   function executeBatchReport(
-    uint256 _blockNumber,
-    uint256 _batchNumber
+    BatchReport memory _batchReport
   ) external onlyOracle whenNotPaused nonReentrant {
-    // require(!executionPending, 'EXECUTION_PENDING');
+    require(!executionPending, 'EXECUTION_PENDING');
+
+    bytes32 batchReportKey = keccak256(
+      abi.encodePacked(_batchReport.blockNumber, _batchReport.batchNumber)
+    );
+    require(batchReportConsensus[batchReportKey] != bytes32(0), 'BATCH_CONSENSUS_NOT_APPROVED');
+    // Todo: Continue From Here
+
     // bytes32 singleReportHash = singleReportConsensus[_blockNumber];
     // require(singleReportHash != bytes32(0), 'NO_CONSENSUS_ON_REPORT');
     // require(executedSingleReports[_blockNumber], 'SINGLE_REPORT_NOT_EXECUTED_YET');
@@ -451,7 +479,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     // require(report.batchNumber == _batchNumber, 'BATCH_NUMBER_MISMATCH');
     // // TODO: Execute Batch Report
     // executedBatchReports[_blockNumber]++;
-    // if (singleReports[singleReportHash].batchesReports == _batchNumber) {
+    // if (singleReports[singleReportHash].batchReports == _batchNumber) {
     //   executedReports[_blockNumber] = true;
     //   emit ReportExecuted(_blockNumber, singleReportHash);
     // }
@@ -503,16 +531,16 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   //   blockExecuteReportValidation(consensusReport);
 
-  //   bool isConsensusApproved = consensusReport.shares.pools ==
+  //   bool isConsensusApprove = consensusReport.shares.pools ==
   //     consensusReport.pools.totalSharesSubmitted &&
   //     consensusReport.pools.total == consensusReport.pools.totalSubmitted;
 
-  //   if (votes >= oracleQuorum && isConsensusApproved) {
+  //   if (votes >= oracleQuorum && isConsensusApprove) {
   //     consensusReport.meta.consensus = true;
   //     _blockReportActions(consensusReport);
-  //     emit SingleConsensusApproved(_blockNumber, consensusReportHash);
+  //     emit SingleConsensusApprove(_blockNumber, consensusReportHash);
   //   } else {
-  //     emit SingleConsensusFail(_blockNumber, consensusReportHash);
+  //     emit SingleConsensusReject(_blockNumber, consensusReportHash);
   //   }
 
   //   reportLastBlock = reportNextBlock;
@@ -633,7 +661,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   //   poolReport.consensus = true;
 
   //   _poolReportActions(poolReport);
-  //   emit BatchConsensusApproved(_blockNumber, _pool, poolReportHash);
+  //   emit BatchConsensusApprove(_blockNumber, _pool, poolReportHash);
   // }
 
   // function isPoolReportReady(uint256 blockNumber, address pool) public view returns (bool) {
