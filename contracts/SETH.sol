@@ -108,8 +108,8 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return tokensAmount;
   }
 
-  function allowance(address _owner, address _spender) public view override returns (uint256) {
-    return allowances[_owner][_spender];
+  function allowance(address _account, address _spender) public view override returns (uint256) {
+    return allowances[_account][_spender];
   }
 
   function approve(address _spender, uint256 _amount) public override returns (bool) {
@@ -131,12 +131,12 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function totalPooledEther() public view virtual returns (uint256);
 
-  function _approve(address _owner, address _spender, uint256 _amount) internal override {
-    require(_owner != address(0), 'APPROVE_FROM_ZERO_ADDR');
+  function _approve(address _account, address _spender, uint256 _amount) internal override {
+    require(_account != address(0), 'APPROVE_FROM_ZERO_ADDR');
     require(_spender != address(0), 'APPROVE_TO_ZERO_ADDR');
 
-    allowances[_owner][_spender] = _amount;
-    emit Approval(_owner, _spender, _amount);
+    allowances[_account][_spender] = _amount;
+    emit Approval(_account, _spender, _amount);
   }
 
   function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
@@ -177,11 +177,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _owner, address _spender, uint256 _amount) internal override {
-    uint256 currentAllowance = allowances[_owner][_spender];
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
+    uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
-      _approve(_owner, _spender, currentAllowance - _amount);
+      _approve(_account, _spender, currentAllowance - _amount);
     }
   }
 
@@ -346,16 +346,19 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function setValidatorFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
     validatorFeeAddress = _to;
     emit SetValidatorFeeAddress(_to);
   }
 
   function setLiquidityFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
     liquidityFeeAddress = _to;
     emit SetLiquidityFeeAddress(_to);
   }
 
   function setPoolFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
     newPoolFeeAddress = _to;
     emit SetNewPoolFeeAddress(_to);
   }
@@ -425,6 +428,12 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   /*****************
    ** REWARDS **
    *****************/
+
+  modifier onlyRewardsContract() {
+    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTACT');
+    _;
+  }
+
   struct Reward {
     address recipient;
     uint256 shares;
@@ -437,75 +446,32 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     Pool
   }
 
-  struct RewardReport {
-    uint256 reportBlock;
-    uint256 reportPart;
-    uint256 reportTotalParts;
-    uint256 totalRewardsShares;
-    uint256 totalRewardsAmount;
-    uint256 stakeTogetherShares;
-    uint256 stakeTogetherAmount;
-    uint256 operatorShares;
-    uint256 operatorAmount;
-    uint256 poolShares;
-    uint256 poolAmount;
-  }
-
-  struct RewardReportProcessing {
-    bool isProcessed;
-    uint256 partsProcessed;
-  }
-
-  mapping(uint256 => RewardReportProcessing) public processedReports;
-
   uint256 public beaconBalance = 0;
 
-  event SetBeaconBalance(uint256 amount);
-  event MintRewards(address indexed to, uint256 sharesAmount, RewardType rewardType);
-  event SetRewards(RewardReport report);
+  event MintRewards(uint256 blockNumber, address indexed to, uint256 sharesAmount, RewardType rewardType);
+  event MintLoss(uint256 blockNumber, uint256 amount);
 
-  function setBeaconBalance(uint256 _beaconBalance) external nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
-    beaconBalance = _beaconBalance;
-    emit SetBeaconBalance(_beaconBalance);
-  }
-
-  function setRewards(
-    Reward memory _stakeTogetherReward,
-    Reward memory _operatorReward,
-    Reward[] memory _poolRewards,
-    RewardReport memory _rewardReport
-  ) external nonReentrant {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTRACT');
-
-    RewardReportProcessing storage reportProcessing = processedReports[_rewardReport.reportBlock];
-    require(!reportProcessing.isProcessed, 'REPORT_ALREADY_PROCESSED');
-    require(reportProcessing.partsProcessed < _rewardReport.reportPart, 'REPORT_PART_ALREADY_PROCESSED');
-
-    _mintRewards(stakeTogetherFeeAddress, _stakeTogetherReward.shares, RewardType.StakeTogether);
-    _mintRewards(operatorFeeAddress, _operatorReward.shares, RewardType.Operator);
-
-    for (uint i = 0; i < _poolRewards.length; i++) {
-      Reward memory poolReward = _poolRewards[i];
-      _mintRewards(poolReward.recipient, poolReward.shares, RewardType.Pool);
-    }
-
-    reportProcessing.partsProcessed = _rewardReport.reportPart;
-    if (reportProcessing.partsProcessed == _rewardReport.reportTotalParts) {
-      reportProcessing.isProcessed = true;
-    }
-
-    emit SetRewards(_rewardReport);
-  }
-
-  function _mintRewards(address rewardAddress, uint256 sharesAmount, RewardType rewardType) internal {
+  function mintRewards(
+    uint256 blockNumber,
+    address rewardAddress,
+    uint256 sharesAmount
+  ) external payable nonReentrant onlyRewardsContract {
     _mintShares(rewardAddress, sharesAmount);
+    _mintPoolShares(rewardAddress, rewardAddress, sharesAmount);
 
-    if (rewardType == RewardType.Pool) {
-      _mintPoolShares(rewardAddress, rewardAddress, sharesAmount);
+    if (rewardAddress == stakeTogetherFeeAddress) {
+      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.StakeTogether);
+    } else if (rewardAddress == operatorFeeAddress) {
+      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Operator);
+    } else {
+      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Pool);
     }
+  }
 
-    emit MintRewards(rewardAddress, sharesAmount, rewardType);
+  function mintLoss(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyRewardsContract {
+    beaconBalance -= _lossAmount;
+    require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
+    emit MintLoss(_blockNumber, _lossAmount);
   }
 
   /*****************
