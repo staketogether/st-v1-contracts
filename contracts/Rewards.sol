@@ -34,67 +34,91 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
    ** TIME LOCK **
    *****************/
 
-  event ProposeTimeLockAction(string action, uint256 value, address target, uint256 executionTime);
-  event ExecuteTimeLockAction(string action);
-  event SetTimeLockDuration(uint256 newDuration);
-  event SetOraclePenalizeLimit(uint256 newLimit);
-  event SetBlockReportGrowthLimit(uint256 newLimit);
+  event ProposeTimeLockAction(
+    bytes32 indexed actionKey,
+    string action,
+    uint256 value,
+    address target,
+    uint256 executionTime
+  );
+  event ExecuteTimeLockAction(bytes32 indexed actionKey, string action);
 
-  // Todo: add missing events
-  // Todo: check if is missing some actions
+  event SetTimeLockDuration(uint256 newDuration);
+  event SetBlockReportGrowthLimit(uint256 newLimit);
+  event AddOracle(address oracle);
+  event RemoveOracle(address oracle);
+  event SetOraclePenalizeLimit(uint256 newLimit);
+  event SetOracleQuorum(uint256 newQuorum);
+  event SetBunkerMode(bool bunkerMode);
 
   struct TimeLockedProposal {
+    string action;
     uint256 value;
     address target;
     uint256 executionTime;
   }
 
   uint256 public timeLockDuration = 1 days / 15;
-  mapping(string => TimeLockedProposal) public timeLockedProposals;
+  mapping(bytes32 => TimeLockedProposal) public timeLockedProposals;
 
   function proposeTimeLockAction(
     string calldata action,
     uint256 value,
     address target
   ) external onlyOwner {
-    TimeLockedProposal storage proposal = timeLockedProposals[action];
-    require(proposal.executionTime < block.timestamp, 'Previous proposal still pending.');
+    bytes32 actionKey = keccak256(abi.encodePacked(action, target));
 
-    proposal.value = value;
-    proposal.target = target;
-    proposal.executionTime = block.timestamp + timeLockDuration;
+    TimeLockedProposal memory proposal = TimeLockedProposal({
+      action: action,
+      value: value,
+      target: target,
+      executionTime: block.timestamp + timeLockDuration
+    });
 
-    emit ProposeTimeLockAction(action, value, target, proposal.executionTime);
+    timeLockedProposals[actionKey] = proposal;
+
+    emit ProposeTimeLockAction(actionKey, action, value, target, proposal.executionTime);
   }
 
-  function executeTimeLockAction(string calldata action) external onlyOwner {
-    TimeLockedProposal storage proposal = timeLockedProposals[action];
+  function executeTimeLockAction(string calldata action, address target) external onlyOwner {
+    bytes32 actionKey = keccak256(abi.encodePacked(action, target));
+    TimeLockedProposal storage proposal = timeLockedProposals[actionKey];
     require(block.timestamp >= proposal.executionTime, 'Time lock not expired yet.');
 
-    if (keccak256(bytes(action)) == keccak256(bytes('setTimeLockDuration'))) {
-      timeLockDuration = proposal.value;
-      emit SetTimeLockDuration(proposal.value);
-    } else if (keccak256(bytes(action)) == keccak256(bytes('addOracle'))) {
+    if (keccak256(bytes(proposal.action)) == keccak256(bytes('setTimeLockDuration'))) {
+      _setTimeLockDuration(proposal.value);
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setBlockReportLimit'))) {
+      _setReportGrowthLimit(proposal.value);
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('addOracle'))) {
       _addOracle(proposal.target);
-    } else if (keccak256(bytes(action)) == keccak256(bytes('removeOracle'))) {
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('removeOracle'))) {
       _removeOracle(proposal.target);
-    } else if (keccak256(bytes(action)) == keccak256(bytes('setOraclePenalizeLimit'))) {
-      oraclePenalizeLimit = proposal.value;
-      emit SetOraclePenalizeLimit(proposal.value);
-    } else if (keccak256(bytes(action)) == keccak256(bytes('setBlockReportLimit'))) {
-      reportGrowthLimit = proposal.value;
-      emit SetBlockReportGrowthLimit(proposal.value);
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setOraclePenalizeLimit'))) {
+      _setOraclePenalizeLimit(proposal.value);
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setOracleQuorum'))) {
+      _setOracleQuorum(proposal.value);
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setBunkerMode'))) {
+      _setBunkerMode(proposal.value == 1);
+    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setReportFrequency'))) {
+      _setReportFrequency(proposal.value);
+    } else {
+      revert('INVALID_ACTION');
     }
 
-    // Todo: Add missing operations
+    delete timeLockedProposals[actionKey];
 
-    proposal.executionTime = 0;
-    emit ExecuteTimeLockAction(action);
+    emit ExecuteTimeLockAction(actionKey, proposal.action);
   }
 
-  function isProposalReady(string memory proposalName) public view returns (bool) {
-    TimeLockedProposal storage proposal = timeLockedProposals[proposalName];
+  function isProposalReady(string calldata action, address target) public view returns (bool) {
+    bytes32 actionKey = keccak256(abi.encodePacked(action, target));
+    TimeLockedProposal storage proposal = timeLockedProposals[actionKey];
     return block.timestamp >= proposal.executionTime;
+  }
+
+  function _setTimeLockDuration(uint256 _timeLockDuration) internal {
+    timeLockDuration = _timeLockDuration;
+    emit SetTimeLockDuration(_timeLockDuration);
   }
 
   /*****************
@@ -109,12 +133,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     _;
   }
 
-  event AddOracle(address oracle);
-  event RemoveOracle(address oracle);
-  event SetBunkerMode(bool bunkerMode);
-  event SetOracleQuorum(uint256 newQuorum);
-
-  event OraclePenalized(
+  event PenalizeOracle(
     address indexed oracle,
     uint256 penalties,
     ReportType reportType,
@@ -147,7 +166,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     return activeOracles[_oracle] && oraclesBlacklist[_oracle] < oraclePenalizeLimit;
   }
 
-  function setBunkerMode(bool _bunkerMode) external onlyOwner {
+  function addOracle(address oracle) external onlyOwner {
+    require(oracles.length < oracleQuorum, 'QUORUM_REACHED');
+    _addOracle(oracle);
+  }
+
+  function _setBunkerMode(bool _bunkerMode) internal {
     bunkerMode = _bunkerMode;
     emit SetBunkerMode(_bunkerMode);
   }
@@ -165,6 +189,11 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     activeOracles[oracle] = false;
     emit RemoveOracle(oracle);
     _updateQuorum();
+  }
+
+  function _setOracleQuorum(uint256 _oracleQuorum) internal {
+    oracleQuorum = _oracleQuorum;
+    emit SetOracleQuorum(_oracleQuorum);
   }
 
   function _updateQuorum() internal onlyOwner {
@@ -186,7 +215,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
       _removeOracle(_oracle);
     }
 
-    emit OraclePenalized(_oracle, oraclesBlacklist[_oracle], _reportType, _reportHash, remove);
+    emit PenalizeOracle(_oracle, oraclesBlacklist[_oracle], _reportType, _reportHash, remove);
+  }
+
+  function _setOraclePenalizeLimit(uint256 _oraclePenalizeLimit) internal {
+    oraclePenalizeLimit = _oraclePenalizeLimit;
+    emit SetOraclePenalizeLimit(_oraclePenalizeLimit);
   }
 
   /*****************
@@ -223,6 +257,8 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     BatchReport report
   );
   event ReportExecuted(address oracle, uint256 indexed blockNumber);
+  event SetReportGrowthLimit(uint256 reportGrowthLimit);
+  event SetReportFrequency(uint256 reportFrequency);
 
   struct Shares {
     uint256 total;
@@ -279,14 +315,18 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
   }
 
   enum ReportType {
-    Single,
-    Batch
+    SingleHashOutConsensus,
+    BatchHashOutConsensus,
+    WrongSingleHash,
+    WrongBatchHash
   }
 
+  mapping(bytes32 => address[]) public singleReportOracles;
   mapping(bytes32 => uint256) public singleReportsVotes;
   mapping(bytes32 => bool) public singleOracleReport;
   mapping(uint256 => bytes32) public singleReportConsensus;
 
+  mapping(bytes32 => address[]) public batchReportsOracles;
   mapping(bytes32 => uint256) public batchReportsVotes;
   mapping(bytes32 => bool) public batchOracleReport;
   mapping(bytes32 => bytes32) public batchReportConsensus;
@@ -300,10 +340,10 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   bool public executionPending = false;
 
-  uint256 public reportGrowthLimit = 1;
+  uint256 public reportGrowthLimit = 0.01 ether;
+  uint256 public reportFrequency = 1;
   uint256 public reportLastBlock = 0;
   uint256 public reportNextBlock = 1;
-  uint256 public reportFrequency = 1;
 
   function submitSingleReport(
     uint256 _blockNumber,
@@ -327,12 +367,27 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     singleReportsVotes[_reportHash]++;
     totalBatchReportsForBlock[_blockNumber] = _batchesReports;
+    singleReportOracles[_reportHash].push(msg.sender);
 
     if (singleReportsVotes[_reportHash] >= oracleQuorum) {
       singleReportConsensus[_blockNumber] = _reportHash;
       emit SingleConsensusApprove(_blockNumber, _reportHash);
 
-      // Todo: Penalize oracle if report is invalid
+      bytes32 otherHash;
+      for (uint256 i = 0; i < oracles.length; i++) {
+        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber));
+        if (otherHash != _reportHash) {
+          _penalizeOracle(oracles[i], ReportType.SingleHashOutConsensus, otherHash);
+        }
+      }
+
+      for (uint256 i = 0; i < oracles.length; i++) {
+        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber));
+        if (otherHash != _reportHash) {
+          delete singleReportOracles[otherHash];
+        }
+      }
+      delete singleReportOracles[_reportHash];
     }
 
     emit SubmitSingleReport(msg.sender, _blockNumber, _reportHash);
@@ -370,12 +425,27 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
     batchReportsVotes[_batchReportHash]++;
     submittedBatchReportsForBlock[_blockNumber]++;
+    batchReportsOracles[_batchReportHash].push(msg.sender);
 
     if (batchReportsVotes[_batchReportHash] >= oracleQuorum) {
       batchReportConsensus[batchReportKey] = _batchReportHash;
       emit BatchConsensusApprove(_blockNumber, _batchReportHash);
 
-      // Todo: Penalize oracle if report is invalid
+      bytes32 otherHash;
+      for (uint256 i = 0; i < oracles.length; i++) {
+        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber, _batchNumber));
+        if (otherHash != _batchReportHash) {
+          _penalizeOracle(oracles[i], ReportType.BatchHashOutConsensus, otherHash);
+        }
+      }
+
+      for (uint256 i = 0; i < oracles.length; i++) {
+        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber, _batchNumber));
+        if (otherHash != _batchReportHash) {
+          delete batchReportsOracles[otherHash];
+        }
+      }
+      delete batchReportsOracles[_batchReportHash];
     }
 
     emit SubmitBatchReport(msg.sender, _blockNumber, _batchNumber, _batchReportHash);
@@ -390,8 +460,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     require(!executionPending, 'EXECUTION_PENDING');
     require(singleConsensusHash != bytes32(0), 'SINGLE_REPORT_HASH_ALREADY_EXECUTED');
     require(!executedSingleReports[_singleReport.blockNumber], 'SINGLE_REPORT_ALREADY_EXECUTED');
+
+    if (singleReportHash != singleConsensusHash) {
+      _penalizeOracle(msg.sender, ReportType.WrongSingleHash, singleReportHash);
+    }
+
     require(singleReportHash == singleConsensusHash, 'INVALID_DATA_FOR_SINGLE_REPORT');
-    // Todo: Penalize Oracle if report is invalid
 
     require(
       executedBatchReportsForBlock[_singleReport.blockNumber] ==
@@ -434,6 +508,11 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     bytes32 batchReportKey = keccak256(
       abi.encodePacked(_batchReport.blockNumber, _batchReport.batchNumber)
     );
+
+    if (batchReportConsensus[batchReportKey] != batchReportHash) {
+      _penalizeOracle(msg.sender, ReportType.WrongBatchHash, batchReportHash);
+    }
+
     require(batchReportConsensus[batchReportKey] == batchReportHash, 'BATCH_REPORT_HASH_NOT_VALID');
     // Todo Penalize Oracle if report is invalid
 
@@ -490,214 +569,16 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     );
   }
 
-  // function _penalizeOraclesWithSingleInvalidReports(
-  //   uint256 _blockNumber,
-  //   bytes32 _consensusReportHash
-  // ) internal {
-  //   bytes32[] storage oracleReports = singleOracleReportHistory[_blockNumber][msg.sender];
-  //   uint256 numReports = oracleReports.length;
+  function _setReportGrowthLimit(uint256 _growthLimit) internal {
+    reportGrowthLimit = _growthLimit;
+    emit SetReportGrowthLimit(_growthLimit);
+  }
 
-  //   for (uint256 i = 0; i < numReports; i++) {
-  //     bytes32 reportHash = oracleReports[i];
+  function _setReportFrequency(uint256 _frequency) internal {
+    reportFrequency = _frequency;
+    emit SetReportFrequency(_frequency);
+  }
 
-  //     if (reportHash != _consensusReportHash) {
-  //       _penalizeOracle(msg.sender, ReportType.Single, reportHash);
-  //     }
-  //   }
-  // }
-
-  // function _penalizeOraclesWithInvalidBatchReports(
-  //   uint256 _blockNumber,
-  //   uint256 _batchNumber,
-  //   bytes32 _consensusReportHash
-  // ) internal {
-  //   bytes32[] storage oracleReports = batchOracleReportHistory[_blockNumber][_batchNumber][msg.sender];
-
-  //   for (uint256 i = 0; i < oracleReports.length; i++) {
-  //     bytes32 reportHash = oracleReports[i];
-
-  //     // Verificar se o relatório não corresponde ao hash do consenso
-  //     if (reportHash != _consensusReportHash) {
-  //       _penalizeOracle(msg.sender, ReportType.Batch, reportHash);
-  //     }
-  //   }
-
-  //   // Adicionar o relatório inválido ao histórico do oráculo
-  //   oracleReports.push(_consensusReportHash);
-  // }
-
-  // function executeSingleReport(uint256 _blockNumber) external onlyOracle whenNotPaused {
-  //   bytes32 consensusReportHash = singleReportConsensus[_blockNumber];
-  //   require(consensusReportHash != bytes32(0), 'INVALID_CONSENSUS_HASH');
-
-  //   uint256 votes = singleReportsVotes[consensusReportHash];
-  //   SingleReport storage consensusReport = singleReports[consensusReportHash];
-
-  //   blockExecuteReportValidation(consensusReport);
-
-  //   bool isConsensusApprove = consensusReport.shares.pools ==
-  //     consensusReport.pools.totalSharesSubmitted &&
-  //     consensusReport.pools.total == consensusReport.pools.totalSubmitted;
-
-  //   if (votes >= oracleQuorum && isConsensusApprove) {
-  //     consensusReport.meta.consensus = true;
-  //     _blockReportActions(consensusReport);
-  //     emit SingleConsensusApprove(_blockNumber, consensusReportHash);
-  //   } else {
-  //     emit SingleConsensusReject(_blockNumber, consensusReportHash);
-  //   }
-
-  //   reportLastBlock = reportNextBlock;
-  //   reportNextBlock += reportFrequency;
-  // }
-
-  // function isBlockReportReady(uint256 blockNumber) public view returns (bool) {
-  //   bytes32 reportHash = singleReportConsensus[blockNumber];
-  //   return singleReportsVotes[reportHash] >= oracleQuorum;
-  // }
-
-  // function submitSingleReportValidation(
-  //   bytes32 _reportHash,
-  //   SingleReport memory _blockReport
-  // ) public view {
-  //   // Todo: Check if is missing some validation
-  //   require(_blockReport.meta.blockNumber == reportNextBlock, 'BLOCK_REPORT_IS_NOT_NEXT_EXPECTED');
-  //   require(_blockReport.meta.consensus == false, 'INVALID_CONSENSUS_EXECUTED');
-  //   require(_blockReport.pools.totalSharesSubmitted == 0, 'INVALID_TOTAL_POOLS_SHARES_SUBMITTED');
-  //   require(_blockReport.pools.totalSubmitted == 0, 'INVALID_TOTAL_POOLS_SUBMITTED');
-
-  //   uint256 totalPooledEther = stakeTogether.totalPooledEther();
-  //   uint256 growthLimit = Math.mulDiv(totalPooledEther, reportGrowthLimit, 100);
-  //   require(_blockReport.amounts.total <= growthLimit, 'GROWTH_LIMIT_EXCEEDED');
-
-  //   uint256 stakeTogetherFee = Math.mulDiv(totalPooledEther, stakeTogether.stakeTogetherFee(), 100);
-  //   uint256 operatorFee = Math.mulDiv(totalPooledEther, stakeTogether.operatorFee(), 100);
-  //   uint256 poolFee = Math.mulDiv(totalPooledEther, stakeTogether.poolFee(), 100);
-  //   require(
-  //     stakeTogether.pooledEthByShares(_blockReport.shares.stakeTogether) <= stakeTogetherFee,
-  //     'STAKE_TOGETHER_FEE_EXCEEDED'
-  //   );
-  //   require(
-  //     stakeTogether.pooledEthByShares(_blockReport.shares.operators) <= operatorFee,
-  //     'OPERATOR_FEE_EXCEEDED'
-  //   );
-  //   require(stakeTogether.pooledEthByShares(_blockReport.shares.pools) <= poolFee, 'POOL_FEE_EXCEEDED');
-
-  //   uint256 totalShares = _blockReport.shares.stakeTogether +
-  //     _blockReport.shares.operators +
-  //     _blockReport.shares.pools;
-  //   require(totalShares == _blockReport.shares.total, 'INVALID_TOTAL_SHARES');
-
-  //   for (uint i = 0; i < _blockReport.meta.exitedValidators.length; i++) {
-  //     require(
-  //       stakeTogether.isValidator(_blockReport.meta.exitedValidators[i]),
-  //       'INVALID_EXITED_VALIDATOR'
-  //     );
-  //   }
-
-  //   uint256 expectedMaxBeaconBalance = stakeTogether.validatorSize() * stakeTogether.totalValidators();
-  //   require(
-  //     _blockReport.meta.beaconBalance <= expectedMaxBeaconBalance,
-  //     'BEACON_BALANCE_EXCEEDS_EXPECTED_MAX'
-  //   );
-
-  //   require(!singleReports[_reportHash].meta.consensus, 'BLOCK_ALREADY_EXECUTED');
-  // }
-
-  // function blockExecuteReportValidation(SingleReport memory consensusReport) public pure {
-  //   require(!consensusReport.meta.consensus, 'REPORT_ALREADY_EXECUTED');
-
-  //   require(
-  //     consensusReport.pools.total == consensusReport.pools.totalSubmitted,
-  //     'INVALID_POOLS_SUBMISSION'
-  //   );
-
-  //   require(
-  //     consensusReport.shares.pools == consensusReport.pools.totalSharesSubmitted,
-  //     'INVALID_POOLS_SHARES_SUBMISSION'
-  //   );
-  // }
-
-  // function _blockReportActions(SingleReport memory _blockReport) private {
-  //   stakeTogether.setBeaconBalance(_blockReport.meta.blockNumber, _blockReport.meta.beaconBalance);
-
-  //   stakeTogether.mintRewards{ value: _blockReport.amounts.stakeTogether }(
-  //     _blockReport.meta.blockNumber,
-  //     stakeTogether.stakeTogetherFeeAddress(),
-  //     _blockReport.shares.stakeTogether
-  //   );
-
-  //   stakeTogether.mintRewards{ value: _blockReport.amounts.operators }(
-  //     _blockReport.meta.blockNumber,
-  //     stakeTogether.operatorFeeAddress(),
-  //     _blockReport.shares.operators
-  //   );
-
-  //   stakeTogether.removeValidators(_blockReport.meta.exitedValidators);
-
-  //   // Todo: Missing
-
-  //   // uint256 poolShares;
-  //   // uint256 poolsToSubmit;
-  //   // uint256 poolsSubmitted;
-  //   // uint256 poolsSharesSubmitted;
-  //   // bool consensus;
-
-  //   // Todo: Consensus will be executed just when last pool submits the report
-  // }
-
-  // /*****************
-  //  ** POOL REPORT **
-  //  *****************/
-
-  // function executePoolConsensus(uint256 _blockNumber, address _pool) external onlyOracle whenNotPaused {
-  //   poolExecuteReportValidation(_blockNumber, _pool);
-
-  //   bytes32 blockReportHash = singleReportConsensus[_blockNumber];
-  //   require(blockReportHash != bytes32(0), 'INVALID_BLOCK_REPORT_HASH');
-  //   SingleReport storage blockReport = singleReports[blockReportHash];
-  //   require(blockReport.meta.consensus, 'BLOCK_REPORT_NOT_EXECUTED');
-
-  //   bytes32 poolReportHash = keccak256(abi.encode(_pool, blockReportHash));
-  //   BatchReport storage poolReport = batchReports[poolReportHash];
-  //   require(!poolReport.consensus, 'POOL_REPORT_ALREADY_EXECUTED');
-
-  //   poolReport.consensus = true;
-
-  //   _poolReportActions(poolReport);
-  //   emit BatchConsensusApprove(_blockNumber, _pool, poolReportHash);
-  // }
-
-  // function isPoolReportReady(uint256 blockNumber, address pool) public view returns (bool) {
-  //   bytes32 reportHash = keccak256(abi.encode(pool, singleReportConsensus[blockNumber]));
-  //   return batchReports[reportHash].consensus;
-  // }
-
-  // function poolSubmitReportValidation(BatchReport memory _poolReport) public view {
-  //   // Validate the block report
-  //   SingleReport storage blockReport = singleReports[_poolReport.blockReportHash];
-  //   require(blockReport.meta.consensus, 'BLOCK_REPORT_NOT_EXECUTED');
-
-  //   // Validate the pool
-  //   // Add your validation logic here
-  // }
-
-  // function poolExecuteReportValidation(uint256 _blockNumber, address _pool) private view {
-  //   bytes32 blockReportHash = singleReportConsensus[_blockNumber];
-  //   require(blockReportHash != bytes32(0), 'INVALID_BLOCK_REPORT_HASH');
-  //   SingleReport storage blockReport = singleReports[blockReportHash];
-  //   require(blockReport.meta.consensus, 'BLOCK_REPORT_NOT_EXECUTED');
-
-  //   bytes32 poolReportHash = keccak256(abi.encode(_pool, blockReportHash));
-  //   BatchReport storage poolReport = batchReports[poolReportHash];
-  //   require(!poolReport.consensus, 'POOL_REPORT_ALREADY_EXECUTED');
-  // }
-
-  // function _poolReportActions(BatchReport memory _poolReport) private {
-  //   stakeTogether.mintRewards{ value: _poolReport.amount }(
-  //     _poolReport.blockNumber,
-  //     _poolReport.pool,
-  //     _poolReport.sharesAmount
-  //   );
-  // }
+  // Todo: Create function to check if report is ready to be executed
+  // Todo: Move the validation outside of function to be verified externally
 }
