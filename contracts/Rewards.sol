@@ -337,6 +337,7 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
 
   mapping(uint256 => bool) public executedSingleReports;
   mapping(uint256 => bool) public executedReports;
+  mapping(uint256 => bool) public cleanedReports;
 
   bool public executionPending = false;
 
@@ -372,22 +373,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     if (singleReportsVotes[_reportHash] >= oracleQuorum) {
       singleReportConsensus[_blockNumber] = _reportHash;
       emit SingleConsensusApprove(_blockNumber, _reportHash);
-
-      bytes32 otherHash;
-      for (uint256 i = 0; i < oracles.length; i++) {
-        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber));
-        if (otherHash != _reportHash) {
-          _penalizeOracle(oracles[i], ReportType.SingleHashOutConsensus, otherHash);
-        }
-      }
-
-      for (uint256 i = 0; i < oracles.length; i++) {
-        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber));
-        if (otherHash != _reportHash) {
-          delete singleReportOracles[otherHash];
-        }
-      }
-      delete singleReportOracles[_reportHash];
     }
 
     emit SubmitSingleReport(msg.sender, _blockNumber, _reportHash);
@@ -430,22 +415,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     if (batchReportsVotes[_batchReportHash] >= oracleQuorum) {
       batchReportConsensus[batchReportKey] = _batchReportHash;
       emit BatchConsensusApprove(_blockNumber, _batchReportHash);
-
-      bytes32 otherHash;
-      for (uint256 i = 0; i < oracles.length; i++) {
-        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber, _batchNumber));
-        if (otherHash != _batchReportHash) {
-          _penalizeOracle(oracles[i], ReportType.BatchHashOutConsensus, otherHash);
-        }
-      }
-
-      for (uint256 i = 0; i < oracles.length; i++) {
-        otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber, _batchNumber));
-        if (otherHash != _batchReportHash) {
-          delete batchReportsOracles[otherHash];
-        }
-      }
-      delete batchReportsOracles[_batchReportHash];
     }
 
     emit SubmitBatchReport(msg.sender, _blockNumber, _batchNumber, _batchReportHash);
@@ -499,6 +468,12 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     }
 
     emit ExecuteSingleReport(msg.sender, _singleReport.blockNumber, singleReportHash, _singleReport);
+
+    bytes32 singleOracleKey = keccak256(abi.encodePacked(msg.sender, _singleReport.blockNumber));
+    delete singleReportOracles[singleReportHash];
+    delete singleReportsVotes[singleReportHash];
+    delete singleOracleReport[singleOracleKey];
+    delete singleReportConsensus[_singleReport.blockNumber];
   }
 
   function executeBatchReport(
@@ -514,7 +489,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     }
 
     require(batchReportConsensus[batchReportKey] == batchReportHash, 'BATCH_REPORT_HASH_NOT_VALID');
-    // Todo Penalize Oracle if report is invalid
 
     bytes32 singleReportHash = singleReportConsensus[_batchReport.blockNumber];
     require(singleReportHash != bytes32(0), 'NO_SINGLE_REPORT_CONSENSUS');
@@ -530,15 +504,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     );
 
     executedBatchReportsForBlock[_batchReport.blockNumber]++;
-
-    if (
-      executedBatchReportsForBlock[_batchReport.blockNumber] ==
-      totalBatchReportsForBlock[_batchReport.blockNumber]
-    ) {
-      executionPending = false;
-      reportNextBlock += reportFrequency;
-      emit ReportExecuted(msg.sender, _batchReport.blockNumber);
-    }
 
     // TODO: Valid Batch Report
 
@@ -567,6 +532,59 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
       batchReportHash,
       _batchReport
     );
+
+    if (
+      executedBatchReportsForBlock[_batchReport.blockNumber] ==
+      totalBatchReportsForBlock[_batchReport.blockNumber]
+    ) {
+      executionPending = false;
+      reportNextBlock += reportFrequency;
+      executedReports[_batchReport.blockNumber] = true;
+      emit ReportExecuted(msg.sender, _batchReport.blockNumber);
+    }
+  }
+
+  function cleanupReport(uint256 _blockNumber) external onlyOracle {
+    require(executedReports[_blockNumber], 'REPORT_NOT_EXECUTED');
+    require(!cleanedReports[_blockNumber], 'REPORT_ALREADY_CLEANED');
+
+    // Cleanup single report variables
+    bytes32 singleReportHash = singleReportConsensus[_blockNumber];
+    delete singleReportOracles[singleReportHash];
+    delete singleReportsVotes[singleReportHash];
+    delete singleReportConsensus[_blockNumber];
+
+    // Cleanup batch report variables
+    for (uint256 i = 0; i < totalBatchReportsForBlock[_blockNumber]; i++) {
+      bytes32 batchReportKey = keccak256(abi.encodePacked(_blockNumber, i));
+      bytes32 batchReportHash = batchReportConsensus[batchReportKey];
+      delete batchReportsOracles[batchReportHash];
+      delete batchReportsVotes[batchReportHash];
+      delete batchReportConsensus[batchReportKey];
+    }
+
+    // Cleanup penalized oracles in batch reports
+    bytes32 otherHash;
+    for (uint256 i = 0; i < oracles.length; i++) {
+      otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber));
+      if (otherHash != singleReportHash) {
+        _penalizeOracle(oracles[i], ReportType.SingleHashOutConsensus, otherHash);
+      }
+    }
+
+    // Cleanup penalized oracles in single reports
+    for (uint256 i = 0; i < oracles.length; i++) {
+      otherHash = keccak256(abi.encodePacked(oracles[i], _blockNumber));
+      if (otherHash != singleReportHash) {
+        delete singleReportOracles[otherHash];
+      }
+    }
+
+    // Reset counters
+    delete submittedBatchReportsForBlock[_blockNumber];
+    delete executedBatchReportsForBlock[_blockNumber];
+
+    cleanedReports[_blockNumber] = true;
   }
 
   function _setReportGrowthLimit(uint256 _growthLimit) internal {
