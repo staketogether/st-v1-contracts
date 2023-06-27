@@ -468,12 +468,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
     }
 
     emit ExecuteSingleReport(msg.sender, _singleReport.blockNumber, singleReportHash, _singleReport);
-
-    bytes32 singleOracleKey = keccak256(abi.encodePacked(msg.sender, _singleReport.blockNumber));
-    delete singleReportOracles[singleReportHash];
-    delete singleReportsVotes[singleReportHash];
-    delete singleOracleReport[singleOracleKey];
-    delete singleReportConsensus[_singleReport.blockNumber];
   }
 
   function executeBatchReport(
@@ -503,9 +497,18 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
       'BATCH_REPORTS_EXCEEDED'
     );
 
+    // TODO: Valid Batch Report
+
     executedBatchReportsForBlock[_batchReport.blockNumber]++;
 
-    // TODO: Valid Batch Report
+    if (
+      executedBatchReportsForBlock[_batchReport.blockNumber] ==
+      totalBatchReportsForBlock[_batchReport.blockNumber]
+    ) {
+      executionPending = false;
+      reportNextBlock += reportFrequency;
+      executedReports[_batchReport.blockNumber] = true;
+    }
 
     for (uint i = 0; i < _batchReport.pools.length; i++) {
       Pool memory pool = _batchReport.pools[i];
@@ -537,9 +540,6 @@ contract Rewards is Ownable, Pausable, ReentrancyGuard {
       executedBatchReportsForBlock[_batchReport.blockNumber] ==
       totalBatchReportsForBlock[_batchReport.blockNumber]
     ) {
-      executionPending = false;
-      reportNextBlock += reportFrequency;
-      executedReports[_batchReport.blockNumber] = true;
       emit ReportExecuted(msg.sender, _batchReport.blockNumber);
     }
   }

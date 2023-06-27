@@ -263,16 +263,16 @@ contract StakeTogether is SETH {
     require(poolBalance() >= poolSize + validatorFee, 'NOT_ENOUGH_POOL_BALANCE');
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
+    validators[_publicKey] = true;
+    totalValidators++;
+    beaconBalance += validatorSize;
+
     depositContract.deposit{ value: validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
-
-    validators[_publicKey] = true;
-    totalValidators++;
-    beaconBalance += validatorSize;
 
     payable(validatorFeeAddress).transfer(validatorFee);
 

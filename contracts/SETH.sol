@@ -108,8 +108,8 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return tokensAmount;
   }
 
-  function allowance(address _owner, address _spender) public view override returns (uint256) {
-    return allowances[_owner][_spender];
+  function allowance(address _account, address _spender) public view override returns (uint256) {
+    return allowances[_account][_spender];
   }
 
   function approve(address _spender, uint256 _amount) public override returns (bool) {
@@ -131,12 +131,12 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function totalPooledEther() public view virtual returns (uint256);
 
-  function _approve(address _owner, address _spender, uint256 _amount) internal override {
-    require(_owner != address(0), 'APPROVE_FROM_ZERO_ADDR');
+  function _approve(address _account, address _spender, uint256 _amount) internal override {
+    require(_account != address(0), 'APPROVE_FROM_ZERO_ADDR');
     require(_spender != address(0), 'APPROVE_TO_ZERO_ADDR');
 
-    allowances[_owner][_spender] = _amount;
-    emit Approval(_owner, _spender, _amount);
+    allowances[_account][_spender] = _amount;
+    emit Approval(_account, _spender, _amount);
   }
 
   function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
@@ -177,11 +177,11 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _owner, address _spender, uint256 _amount) internal override {
-    uint256 currentAllowance = allowances[_owner][_spender];
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
+    uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
-      _approve(_owner, _spender, currentAllowance - _amount);
+      _approve(_account, _spender, currentAllowance - _amount);
     }
   }
 
@@ -346,16 +346,19 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   }
 
   function setValidatorFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
     validatorFeeAddress = _to;
     emit SetValidatorFeeAddress(_to);
   }
 
   function setLiquidityFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
     liquidityFeeAddress = _to;
     emit SetLiquidityFeeAddress(_to);
   }
 
   function setPoolFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
     newPoolFeeAddress = _to;
     emit SetNewPoolFeeAddress(_to);
   }
@@ -467,7 +470,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   function mintLoss(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyRewardsContract {
     beaconBalance -= _lossAmount;
-    require(totalPooledEther() >= 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
+    require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintLoss(_blockNumber, _lossAmount);
   }
 
