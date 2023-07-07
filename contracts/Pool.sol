@@ -5,15 +5,21 @@ import './StakeTogether.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import { IPool } from './interfaces/IPool.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Pool is Ownable, Pausable, ReentrancyGuard, IMerkleDistributor {
+contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   StakeTogether public stakeTogether;
   Distributor public distribution;
 
+  constructor(StakeTogether _stakeTogether, Distributor _distributor) payable {
+    stakeTogether = StakeTogether(payable(_stakeTogether));
+    distribution = Distributor(payable(_distributor));
+  }
+
   modifier onlyDistributor() {
-    require(msg.sender == address(rewardsContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+    require(msg.sender == address(distribution), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
 
@@ -31,9 +37,78 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IMerkleDistributor {
     payable(address(stakeTogether)).transfer(address(this).balance);
   }
 
-  constructor(StakeTogether _stakeTogether, Distributor _distributor) payable {
-    stakeTogether = StakeTogether(payable(_stakeTogether));
-    distribution = Distributor(payable(_distributor));
+  /***********************
+   ** POOLS **
+   ***********************/
+
+  // Todo: Add Pool Manager Address (3rd party)
+  // Todo: Add Only Owner Mode
+
+  event AddPool(address account);
+  event RemovePool(address account);
+  event SetMaxPools(uint256 maxPools);
+  event SetPoolFee(uint256 poolFee);
+
+  uint256 public maxPools = 100000;
+  address[] private pools;
+  uint256 public addPoolFee = 0.1 ether;
+
+  function getPools() external view returns (address[] memory) {
+    return pools;
+  }
+
+  function setMaxPools(uint256 _maxPools) external onlyOwner {
+    maxPools = _maxPools;
+    emit SetMaxPools(_maxPools);
+  }
+
+  function setAddPoolFee(uint256 _addPoolFee) external onlyOwner {
+    addPoolFee = _addPoolFee;
+    emit SetPoolFee(_addPoolFee);
+  }
+
+  function addPool(address _pool) external payable {
+    require(_pool != address(0), 'ZERO_ADDR');
+    require(_pool != address(this), 'POOL_CANNOT_BE_THIS');
+    require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
+    require(_pool != address(distribution), 'POOL_CANNOT_BE_DISTRIBUTOR');
+    require(!isPool(_pool), 'NON_POOL');
+    require(pools.length < maxPools, 'MAX_POOLS_REACHED');
+
+    pools.push(_pool);
+    emit AddPool(_pool);
+
+    if (msg.sender != owner() && msg.sender != poolModuleAddress) {
+      require(msg.value >= newPoolFee, 'NOT_ENOUGH_POOL_CREATION_FEE');
+      payable(stakeTogether.stakeTogetherFeeAddress()).transfer(newPoolFee);
+    }
+  }
+
+  function removePool(address _pool) external {
+    require(isPool(_pool), 'POOL_NOT_FOUND');
+
+    for (uint256 i = 0; i < pools.length; i++) {
+      if (pools[i] == _pool) {
+        pools[i] = pools[pools.length - 1];
+        pools.pop();
+        break;
+      }
+    }
+    emit RemovePool(_pool);
+  }
+
+  // Todo: Optimize Pool Storage
+  function isPool(address _pool) internal view returns (bool) {
+    if (_pool == address(this)) {
+      return true;
+    }
+
+    for (uint256 i = 0; i < pools.length; i++) {
+      if (pools[i] == _pool) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /***********************
@@ -61,13 +136,13 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IMerkleDistributor {
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
-  ) external nonReentrant whenNotPaused {
-    require(rewardsMerkleRoots[epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
+  ) public nonReentrant whenNotPaused {
+    require(rewardsMerkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
     require(_account != address(0), 'INVALID_ADDRESS');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
-    if (isClaimed(_epoch, _index)) revert('ALREADY_CLAIMED');
+    if (isRewardsClaimed(_epoch, _index)) revert('ALREADY_CLAIMED');
 
-    bytes32 leaf = keccak256(abi.encodePacked(index, _account, _sharesAmount));
+    bytes32 leaf = keccak256(abi.encodePacked(_index, _account, _sharesAmount));
     if (!MerkleProof.verify(merkleProof, rewardsMerkleRoots[_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
@@ -75,7 +150,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IMerkleDistributor {
 
     stakeTogether.mintRewards(address(this), _sharesAmount);
 
-    emit ClaimRewards(_epoch, index, _account, _sharesAmount);
+    emit ClaimRewards(_epoch, _index, _account, _sharesAmount);
   }
 
   function claimRewardsBatch(
