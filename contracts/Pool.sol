@@ -56,6 +56,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   address public poolManager;
 
   function setMaxPools(uint256 _maxPools) external onlyOwner {
+    require(_maxPools >= poolCount, 'INVALID_MAX_POOLS');
     maxPools = _maxPools;
     emit SetMaxPools(_maxPools);
   }
@@ -66,6 +67,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   }
 
   function setPoolManager(address _poolManager) external onlyOwner {
+    require(_poolManager != address(0), 'ZERO_ADDR');
     poolManager = _poolManager;
     emit SetPoolManager(_poolManager);
   }
@@ -93,12 +95,13 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
         payable(stakeTogether.stakeTogetherFeeAddress()).transfer(addPoolFee);
       }
     } else {
-      require(msg.sender == owner() || msg.sender == poolManager, 'NOT_ALLOWED');
+      require(msg.sender == owner() || msg.sender == poolManager, 'NOT_AUTHORIZED');
     }
   }
 
   function removePool(address _pool) external {
     require(isPool(_pool), 'POOL_NOT_FOUND');
+    require(msg.sender == owner() || msg.sender == poolManager, 'NOT_AUTHORIZED');
 
     pools[_pool] = false;
     poolCount -= 1;
