@@ -242,12 +242,6 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   event SetReportEpochFrequency(uint256 epoch);
   event SetReportEpochNumber(uint256 epochNumber);
 
-  struct Pool {
-    address account;
-    uint256 amount;
-    uint256 sharesAmount;
-  }
-
   struct Validator {
     bytes publicKey;
     uint256 amount;

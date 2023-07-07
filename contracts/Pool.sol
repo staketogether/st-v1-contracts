@@ -6,17 +6,20 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import { IPool } from './interfaces/IPool.sol';
+import './interfaces/IPool.sol';
+import './Distributor.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   StakeTogether public stakeTogether;
   Distributor public distribution;
 
-  constructor(StakeTogether _stakeTogether, Distributor _distributor) payable {
-    stakeTogether = StakeTogether(payable(_stakeTogether));
-    distribution = Distributor(payable(_distributor));
+  constructor() payable {
+    setPoolManager(msg.sender);
   }
+
+  event SetStakeTogether(address stakeTogether);
+  event SetDistributor(address distributor);
 
   modifier onlyDistributor() {
     require(msg.sender == address(distribution), 'ONLY_DISTRIBUTOR_CONTRACT');
@@ -31,6 +34,18 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   fallback() external payable {
     _transferToStakeTogether();
     emit EtherReceived(msg.sender, msg.value);
+  }
+
+  function setStakeTogether(address _stakeTogether) external onlyOwner {
+    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
+    stakeTogether = StakeTogether(payable(_stakeTogether));
+    emit SetStakeTogether(_stakeTogether);
+  }
+
+  function setDistributor(address _distributor) external onlyOwner {
+    require(_distributor != address(0), 'DISTIBUTOR_ALREADY_SET');
+    distribution = Distributor(payable(_distributor));
+    emit SetDistributor(_distributor);
   }
 
   function _transferToStakeTogether() private {
@@ -63,10 +78,10 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
 
   function setAddPoolFee(uint256 _addPoolFee) external onlyOwner {
     addPoolFee = _addPoolFee;
-    emit SetPoolFee(_addPoolFee);
+    emit SetAddPoolFee(_addPoolFee);
   }
 
-  function setPoolManager(address _poolManager) external onlyOwner {
+  function setPoolManager(address _poolManager) public onlyOwner {
     require(_poolManager != address(0), 'ZERO_ADDR');
     poolManager = _poolManager;
     emit SetPoolManager(_poolManager);
