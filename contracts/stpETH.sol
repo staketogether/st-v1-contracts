@@ -15,13 +15,13 @@ import './Pool.sol';
 import './stwETH.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
+abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
   Distributor public distributorContract;
   Pool public poolContract;
   Validator public validatorContract;
   stwETH public stwETHContract;
 
-  constructor() ERC20('Stake Together Ether', 'SETH') ERC20Permit('Stake Together Ether') {
+  constructor() ERC20('Stake Together Pool Ether', 'SETH') ERC20Permit('Stake Together Pool Ether') {
     _bootstrap();
   }
 

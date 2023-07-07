@@ -3,11 +3,11 @@
 pragma solidity ^0.8.18;
 
 import '@openzeppelin/contracts/utils/math/Math.sol';
-import './SETH.sol';
+import './stpETH.sol';
 import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract StakeTogether is SETH {
+contract StakeTogether is stpETH {
   IDepositContract public immutable depositContract;
   bytes public withdrawalCredentials;
 
@@ -36,7 +36,7 @@ contract StakeTogether is SETH {
   }
 
   /*****************
-   ** BUFFER **
+   ** STAKE BUFFER **
    *****************/
 
   event DepositPool(

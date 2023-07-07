@@ -19,8 +19,8 @@ contract stwETH is Ownable, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC
   event Withdraw(address indexed user, uint256 amount);
 
   constructor()
-    ERC20('Stake Together Withdrawal ETH', 'stwETH')
-    ERC20Permit('Stake Together Withdrawal ETH')
+    ERC20('Stake Together Withdrawal Ether', 'stwETH')
+    ERC20Permit('Stake Together Withdrawal Ether')
   {}
 
   receive() external payable {
