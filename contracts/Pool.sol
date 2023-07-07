@@ -77,7 +77,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     emit SetPermissionLessAddPool(_permissionLessAddPool);
   }
 
-  function addPool(address _pool) external payable {
+  function addPool(address _pool) external payable nonReentrant {
     require(_pool != address(0), 'ZERO_ADDR');
     require(_pool != address(this), 'POOL_CANNOT_BE_THIS');
     require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
@@ -116,8 +116,12 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
    ** REWARDS **
    ***********************/
 
+  event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
+  event SetMaxBatchSize(uint256 maxBatchSize);
+
   mapping(uint256 => bytes32) public rewardsMerkleRoots;
   mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
+  uint256 public maxBatchSize = 100;
 
   function addRewardsMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyDistributor {
     require(rewardsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
@@ -149,7 +153,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
 
     _setRewardsClaimed(_epoch, _index);
 
-    stakeTogether.mintRewards(address(this), _sharesAmount);
+    stakeTogether.mintRewards(_account, _sharesAmount);
 
     emit ClaimRewards(_epoch, _index, _account, _sharesAmount);
   }
@@ -160,9 +164,9 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     address[] calldata _accounts,
     uint256[] calldata _sharesAmounts,
     bytes32[][] calldata merkleProofs
-  ) external nonReentrant {
+  ) external nonReentrant whenNotPaused {
     uint256 length = _epochs.length;
-
+    require(length <= maxBatchSize, 'BATCH_SIZE_EXCEEDS_LIMIT');
     require(
       _indices.length == length &&
         _accounts.length == length &&
@@ -171,9 +175,18 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
       'INVALID_ARRAYS_LENGTH'
     );
 
+    uint256 totalAmount = 0;
     for (uint256 i = 0; i < length; i++) {
       claimRewards(_epochs[i], _indices[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
+      totalAmount += _sharesAmounts[i];
     }
+
+    emit ClaimRewardsBatch(msg.sender, length, totalAmount);
+  }
+
+  function setMaxBatchSize(uint256 _maxBatchSize) external onlyOwner {
+    maxBatchSize = _maxBatchSize;
+    emit SetMaxBatchSize(_maxBatchSize);
   }
 
   function isRewardsClaimed(uint256 _epoch, uint256 _index) public view returns (bool) {
