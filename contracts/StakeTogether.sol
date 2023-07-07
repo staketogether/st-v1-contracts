@@ -36,7 +36,7 @@ contract StakeTogether is SETH {
   }
 
   /*****************
-   ** STAKE **
+   ** BUFFER **
    *****************/
 
   event DepositPool(

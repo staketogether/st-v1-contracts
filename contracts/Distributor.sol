@@ -7,10 +7,16 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
+import './stwETH.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Distributor is Ownable, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
+  stwETH public stwETHContract;
+
+  constructor(address _stwETH) {
+    stwETHContract = stwETH(payable(_stwETH));
+  }
 
   event EtherReceived(address indexed sender, uint amount);
 
@@ -266,6 +272,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     uint256 lossAmount;
     Shares shares;
     Amounts amounts;
+    uint256 stwETHAmount;
   }
 
   enum ReportType {
@@ -353,6 +360,10 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
       );
     }
 
+    if (_report.stwETHAmount > 0) {
+      payable(address(stwETHContract)).transfer(_report.stwETHAmount);
+    }
+
     executedReport[_report.epoch] = true;
     reportBlockNumber += reportBlockFrequency;
     reportEpochNumber += reportEpochFrequency;
@@ -371,6 +382,8 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     bytes32 reportKey = keccak256(abi.encodePacked(msg.sender, _epoch));
     require(!oracleReportsKey[reportKey], 'ORACLE_ALREADY_REPORTED');
     oracleReportsKey[reportKey] = true;
+
+    require(address(this).balance >= _report.stwETHAmount, 'INSUFFICIENT_ETH_BALANCE');
 
     return true;
   }
