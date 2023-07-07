@@ -41,21 +41,19 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
    ** POOLS **
    ***********************/
 
-  // Todo: Add Pool Manager Address (3rd party)
-  // Todo: Add Only Owner Mode
-
   event AddPool(address account);
   event RemovePool(address account);
   event SetMaxPools(uint256 maxPools);
-  event SetPoolFee(uint256 poolFee);
+  event SetAddPoolFee(uint256 addPoolFee);
+  event SetPoolManager(address poolManager);
+  event SetPermissionLessAddPool(bool permissionLessAddPool);
 
   uint256 public maxPools = 100000;
-  address[] private pools;
-  uint256 public addPoolFee = 0.1 ether;
-
-  function getPools() external view returns (address[] memory) {
-    return pools;
-  }
+  uint256 public poolCount = 0;
+  mapping(address => bool) private pools;
+  uint256 public addPoolFee = 1 ether;
+  bool public permissionLessAddPool = false;
+  address public poolManager;
 
   function setMaxPools(uint256 _maxPools) external onlyOwner {
     maxPools = _maxPools;
@@ -67,48 +65,48 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     emit SetPoolFee(_addPoolFee);
   }
 
+  function setPoolManager(address _poolManager) external onlyOwner {
+    poolManager = _poolManager;
+    emit SetPoolManager(_poolManager);
+  }
+
+  function setPermissionLessAddPool(bool _permissionLessAddPool) external onlyOwner {
+    permissionLessAddPool = _permissionLessAddPool;
+    emit SetPermissionLessAddPool(_permissionLessAddPool);
+  }
+
   function addPool(address _pool) external payable {
     require(_pool != address(0), 'ZERO_ADDR');
     require(_pool != address(this), 'POOL_CANNOT_BE_THIS');
     require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
     require(_pool != address(distribution), 'POOL_CANNOT_BE_DISTRIBUTOR');
-    require(!isPool(_pool), 'NON_POOL');
-    require(pools.length < maxPools, 'MAX_POOLS_REACHED');
+    require(!isPool(_pool), 'POOL_ALREADY_ADDED');
+    require(poolCount < maxPools, 'MAX_POOLS_REACHED');
 
-    pools.push(_pool);
+    pools[_pool] = true;
+    poolCount += 1;
     emit AddPool(_pool);
 
-    if (msg.sender != owner() && msg.sender != poolModuleAddress) {
-      require(msg.value >= newPoolFee, 'NOT_ENOUGH_POOL_CREATION_FEE');
-      payable(stakeTogether.stakeTogetherFeeAddress()).transfer(newPoolFee);
+    if (permissionLessAddPool) {
+      if (msg.sender != owner() && msg.sender != poolManager) {
+        require(msg.value == addPoolFee, 'INVALID_FEE_AMOUNT');
+        payable(stakeTogether.stakeTogetherFeeAddress()).transfer(addPoolFee);
+      }
+    } else {
+      require(msg.sender == owner() || msg.sender == poolManager, 'NOT_ALLOWED');
     }
   }
 
   function removePool(address _pool) external {
     require(isPool(_pool), 'POOL_NOT_FOUND');
 
-    for (uint256 i = 0; i < pools.length; i++) {
-      if (pools[i] == _pool) {
-        pools[i] = pools[pools.length - 1];
-        pools.pop();
-        break;
-      }
-    }
+    pools[_pool] = false;
+    poolCount -= 1;
     emit RemovePool(_pool);
   }
 
-  // Todo: Optimize Pool Storage
-  function isPool(address _pool) internal view returns (bool) {
-    if (_pool == address(this)) {
-      return true;
-    }
-
-    for (uint256 i = 0; i < pools.length; i++) {
-      if (pools[i] == _pool) {
-        return true;
-      }
-    }
-    return false;
+  function isPool(address _pool) public view returns (bool) {
+    return pools[_pool];
   }
 
   /***********************
