@@ -232,7 +232,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   event ExecuteReport(
     address indexed oracle,
     uint256 indexed blockNumber,
-    bytes32 indexed epoch,
+    uint256 indexed epoch,
     bytes32 hash,
     Report report
   );
@@ -242,10 +242,10 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   event SetReportEpochFrequency(uint256 epoch);
   event SetReportEpochNumber(uint256 epochNumber);
 
-  struct Validator {
-    bytes publicKey;
-    uint256 amount;
-  }
+  // struct Validator {
+  //   bytes publicKey;
+  //   uint256 amount;
+  // }
 
   struct Shares {
     uint256 total;
@@ -318,7 +318,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     require(!executedReport[_report.epoch], 'SINGLE_REPORT_ALREADY_EXECUTED');
 
     if (reportHash != consensusHash) {
-      _penalizeOracle(msg.sender, ReportType.WrongSingleHash, reportHash);
+      _penalizeOracle(msg.sender, reportHash);
     }
 
     require(reportHash == consensusHash, 'INVALID_REPORT');
@@ -360,7 +360,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     // Transfer funds to pool
     // Transfer funds to withdrawals
 
-    emit ExecuteReport(msg.sender, block.number, _report.epoch, _report.hash, _report);
+    emit ExecuteReport(msg.sender, block.number, _report.epoch, reportHash, _report);
   }
 
   function auditReport(uint256 _epoch, bytes32 _hash, Report calldata _report) public returns (bool) {

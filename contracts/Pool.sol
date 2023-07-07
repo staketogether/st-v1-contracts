@@ -43,7 +43,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   }
 
   function setDistributor(address _distributor) external onlyOwner {
-    require(_distributor != address(0), 'DISTIBUTOR_ALREADY_SET');
+    require(_distributor != address(0), 'DISTRIBUTOR_ALREADY_SET');
     distribution = Distributor(payable(_distributor));
     emit SetDistributor(_distributor);
   }
@@ -168,7 +168,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
 
     _setRewardsClaimed(_epoch, _index);
 
-    stakeTogether.mintRewards(_account, _sharesAmount);
+    stakeTogether.mintRewards(_epoch, _account, _sharesAmount);
 
     emit ClaimRewards(_epoch, _index, _account, _sharesAmount);
   }

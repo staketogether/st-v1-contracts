@@ -13,8 +13,17 @@ contract StakeTogether is SETH {
 
   event EtherReceived(address indexed sender, uint amount);
 
-  constructor(address _rewardsContract, address _depositContract) payable {
-    rewardsContract = Rewards(payable(_rewardsContract));
+  constructor(
+    address _distributorContract,
+    address _poolContract,
+    address _validatorContract,
+    address _stwETHContract,
+    address _depositContract
+  ) payable {
+    distributorContract = Distributor(payable(_distributorContract));
+    poolContract = Pool(payable(_poolContract));
+    validatorContract = Validator(payable(_validatorContract));
+    stwETHContract = stwETH(payable(_stwETHContract));
     depositContract = IDepositContract(_depositContract);
   }
 
@@ -48,6 +57,13 @@ contract StakeTogether is SETH {
   );
 
   event WithdrawPool(address indexed account, uint256 amount, uint256 sharesAmount, address delegated);
+  event WithdrawValidator(
+    address indexed account,
+    uint256 amount,
+    uint256 sharesAmount,
+    address delegated
+  );
+
   event SetWithdrawalCredentials(bytes withdrawalCredentials);
   event SetMinDepositPoolAmount(uint256 amount);
   event SetPoolSize(uint256 amount);
@@ -69,8 +85,8 @@ contract StakeTogether is SETH {
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  function depositBase(address _pool, address _referral, address _to, bool _isDonation) internal {
-    require(isPool(_pool), 'NON_POOL_DELEGATE');
+  function _depositBase(address _pool, address _referral, address _to, bool _isDonation) internal {
+    require(poolContract.isPool(_pool), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 
@@ -85,12 +101,6 @@ contract StakeTogether is SETH {
 
     uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
 
-    if (_isDonation) {
-      emit DonationDepositPool(msg.sender, _to, msg.value, sharesAmount, _pool, _referral);
-    } else {
-      emit DepositPool(_to, msg.value, sharesAmount, _pool, _referral);
-    }
-
     _mintShares(_to, sharesAmount);
     _mintPoolShares(_to, _pool, sharesAmount);
 
@@ -101,24 +111,34 @@ contract StakeTogether is SETH {
       totalWithdrawn = 0;
       lastResetBlock = block.number;
     }
+
+    if (_isDonation) {
+      emit DonationDepositPool(msg.sender, _to, msg.value, sharesAmount, _pool, _referral);
+    } else {
+      emit DepositPool(_to, msg.value, sharesAmount, _pool, _referral);
+    }
   }
 
   function depositPool(
     address _delegated,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    depositBase(_delegated, _referral, msg.sender, false);
+    _depositBase(_delegated, _referral, msg.sender, false);
   }
 
-  function donationDepositPool(
+  function depositDonationPool(
     address _delegated,
     address _referral,
     address _to
   ) external payable nonReentrant whenNotPaused {
-    depositBase(_delegated, _referral, _to, true);
+    _depositBase(_delegated, _referral, _to, true);
   }
 
-  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+  function _withdrawBase(
+    uint256 _amount,
+    address _pool,
+    bool _fromValidator
+  ) internal nonReentrant whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
     require(_amount <= withdrawalsBalance(), 'NOT_ENOUGH_WITHDRAWALS_BALANCE');
@@ -134,12 +154,8 @@ contract StakeTogether is SETH {
 
     uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), userBalance);
 
-    emit WithdrawPool(msg.sender, _amount, sharesToBurn, _pool);
-
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
-
-    payable(msg.sender).transfer(_amount);
 
     totalWithdrawn += _amount;
 
@@ -148,6 +164,25 @@ contract StakeTogether is SETH {
       totalWithdrawn = _amount;
       lastResetBlock = block.number;
     }
+
+    if (_fromValidator) {
+      require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
+      beaconBalance -= _amount;
+      stwETHContract.mint(msg.sender, _amount);
+      emit WithdrawValidator(msg.sender, _amount, sharesToBurn, _pool);
+    } else {
+      require(_amount <= poolBalance(), 'NOT_ENOUGH_POOL_BALANCE');
+      payable(msg.sender).transfer(_amount);
+      emit WithdrawPool(msg.sender, _amount, sharesToBurn, _pool);
+    }
+  }
+
+  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    _withdrawBase(_amount, _pool, false);
+  }
+
+  function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    _withdrawBase(_amount, _pool, true);
   }
 
   function setDepositLimit(uint256 _newLimit) external onlyOwner {
@@ -199,9 +234,9 @@ contract StakeTogether is SETH {
     return contractBalance() + beaconBalance + liquidityBufferBalance;
   }
 
-  /*****************
+  /***********************
    ** LIQUIDITY BUFFER **
-   *****************/
+   ***********************/
 
   event DepositLiquidityBuffer(address indexed account, uint256 amount);
   event WithdrawLiquidityBuffer(address indexed account, uint256 amount);
@@ -239,8 +274,8 @@ contract StakeTogether is SETH {
 
   uint256 public validatorSize = 32 ether;
 
-  modifier onlyValidatorModule() {
-    require(msg.sender == validatorModuleAddress, 'ONLY_VALIDATOR_MODULE');
+  modifier onlyValidator() {
+    require(msg.sender == address(validatorContract), 'ONLY_VALIDATOR_CONTRACT');
     _;
   }
 
@@ -259,7 +294,7 @@ contract StakeTogether is SETH {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external onlyValidatorModule nonReentrant {
+  ) external onlyValidator nonReentrant {
     require(poolBalance() >= poolSize + validatorFee, 'NOT_ENOUGH_POOL_BALANCE');
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 

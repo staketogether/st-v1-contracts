@@ -9,19 +9,25 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
-import './Rewards.sol';
+import './Validator.sol';
+import './Distributor.sol';
+import './Pool.sol';
+import './stwETH.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
-  Rewards public rewardsContract;
+  Distributor public distributorContract;
+  Pool public poolContract;
+  Validator public validatorContract;
+  stwETH public stwETHContract;
 
-  constructor() ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
+  constructor() ERC20('Stake Together Ether', 'SETH') ERC20Permit('Stake Together Ether') {
     _bootstrap();
   }
 
   event Bootstrap(address sender, uint256 balance);
 
-  event MintShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event MintShares(address indexed to, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
 
@@ -42,17 +48,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
     setStakeTogetherFeeAddress(msg.sender);
     setOperatorFeeAddress(msg.sender);
-    setValidatorModuleAddress(msg.sender);
-    setPoolModuleAddress(msg.sender);
     setValidatorFeeAddress(msg.sender);
-  }
-
-  function pause() public onlyOwner {
-    _pause();
-  }
-
-  function unpause() public onlyOwner {
-    _unpause();
   }
 
   function contractBalance() public view returns (uint256) {
@@ -145,7 +141,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     shares[_to] = shares[_to] + _sharesAmount;
     totalShares += _sharesAmount;
 
-    emit MintShares(address(0), _to, _sharesAmount);
+    emit MintShares(_to, _sharesAmount);
   }
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
@@ -189,19 +185,14 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** DELEGATIONS **
    *****************/
 
-  uint256 public maxDelegations = 64;
   mapping(address => uint256) private poolShares;
   uint256 public totalPoolShares = 0;
   mapping(address => mapping(address => uint256)) private delegationsShares;
   mapping(address => address[]) private delegates;
-  mapping(address => mapping(address => bool)) private isDelegator;
+  mapping(address => mapping(address => bool)) private isDelegate;
+  uint256 public maxDelegations = 64; // Todo: verify merkle tree
 
-  event MintPoolShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
+  event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
 
   event TransferPoolShares(
     address indexed from,
@@ -220,39 +211,38 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     return delegationsShares[_account][_pool];
   }
 
-  function transferPoolShares(address _from, address _to, uint256 _sharesAmount) external {
-    _transferPoolShares(msg.sender, _from, _to, _sharesAmount);
+  function transferPoolShares(address _to, address _pool, uint256 _sharesAmount) external {
+    _transferPoolShares(msg.sender, _to, _pool, _sharesAmount);
   }
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
-    require(isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(poolContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
 
     poolShares[_pool] += _sharesAmount;
     delegationsShares[_to][_pool] += _sharesAmount;
     totalPoolShares += _sharesAmount;
 
-    if (!isDelegator[_to][_pool]) {
+    if (!isDelegate[_to][_pool]) {
       delegates[_to].push(_pool);
-      isDelegator[_to][_pool] = true;
+      isDelegate[_to][_pool] = true;
     }
 
-    emit MintPoolShares(address(0), _to, _pool, _sharesAmount);
+    emit MintPoolShares(_to, _pool, _sharesAmount);
   }
 
   function _burnPoolShares(address _from, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_pool != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(isPool(_pool), 'ONLY_CAN_BURN_FROM_POOL');
+    require(poolContract.isPool(_pool), 'ONLY_CAN_BURN_FROM_POOL');
 
     poolShares[_pool] -= _sharesAmount;
     delegationsShares[_from][_pool] -= _sharesAmount;
     totalPoolShares -= _sharesAmount;
 
     if (delegationsShares[_from][_pool] == 0) {
-      isDelegator[_from][_pool] = false;
+      isDelegate[_from][_pool] = false;
+      // Todo: revise, need to remove from delegates array
     }
 
     emit BurnPoolShares(_from, _pool, _sharesAmount);
@@ -275,16 +265,16 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
       delegationsShares[_from][pool] -= delegationSharesToTransfer;
 
-      if (!isDelegator[_to][pool]) {
+      if (!isDelegate[_to][pool]) {
         require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
         delegates[_to].push(pool);
-        isDelegator[_to][pool] = true;
+        isDelegate[_to][pool] = true;
       }
 
       delegationsShares[_to][pool] += delegationSharesToTransfer;
 
       if (delegationSharesOf(_from, pool) == 0) {
-        isDelegator[_from][pool] = false;
+        isDelegate[_from][pool] = false;
       }
 
       emit TransferPoolShares(_from, _to, pool, delegationSharesToTransfer);
@@ -300,7 +290,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_SETH_CONTRACT');
-    require(isPool(_to), 'ONLY_CAN_STAKE_TO_POOL');
+    require(poolContract.isPool(_to), 'ONLY_CAN_STAKE_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_from], 'BALANCE_EXCEEDED');
 
@@ -317,32 +307,34 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    ** ADDRESSES **
    *****************/
 
-  address public stakeTogetherFeeAddress;
+  address public poolFeeAddress;
   address public operatorFeeAddress;
+  address public stakeTogetherFeeAddress;
   address public validatorFeeAddress;
   address public liquidityFeeAddress;
-  address public newPoolFeeAddress;
-  address public validatorModuleAddress;
-  address public poolModuleAddress;
 
-  event SetStakeTogetherFeeAddress(address indexed to);
+  event SetPoolFeeAddress(address indexed to);
   event SetOperatorFeeAddress(address indexed to);
+  event SetStakeTogetherFeeAddress(address indexed to);
   event SetValidatorFeeAddress(address indexed to);
   event SetLiquidityFeeAddress(address indexed to);
-  event SetNewPoolFeeAddress(address indexed to);
-  event SetValidatorModuleAddress(address indexed to);
-  event SetPoolModuleAddress(address indexed to);
 
-  function setStakeTogetherFeeAddress(address _to) public onlyOwner {
+  function setPoolFeeAddress(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
-    stakeTogetherFeeAddress = _to;
-    emit SetStakeTogetherFeeAddress(_to);
+    poolFeeAddress = _to;
+    emit SetPoolFeeAddress(_to);
   }
 
   function setOperatorFeeAddress(address _to) public onlyOwner {
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeAddress = _to;
     emit SetOperatorFeeAddress(_to);
+  }
+
+  function setStakeTogetherFeeAddress(address _to) public onlyOwner {
+    require(_to != address(0), 'NON_ZERO_ADDR');
+    stakeTogetherFeeAddress = _to;
+    emit SetStakeTogetherFeeAddress(_to);
   }
 
   function setValidatorFeeAddress(address _to) public onlyOwner {
@@ -357,32 +349,6 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit SetLiquidityFeeAddress(_to);
   }
 
-  function setPoolFeeAddress(address _to) public onlyOwner {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    newPoolFeeAddress = _to;
-    emit SetNewPoolFeeAddress(_to);
-  }
-
-  function setValidatorModuleAddress(address _to) public onlyOwner {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    validatorModuleAddress = _to;
-    emit SetValidatorModuleAddress(_to);
-  }
-
-  function setPoolModuleAddress(address _to) public onlyOwner {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    poolModuleAddress = _to;
-    emit SetPoolModuleAddress(_to);
-  }
-
-  function _isStakeTogetherFeeAddress(address account) internal view returns (bool) {
-    return address(stakeTogetherFeeAddress) == account;
-  }
-
-  function _isOperatorFeeAddress(address account) internal view returns (bool) {
-    return address(operatorFeeAddress) == account;
-  }
-
   /*****************
    ** FEES **
    *****************/
@@ -391,14 +357,13 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
   uint256 public stakeTogetherFee = 0.03 ether;
   uint256 public operatorFee = 0.03 ether;
   uint256 public poolFee = 0.03 ether;
-  uint256 public newPoolFee = 0.1 ether;
   uint256 public validatorFee = 0.001 ether;
 
   event SetStakeTogetherFee(uint256 fee);
   event SetPoolFee(uint256 fee);
   event SetOperatorFee(uint256 fee);
-  event SetNewPoolFee(uint256 newPoolFee);
-  event SetValidatorFee(uint256 newFee);
+  event SetNewPoolFee(uint256 fee);
+  event SetValidatorFee(uint256 fee);
 
   function setStakeTogetherFee(uint256 _fee) external onlyOwner {
     stakeTogetherFee = _fee;
@@ -415,14 +380,9 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     emit SetOperatorFee(_fee);
   }
 
-  function setNewPoolFee(uint256 _newFee) external onlyOwner {
-    newPoolFee = _newFee;
-    emit SetNewPoolFee(_newFee);
-  }
-
-  function setValidatorFee(uint256 _newFee) external onlyOwner {
-    validatorFee = _newFee;
-    emit SetValidatorFee(_newFee);
+  function setValidatorFee(uint256 _fee) external onlyOwner {
+    validatorFee = _fee;
+    emit SetValidatorFee(_fee);
   }
 
   /*****************
@@ -430,7 +390,7 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
    *****************/
 
   modifier onlyRewardsContract() {
-    require(msg.sender == address(rewardsContract), 'ONLY_REWARDS_CONTACT');
+    require(msg.sender == address(distributorContract), 'ONLY_REWARDS_CONTACT');
     _;
   }
 
@@ -448,23 +408,23 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
 
   uint256 public beaconBalance = 0;
 
-  event MintRewards(uint256 blockNumber, address indexed to, uint256 sharesAmount, RewardType rewardType);
-  event MintLoss(uint256 blockNumber, uint256 amount);
+  event MintRewards(uint256 epoch, address indexed to, uint256 sharesAmount, RewardType rewardType);
+  event MintLoss(uint256 epoch, uint256 amount);
 
   function mintRewards(
-    uint256 blockNumber,
-    address rewardAddress,
-    uint256 sharesAmount
+    uint256 _epoch,
+    address _rewardAddress,
+    uint256 _sharesAmount
   ) external payable nonReentrant onlyRewardsContract {
-    _mintShares(rewardAddress, sharesAmount);
-    _mintPoolShares(rewardAddress, rewardAddress, sharesAmount);
+    _mintShares(_rewardAddress, _sharesAmount);
+    _mintPoolShares(_rewardAddress, _rewardAddress, _sharesAmount);
 
-    if (rewardAddress == stakeTogetherFeeAddress) {
-      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.StakeTogether);
-    } else if (rewardAddress == operatorFeeAddress) {
-      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Operator);
+    if (_rewardAddress == stakeTogetherFeeAddress) {
+      emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.StakeTogether);
+    } else if (_rewardAddress == operatorFeeAddress) {
+      emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Operator);
     } else {
-      emit MintRewards(blockNumber, rewardAddress, sharesAmount, RewardType.Pool);
+      emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Pool);
     }
   }
 
@@ -472,72 +432,5 @@ abstract contract SETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintLoss(_blockNumber, _lossAmount);
-  }
-
-  /*****************
-   ** POOLS **
-   *****************/
-
-  uint256 public maxPools = 100000;
-  address[] private pools;
-
-  modifier onlyPoolModule() {
-    require(msg.sender == poolModuleAddress, 'ONLY_POOL_MODULE');
-    _;
-  }
-
-  event AddPool(address account);
-  event RemovePool(address account);
-  event SetMaxPools(uint256 maxPools);
-
-  function getPools() public view returns (address[] memory) {
-    return pools;
-  }
-
-  function setMaxPools(uint256 _maxPools) external onlyOwner {
-    maxPools = _maxPools;
-    emit SetMaxPools(_maxPools);
-  }
-
-  function addPool(address _pool) external payable onlyPoolModule {
-    require(_pool != address(0), 'ZERO_ADDR');
-    require(!isPool(_pool), 'NON_POOL');
-    require(!_isStakeTogetherFeeAddress(_pool), 'IS_STAKE_TOGETHER_FEE_RECIPIENT');
-    require(!_isOperatorFeeAddress(_pool), 'IS_OPERATOR_FEE_RECIPIENT');
-    require(pools.length < maxPools, 'MAX_POOLS_REACHED');
-
-    pools.push(_pool);
-    emit AddPool(_pool);
-
-    if (msg.sender != owner() && msg.sender != poolModuleAddress) {
-      require(msg.value >= newPoolFee, 'NOT_ENOUGH_POOL_CREATION_FEE');
-      payable(newPoolFeeAddress).transfer(newPoolFee);
-    }
-  }
-
-  function removePool(address _pool) external onlyPoolModule {
-    require(isPool(_pool), 'POOL_NOT_FOUND');
-
-    for (uint256 i = 0; i < pools.length; i++) {
-      if (pools[i] == _pool) {
-        pools[i] = pools[pools.length - 1];
-        pools.pop();
-        break;
-      }
-    }
-    emit RemovePool(_pool);
-  }
-
-  function isPool(address _pool) internal view returns (bool) {
-    if (_pool == address(this)) {
-      return true;
-    }
-
-    for (uint256 i = 0; i < pools.length; i++) {
-      if (pools[i] == _pool) {
-        return true;
-      }
-    }
-    return false;
   }
 }
