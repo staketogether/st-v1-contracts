@@ -13,14 +13,10 @@ import './Pool.sol';
 
 contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  bytes32 public constant ORACLE_LIQUIDITY_ROLE = keccak256('ORACLE_LIQUIDITY_ROLE');
+  bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
 
   StakeTogether public stakeTogether;
   Pool public poolContract;
-
-  uint256 public liquidityFee = 0.01 ether;
-  uint256 public stakeTogetherFee = 0.15 ether;
-  uint256 public poolFee = 0.15 ether;
 
   event EtherReceived(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
@@ -31,6 +27,19 @@ contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   event Borrow(address indexed user, uint256 amount);
   event RepayLoan(address indexed user, uint256 amount);
   event ReDeposit(address indexed user, uint256 amount);
+  event ReDepositBatch(address indexed user, uint256[] amounts);
+  event SetMaxBatchSize(uint256 size);
+
+  uint256 public liquidityFee = 0.01 ether;
+  uint256 public stakeTogetherFee = 0.15 ether;
+  uint256 public poolFee = 0.15 ether;
+  uint256 public maxBatchSize = 100;
+
+  function setMaxBatchSize(uint256 _size) external onlyRole(ADMIN_ROLE) {
+    require(_size > 0, 'ZERO_SIZE');
+    maxBatchSize = _size;
+    emit SetMaxBatchSize(_size);
+  }
 
   constructor() ERC20('ST Lending Ether', 'lETH') ERC20Permit('ST Lending Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -84,20 +93,6 @@ contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     emit RemoveLiquidity(msg.sender, _amount);
   }
 
-  function reDeposit(
-    uint256 _amount,
-    address _pool,
-    address _referral
-  ) public whenNotPaused nonReentrant onlyRole(ORACLE_LIQUIDITY_ROLE) {
-    require(_amount > 0, 'ZERO_AMOUNT');
-    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_lETH_BALANCE');
-    require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
-
-    _burn(msg.sender, _amount);
-    stakeTogether.depositPool{ value: _amount }(_pool, _referral);
-    emit ReDeposit(msg.sender, _amount);
-  }
-
   function borrow(uint256 _amount, address _pool) public whenNotPaused nonReentrant onlyStakeTogether {
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
@@ -122,6 +117,41 @@ contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
     _burn(msg.sender, msg.value);
     emit RepayLoan(msg.sender, msg.value);
+  }
+
+  function reDeposit(
+    uint256 _amount,
+    address _pool,
+    address _referral
+  ) public whenNotPaused nonReentrant onlyRole(ORACLE_REWARDS_ROLE) {
+    require(_amount > 0, 'ZERO_AMOUNT');
+    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_lETH_BALANCE');
+    require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
+
+    _burn(msg.sender, _amount);
+    stakeTogether.depositPool{ value: _amount }(_pool, _referral);
+    emit ReDeposit(msg.sender, _amount);
+  }
+
+  function reDepositBatch(
+    uint256[] memory _amounts,
+    address[] memory _pools,
+    address[] memory _referrals
+  ) public whenNotPaused nonReentrant onlyRole(ORACLE_REWARDS_ROLE) {
+    require(_amounts.length <= maxBatchSize, 'BATCH_SIZE_TOO_LARGE');
+    require(_amounts.length == _pools.length, 'ARRAY_LENGTH_MISMATCH');
+    require(_pools.length == _referrals.length, 'ARRAY_LENGTH_MISMATCH');
+
+    for (uint i = 0; i < _amounts.length; i++) {
+      require(_amounts[i] > 0, 'ZERO_AMOUNT');
+      require(balanceOf(msg.sender) >= _amounts[i], 'INSUFFICIENT_lETH_BALANCE');
+      require(address(this).balance >= _amounts[i], 'INSUFFICIENT_ETH_BALANCE');
+
+      _burn(msg.sender, _amounts[i]);
+      stakeTogether.depositPool{ value: _amounts[i] }(_pools[i], _referrals[i]);
+    }
+
+    emit ReDepositBatch(msg.sender, _amounts);
   }
 
   function _checkExtraAmount() internal {
