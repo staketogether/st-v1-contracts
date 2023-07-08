@@ -9,19 +9,28 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import './Pool.sol';
 
 contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  bytes32 public constant ORACLE_LIQUIDITY_ROLE = keccak256('ORACLE_LIQUIDITY_ROLE');
 
   StakeTogether public stakeTogether;
-  uint256 public liquidityFee = 0.001 ether;
+  Pool public poolContract;
+
+  uint256 public liquidityFee = 0.01 ether;
+  uint256 public stakeTogetherFee = 0.15 ether;
+  uint256 public poolFee = 0.15 ether;
 
   event EtherReceived(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
+  event SetStakeTogetherFee(uint256 fee);
+  event SetPoolFee(uint256 fee);
   event AddLiquidity(address indexed user, uint256 amount);
   event RemoveLiquidity(address indexed user, uint256 amount);
   event Borrow(address indexed user, uint256 amount);
   event RepayLoan(address indexed user, uint256 amount);
+  event ReDeposit(address indexed user, uint256 amount);
 
   constructor() ERC20('ST Lending Ether', 'lETH') ERC20Permit('ST Lending Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -48,6 +57,18 @@ contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     emit SetStakeTogether(_stakeTogether);
   }
 
+  function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+    require(_fee > 0, 'ZERO_FEE');
+    stakeTogetherFee = _fee;
+    emit SetStakeTogetherFee(_fee);
+  }
+
+  function setPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+    require(_fee > 0, 'ZERO_FEE');
+    stakeTogetherFee = _fee;
+    emit SetPoolFee(_fee);
+  }
+
   function addLiquidity() public payable whenNotPaused nonReentrant {
     _mint(msg.sender, msg.value);
     emit AddLiquidity(msg.sender, msg.value);
@@ -60,16 +81,37 @@ contract lETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
     _burn(msg.sender, _amount);
     payable(msg.sender).transfer(_amount);
-
     emit RemoveLiquidity(msg.sender, _amount);
   }
 
-  function borrow(uint256 _amount) public whenNotPaused nonReentrant onlyStakeTogether {
+  function reDeposit(
+    uint256 _amount,
+    address _pool,
+    address _referral
+  ) public whenNotPaused nonReentrant onlyRole(ORACLE_LIQUIDITY_ROLE) {
+    require(_amount > 0, 'ZERO_AMOUNT');
+    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_lETH_BALANCE');
+    require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
+
+    _burn(msg.sender, _amount);
+    stakeTogether.depositPool{ value: _amount }(_pool, _referral);
+    emit ReDeposit(msg.sender, _amount);
+  }
+
+  function borrow(uint256 _amount, address _pool) public whenNotPaused nonReentrant onlyStakeTogether {
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
     uint256 total = _amount + Math.mulDiv(_amount, liquidityFee, 1 ether);
-    _mint(msg.sender, total);
+
+    uint256 stakeTogetherShare = Math.mulDiv(total, stakeTogetherFee, 1 ether);
+    uint256 poolShare = Math.mulDiv(total, poolFee, 1 ether);
+
+    uint256 liquidityProviderShare = total - stakeTogetherShare - poolShare;
+
+    _mint(stakeTogether.stakeTogetherFeeAddress(), stakeTogetherShare);
+    _mint(_pool, poolShare);
+    _mint(msg.sender, liquidityProviderShare);
 
     emit Borrow(msg.sender, _amount);
   }

@@ -36,7 +36,6 @@ contract StakeTogether is sETH {
    *****************/
 
   event DepositPool(address indexed account, uint256 amount, address delegated, address referral);
-
   event DepositDonationPool(
     address indexed donor,
     address indexed account,
@@ -151,6 +150,8 @@ contract StakeTogether is sETH {
     require(_amount <= address(lETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
     _withdrawBase(_amount, _pool);
     poolSize += _amount;
+    lETHContract.borrow(_amount, _pool);
+    payable(msg.sender).transfer(_amount);
     emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
 
