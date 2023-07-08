@@ -314,13 +314,12 @@ abstract contract sETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   }
 
   /*****************
-   **  ADDRESSES **
+   ** ADDRESSES **
    *****************/
 
   address public poolFeeAddress;
   address public operatorFeeAddress;
   address public stakeTogetherFeeAddress;
-  address public liquidityProviderAddress;
 
   event SetPoolFeeAddress(address indexed to);
   event SetOperatorFeeAddress(address indexed to);
@@ -339,12 +338,6 @@ abstract contract sETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   }
 
   function setStakeTogetherFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    stakeTogetherFeeAddress = _to;
-    emit SetStakeTogetherFeeAddress(_to);
-  }
-
-  function setLiquidityProviderAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     stakeTogetherFeeAddress = _to;
     emit SetStakeTogetherFeeAddress(_to);
