@@ -46,8 +46,8 @@ contract StakeTogether is sETH {
   );
 
   event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawValidator(address indexed account, uint256 amount, address pool);
   event WithdrawBorrow(address indexed account, uint256 amount, address pool);
+  event WithdrawValidator(address indexed account, uint256 amount, address pool);
 
   event SetMinDepositPoolAmount(uint256 amount);
   event SetPoolSize(uint256 amount);
@@ -147,19 +147,19 @@ contract StakeTogether is sETH {
     emit WithdrawPool(msg.sender, _amount, _pool);
   }
 
+  function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    require(_amount <= address(lETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
+    _withdrawBase(_amount, _pool);
+    poolSize += _amount;
+    emit WithdrawBorrow(msg.sender, _amount, _pool);
+  }
+
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
     _withdrawBase(_amount, _pool);
     beaconBalance -= _amount;
     wETHContract.mint(msg.sender, _amount);
     emit WithdrawValidator(msg.sender, _amount, _pool);
-  }
-
-  function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(lETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
-    _withdrawBase(_amount, _pool);
-    poolSize += _amount;
-    emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
 
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
