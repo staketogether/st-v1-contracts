@@ -1,21 +1,27 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
+import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
-import './stwETH.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Distributor is Ownable, Pausable, ReentrancyGuard {
-  StakeTogether public stakeTogether;
-  stwETH public stwETHContract;
+contract Distributor is AccessControl, Pausable, ReentrancyGuard {
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
+  bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
-  constructor(address _stwETH) {
-    stwETHContract = stwETH(payable(_stwETH));
+  StakeTogether public stakeTogether;
+  wETH public wETHContract;
+
+  constructor(address _wETH) {
+    wETHContract = wETH(payable(_wETH));
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+    _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
   }
 
   event EtherReceived(address indexed sender, uint amount);
@@ -30,7 +36,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
 
   event SetStakeTogether(address stakeTogether);
 
-  function setStakeTogether(address _stakeTogether) external onlyOwner {
+  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
@@ -71,7 +77,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     string calldata action,
     uint256 value,
     address target
-  ) external onlyOwner {
+  ) external onlyRole(ADMIN_ROLE) {
     bytes32 actionKey = keccak256(abi.encodePacked(action, target));
 
     TimeLockedProposal memory proposal = TimeLockedProposal({
@@ -86,7 +92,8 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     emit ProposeTimeLockAction(actionKey, action, value, target, proposal.executionTime);
   }
 
-  function executeTimeLockAction(string calldata action, address target) external onlyOwner {
+  // Todo: Revise Access Control by Each Function
+  function executeTimeLockAction(string calldata action, address target) external onlyRole(ADMIN_ROLE) {
     bytes32 actionKey = keccak256(abi.encodePacked(action, target));
     TimeLockedProposal storage proposal = timeLockedProposals[actionKey];
     require(block.timestamp >= proposal.executionTime, 'Time lock not expired yet.');
@@ -128,13 +135,13 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   }
 
   /*****************
-   ** ORACLES **
+   ** REPORT ORACLES **
    *****************/
 
   modifier onlyOracle() {
     require(
       activeOracles[msg.sender] && oraclesBlacklist[msg.sender] < oraclePenalizeLimit,
-      'ONLY_ORACLES'
+      'ONLY_ACTIVE_ORACLES'
     );
     _;
   }
@@ -166,7 +173,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     return activeOracles[_oracle] && oraclesBlacklist[_oracle] < oraclePenalizeLimit;
   }
 
-  function addOracle(address oracle) external onlyOwner {
+  function addOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
     require(oracles.length < oracleQuorum, 'QUORUM_REACHED');
     _addOracle(oracle);
   }
@@ -196,7 +203,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     emit SetOracleQuorum(_oracleQuorum);
   }
 
-  function _updateQuorum() internal onlyOwner {
+  function _updateQuorum() internal onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
     uint256 totalOracles = getActiveOracleCount();
     uint256 newQuorum = (totalOracles * 8) / 10;
 
@@ -247,6 +254,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   event SetReportBlockNumber(uint256 blockNumber);
   event SetReportEpochFrequency(uint256 epoch);
   event SetReportEpochNumber(uint256 epochNumber);
+  event SetMaxExitValidators(uint256 maxExitValidators);
 
   // struct Validator {
   //   bytes publicKey;
@@ -272,8 +280,13 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     uint256 lossAmount;
     Shares shares;
     Amounts amounts;
-    uint256 stwETHAmount;
+    uint256 wETHAmount; // saque de wETH
+    uint256 restExitAmount; // não foi usado no saque (tem que voltar pro pool)
+    bytes[] restExitValidators; // validators que sairam
   }
+
+  // Todo: quem deve fazer o saque // Forcar // atualizar
+  // Todo: penalizar quem não fez o saque
 
   enum ReportType {
     SingleHashOutConsensus,
@@ -287,6 +300,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   mapping(bytes32 => bool) public oracleReportsKey;
   mapping(uint256 => bytes32) public consensusReport;
   mapping(uint256 => bool) public executedReport;
+  uint256 public maxExitValidators = 100;
 
   uint256 public reportBlockFrequency = 1;
   uint256 public reportBlockNumber = 1;
@@ -300,7 +314,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
   ) external onlyOracle whenNotPaused {
     // Todo: Valid Report
 
-    auditReport(_epoch, _hash, _report);
+    auditReport(_epoch, _report);
 
     if (block.number >= reportBlockNumber + reportBlockFrequency) {
       reportBlockNumber += reportBlockFrequency;
@@ -333,7 +347,7 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     // TODO: Valid Single Report
 
     if (_report.lossAmount > 0) {
-      stakeTogether.mintLoss(_report.epoch, _report.lossAmount);
+      stakeTogether.mintPenalty(_report.epoch, _report.lossAmount);
     }
 
     if (_report.shares.pools > 0) {
@@ -360,8 +374,18 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
       );
     }
 
-    if (_report.stwETHAmount > 0) {
-      payable(address(stwETHContract)).transfer(_report.stwETHAmount);
+    if (_report.wETHAmount > 0) {
+      payable(address(wETHContract)).transfer(_report.wETHAmount);
+    }
+
+    if (_report.restExitAmount > 0) {
+      payable(address(stakeTogether)).transfer(_report.restExitAmount);
+    }
+
+    if (_report.restExitValidators.length > 0) {
+      for (uint256 i = 0; i < _report.restExitValidators.length; i++) {
+        stakeTogether.removeValidator(_report.epoch, _report.restExitValidators[i]);
+      }
     }
 
     executedReport[_report.epoch] = true;
@@ -372,9 +396,11 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     // Transfer funds to withdrawals
 
     emit ExecuteReport(msg.sender, block.number, _report.epoch, reportHash, _report);
+
+    // Todo: qualquer valor excendente deve ser transferido para o pool (Não como lucro)
   }
 
-  function auditReport(uint256 _epoch, bytes32 _hash, Report calldata _report) public returns (bool) {
+  function auditReport(uint256 _epoch, Report calldata _report) public returns (bool) {
     require(block.number < reportBlockNumber, 'REPORT_BLOCK_NUMBER_NOT_REACHED');
 
     require(_epoch == reportEpochNumber, 'INVALID_REPORT_EPOCH_NUMBER');
@@ -383,7 +409,8 @@ contract Distributor is Ownable, Pausable, ReentrancyGuard {
     require(!oracleReportsKey[reportKey], 'ORACLE_ALREADY_REPORTED');
     oracleReportsKey[reportKey] = true;
 
-    require(address(this).balance >= _report.stwETHAmount, 'INSUFFICIENT_ETH_BALANCE');
+    require(address(this).balance >= _report.wETHAmount, 'INSUFFICIENT_ETH_BALANCE');
+    require(_report.restExitValidators.length <= maxExitValidators, 'MAX_EXIT_VALIDATORS_REACHED');
 
     return true;
   }

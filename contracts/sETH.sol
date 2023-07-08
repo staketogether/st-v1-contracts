@@ -1,32 +1,43 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
+import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
-import './Validator.sol';
+import './interfaces/IDepositContract.sol';
 import './Distributor.sol';
 import './Pool.sol';
-import './stwETH.sol';
+import './wETH.sol';
+import './lETH.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGuard {
+abstract contract sETH is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+
   Distributor public distributorContract;
   Pool public poolContract;
-  Validator public validatorContract;
-  stwETH public stwETHContract;
+  wETH public wETHContract;
+  lETH public lETHContract;
+  IDepositContract public depositContract;
 
-  constructor() ERC20('Stake Together Pool Ether', 'SETH') ERC20Permit('Stake Together Pool Ether') {
+  constructor() ERC20('ST Pool Ether', 'sETH') ERC20Permit('ST Pool Ether') {
     _bootstrap();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+  }
+
+  modifier onlyDistributor() {
+    require(msg.sender == address(distributorContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+    _;
   }
 
   event Bootstrap(address sender, uint256 balance);
-
   event MintShares(address indexed to, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
@@ -48,7 +59,6 @@ abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGua
 
     setStakeTogetherFeeAddress(msg.sender);
     setOperatorFeeAddress(msg.sender);
-    setValidatorFeeAddress(msg.sender);
   }
 
   function contractBalance() public view returns (uint256) {
@@ -304,49 +314,40 @@ abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGua
   }
 
   /*****************
-   ** ADDRESSES **
+   **  ADDRESSES **
    *****************/
 
   address public poolFeeAddress;
   address public operatorFeeAddress;
   address public stakeTogetherFeeAddress;
-  address public validatorFeeAddress;
-  address public liquidityFeeAddress;
+  address public liquidityProviderAddress;
 
   event SetPoolFeeAddress(address indexed to);
   event SetOperatorFeeAddress(address indexed to);
   event SetStakeTogetherFeeAddress(address indexed to);
-  event SetValidatorFeeAddress(address indexed to);
-  event SetLiquidityFeeAddress(address indexed to);
 
-  function setPoolFeeAddress(address _to) public onlyOwner {
+  function setPoolFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     poolFeeAddress = _to;
     emit SetPoolFeeAddress(_to);
   }
 
-  function setOperatorFeeAddress(address _to) public onlyOwner {
+  function setOperatorFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeAddress = _to;
     emit SetOperatorFeeAddress(_to);
   }
 
-  function setStakeTogetherFeeAddress(address _to) public onlyOwner {
+  function setStakeTogetherFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     stakeTogetherFeeAddress = _to;
     emit SetStakeTogetherFeeAddress(_to);
   }
 
-  function setValidatorFeeAddress(address _to) public onlyOwner {
+  function setLiquidityProviderAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
-    validatorFeeAddress = _to;
-    emit SetValidatorFeeAddress(_to);
-  }
-
-  function setLiquidityFeeAddress(address _to) public onlyOwner {
-    require(_to != address(0), 'NON_ZERO_ADDR');
-    liquidityFeeAddress = _to;
-    emit SetLiquidityFeeAddress(_to);
+    stakeTogetherFeeAddress = _to;
+    emit SetStakeTogetherFeeAddress(_to);
   }
 
   /*****************
@@ -354,45 +355,54 @@ abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGua
    *****************/
 
   uint256 public basisPoints = 1 ether;
+
   uint256 public stakeTogetherFee = 0.03 ether;
   uint256 public operatorFee = 0.03 ether;
   uint256 public poolFee = 0.03 ether;
   uint256 public validatorFee = 0.001 ether;
+  uint256 public addPoolFee = 1 ether;
+  uint256 public entryFee = 0.003 ether;
 
   event SetStakeTogetherFee(uint256 fee);
   event SetPoolFee(uint256 fee);
   event SetOperatorFee(uint256 fee);
-  event SetNewPoolFee(uint256 fee);
   event SetValidatorFee(uint256 fee);
+  event SetAddPoolFee(uint256 fee);
+  event SetEntryFee(uint256 fee);
 
-  function setStakeTogetherFee(uint256 _fee) external onlyOwner {
+  function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     stakeTogetherFee = _fee;
     emit SetStakeTogetherFee(_fee);
   }
 
-  function setPoolFee(uint256 _fee) external onlyOwner {
+  function setPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     poolFee = _fee;
     emit SetPoolFee(_fee);
   }
 
-  function setOperatorFee(uint256 _fee) external onlyOwner {
+  function setOperatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     operatorFee = _fee;
     emit SetOperatorFee(_fee);
   }
 
-  function setValidatorFee(uint256 _fee) external onlyOwner {
+  function setValidatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     validatorFee = _fee;
     emit SetValidatorFee(_fee);
+  }
+
+  function setAddPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+    addPoolFee = _fee;
+    emit SetAddPoolFee(_fee);
+  }
+
+  function setEntryFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+    addPoolFee = _fee;
+    emit SetEntryFee(_fee);
   }
 
   /*****************
    ** REWARDS **
    *****************/
-
-  modifier onlyRewardsContract() {
-    require(msg.sender == address(distributorContract), 'ONLY_REWARDS_CONTACT');
-    _;
-  }
 
   struct Reward {
     address recipient;
@@ -409,13 +419,13 @@ abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGua
   uint256 public beaconBalance = 0;
 
   event MintRewards(uint256 epoch, address indexed to, uint256 sharesAmount, RewardType rewardType);
-  event MintLoss(uint256 epoch, uint256 amount);
+  event MintPenalty(uint256 epoch, uint256 amount);
 
   function mintRewards(
     uint256 _epoch,
     address _rewardAddress,
     uint256 _sharesAmount
-  ) external payable nonReentrant onlyRewardsContract {
+  ) external payable nonReentrant onlyDistributor {
     _mintShares(_rewardAddress, _sharesAmount);
     _mintPoolShares(_rewardAddress, _rewardAddress, _sharesAmount);
 
@@ -428,9 +438,9 @@ abstract contract stpETH is ERC20, ERC20Permit, Pausable, Ownable, ReentrancyGua
     }
   }
 
-  function mintLoss(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyRewardsContract {
+  function mintPenalty(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyDistributor {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
-    emit MintLoss(_blockNumber, _lossAmount);
+    emit MintPenalty(_blockNumber, _lossAmount);
   }
 }

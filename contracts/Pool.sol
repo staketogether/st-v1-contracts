@@ -1,30 +1,37 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
-import './StakeTogether.sol';
+
+import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import './interfaces/IPool.sol';
 import './Distributor.sol';
+import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
+contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
+
   StakeTogether public stakeTogether;
   Distributor public distribution;
 
   constructor() payable {
-    setPoolManager(msg.sender);
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+    _grantRole(POOL_MANAGER_ROLE, msg.sender);
   }
-
-  event SetStakeTogether(address stakeTogether);
-  event SetDistributor(address distributor);
 
   modifier onlyDistributor() {
     require(msg.sender == address(distribution), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
+
+  event SetStakeTogether(address stakeTogether);
+  event SetDistributor(address distributor);
 
   receive() external payable {
     _transferToStakeTogether();
@@ -36,13 +43,13 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     emit EtherReceived(msg.sender, msg.value);
   }
 
-  function setStakeTogether(address _stakeTogether) external onlyOwner {
+  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setDistributor(address _distributor) external onlyOwner {
+  function setDistributor(address _distributor) external onlyRole(ADMIN_ROLE) {
     require(_distributor != address(0), 'DISTRIBUTOR_ALREADY_SET');
     distribution = Distributor(payable(_distributor));
     emit SetDistributor(_distributor);
@@ -59,35 +66,21 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
   event AddPool(address account);
   event RemovePool(address account);
   event SetMaxPools(uint256 maxPools);
-  event SetAddPoolFee(uint256 addPoolFee);
-  event SetPoolManager(address poolManager);
   event SetPermissionLessAddPool(bool permissionLessAddPool);
 
   uint256 public maxPools = 100000;
   uint256 public poolCount = 0;
   mapping(address => bool) private pools;
-  uint256 public addPoolFee = 1 ether;
-  bool public permissionLessAddPool = false;
-  address public poolManager;
 
-  function setMaxPools(uint256 _maxPools) external onlyOwner {
+  bool public permissionLessAddPool = false;
+
+  function setMaxPools(uint256 _maxPools) external onlyRole(ADMIN_ROLE) {
     require(_maxPools >= poolCount, 'INVALID_MAX_POOLS');
     maxPools = _maxPools;
     emit SetMaxPools(_maxPools);
   }
 
-  function setAddPoolFee(uint256 _addPoolFee) external onlyOwner {
-    addPoolFee = _addPoolFee;
-    emit SetAddPoolFee(_addPoolFee);
-  }
-
-  function setPoolManager(address _poolManager) public onlyOwner {
-    require(_poolManager != address(0), 'ZERO_ADDR');
-    poolManager = _poolManager;
-    emit SetPoolManager(_poolManager);
-  }
-
-  function setPermissionLessAddPool(bool _permissionLessAddPool) external onlyOwner {
+  function setPermissionLessAddPool(bool _permissionLessAddPool) external onlyRole(ADMIN_ROLE) {
     permissionLessAddPool = _permissionLessAddPool;
     emit SetPermissionLessAddPool(_permissionLessAddPool);
   }
@@ -105,18 +98,17 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     emit AddPool(_pool);
 
     if (permissionLessAddPool) {
-      if (msg.sender != owner() && msg.sender != poolManager) {
-        require(msg.value == addPoolFee, 'INVALID_FEE_AMOUNT');
-        payable(stakeTogether.stakeTogetherFeeAddress()).transfer(addPoolFee);
+      if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
+        require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
+        payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
       }
     } else {
-      require(msg.sender == owner() || msg.sender == poolManager, 'NOT_AUTHORIZED');
+      require(hasRole(POOL_MANAGER_ROLE, msg.sender), 'ONLY_POOL_MANAGER');
     }
   }
 
-  function removePool(address _pool) external {
+  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
     require(isPool(_pool), 'POOL_NOT_FOUND');
-    require(msg.sender == owner() || msg.sender == poolManager, 'NOT_AUTHORIZED');
 
     pools[_pool] = false;
     poolCount -= 1;
@@ -144,7 +136,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     emit AddRewardsMerkleRoot(_epoch, merkleRoot);
   }
 
-  function removeRewardsMerkleRoot(uint256 _epoch) external onlyOwner {
+  function removeRewardsMerkleRoot(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
     require(rewardsMerkleRoots[_epoch] != bytes32(0), 'MERKLE_NOT_SET_FOR_EPOCH');
     rewardsMerkleRoots[_epoch] = bytes32(0);
     emit RemoveRewardsMerkleRoot(_epoch);
@@ -199,7 +191,7 @@ contract Pool is Ownable, Pausable, ReentrancyGuard, IPool {
     emit ClaimRewardsBatch(msg.sender, length, totalAmount);
   }
 
-  function setMaxBatchSize(uint256 _maxBatchSize) external onlyOwner {
+  function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
     maxBatchSize = _maxBatchSize;
     emit SetMaxBatchSize(_maxBatchSize);
   }

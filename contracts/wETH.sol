@@ -1,27 +1,28 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <info@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 import './StakeTogether.sol';
+import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract stwETH is Ownable, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract wETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+
   StakeTogether public stakeTogether;
 
   event EtherReceived(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
 
-  constructor()
-    ERC20('Stake Together Withdrawal Ether', 'stwETH')
-    ERC20Permit('Stake Together Withdrawal Ether')
-  {}
+  constructor() ERC20('ST Withdrawal Ether', 'wETH') ERC20Permit('ST Withdrawal Ether') {
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+  }
 
   receive() external payable {
     _checkExtraAmount();
@@ -38,7 +39,7 @@ contract stwETH is Ownable, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC
     _mint(_to, _amount);
   }
 
-  function setStakeTogether(address _stakeTogether) external onlyOwner {
+  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
