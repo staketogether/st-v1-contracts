@@ -325,18 +325,21 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event SetOperatorFeeAddress(address indexed to);
   event SetStakeTogetherFeeAddress(address indexed to);
 
+  // Todo: Needs TimeLock
   function setPoolFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     poolFeeAddress = _to;
     emit SetPoolFeeAddress(_to);
   }
 
+  // Todo: Needs TimeLock
   function setOperatorFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeAddress = _to;
     emit SetOperatorFeeAddress(_to);
   }
 
+  // Todo: Needs TimeLock
   function setStakeTogetherFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     stakeTogetherFeeAddress = _to;
@@ -363,31 +366,37 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event SetAddPoolFee(uint256 fee);
   event SetEntryFee(uint256 fee);
 
+  // Todo: Needs TimeLock
   function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     stakeTogetherFee = _fee;
     emit SetStakeTogetherFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     poolFee = _fee;
     emit SetPoolFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setOperatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     operatorFee = _fee;
     emit SetOperatorFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setValidatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     validatorFee = _fee;
     emit SetValidatorFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setAddPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     addPoolFee = _fee;
     emit SetAddPoolFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setEntryFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     addPoolFee = _fee;
     emit SetEntryFee(_fee);

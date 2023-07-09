@@ -13,7 +13,7 @@ import './Pool.sol';
 
 contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
+  bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
   Pool public poolContract;
@@ -24,28 +24,21 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
   event EtherReceived(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetStakeTogetherFee(uint256 fee);
-  event SetPoolFee(uint256 fee);
+  event SetLiquidityFee(uint256 fee);
+  event SetStakeTogetherLiquidityFee(uint256 fee);
+  event SetPoolLiquidityFee(uint256 fee);
   event AddLiquidity(address indexed user, uint256 amount);
   event RemoveLiquidity(address indexed user, uint256 amount);
   event Borrow(address indexed user, uint256 amount);
   event RepayLoan(address indexed user, uint256 amount);
   event ReDeposit(address indexed user, uint256 amount);
   event ReDepositBatch(address indexed user, uint256[] amounts);
-  event SetMaxBatchSize(uint256 size);
   event SetEnableBorrow(bool enable);
 
   uint256 public liquidityFee = 0.01 ether;
-  uint256 public stakeTogetherFee = 0.15 ether;
-  uint256 public poolFee = 0.15 ether;
-  uint256 public maxBatchSize = 100;
+  uint256 public stakeTogetherLiquidityFee = 0.15 ether;
+  uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
-
-  function setMaxBatchSize(uint256 _size) external onlyRole(ADMIN_ROLE) {
-    require(_size > 0, 'ZERO_SIZE');
-    maxBatchSize = _size;
-    emit SetMaxBatchSize(_size);
-  }
 
   constructor() ERC20('ST Lending Ether', 'LETH') ERC20Permit('ST Lending Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -72,16 +65,25 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+  // Todo: Needs TimeLock
+  function setLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
-    stakeTogetherFee = _fee;
-    emit SetStakeTogetherFee(_fee);
+    liquidityFee = _fee;
+    emit SetLiquidityFee(_fee);
   }
 
-  function setPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+  // Todo: Needs TimeLock
+  function setStakeTogetherLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
-    stakeTogetherFee = _fee;
-    emit SetPoolFee(_fee);
+    stakeTogetherLiquidityFee = _fee;
+    emit SetStakeTogetherLiquidityFee(_fee);
+  }
+
+  // Todo: Needs TimeLock
+  function setPoolLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+    require(_fee > 0, 'ZERO_FEE');
+    stakeTogetherLiquidityFee = _fee;
+    emit SetPoolLiquidityFee(_fee);
   }
 
   function setEnableBorrow(bool _enable) external onlyRole(ADMIN_ROLE) {
@@ -111,9 +113,8 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
     uint256 total = _amount + Math.mulDiv(_amount, liquidityFee, 1 ether);
 
-    uint256 stakeTogetherShare = Math.mulDiv(total, stakeTogetherFee, 1 ether);
-    uint256 poolShare = Math.mulDiv(total, poolFee, 1 ether);
-    uint256 usersShare = Math.mulDiv(total, usersFee, 1 ether);
+    uint256 stakeTogetherShare = Math.mulDiv(total, stakeTogetherLiquidityFee, 1 ether);
+    uint256 poolShare = Math.mulDiv(total, poolLiquidityFee, 1 ether);
 
     uint256 liquidityProviderShare = total - stakeTogetherShare - poolShare;
 
@@ -172,39 +173,46 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   uint256 public poolAnticipateFee = 0.15 ether;
   bool public enableAnticipation = true;
 
-  function setApr(uint256 _apr) external onlyRole(ADMIN_ROLE) {
+  // Todo: Needs TimeLock
+  function setApr(uint256 _apr) external onlyRole(ORACLE_REPORT_ROLE) {
     apr = _apr;
     emit SetApr(_apr);
   }
 
+  // Todo: Needs TimeLock
   function setMaxAnticipateFraction(uint256 _fraction) external onlyRole(ADMIN_ROLE) {
     maxAnticipateFraction = _fraction;
     emit SetMaxAnticipateFraction(_fraction);
   }
 
+  // Todo: Needs TimeLock
   function setMaxAnticipationDays(uint256 _days) external onlyRole(ADMIN_ROLE) {
     maxAnticipationDays = _days;
     emit SetMaxAnticipationDays(_days);
   }
 
+  // Todo: Needs TimeLock
   function setAnticipationFeeRange(uint256 _minFee, uint256 _maxFee) external onlyRole(ADMIN_ROLE) {
     minAnticipationFee = _minFee;
     maxAnticipationFee = _maxFee;
     emit SetAnticipationFeeRange(_minFee, _maxFee);
   }
 
+  // Todo: Needs TimeLock
   function setStakeTogetherAnticipateFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     stakeTogetherAnticipateFee = _fee;
     emit SetStakeTogetherAnticipateFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setPoolAnticipateFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     stakeTogetherAnticipateFee = _fee;
     emit SetPoolAnticipateFee(_fee);
   }
 
+  // Todo: Needs TimeLock
   function setEnableAnticipation(bool _enable) external onlyRole(ADMIN_ROLE) {
     enableAnticipation = _enable;
     emit SetEnableAnticipation(_enable);
@@ -247,7 +255,7 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     return netAmount;
   }
 
-  function anticipateRewards(uint256 _amount, uint256 _days) external nonReentrant {
+  function anticipateRewards(uint256 _amount, address _pool, uint256 _days) external nonReentrant {
     require(enableAnticipation, 'ANTICIPATION_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(_days > 0, 'ZERO_DAYS');
@@ -276,7 +284,7 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     payable(msg.sender).transfer(netAmount);
 
     _mint(stakeTogether.stakeTogetherFeeAddress(), stakeTogetherShare);
-    _mint(poolAddress, poolShare);
+    _mint(_pool, poolShare);
     _mint(msg.sender, usersShare);
 
     emit AnticipateRewards(msg.sender, _amount, netAmount, fee);
@@ -285,6 +293,17 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   /***********************
    ** REDEPOSIT **
    ***********************/
+
+  event SetMaxBatchSize(uint256 size);
+
+  uint256 public maxBatchSize = 100;
+
+  // Todo: Needs TimeLock
+  function setMaxBatchSize(uint256 _size) external onlyRole(ADMIN_ROLE) {
+    require(_size > 0, 'ZERO_SIZE');
+    maxBatchSize = _size;
+    emit SetMaxBatchSize(_size);
+  }
 
   function reDeposit(
     uint256 _amount,

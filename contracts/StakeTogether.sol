@@ -163,26 +163,31 @@ contract StakeTogether is SETH {
     emit WithdrawValidator(msg.sender, _amount, _pool);
   }
 
+  // Todo: Needs TimeLock
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     depositLimit = _newLimit;
     emit SetDepositLimit(_newLimit);
   }
 
+  // Todo: Needs TimeLock
   function setWithdrawalLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     withdrawalLimit = _newLimit;
     emit SetWithdrawalLimit(_newLimit);
   }
 
+  // Todo: Needs TimeLock
   function setWalletDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     walletDepositLimit = _newLimit;
     emit SetWalletDepositLimit(_newLimit);
   }
 
+  // Todo: Needs TimeLock
   function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
     blocksPerDay = _newBlocksInterval;
     emit SetBlocksInterval(_newBlocksInterval);
   }
 
+  // Todo: Needs TimeLock
   function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
     minDepositAmount = _amount;
     emit SetMinDepositPoolAmount(_amount);
@@ -275,7 +280,6 @@ contract StakeTogether is SETH {
 
   bytes public withdrawalCredentials;
 
-  event SetStakeTogether(address stakeTogether);
   event CreateValidator(
     address indexed creator,
     uint256 indexed amount,
@@ -346,6 +350,7 @@ contract StakeTogether is SETH {
     emit RemoveValidator(msg.sender, _epoch, _publicKey);
   }
 
+  // Todo: Needs TimeLock
   function setValidatorSize(uint256 _newSize) external onlyRole(ADMIN_ROLE) {
     require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
     validatorSize = _newSize;
