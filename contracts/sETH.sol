@@ -204,6 +204,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     _;
   }
 
+  event SetMaxActiveLocks(uint256 amount);
   event SharesLocked(address indexed account, uint256 amount, uint256 unlockBlock);
   event SharesUnlocked(address indexed account, uint256 amount);
 
@@ -216,6 +217,12 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   mapping(address => uint256) public lockedShares;
   uint256 public totalLockedShares;
   uint256 public maxActiveLocks = 10;
+
+  // Todo: require time lock
+  function setMaxActiveLocks(uint256 _amount) external onlyRole(ADMIN_ROLE) {
+    maxActiveLocks = _amount;
+    emit SetMaxActiveLocks(_amount);
+  }
 
   function lockedSharesOf(address _account) public view returns (uint256) {
     return lockedShares[_account];
