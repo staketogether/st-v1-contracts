@@ -14,6 +14,7 @@ import './Pool.sol';
 contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
+  bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
 
   StakeTogether public stakeTogether;
   Pool public poolContract;
@@ -279,7 +280,11 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
     require(address(this).balance >= netAmount, 'INSUFFICIENT_CONTRACT_BALANCE');
 
-    // Todo: Lock shares on stake together contract
+    uint256 sharesToLock = stakeTogether.getSharesByPooledEth(_amount);
+
+    uint256 blocks = (_days * 24 * 60 * 60) / 12; // Eth Block Time = 12
+
+    stakeTogether.lockShares(sharesToLock, blocks);
 
     payable(msg.sender).transfer(netAmount);
 

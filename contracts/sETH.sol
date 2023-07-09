@@ -70,11 +70,15 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return pooledEthByShares(sharesOf(_account));
+    return pooledEthByShares(netSharesOf(_account));
   }
 
   function sharesOf(address _account) public view returns (uint256) {
     return shares[_account];
+  }
+
+  function netSharesOf(address _account) public view returns (uint256) {
+    return shares[_account] - lockedShares[_account];
   }
 
   function getSharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
@@ -156,7 +160,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_sharesAmount <= shares[_account], 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= netSharesOf(_account), 'BALANCE_EXCEEDED');
 
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
@@ -174,8 +178,8 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_to != address(this), 'TRANSFER_TO_CETH_CONTRACT');
-    require(_sharesAmount <= shares[_from], 'BALANCE_EXCEEDED');
+    require(_to != address(this), 'TRANSFER_TO_SETH_CONTRACT');
+    require(_sharesAmount <= netSharesOf(_from), 'BALANCE_EXCEEDED');
 
     shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
@@ -189,6 +193,92 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
       _approve(_account, _spender, currentAllowance - _amount);
     }
+  }
+
+  /*****************
+   ** LOCK SHARES **
+   *****************/
+
+  modifier onlyLETH() {
+    require(msg.sender == address(LETHContract), 'ONLY_LETH_CONTRACT');
+    _;
+  }
+
+  event SharesLocked(address indexed account, uint256 amount, uint256 unlockBlock);
+  event SharesUnlocked(address indexed account, uint256 amount);
+
+  struct Lock {
+    uint256 amount;
+    uint256 unlockBlock;
+  }
+
+  mapping(address => Lock[]) public locked;
+  mapping(address => uint256) public lockedShares;
+  uint256 public totalLockedShares;
+  uint256 public maxActiveLocks = 10;
+
+  function lockedSharesOf(address _account) public view returns (uint256) {
+    return lockedShares[_account];
+  }
+
+  function lockShares(
+    uint256 _sharesAmount,
+    uint256 _blocks
+  ) external onlyLETH nonReentrant whenNotPaused {
+    require(locked[msg.sender].length < maxActiveLocks, 'TOO_MANY_LOCKS');
+    require(_sharesAmount <= shares[msg.sender], 'BALANCE_EXCEEDED');
+    require(_blocks > 0, 'BLOCKS_MUST_BE_GREATER_THAN_ZERO');
+
+    shares[msg.sender] -= _sharesAmount;
+    lockedShares[msg.sender] += _sharesAmount;
+    totalLockedShares += _sharesAmount;
+
+    Lock memory newLock = Lock(_sharesAmount, block.number + _blocks);
+    locked[msg.sender].push(newLock);
+
+    emit SharesLocked(msg.sender, _sharesAmount, newLock.unlockBlock);
+  }
+
+  function unlockShares() external nonReentrant whenNotPaused {
+    Lock[] storage locks = locked[msg.sender];
+    require(locks.length > 0, 'NO_LOCKS_FOUND');
+
+    for (uint256 i = 0; i < locks.length; i++) {
+      if (locks[i].unlockBlock <= block.number) {
+        uint256 amount = locks[i].amount;
+        shares[msg.sender] += amount;
+        lockedShares[msg.sender] -= amount;
+        totalLockedShares -= amount;
+
+        _removeLock(msg.sender, i);
+        i--;
+
+        emit SharesUnlocked(msg.sender, amount);
+      }
+    }
+  }
+
+  function unlockSpecificLock(uint256 _index) external nonReentrant whenNotPaused {
+    Lock[] storage locks = locked[msg.sender];
+    require(_index < locks.length, 'INVALID_INDEX');
+    require(locks[_index].unlockBlock <= block.number, 'LOCK_NOT_EXPIRED');
+
+    uint256 amount = locks[_index].amount;
+    shares[msg.sender] += amount;
+    lockedShares[msg.sender] -= amount;
+    totalLockedShares -= amount;
+
+    _removeLock(msg.sender, _index);
+
+    emit SharesUnlocked(msg.sender, amount);
+  }
+
+  function _removeLock(address _account, uint256 _index) internal {
+    Lock[] storage locks = locked[_account];
+    require(_index < locks.length, 'INVALID_INDEX');
+
+    locks[_index] = locks[locks.length - 1];
+    locks.pop();
   }
 
   /*****************
@@ -300,7 +390,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_SETH_CONTRACT');
-    require(poolContract.isPool(_to), 'ONLY_CAN_STAKE_TO_POOL');
+    require(poolContract.isPool(_to), 'ONLY_CAN_TRANSFER_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_from], 'BALANCE_EXCEEDED');
 
