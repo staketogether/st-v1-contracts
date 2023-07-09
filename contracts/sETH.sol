@@ -12,20 +12,20 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IDepositContract.sol';
 import './Distributor.sol';
 import './Pool.sol';
-import './wETH.sol';
-import './lETH.sol';
+import './WETH.sol';
+import './LETH.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract sETH is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
+abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   Distributor public distributorContract;
   Pool public poolContract;
-  wETH public wETHContract;
-  lETH public lETHContract;
+  WETH public WETHContract;
+  LETH public LETHContract;
   IDepositContract public depositContract;
 
-  constructor() ERC20('ST Pool Ether', 'sETH') ERC20Permit('ST Pool Ether') {
+  constructor() ERC20('ST Pool Ether', 'SETH') ERC20Permit('ST Pool Ether') {
     _bootstrap();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);

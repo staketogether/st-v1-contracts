@@ -1,23 +1,23 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
-import './sETH.sol';
+import './SETH.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract StakeTogether is sETH {
+contract StakeTogether is SETH {
   event EtherReceived(address indexed sender, uint amount);
 
   constructor(
     address _distributorContract,
     address _poolContract,
-    address _wETHContract,
-    address _lETHContract,
+    address _WETHContract,
+    address _LETHContract,
     address _depositContract
   ) payable {
     distributorContract = Distributor(payable(_distributorContract));
     poolContract = Pool(payable(_poolContract));
-    wETHContract = wETH(payable(_wETHContract));
-    lETHContract = lETH(payable(_lETHContract));
+    WETHContract = WETH(payable(_WETHContract));
+    LETHContract = LETH(payable(_LETHContract));
     depositContract = IDepositContract(_depositContract);
   }
 
@@ -147,10 +147,10 @@ contract StakeTogether is sETH {
   }
 
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(lETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
+    require(_amount <= address(LETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
     _withdrawBase(_amount, _pool);
     poolSize += _amount;
-    lETHContract.borrow(_amount, _pool);
+    LETHContract.borrow(_amount, _pool);
     payable(msg.sender).transfer(_amount);
     emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
@@ -159,7 +159,7 @@ contract StakeTogether is sETH {
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
     _withdrawBase(_amount, _pool);
     beaconBalance -= _amount;
-    wETHContract.mint(msg.sender, _amount);
+    WETHContract.mint(msg.sender, _amount);
     emit WithdrawValidator(msg.sender, _amount, _pool);
   }
 
@@ -188,9 +188,9 @@ contract StakeTogether is sETH {
     emit SetMinDepositPoolAmount(_amount);
   }
 
-  // Todo: dynamic change pool size with wETH
+  // Todo: dynamic change pool size with WETH
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    require(_amount >= validatorSize + address(lETHContract).balance, 'POOL_SIZE_TOO_LOW');
+    require(_amount >= validatorSize + address(LETHContract).balance, 'POOL_SIZE_TOO_LOW');
     poolSize = _amount;
     emit SetPoolSize(_amount);
   }
@@ -204,14 +204,14 @@ contract StakeTogether is sETH {
   }
 
   function _repayLoan() internal {
-    if (lETHContract.balanceOf(address(this)) > 0) {
+    if (LETHContract.balanceOf(address(this)) > 0) {
       uint256 loanAmount = 0;
-      if (lETHContract.balanceOf(address(this)) >= msg.value) {
+      if (LETHContract.balanceOf(address(this)) >= msg.value) {
         loanAmount = msg.value;
       } else {
-        loanAmount = lETHContract.balanceOf(address(this));
+        loanAmount = LETHContract.balanceOf(address(this));
       }
-      lETHContract.repayLoan{ value: loanAmount }();
+      LETHContract.repayLoan{ value: loanAmount }();
       poolSize -= loanAmount;
     }
   }
@@ -271,7 +271,7 @@ contract StakeTogether is sETH {
    ** VALIDATORS **
    *****************/
 
-  // Todo: exit sequence with wETH
+  // Todo: exit sequence with WETH
 
   bytes public withdrawalCredentials;
 

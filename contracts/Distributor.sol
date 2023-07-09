@@ -15,10 +15,10 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
-  wETH public wETHContract;
+  WETH public WETHContract;
 
-  constructor(address _wETH) {
-    wETHContract = wETH(payable(_wETH));
+  constructor(address _WETH) {
+    WETHContract = WETH(payable(_WETH));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
@@ -280,7 +280,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     uint256 lossAmount;
     Shares shares;
     Amounts amounts;
-    uint256 wETHAmount; // saque de wETH
+    uint256 WETHAmount; // saque de WETH
     uint256 restExitAmount; // não foi usado no saque (tem que voltar pro pool)
     bytes[] restExitValidators; // validators que sairam
   }
@@ -374,8 +374,8 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       );
     }
 
-    if (_report.wETHAmount > 0) {
-      payable(address(wETHContract)).transfer(_report.wETHAmount);
+    if (_report.WETHAmount > 0) {
+      payable(address(WETHContract)).transfer(_report.WETHAmount);
     }
 
     if (_report.restExitAmount > 0) {
@@ -409,7 +409,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     require(!oracleReportsKey[reportKey], 'ORACLE_ALREADY_REPORTED');
     oracleReportsKey[reportKey] = true;
 
-    require(address(this).balance >= _report.wETHAmount, 'INSUFFICIENT_ETH_BALANCE');
+    require(address(this).balance >= _report.WETHAmount, 'INSUFFICIENT_ETH_BALANCE');
     require(_report.restExitValidators.length <= maxExitValidators, 'MAX_EXIT_VALIDATORS_REACHED');
 
     return true;

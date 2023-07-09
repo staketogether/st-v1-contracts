@@ -10,7 +10,7 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract wETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract WETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
@@ -19,7 +19,7 @@ contract wETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
 
-  constructor() ERC20('ST Withdrawal Ether', 'wETH') ERC20Permit('ST Withdrawal Ether') {
+  constructor() ERC20('ST Withdrawal Ether', 'WETH') ERC20Permit('ST Withdrawal Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
@@ -48,7 +48,7 @@ contract wETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
     require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
     require(_amount > 0, 'ZERO_AMOUNT');
-    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_stwETH_BALANCE');
+    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_stWETH_BALANCE');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
     _burn(msg.sender, _amount);
