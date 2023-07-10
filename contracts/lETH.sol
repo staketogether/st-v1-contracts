@@ -10,6 +10,7 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './Pool.sol';
+import './Distributor.sol';
 
 contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -17,7 +18,7 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
 
   StakeTogether public stakeTogether;
-  Pool public poolContract;
+  Distributor public distributor;
 
   /***********************
    ** LIQUIDITY **
@@ -41,7 +42,10 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
 
-  constructor() ERC20('ST Lending Ether', 'LETH') ERC20Permit('ST Lending Ether') {
+  constructor(
+    address _distributorContract
+  ) ERC20('ST Lending Ether', 'LETH') ERC20Permit('ST Lending Ether') {
+    distributor = Distributor(payable(_distributorContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
@@ -66,21 +70,18 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     emit SetStakeTogether(_stakeTogether);
   }
 
-  // Todo: Needs TimeLock
   function setLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     liquidityFee = _fee;
     emit SetLiquidityFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setStakeTogetherLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     stakeTogetherLiquidityFee = _fee;
     emit SetStakeTogetherLiquidityFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setPoolLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     stakeTogetherLiquidityFee = _fee;
@@ -150,7 +151,12 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
    ** ANTICIPATION **
    ***********************/
 
-  event SetApr(uint256 apr);
+  modifier onlyDistributor() {
+    require(msg.sender == address(distributor), 'ONLY_DISTRIBUTOR_CONTRACT');
+    _;
+  }
+
+  event SetApr(uint256 epoch, uint256 apr);
   event SetMaxAnticipateFraction(uint256 fraction);
   event SetMaxAnticipationDays(uint256 anticipationDays);
   event SetAnticipationFeeRange(uint256 minFee, uint256 maxFee);
@@ -174,46 +180,39 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   uint256 public poolAnticipateFee = 0.15 ether;
   bool public enableAnticipation = true;
 
-  // Todo: Needs TimeLock
-  function setApr(uint256 _apr) external onlyRole(ORACLE_REPORT_ROLE) {
+  function setApr(uint256 _epoch, uint256 _apr) external onlyDistributor {
     apr = _apr;
-    emit SetApr(_apr);
+    emit SetApr(_epoch, _apr);
   }
 
-  // Todo: Needs TimeLock
   function setMaxAnticipateFraction(uint256 _fraction) external onlyRole(ADMIN_ROLE) {
     maxAnticipateFraction = _fraction;
     emit SetMaxAnticipateFraction(_fraction);
   }
 
-  // Todo: Needs TimeLock
   function setMaxAnticipationDays(uint256 _days) external onlyRole(ADMIN_ROLE) {
     maxAnticipationDays = _days;
     emit SetMaxAnticipationDays(_days);
   }
 
-  // Todo: Needs TimeLock
   function setAnticipationFeeRange(uint256 _minFee, uint256 _maxFee) external onlyRole(ADMIN_ROLE) {
     minAnticipationFee = _minFee;
     maxAnticipationFee = _maxFee;
     emit SetAnticipationFeeRange(_minFee, _maxFee);
   }
 
-  // Todo: Needs TimeLock
   function setStakeTogetherAnticipateFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     stakeTogetherAnticipateFee = _fee;
     emit SetStakeTogetherAnticipateFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setPoolAnticipateFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     require(_fee > 0, 'ZERO_FEE');
     stakeTogetherAnticipateFee = _fee;
     emit SetPoolAnticipateFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setEnableAnticipation(bool _enable) external onlyRole(ADMIN_ROLE) {
     enableAnticipation = _enable;
     emit SetEnableAnticipation(_enable);
@@ -303,7 +302,6 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
   uint256 public maxBatchSize = 100;
 
-  // Todo: Needs TimeLock
   function setMaxBatchSize(uint256 _size) external onlyRole(ADMIN_ROLE) {
     require(_size > 0, 'ZERO_SIZE');
     maxBatchSize = _size;

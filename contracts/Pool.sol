@@ -74,14 +74,12 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
 
   bool public permissionLessAddPool = false;
 
-  // Todo: Needs TimeLock
   function setMaxPools(uint256 _maxPools) external onlyRole(ADMIN_ROLE) {
     require(_maxPools >= poolCount, 'INVALID_MAX_POOLS');
     maxPools = _maxPools;
     emit SetMaxPools(_maxPools);
   }
 
-  // Todo: Needs TimeLock
   function setPermissionLessAddPool(bool _permissionLessAddPool) external onlyRole(ADMIN_ROLE) {
     permissionLessAddPool = _permissionLessAddPool;
     emit SetPermissionLessAddPool(_permissionLessAddPool);
@@ -193,7 +191,6 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     emit ClaimRewardsBatch(msg.sender, length, totalAmount);
   }
 
-  // Todo: Needs TimeLock
   function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
     maxBatchSize = _maxBatchSize;
     emit SetMaxBatchSize(_maxBatchSize);

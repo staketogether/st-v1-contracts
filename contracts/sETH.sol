@@ -18,6 +18,9 @@ import './LETH.sol';
 /// @custom:security-contact security@staketogether.app
 abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
+  bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
+  bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
   Distributor public distributorContract;
   Pool public poolContract;
@@ -218,7 +221,6 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   uint256 public totalLockedShares;
   uint256 public maxActiveLocks = 10;
 
-  // Todo: require time lock
   function setMaxActiveLocks(uint256 _amount) external onlyRole(ADMIN_ROLE) {
     maxActiveLocks = _amount;
     emit SetMaxActiveLocks(_amount);
@@ -308,6 +310,13 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     uint256 sharesAmount
   );
 
+  event TransferDelegationShares(
+    address indexed from,
+    address indexed to,
+    address indexed pool,
+    uint256 sharesAmount
+  );
+
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
 
   function poolSharesOf(address _account) public view returns (uint256) {
@@ -319,13 +328,27 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   }
 
   function transferPoolShares(address _to, address _pool, uint256 _sharesAmount) external {
-    _transferPoolShares(msg.sender, _to, _pool, _sharesAmount);
+    require(_to != address(0), 'TRANSFER_to_ZERO_ADDR');
+    require(_pool != address(0), 'TRANSFER_pool_ZERO_ADDR');
+    require(_pool != address(this), 'TRANSFER_pool_SETH_CONTRACT');
+    require(poolContract.isPool(_pool), 'ONLY_CAN_TRANSFER_pool_POOL');
+
+    require(_sharesAmount <= delegationsShares[msg.sender][_to], 'BALANCE_EXCEEDED');
+
+    poolShares[_to] -= _sharesAmount;
+    delegationsShares[msg.sender][_to] -= _sharesAmount;
+
+    poolShares[_pool] += _sharesAmount;
+    delegationsShares[msg.sender][_pool] += _sharesAmount;
+
+    emit TransferPoolShares(msg.sender, _to, _pool, _sharesAmount);
   }
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(poolContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+    require(_sharesAmount > 0, 'MINT_INVALID_AMOUNT');
 
     poolShares[_pool] += _sharesAmount;
     delegationsShares[_to][_pool] += _sharesAmount;
@@ -339,20 +362,29 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     emit MintPoolShares(_to, _pool, _sharesAmount);
   }
 
-  function _burnPoolShares(address _from, address _pool, uint256 _sharesAmount) internal whenNotPaused {
-    require(_from != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(poolContract.isPool(_pool), 'ONLY_CAN_BURN_FROM_POOL');
+  function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
+    require(_to != address(0), 'BURN_to_ZERO_ADDR');
+    require(poolContract.isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
+    require(delegationsShares[_to][_pool] >= _sharesAmount, 'BURN_INVALID_AMOUNT');
+    require(_sharesAmount > 0, 'BURN_INVALID_AMOUNT');
 
     poolShares[_pool] -= _sharesAmount;
-    delegationsShares[_from][_pool] -= _sharesAmount;
+    delegationsShares[_to][_pool] -= _sharesAmount;
     totalPoolShares -= _sharesAmount;
 
-    if (delegationsShares[_from][_pool] == 0) {
-      isDelegate[_from][_pool] = false;
-      // Todo: revise, need to remove from delegates array
+    if (delegationsShares[_to][_pool] == 0) {
+      isDelegate[_to][_pool] = false;
+
+      for (uint i = 0; i < delegates[_to].length; i++) {
+        if (delegates[_to][i] == _pool) {
+          delegates[_to][i] = delegates[_to][delegates[_to].length - 1];
+          delegates[_to].pop();
+          break;
+        }
+      }
     }
 
-    emit BurnPoolShares(_from, _pool, _sharesAmount);
+    emit BurnPoolShares(_to, _pool, _sharesAmount);
   }
 
   function _transferDelegationShares(
@@ -384,30 +416,8 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
         isDelegate[_from][pool] = false;
       }
 
-      emit TransferPoolShares(_from, _to, pool, delegationSharesToTransfer);
+      emit TransferDelegationShares(_from, _to, pool, delegationSharesToTransfer);
     }
-  }
-
-  function _transferPoolShares(
-    address _account,
-    address _from,
-    address _to,
-    uint256 _sharesAmount
-  ) internal whenNotPaused {
-    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_to != address(this), 'TRANSFER_TO_SETH_CONTRACT');
-    require(poolContract.isPool(_to), 'ONLY_CAN_TRANSFER_TO_POOL');
-
-    require(_sharesAmount <= delegationsShares[_account][_from], 'BALANCE_EXCEEDED');
-
-    poolShares[_from] -= _sharesAmount;
-    delegationsShares[_account][_from] -= _sharesAmount;
-
-    poolShares[_to] += _sharesAmount;
-    delegationsShares[_account][_to] += _sharesAmount;
-
-    emit TransferPoolShares(_account, _from, _to, _sharesAmount);
   }
 
   /*****************
@@ -422,21 +432,18 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event SetOperatorFeeAddress(address indexed to);
   event SetStakeTogetherFeeAddress(address indexed to);
 
-  // Todo: Needs TimeLock
   function setPoolFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     poolFeeAddress = _to;
     emit SetPoolFeeAddress(_to);
   }
 
-  // Todo: Needs TimeLock
   function setOperatorFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     operatorFeeAddress = _to;
     emit SetOperatorFeeAddress(_to);
   }
 
-  // Todo: Needs TimeLock
   function setStakeTogetherFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     stakeTogetherFeeAddress = _to;
@@ -446,8 +453,6 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   /*****************
    ** FEES **
    *****************/
-
-  uint256 public basisPoints = 1 ether;
 
   uint256 public stakeTogetherFee = 0.03 ether;
   uint256 public operatorFee = 0.03 ether;
@@ -463,39 +468,33 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event SetAddPoolFee(uint256 fee);
   event SetEntryFee(uint256 fee);
 
-  // Todo: Needs TimeLock
   function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     stakeTogetherFee = _fee;
     emit SetStakeTogetherFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     poolFee = _fee;
     emit SetPoolFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setOperatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     operatorFee = _fee;
     emit SetOperatorFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setValidatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     validatorFee = _fee;
     emit SetValidatorFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setAddPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     addPoolFee = _fee;
     emit SetAddPoolFee(_fee);
   }
 
-  // Todo: Needs TimeLock
   function setEntryFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
-    addPoolFee = _fee;
+    entryFee = _fee;
     emit SetEntryFee(_fee);
   }
 
@@ -519,6 +518,10 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
 
   event MintRewards(uint256 epoch, address indexed to, uint256 sharesAmount, RewardType rewardType);
   event MintPenalty(uint256 epoch, uint256 amount);
+  event RefundPool(uint256 epoch, uint256 amount);
+  event ExitBeaconAmount(uint256 _epoch, uint256 amount);
+
+  // Refund Pool
 
   function mintRewards(
     uint256 _epoch,
@@ -526,7 +529,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     uint256 _sharesAmount
   ) external payable nonReentrant onlyDistributor {
     _mintShares(_rewardAddress, _sharesAmount);
-    _mintPoolShares(_rewardAddress, _rewardAddress, _sharesAmount);
+    _mintPoolShares(_rewardAddress, _rewardAddress, _sharesAmount); // Todo: verify pools shares not claimed
 
     if (_rewardAddress == stakeTogetherFeeAddress) {
       emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.StakeTogether);
@@ -541,5 +544,14 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_blockNumber, _lossAmount);
+  }
+
+  function refundPool(uint256 _epoch) external payable nonReentrant onlyDistributor {
+    emit RefundPool(_epoch, msg.value);
+  }
+
+  function exitBeaconAmount(uint256 _epoch, uint256 _amount) external nonReentrant onlyDistributor {
+    beaconBalance -= _amount;
+    emit ExitBeaconAmount(_epoch, _amount);
   }
 }

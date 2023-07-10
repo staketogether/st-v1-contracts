@@ -22,17 +22,17 @@ contract StakeTogether is SETH {
   }
 
   receive() external payable {
-    _repayLoan();
     emit EtherReceived(msg.sender, msg.value);
+    _repayLoan();
   }
 
   fallback() external payable {
-    _repayLoan();
     emit EtherReceived(msg.sender, msg.value);
+    _repayLoan();
   }
 
   /*****************
-   ** STAKE BUFFER **
+   ** STAKE **
    *****************/
 
   event DepositPool(address indexed account, uint256 amount, address delegated, address referral);
@@ -54,6 +54,7 @@ contract StakeTogether is SETH {
   event SetWalletDepositLimit(uint256 newLimit);
   event SetWithdrawalLimit(uint256 newLimit);
   event SetBlocksInterval(uint256 blocksInterval);
+
   event DepositLimitReached(address indexed sender, uint256 amount);
   event WalletDepositLimitReached(address indexed sender, uint256 amount);
   event WithdrawalLimitReached(address indexed sender, uint256 amount);
@@ -89,13 +90,13 @@ contract StakeTogether is SETH {
 
     totalDeposited += msg.value;
 
-    _repayLoan();
-
     if (block.number > lastResetBlock + blocksPerDay) {
       totalDeposited = msg.value;
       totalWithdrawn = 0;
       lastResetBlock = block.number;
     }
+
+    _repayLoan();
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
@@ -141,59 +142,53 @@ contract StakeTogether is SETH {
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= poolBalance(), 'NOT_ENOUGH_POOL_BALANCE');
+    emit WithdrawPool(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     payable(msg.sender).transfer(_amount);
-    emit WithdrawPool(msg.sender, _amount, _pool);
   }
 
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= address(LETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
+    emit WithdrawBorrow(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     poolSize += _amount;
     LETHContract.borrow(_amount, _pool);
     payable(msg.sender).transfer(_amount);
-    emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
+    emit WithdrawValidator(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     beaconBalance -= _amount;
     WETHContract.mint(msg.sender, _amount);
-    emit WithdrawValidator(msg.sender, _amount, _pool);
   }
 
-  // Todo: Needs TimeLock
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     depositLimit = _newLimit;
     emit SetDepositLimit(_newLimit);
   }
 
-  // Todo: Needs TimeLock
   function setWithdrawalLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     withdrawalLimit = _newLimit;
     emit SetWithdrawalLimit(_newLimit);
   }
 
-  // Todo: Needs TimeLock
   function setWalletDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     walletDepositLimit = _newLimit;
     emit SetWalletDepositLimit(_newLimit);
   }
 
-  // Todo: Needs TimeLock
   function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
     blocksPerDay = _newBlocksInterval;
     emit SetBlocksInterval(_newBlocksInterval);
   }
 
-  // Todo: Needs TimeLock
   function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
     minDepositAmount = _amount;
     emit SetMinDepositPoolAmount(_amount);
   }
 
-  // Todo: dynamic change pool size with WETH
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
     require(_amount >= validatorSize + address(LETHContract).balance, 'POOL_SIZE_TOO_LOW');
     poolSize = _amount;
@@ -225,58 +220,60 @@ contract StakeTogether is SETH {
    ** VALIDATOR ORACLES **
    ***********************/
 
-  // modifier onlyValidatorOracle() {
-  //   require(isOracle(msg.sender), 'ONLY_ORACLES');
-  //   _;
-  // }
+  address[] public validatorOracles;
+  uint256 public currentOracleIndex;
 
-  // event AddValidatorOracle(address oracle);
-  // event RemoveValidatorOracle(address oracle);
+  modifier onlyValidatorOracle() {
+    require(hasRole(ORACLE_VALIDATOR_ROLE, msg.sender), 'MISSING_ORACLE_VALIDATOR_ROLE');
+    require(msg.sender == validatorOracles[currentOracleIndex], 'NOT_CURRENT_VALIDATOR_ORACLE');
+    _;
+  }
 
-  // mapping(address => bool) private validatorOracles;
-  // mapping(uint256 => bool) private validatorOraclesIndex;
-  // uint256 totalValidatorOracles = 0;
-  // uint256 public validatorOracleOrder = 0;
+  event AddValidatorOracle(address indexed account);
+  event RemoveValidatorOracle(address indexed account);
 
-  // function isOracle(address _oracle) public view returns (bool) {
-  //   return validatorOracles[_oracle];
-  // }
+  function addValidatorOracle(address _oracleAddress) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
+    _grantRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
+    validatorOracles.push(_oracleAddress);
+    emit AddValidatorOracle(_oracleAddress);
+  }
 
-  // function addValidatorOracle(address oracle) external onlyOwner {
-  //   require(!isOracle(oracle), 'ORACLE_EXISTS');
-  //   validatorOracles[oracle] = true;
-  //   validatorOraclesIndex[totalValidatorOracles] = true;
-  //   totalValidatorOracles += 1;
-  //   emit AddValidatorOracle(oracle);
-  // }
+  function removeValidatorOracle(
+    address _oracleAddress
+  ) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
+    _revokeRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
+    for (uint256 i = 0; i < validatorOracles.length; i++) {
+      if (validatorOracles[i] == _oracleAddress) {
+        validatorOracles[i] = validatorOracles[validatorOracles.length - 1];
+        validatorOracles.pop();
+        break;
+      }
+    }
+    emit RemoveValidatorOracle(_oracleAddress);
+  }
 
-  // function removeValidatorOracle(address oracle) external onlyOwner {
-  //   require(isOracle(oracle), 'ORACLE_NOT_EXISTS');
-  //   validatorOracles[oracle] = false;
-  //   validatorOraclesIndex[totalValidatorOracles] = false;
-  //   totalValidatorOracles -= 1;
-  //   emit RemoveValidatorOracle(oracle);
-  // }
+  function forceNextValidatorOracle() external onlyRole(ORACLE_VALIDATOR_SENTINEL_ROLE) {
+    require(
+      hasRole(ORACLE_VALIDATOR_SENTINEL_ROLE, msg.sender) ||
+        hasRole(ORACLE_VALIDATOR_MANAGER_ROLE, msg.sender),
+      'MISSING_SENDER_ROLE'
+    );
+    require(validatorOracles.length > 0, 'NO_VALIDATOR_ORACLE');
+    _nextValidatorOracle();
+  }
 
-  // function getValidatorByOrder() public view returns (address) {
-  //   return validatorOracles[validatorOracleOrder];
-  // }
+  function currentValidatorOracle() external view returns (address) {
+    return validatorOracles[currentOracleIndex];
+  }
 
-  // function forceNewValidatorOrder() external onlyOwner {
-  //   validatorOracleOrder += 1;
-
-  //   if (validatorOracleOrder >= totalValidatorOracles) {
-  //     validatorOracleOrder = 0;
-  //   }
-  // }
-
-  // Todo Add BlockList
+  function _nextValidatorOracle() internal {
+    require(validatorOracles.length > 1, 'NOT_ENOUGH_ORACLES');
+    currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
+  }
 
   /*****************
    ** VALIDATORS **
    *****************/
-
-  // Todo: exit sequence with WETH
 
   bytes public withdrawalCredentials;
 
@@ -306,20 +303,13 @@ contract StakeTogether is SETH {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant {
+  ) external nonReentrant onlyValidatorOracle {
     require(poolBalance() >= poolSize + validatorFee, 'NOT_ENOUGH_POOL_BALANCE');
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
-    // require(msg.sender == getValidatorByOrder(), 'NOT_VALIDATOR_ORACLE');
 
     validators[_publicKey] = true;
     totalValidators++;
     beaconBalance += validatorSize;
-
-    // validatorOracleOrder += 1;
-
-    // if (validatorOracleOrder >= totalValidatorOracles) {
-    //   validatorOracleOrder = 0;
-    // }
 
     depositContract.deposit{ value: validatorSize }(
       _publicKey,
@@ -328,7 +318,7 @@ contract StakeTogether is SETH {
       _depositDataRoot
     );
 
-    payable(stakeTogetherFeeAddress).transfer(validatorFee);
+    _nextValidatorOracle();
 
     emit CreateValidator(
       msg.sender,
@@ -338,10 +328,14 @@ contract StakeTogether is SETH {
       _signature,
       _depositDataRoot
     );
+
+    payable(stakeTogetherFeeAddress).transfer(validatorFee);
   }
 
-  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
-    require(msg.sender == address(distributorContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+  function removeValidator(
+    uint256 _epoch,
+    bytes calldata _publicKey
+  ) external payable nonReentrant onlyDistributor {
     require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
     validators[_publicKey] = false;
@@ -350,7 +344,6 @@ contract StakeTogether is SETH {
     emit RemoveValidator(msg.sender, _epoch, _publicKey);
   }
 
-  // Todo: Needs TimeLock
   function setValidatorSize(uint256 _newSize) external onlyRole(ADMIN_ROLE) {
     require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
     validatorSize = _newSize;

@@ -15,6 +15,11 @@ contract WETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
   StakeTogether public stakeTogether;
 
+  modifier onlyStakeTogether() {
+    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
+    _;
+  }
+
   event EtherReceived(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
@@ -34,15 +39,14 @@ contract WETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     emit EtherReceived(msg.sender, msg.value);
   }
 
-  function mint(address _to, uint256 _amount) public whenNotPaused {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
-    _mint(_to, _amount);
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
+  }
+
+  function mint(address _to, uint256 _amount) public whenNotPaused onlyStakeTogether {
+    _mint(_to, _amount);
   }
 
   function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
@@ -57,7 +61,7 @@ contract WETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     emit Withdraw(msg.sender, _amount);
   }
 
-  function withdrawIsReady(uint256 _amount) public view returns (bool) {
+  function isWithdrawReady(uint256 _amount) public view returns (bool) {
     return address(this).balance >= _amount;
   }
 

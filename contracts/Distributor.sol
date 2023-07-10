@@ -7,6 +7,8 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
+import './WETH.sol';
+import './LETH.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Distributor is AccessControl, Pausable, ReentrancyGuard {
@@ -16,15 +18,18 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
 
   StakeTogether public stakeTogether;
   WETH public WETHContract;
+  LETH public LETHContract;
 
-  constructor(address _WETH) {
+  constructor(address _WETH, address _LETH) {
     WETHContract = WETH(payable(_WETH));
+    LETHContract = LETH(payable(_LETH));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
   }
 
   event EtherReceived(address indexed sender, uint amount);
+  event SetStakeTogether(address stakeTogether);
 
   receive() external payable {
     emit EtherReceived(msg.sender, msg.value);
@@ -34,104 +39,10 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit EtherReceived(msg.sender, msg.value);
   }
 
-  event SetStakeTogether(address stakeTogether);
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
-  }
-
-  /*****************
-   ** TIME LOCK **
-   *****************/
-
-  event ProposeTimeLockAction(
-    bytes32 indexed actionKey,
-    string action,
-    uint256 value,
-    address target,
-    uint256 executionTime
-  );
-  event ExecuteTimeLockAction(bytes32 indexed actionKey, string action);
-
-  event SetTimeLockDuration(uint256 newDuration);
-  event SetBlockReportGrowthLimit(uint256 newLimit);
-  event AddOracle(address oracle);
-  event RemoveOracle(address oracle);
-  event SetOraclePenalizeLimit(uint256 newLimit);
-  event SetOracleQuorum(uint256 newQuorum);
-  event SetBunkerMode(bool bunkerMode);
-
-  struct TimeLockedProposal {
-    string action;
-    uint256 value;
-    address target;
-    uint256 executionTime;
-  }
-
-  uint256 public timeLockDuration = 1 days / 15;
-  mapping(bytes32 => TimeLockedProposal) public timeLockedProposals;
-
-  function proposeTimeLockAction(
-    string calldata action,
-    uint256 value,
-    address target
-  ) external onlyRole(ADMIN_ROLE) {
-    bytes32 actionKey = keccak256(abi.encodePacked(action, target));
-
-    TimeLockedProposal memory proposal = TimeLockedProposal({
-      action: action,
-      value: value,
-      target: target,
-      executionTime: block.timestamp + timeLockDuration
-    });
-
-    timeLockedProposals[actionKey] = proposal;
-
-    emit ProposeTimeLockAction(actionKey, action, value, target, proposal.executionTime);
-  }
-
-  // Todo: Revise Access Control by Each Function
-  function executeTimeLockAction(string calldata action, address target) external onlyRole(ADMIN_ROLE) {
-    bytes32 actionKey = keccak256(abi.encodePacked(action, target));
-    TimeLockedProposal storage proposal = timeLockedProposals[actionKey];
-    require(block.timestamp >= proposal.executionTime, 'Time lock not expired yet.');
-
-    if (keccak256(bytes(proposal.action)) == keccak256(bytes('setTimeLockDuration'))) {
-      _setTimeLockDuration(proposal.value);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('addOracle'))) {
-      _addOracle(proposal.target);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('removeOracle'))) {
-      _removeOracle(proposal.target);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setOraclePenalizeLimit'))) {
-      _setOraclePenalizeLimit(proposal.value);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setOracleQuorum'))) {
-      _setOracleQuorum(proposal.value);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setBunkerMode'))) {
-      _setBunkerMode(proposal.value == 1);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setReportBlockFrequency'))) {
-      _setReportBlockFrequency(proposal.value);
-    } else if (keccak256(bytes(proposal.action)) == keccak256(bytes('setReportEpochFrequency'))) {
-      _setReportEpochFrequency(proposal.value);
-    } else {
-      revert('INVALID_ACTION');
-    }
-
-    delete timeLockedProposals[actionKey];
-
-    emit ExecuteTimeLockAction(actionKey, proposal.action);
-  }
-
-  function isProposalReady(string calldata action, address target) public view returns (bool) {
-    bytes32 actionKey = keccak256(abi.encodePacked(action, target));
-    TimeLockedProposal storage proposal = timeLockedProposals[actionKey];
-    return block.timestamp >= proposal.executionTime;
-  }
-
-  function _setTimeLockDuration(uint256 _timeLockDuration) internal {
-    timeLockDuration = _timeLockDuration;
-    emit SetTimeLockDuration(_timeLockDuration);
   }
 
   /*****************
@@ -140,94 +51,98 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
 
   modifier onlyOracle() {
     require(
-      activeOracles[msg.sender] && oraclesBlacklist[msg.sender] < oraclePenalizeLimit,
+      activeReportOracles[msg.sender] && reportOraclesBlacklist[msg.sender] < oraclePenalizeLimit,
       'ONLY_ACTIVE_ORACLES'
     );
     _;
   }
 
-  event PenalizeOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool removed);
+  event AddReportOracle(address indexed oracle);
+  event RemoveReportOracle(address indexed oracle);
+  event PenalizeReportOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool removed);
+  event SetReportOracleQuorum(uint256 newQuorum);
+  event SetReportOraclePenalizeLimit(uint256 newLimit);
+  event SetBunkerMode(bool bunkerMode);
 
-  address[] private oracles;
-  mapping(address => bool) private activeOracles;
-  mapping(address => uint256) public oraclesBlacklist;
+  address[] private reportOracles;
+  mapping(address => bool) private activeReportOracles;
+  mapping(address => uint256) public reportOraclesBlacklist;
   uint256 public oracleQuorum = 1; // Todo: Mainnet = 3
   uint256 public oraclePenalizeLimit = 3;
   bool public bunkerMode = false;
 
-  function getOracles() external view returns (address[] memory) {
-    return oracles;
+  function getReportOracles() external view returns (address[] memory) {
+    return reportOracles;
   }
 
-  function getActiveOracleCount() internal view returns (uint256) {
+  function getActiveReportOracleCount() internal view returns (uint256) {
     uint256 activeCount = 0;
-    for (uint256 i = 0; i < oracles.length; i++) {
-      if (activeOracles[oracles[i]]) {
+    for (uint256 i = 0; i < reportOracles.length; i++) {
+      if (activeReportOracles[reportOracles[i]]) {
         activeCount++;
       }
     }
     return activeCount;
   }
 
-  function isOracle(address _oracle) public view returns (bool) {
-    return activeOracles[_oracle] && oraclesBlacklist[_oracle] < oraclePenalizeLimit;
+  function isReportOracle(address _oracle) public view returns (bool) {
+    return activeReportOracles[_oracle] && reportOraclesBlacklist[_oracle] < oraclePenalizeLimit;
   }
 
-  function addOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(oracles.length < oracleQuorum, 'QUORUM_REACHED');
-    _addOracle(oracle);
-  }
-
-  function _setBunkerMode(bool _bunkerMode) internal {
-    bunkerMode = _bunkerMode;
-    emit SetBunkerMode(_bunkerMode);
-  }
-
-  function _addOracle(address oracle) internal {
-    require(!activeOracles[oracle], 'ORACLE_EXISTS');
-    oracles.push(oracle);
-    activeOracles[oracle] = true;
-    emit AddOracle(oracle);
+  function addReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
+    require(reportOracles.length < oracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
+    require(!activeReportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
+    reportOracles.push(_oracle);
+    activeReportOracles[_oracle] = true;
+    emit AddReportOracle(_oracle);
     _updateQuorum();
   }
 
-  function _removeOracle(address oracle) internal {
-    require(activeOracles[oracle], 'ORACLE_NOT_EXISTS');
-    activeOracles[oracle] = false;
-    emit RemoveOracle(oracle);
+  function removeReportOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
+    require(activeReportOracles[oracle], 'ORACLE_NOT_EXISTS');
+    activeReportOracles[oracle] = false;
+    emit RemoveReportOracle(oracle);
     _updateQuorum();
   }
 
-  function _setOracleQuorum(uint256 _oracleQuorum) internal {
+  function _setReportOracleQuorum(uint256 _oracleQuorum) internal {
     oracleQuorum = _oracleQuorum;
-    emit SetOracleQuorum(_oracleQuorum);
+    emit SetReportOracleQuorum(_oracleQuorum);
   }
 
   function _updateQuorum() internal onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    uint256 totalOracles = getActiveOracleCount();
+    uint256 totalOracles = getActiveReportOracleCount();
     uint256 newQuorum = (totalOracles * 8) / 10;
 
     newQuorum = newQuorum < 3 ? 3 : newQuorum;
     newQuorum = newQuorum > totalOracles ? totalOracles : newQuorum;
 
     oracleQuorum = newQuorum;
-    emit SetOracleQuorum(newQuorum);
+    emit SetReportOracleQuorum(newQuorum);
   }
 
   function _penalizeOracle(address _oracle, bytes32 _reportHash) internal {
-    oraclesBlacklist[_oracle]++;
+    reportOraclesBlacklist[_oracle]++;
 
-    bool remove = oraclesBlacklist[_oracle] >= oraclePenalizeLimit;
+    bool remove = reportOraclesBlacklist[_oracle] >= oraclePenalizeLimit;
     if (remove) {
-      _removeOracle(_oracle);
+      require(activeReportOracles[_oracle], 'ORACLE_NOT_EXISTS');
+      activeReportOracles[_oracle] = false;
+      emit RemoveReportOracle(_oracle);
+      _updateQuorum();
     }
 
-    emit PenalizeOracle(_oracle, oraclesBlacklist[_oracle], _reportHash, remove);
+    emit PenalizeReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash, remove);
   }
 
-  function _setOraclePenalizeLimit(uint256 _oraclePenalizeLimit) internal {
+  function setReportOraclePenalizeLimit(uint256 _oraclePenalizeLimit) external onlyRole(ADMIN_ROLE) {
     oraclePenalizeLimit = _oraclePenalizeLimit;
-    emit SetOraclePenalizeLimit(_oraclePenalizeLimit);
+    emit SetReportOraclePenalizeLimit(_oraclePenalizeLimit);
+  }
+
+  function setBunkerMode(bool _bunkerMode) external onlyRole(ADMIN_ROLE) {
+    bunkerMode = _bunkerMode;
+    emit SetBunkerMode(_bunkerMode);
   }
 
   /*****************
@@ -254,53 +169,47 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   event SetReportBlockNumber(uint256 blockNumber);
   event SetReportEpochFrequency(uint256 epoch);
   event SetReportEpochNumber(uint256 epochNumber);
-  event SetMaxExitValidators(uint256 maxExitValidators);
+  event SetMaxExitValidators(uint256 maxValidatorsToExit);
+  event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
 
-  // struct Validator {
-  //   bytes publicKey;
-  //   uint256 amount;
-  // }
-
-  struct Shares {
+  struct Units {
     uint256 total;
-    uint256 stakeTogether;
-    uint256 operators;
     uint256 pools;
+    uint256 operators;
+    uint256 stakeTogether;
   }
 
-  struct Amounts {
-    uint256 total;
-    uint256 pools;
-    uint256 operators;
-    uint256 stakeTogether;
+  struct ValidatorOracle {
+    address oracle;
+    bytes[] validators;
   }
 
   struct Report {
     uint256 epoch;
-    uint256 lossAmount;
-    Shares shares;
-    Amounts amounts;
-    uint256 WETHAmount; // saque de WETH
-    uint256 restExitAmount; // não foi usado no saque (tem que voltar pro pool)
-    bytes[] restExitValidators; // validators que sairam
+    uint256 lossAmount; // Penalty or Slashing
+    uint256 extraAmount; // Extra money on this contract
+    Units shares; // Shares to Mint
+    Units amounts; // Amount to Send
+    ValidatorOracle[] validatorsToExit; // Validators that should exit
+    bytes[] exitedValidators; // Validators that already exited
+    uint256 restExitAmount; // Rest withdrawal validator amount
+    uint256 exitAmount; // Sub withdrawal validator amount
+    uint256 WETHAmount; // Amount of ETH to send to WETH contract
+    uint256 apr; // Protocol APR for lending calculation
   }
 
-  // Todo: quem deve fazer o saque // Forcar // atualizar
-  // Todo: penalizar quem não fez o saque
-
-  enum ReportType {
-    SingleHashOutConsensus,
-    BatchHashOutConsensus,
-    WrongSingleHash,
-    WrongBatchHash
+  struct AuditReport {
+    address oracle;
+    bytes32 reportHash;
   }
 
   mapping(bytes32 => address[]) public oracleReports;
   mapping(bytes32 => uint256) public oracleReportsVotes;
   mapping(bytes32 => bool) public oracleReportsKey;
+  mapping(uint256 => AuditReport[]) public auditReports;
   mapping(uint256 => bytes32) public consensusReport;
   mapping(uint256 => bool) public executedReport;
-  uint256 public maxExitValidators = 100;
+  uint256 public maxValidatorsToExit = 100;
 
   uint256 public reportBlockFrequency = 1;
   uint256 public reportBlockNumber = 1;
@@ -312,8 +221,6 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     bytes32 _hash,
     Report calldata _report
   ) external onlyOracle whenNotPaused {
-    // Todo: Valid Report
-
     auditReport(_epoch, _report);
 
     if (block.number >= reportBlockNumber + reportBlockFrequency) {
@@ -322,38 +229,32 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
 
     oracleReportsVotes[_hash]++;
     oracleReports[_hash].push(msg.sender);
+    auditReports[_epoch].push(AuditReport({ oracle: msg.sender, reportHash: _hash }));
 
     if (oracleReportsVotes[_hash] >= oracleQuorum) {
       consensusReport[_epoch] = _hash;
       emit ConsensusApprove(block.number, _epoch, _hash);
     }
-
-    // Todo: Penalize Oracle
   }
 
   function executeReport(Report calldata _report) external onlyOracle whenNotPaused nonReentrant {
     bytes32 reportHash = keccak256(abi.encode(_report));
     bytes32 consensusHash = consensusReport[_report.epoch];
-
-    require(consensusHash != bytes32(0), 'REPORT_ALREADY_EXECUTED');
-    require(!executedReport[_report.epoch], 'SINGLE_REPORT_ALREADY_EXECUTED');
-
-    if (reportHash != consensusHash) {
-      _penalizeOracle(msg.sender, reportHash);
-    }
-
     require(reportHash == consensusHash, 'INVALID_REPORT');
-
-    // TODO: Valid Single Report
+    require(!executedReport[_report.epoch], 'REPORT_ALREADY_EXECUTED');
 
     if (_report.lossAmount > 0) {
       stakeTogether.mintPenalty(_report.epoch, _report.lossAmount);
     }
 
+    if (_report.extraAmount > 0) {
+      stakeTogether.refundPool{ value: _report.extraAmount }(_report.epoch);
+    }
+
     if (_report.shares.pools > 0) {
       stakeTogether.mintRewards{ value: _report.amounts.pools }(
         _report.epoch,
-        stakeTogether.poolFeeAddress(),
+        stakeTogether.poolFeeAddress(), // Todo: Check Pools Addresses During Transition
         _report.shares.pools
       );
     }
@@ -374,30 +275,45 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       );
     }
 
+    if (_report.validatorsToExit.length > 0) {
+      emit ValidatorsToExit(_report.epoch, _report.validatorsToExit);
+    }
+
+    if (_report.exitedValidators.length > 0) {
+      for (uint256 i = 0; i < _report.exitedValidators.length; i++) {
+        stakeTogether.removeValidator(_report.epoch, _report.exitedValidators[i]);
+      }
+    }
+
+    if (_report.restExitAmount > 0) {
+      stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
+    }
+
+    if (_report.exitAmount > 0) {
+      stakeTogether.exitBeaconAmount(_report.epoch, _report.exitAmount);
+    }
+
     if (_report.WETHAmount > 0) {
       payable(address(WETHContract)).transfer(_report.WETHAmount);
     }
 
-    if (_report.restExitAmount > 0) {
-      payable(address(stakeTogether)).transfer(_report.restExitAmount);
-    }
-
-    if (_report.restExitValidators.length > 0) {
-      for (uint256 i = 0; i < _report.restExitValidators.length; i++) {
-        stakeTogether.removeValidator(_report.epoch, _report.restExitValidators[i]);
-      }
+    if (_report.apr > 0) {
+      LETHContract.setApr(_report.epoch, _report.apr);
     }
 
     executedReport[_report.epoch] = true;
     reportBlockNumber += reportBlockFrequency;
     reportEpochNumber += reportEpochFrequency;
 
-    // Transfer funds to pool
-    // Transfer funds to withdrawals
+    for (uint256 i = 0; i < auditReports[_report.epoch].length; i++) {
+      if (auditReports[_report.epoch][i].reportHash != consensusHash) {
+        _penalizeOracle(auditReports[_report.epoch][i].oracle, auditReports[_report.epoch][i].reportHash);
+      }
+    }
+
+    delete auditReports[_report.epoch];
 
     emit ExecuteReport(msg.sender, block.number, _report.epoch, reportHash, _report);
-
-    // Todo: qualquer valor excendente deve ser transferido para o pool (Não como lucro)
   }
 
   function auditReport(uint256 _epoch, Report calldata _report) public returns (bool) {
@@ -410,9 +326,19 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     oracleReportsKey[reportKey] = true;
 
     require(address(this).balance >= _report.WETHAmount, 'INSUFFICIENT_ETH_BALANCE');
-    require(_report.restExitValidators.length <= maxExitValidators, 'MAX_EXIT_VALIDATORS_REACHED');
+    require(_report.exitedValidators.length <= maxValidatorsToExit, 'MAX_EXIT_VALIDATORS_REACHED');
+
+    // Todo: Improve Audit Rules
 
     return true;
+  }
+
+  function isReadyForReportSubmission(uint256 _epoch) public view returns (bool) {
+    return (_epoch == reportEpochNumber && block.number >= reportBlockNumber);
+  }
+
+  function isReadyForReportExecution(uint256 _epoch) public view returns (bool) {
+    return (consensusReport[_epoch] != bytes32(0) && !executedReport[_epoch]);
   }
 
   function _setReportBlockFrequency(uint256 _frequency) internal {
@@ -424,7 +350,4 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     reportEpochFrequency = _frequency;
     emit SetReportEpochFrequency(_frequency);
   }
-
-  // Todo: Create function to check if report is ready to be executed
-  // Todo: Move the validation outside of function to be verified externally
 }
