@@ -519,6 +519,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event MintRewards(uint256 epoch, address indexed to, uint256 sharesAmount, RewardType rewardType);
   event MintPenalty(uint256 epoch, uint256 amount);
   event RefundPool(uint256 epoch, uint256 amount);
+  event DepositPool(uint256 amount);
   event ExitBeaconAmount(uint256 _epoch, uint256 amount);
 
   // Refund Pool
@@ -550,8 +551,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     emit RefundPool(_epoch, msg.value);
   }
 
-  function exitBeaconAmount(uint256 _epoch, uint256 _amount) external nonReentrant onlyDistributor {
-    beaconBalance -= _amount;
-    emit ExitBeaconAmount(_epoch, _amount);
+  function depositPool() external payable nonReentrant {
+    emit DepositPool(msg.value);
   }
 }

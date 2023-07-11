@@ -28,15 +28,16 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
   }
 
-  event EtherReceived(address indexed sender, uint amount);
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
 
   receive() external payable {
-    emit EtherReceived(msg.sender, msg.value);
+    emit ReceiveEther(msg.sender, msg.value);
   }
 
   fallback() external payable {
-    emit EtherReceived(msg.sender, msg.value);
+    emit FallbackEther(msg.sender, msg.value);
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -45,99 +46,96 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  /*****************
-   ** REPORT ORACLES **
-   *****************/
+  /*******************
+   ** REPORT ORACLE **
+   *******************/
 
-  modifier onlyOracle() {
+  modifier onlyReportOracle() {
     require(
-      activeReportOracles[msg.sender] && reportOraclesBlacklist[msg.sender] < oraclePenalizeLimit,
-      'ONLY_ACTIVE_ORACLES'
+      reportOracles[msg.sender] && reportOraclesBlacklist[msg.sender] < oracleBlackListLimit,
+      'ONLY_REPORT_ORACLE'
     );
     _;
   }
 
   event AddReportOracle(address indexed oracle);
   event RemoveReportOracle(address indexed oracle);
-  event PenalizeReportOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool removed);
-  event SetReportOracleQuorum(uint256 newQuorum);
+  event SetMinReportOracleQuorum(uint256 minQuorum);
+  event SetReportOracleQuorum(uint256 quorum);
+  event UpdateReportOracleQuorum(uint256 quorum);
   event SetReportOraclePenalizeLimit(uint256 newLimit);
+  event PenalizeReportOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool blacklisted);
+  event RewardReportOracle(address indexed oracle, uint256 penalties, bytes32 hash);
+  event BlacklistReportOracle(address indexed oracle, uint256 penalties);
+  event BlacklistReportOracleManually(address indexed oracle, uint256 penalties);
+  event UnBlacklistReportOracle(address indexed oracle, uint256 penalties);
   event SetBunkerMode(bool bunkerMode);
 
-  address[] private reportOracles;
-  mapping(address => bool) private activeReportOracles;
+  uint256 public totalReportOracles;
+  mapping(address => bool) private reportOracles;
   mapping(address => uint256) public reportOraclesBlacklist;
-  uint256 public oracleQuorum = 1; // Todo: Mainnet = 3
-  uint256 public oraclePenalizeLimit = 3;
+  uint256 public minReportOracleQuorum = 5;
+  uint256 public reportOracleQuorum = minReportOracleQuorum;
+  uint256 public oracleBlackListLimit = 3;
   bool public bunkerMode = false;
 
-  function getReportOracles() external view returns (address[] memory) {
-    return reportOracles;
-  }
-
-  function getActiveReportOracleCount() internal view returns (uint256) {
-    uint256 activeCount = 0;
-    for (uint256 i = 0; i < reportOracles.length; i++) {
-      if (activeReportOracles[reportOracles[i]]) {
-        activeCount++;
-      }
-    }
-    return activeCount;
-  }
-
   function isReportOracle(address _oracle) public view returns (bool) {
-    return activeReportOracles[_oracle] && reportOraclesBlacklist[_oracle] < oraclePenalizeLimit;
+    return reportOracles[_oracle] && reportOraclesBlacklist[_oracle] < oracleBlackListLimit;
+  }
+
+  function isReportOracleBlackListed(address _oracle) public view returns (bool) {
+    return reportOraclesBlacklist[_oracle] >= oracleBlackListLimit;
   }
 
   function addReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(reportOracles.length < oracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
-    require(!activeReportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
-    reportOracles.push(_oracle);
-    activeReportOracles[_oracle] = true;
+    require(totalReportOracles < reportOracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
+    require(!reportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
+    _grantRole(ORACLE_REPORT_ROLE, _oracle);
+    reportOracles[_oracle] = true;
+    totalReportOracles++;
     emit AddReportOracle(_oracle);
-    _updateQuorum();
+    _updateReportOracleQuorum();
   }
 
   function removeReportOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(activeReportOracles[oracle], 'ORACLE_NOT_EXISTS');
-    activeReportOracles[oracle] = false;
+    require(reportOracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    _revokeRole(ORACLE_REPORT_ROLE, oracle);
+    reportOracles[oracle] = false;
+    totalReportOracles--;
     emit RemoveReportOracle(oracle);
-    _updateQuorum();
+    _updateReportOracleQuorum();
   }
 
-  function _setReportOracleQuorum(uint256 _oracleQuorum) internal {
-    oracleQuorum = _oracleQuorum;
-    emit SetReportOracleQuorum(_oracleQuorum);
+  function setMinReportOracleQuorum(uint256 _quorum) external onlyRole(ADMIN_ROLE) {
+    minReportOracleQuorum = _quorum;
+    emit SetMinReportOracleQuorum(_quorum);
   }
 
-  function _updateQuorum() internal onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    uint256 totalOracles = getActiveReportOracleCount();
-    uint256 newQuorum = (totalOracles * 8) / 10;
-
-    newQuorum = newQuorum < 3 ? 3 : newQuorum;
-    newQuorum = newQuorum > totalOracles ? totalOracles : newQuorum;
-
-    oracleQuorum = newQuorum;
-    emit SetReportOracleQuorum(newQuorum);
-  }
-
-  function _penalizeOracle(address _oracle, bytes32 _reportHash) internal {
-    reportOraclesBlacklist[_oracle]++;
-
-    bool remove = reportOraclesBlacklist[_oracle] >= oraclePenalizeLimit;
-    if (remove) {
-      require(activeReportOracles[_oracle], 'ORACLE_NOT_EXISTS');
-      activeReportOracles[_oracle] = false;
-      emit RemoveReportOracle(_oracle);
-      _updateQuorum();
-    }
-
-    emit PenalizeReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash, remove);
+  function setReportOracleQuorum(uint256 _quorum) external onlyRole(ADMIN_ROLE) {
+    reportOracleQuorum = _quorum;
+    emit SetReportOracleQuorum(_quorum);
   }
 
   function setReportOraclePenalizeLimit(uint256 _oraclePenalizeLimit) external onlyRole(ADMIN_ROLE) {
-    oraclePenalizeLimit = _oraclePenalizeLimit;
+    oracleBlackListLimit = _oraclePenalizeLimit;
     emit SetReportOraclePenalizeLimit(_oraclePenalizeLimit);
+  }
+
+  function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
+    reportOraclesBlacklist[_oracle] = oracleBlackListLimit;
+    reportOracles[_oracle] = false;
+    emit BlacklistReportOracleManually(_oracle, reportOraclesBlacklist[_oracle]);
+  }
+
+  function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
+    require(reportOracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(
+      reportOraclesBlacklist[_oracle] >= oracleBlackListLimit || !reportOracles[_oracle],
+      'REPORT_ORACLE_NOT_BLACKLISTED'
+    );
+    reportOraclesBlacklist[_oracle] = 0;
+    reportOracles[_oracle] = true;
+    emit UnBlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
   }
 
   function setBunkerMode(bool _bunkerMode) external onlyRole(ADMIN_ROLE) {
@@ -145,9 +143,35 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit SetBunkerMode(_bunkerMode);
   }
 
-  /*****************
+  function _updateReportOracleQuorum() internal {
+    uint256 newQuorum = (totalReportOracles * 8) / 10;
+    reportOracleQuorum = newQuorum < minReportOracleQuorum ? minReportOracleQuorum : newQuorum;
+    emit UpdateReportOracleQuorum(newQuorum);
+  }
+
+  function _rewardOrPenalizeReportOracle(address _oracle, bytes32 _reportHash, bool consensus) internal {
+    if (consensus) {
+      if (reportOraclesBlacklist[_oracle] > 0) {
+        reportOraclesBlacklist[_oracle]--;
+      }
+      emit RewardReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash);
+    } else {
+      reportOraclesBlacklist[_oracle]++;
+
+      bool blacklist = reportOraclesBlacklist[_oracle] >= oracleBlackListLimit;
+      if (blacklist) {
+        reportOracles[_oracle] = false;
+        emit BlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
+        _updateReportOracleQuorum();
+      }
+
+      emit PenalizeReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash, blacklist);
+    }
+  }
+
+  /************
    ** REPORT **
-   *****************/
+   ************/
 
   event SubmitReport(
     address indexed oracle,
@@ -155,16 +179,10 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     uint256 indexed epoch,
     bytes32 hash
   );
-  event ConsensusReject(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
-  event ConsensusApprove(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
-  event ExecuteReport(
-    address indexed oracle,
-    uint256 indexed blockNumber,
-    uint256 indexed epoch,
-    bytes32 hash,
-    Report report
-  );
 
+  event ConsensusApprove(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  event ConsensusNotReached(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  event ExecuteReport(address indexed oracle, bytes32 hash, Report report);
   event SetReportBlockFrequency(uint256 frequency);
   event SetReportBlockNumber(uint256 blockNumber);
   event SetReportEpochFrequency(uint256 epoch);
@@ -172,7 +190,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   event SetMaxExitValidators(uint256 maxValidatorsToExit);
   event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
 
-  struct Units {
+  struct Values {
     uint256 total;
     uint256 pools;
     uint256 operators;
@@ -185,64 +203,59 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   }
 
   struct Report {
+    uint256 blockNumber;
     uint256 epoch;
     uint256 lossAmount; // Penalty or Slashing
     uint256 extraAmount; // Extra money on this contract
-    Units shares; // Shares to Mint
-    Units amounts; // Amount to Send
+    Values shares; // Shares to Mint
+    Values amounts; // Amount to Send
+    bytes32[] poolsMerkleRoots; // Todo: missing merkle das pools
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
     uint256 restExitAmount; // Rest withdrawal validator amount
-    uint256 exitAmount; // Sub withdrawal validator amount
-    uint256 WETHAmount; // Amount of ETH to send to WETH contract
+    uint256 withdrawalsAmount; // Amount of ETH to send to WETH contract
     uint256 apr; // Protocol APR for lending calculation
   }
 
-  struct AuditReport {
-    address oracle;
-    bytes32 reportHash;
-  }
-
-  mapping(bytes32 => address[]) public oracleReports;
-  mapping(bytes32 => uint256) public oracleReportsVotes;
-  mapping(bytes32 => bool) public oracleReportsKey;
-  mapping(uint256 => AuditReport[]) public auditReports;
+  mapping(uint256 => mapping(bytes32 => address[])) public oracleReports;
+  mapping(uint256 => mapping(bytes32 => uint256)) public oracleReportsVotes;
+  mapping(uint256 => mapping(bytes32 => bool)) public oracleReportsHash;
+  mapping(uint256 => bytes32[]) public reportHistoric;
   mapping(uint256 => bytes32) public consensusReport;
-  mapping(uint256 => bool) public executedReport;
-  uint256 public maxValidatorsToExit = 100;
 
   uint256 public reportBlockFrequency = 1;
   uint256 public reportBlockNumber = 1;
-  uint256 public reportEpochFrequency = 1;
-  uint256 public reportEpochNumber = 1;
+  uint256 public lastConsensusEpoch = 0;
+
+  uint256 public maxValidatorsToExit = 100;
 
   function submitReport(
     uint256 _epoch,
     bytes32 _hash,
     Report calldata _report
-  ) external onlyOracle whenNotPaused {
-    auditReport(_epoch, _report);
+  ) external onlyReportOracle nonReentrant whenNotPaused {
+    auditReport(_report);
 
     if (block.number >= reportBlockNumber + reportBlockFrequency) {
       reportBlockNumber += reportBlockFrequency;
     }
 
-    oracleReportsVotes[_hash]++;
-    oracleReports[_hash].push(msg.sender);
-    auditReports[_epoch].push(AuditReport({ oracle: msg.sender, reportHash: _hash }));
+    oracleReports[_epoch][_hash].push(msg.sender);
+    oracleReportsVotes[_epoch][_hash]++;
+    reportHistoric[_epoch].push(_hash);
 
-    if (oracleReportsVotes[_hash] >= oracleQuorum) {
-      consensusReport[_epoch] = _hash;
-      emit ConsensusApprove(block.number, _epoch, _hash);
+    if (consensusReport[_epoch] == bytes32(0)) {
+      if (oracleReportsVotes[_epoch][_hash] >= reportOracleQuorum) {
+        consensusReport[_epoch] = _hash;
+        emit ConsensusApprove(block.number, _epoch, _hash);
+        _executeReport(_report, _hash);
+      } else {
+        emit ConsensusNotReached(block.number, _epoch, _hash);
+      }
     }
   }
 
-  function executeReport(Report calldata _report) external onlyOracle whenNotPaused nonReentrant {
-    bytes32 reportHash = keccak256(abi.encode(_report));
-    bytes32 consensusHash = consensusReport[_report.epoch];
-    require(reportHash == consensusHash, 'INVALID_REPORT');
-    require(!executedReport[_report.epoch], 'REPORT_ALREADY_EXECUTED');
-
+  function _executeReport(Report calldata _report, bytes32 _hash) internal {
     if (_report.lossAmount > 0) {
       stakeTogether.mintPenalty(_report.epoch, _report.lossAmount);
     }
@@ -252,11 +265,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.shares.pools > 0) {
-      stakeTogether.mintRewards{ value: _report.amounts.pools }(
-        _report.epoch,
-        stakeTogether.poolFeeAddress(), // Todo: Check Pools Addresses During Transition
-        _report.shares.pools
-      );
+      // Todo: update merkle mechanism
     }
 
     if (_report.amounts.operators > 0) {
@@ -289,65 +298,45 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
     }
 
-    if (_report.exitAmount > 0) {
-      stakeTogether.exitBeaconAmount(_report.epoch, _report.exitAmount);
-    }
-
-    if (_report.WETHAmount > 0) {
-      payable(address(WETHContract)).transfer(_report.WETHAmount);
+    if (_report.withdrawalsAmount > 0) {
+      payable(address(WETHContract)).transfer(_report.withdrawalsAmount);
     }
 
     if (_report.apr > 0) {
       LETHContract.setApr(_report.epoch, _report.apr);
     }
 
-    executedReport[_report.epoch] = true;
     reportBlockNumber += reportBlockFrequency;
-    reportEpochNumber += reportEpochFrequency;
+    lastConsensusEpoch = _report.epoch;
 
-    for (uint256 i = 0; i < auditReports[_report.epoch].length; i++) {
-      if (auditReports[_report.epoch][i].reportHash != consensusHash) {
-        _penalizeOracle(auditReports[_report.epoch][i].oracle, auditReports[_report.epoch][i].reportHash);
+    for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
+      bytes32 reportHash = reportHistoric[_report.epoch][i];
+      address[] memory oracles = oracleReports[_report.epoch][reportHash];
+      for (uint256 j = 0; j < oracles.length; j++) {
+        _rewardOrPenalizeReportOracle(oracles[j], reportHash, reportHash == _hash);
       }
     }
 
-    delete auditReports[_report.epoch];
+    delete reportHistoric[_report.epoch];
 
-    emit ExecuteReport(msg.sender, block.number, _report.epoch, reportHash, _report);
+    emit ExecuteReport(msg.sender, _hash, _report);
   }
 
-  function auditReport(uint256 _epoch, Report calldata _report) public returns (bool) {
-    require(block.number < reportBlockNumber, 'REPORT_BLOCK_NUMBER_NOT_REACHED');
-
-    require(_epoch == reportEpochNumber, 'INVALID_REPORT_EPOCH_NUMBER');
-
-    bytes32 reportKey = keccak256(abi.encodePacked(msg.sender, _epoch));
-    require(!oracleReportsKey[reportKey], 'ORACLE_ALREADY_REPORTED');
-    oracleReportsKey[reportKey] = true;
-
-    require(address(this).balance >= _report.WETHAmount, 'INSUFFICIENT_ETH_BALANCE');
-    require(_report.exitedValidators.length <= maxValidatorsToExit, 'MAX_EXIT_VALIDATORS_REACHED');
+  function auditReport(Report calldata _report) public view returns (bool) {
+    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
+    require(_report.epoch > lastConsensusEpoch, 'INVALID_EPOCH');
 
     // Todo: Improve Audit Rules
 
     return true;
   }
 
-  function isReadyForReportSubmission(uint256 _epoch) public view returns (bool) {
-    return (_epoch == reportEpochNumber && block.number >= reportBlockNumber);
+  function isReadyToReport() public view returns (bool) {
+    return block.number >= reportBlockNumber;
   }
 
-  function isReadyForReportExecution(uint256 _epoch) public view returns (bool) {
-    return (consensusReport[_epoch] != bytes32(0) && !executedReport[_epoch]);
-  }
-
-  function _setReportBlockFrequency(uint256 _frequency) internal {
+  function setReportBlockFrequency(uint256 _frequency) external onlyRole(ADMIN_ROLE) {
     reportBlockFrequency = _frequency;
     emit SetReportBlockFrequency(_frequency);
-  }
-
-  function _setReportEpochFrequency(uint256 _frequency) internal {
-    reportEpochFrequency = _frequency;
-    emit SetReportEpochFrequency(_frequency);
   }
 }

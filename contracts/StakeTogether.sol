@@ -157,6 +157,7 @@ contract StakeTogether is SETH {
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    // Todo: check borrow conditional rule
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
     emit WithdrawValidator(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
