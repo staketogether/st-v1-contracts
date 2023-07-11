@@ -160,7 +160,7 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
 
     _setRewardsClaimed(_epoch, _index);
 
-    stakeTogether.mintRewards(_epoch, _account, _sharesAmount);
+    stakeTogether.claimPoolRewards(_account, _sharesAmount);
 
     emit ClaimRewards(_epoch, _index, _account, _sharesAmount);
   }

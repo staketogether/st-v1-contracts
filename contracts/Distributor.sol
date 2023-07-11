@@ -9,6 +9,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './WETH.sol';
 import './LETH.sol';
+import './Pool.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Distributor is AccessControl, Pausable, ReentrancyGuard {
@@ -20,10 +21,12 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   WETH public WETHContract;
   LETH public LETHContract;
+  Pool public poolContract;
 
-  constructor(address _WETH, address _LETH) {
+  constructor(address _WETH, address _LETH, address _poolContract) {
     WETHContract = WETH(payable(_WETH));
     LETHContract = LETH(payable(_LETH));
+    poolContract = Pool(payable(_poolContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
@@ -224,7 +227,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     uint256 extraAmount; // Extra money on this contract
     Values shares; // Shares to Mint
     Values amounts; // Amount to Send
-    bytes32[] poolsMerkleRoots; // Todo: missing merkle das pools
+    bytes32 poolsMerkleRoot; // Todo: missing merkle das pools
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
     uint256 restExitAmount; // Rest withdrawal validator amount
@@ -308,7 +311,13 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.shares.pools > 0) {
-      // Todo: update merkle mechanism
+      stakeTogether.mintRewards{ value: _report.amounts.pools }(
+        _report.epoch,
+        address(poolContract),
+        _report.shares.pools
+      );
+
+      poolContract.addRewardsMerkleRoot(_report.epoch, _report.poolsMerkleRoot);
     }
 
     if (_report.amounts.operators > 0) {
@@ -362,15 +371,6 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit ExecuteReport(msg.sender, _hash, _report);
   }
 
-  function auditReport(Report calldata _report) public view returns (bool) {
-    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
-    require(_report.epoch > lastConsensusEpoch, 'INVALID_EPOCH');
-
-    // Todo: Improve Audit Rules
-
-    return true;
-  }
-
   function invalidateConsensus(
     uint256 _epoch,
     bytes32 _hash
@@ -417,5 +417,18 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   function setReportBlockFrequency(uint256 _frequency) external onlyRole(ADMIN_ROLE) {
     reportBlockFrequency = _frequency;
     emit SetReportBlockFrequency(_frequency);
+  }
+
+  /******************
+   ** AUDIT REPORT **
+   ******************/
+
+  function auditReport(Report calldata _report) public view returns (bool) {
+    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
+    require(_report.epoch > lastConsensusEpoch, 'INVALID_EPOCH');
+
+    // Todo: Improve Audit Rules
+
+    return true;
   }
 }

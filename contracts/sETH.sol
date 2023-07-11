@@ -40,6 +40,11 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     _;
   }
 
+  modifier onlyPool() {
+    require(msg.sender == address(poolContract), 'ONLY_POOL_CONTRACT');
+    _;
+  }
+
   event Bootstrap(address sender, uint256 balance);
   event MintShares(address indexed to, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
@@ -84,7 +89,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     return shares[_account] - lockedShares[_account];
   }
 
-  function getSharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
+  function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
     return Math.mulDiv(_ethAmount, totalShares, totalPooledEther());
   }
 
@@ -172,7 +177,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   }
 
   function _transfer(address _from, address _to, uint256 _amount) internal override {
-    uint256 _sharesToTransfer = getSharesByPooledEth(_amount);
+    uint256 _sharesToTransfer = sharesByPooledEth(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     _transferDelegationShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -520,7 +525,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event MintPenalty(uint256 epoch, uint256 amount);
   event RefundPool(uint256 epoch, uint256 amount);
   event DepositPool(uint256 amount);
-  event ExitBeaconAmount(uint256 _epoch, uint256 amount);
+  event ClaimPoolRewards(address indexed account, uint256 sharesAmount, uint256 amount);
 
   // Refund Pool
 
@@ -553,5 +558,14 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
 
   function depositPool() external payable nonReentrant {
     emit DepositPool(msg.value);
+  }
+
+  function claimPoolRewards(
+    address _account,
+    uint256 _sharesAmount
+  ) external nonReentrant whenNotPaused onlyPool {
+    uint256 amount = pooledEthByShares(_sharesAmount);
+    transferFrom(address(poolContract), _account, amount);
+    emit ClaimPoolRewards(_account, _sharesAmount, amount);
   }
 }

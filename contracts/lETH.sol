@@ -279,7 +279,9 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
     require(address(this).balance >= netAmount, 'INSUFFICIENT_CONTRACT_BALANCE');
 
-    uint256 sharesToLock = stakeTogether.getSharesByPooledEth(_amount);
+    uint256 sharesToLock = stakeTogether.sharesByPooledEth(_amount);
+
+    // Todo: check twice money
 
     uint256 blocks = (_days * 24 * 60 * 60) / 12; // Eth Block Time = 12
 
@@ -293,6 +295,8 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
     emit AnticipateRewards(msg.sender, _amount, netAmount, fee);
   }
+
+  // Todo: devolute antecipated rewards
 
   /***********************
    ** REDEPOSIT **
