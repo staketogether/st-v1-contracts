@@ -14,6 +14,7 @@ import './LETH.sol';
 contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
+  bytes32 public constant ORACLE_REPORT_SENTINEL_ROLE = keccak256('ORACLE_REPORT_SENTINEL_ROLE');
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
@@ -70,6 +71,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   event BlacklistReportOracleManually(address indexed oracle, uint256 penalties);
   event UnBlacklistReportOracle(address indexed oracle, uint256 penalties);
   event SetBunkerMode(bool bunkerMode);
+  event InvalidateConsensus(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
 
   uint256 public totalReportOracles;
   mapping(address => bool) private reportOracles;
@@ -138,6 +140,16 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit UnBlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
   }
 
+  function addSentinel(address _sentinel) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    require(!hasRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel), 'SENTINEL_EXISTS');
+    grantRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
+  }
+
+  function removeSentinel(address _sentinel) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    require(hasRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel), 'SENTINEL_NOT_EXISTS');
+    revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
+  }
+
   function setBunkerMode(bool _bunkerMode) external onlyRole(ADMIN_ROLE) {
     bunkerMode = _bunkerMode;
     emit SetBunkerMode(_bunkerMode);
@@ -187,7 +199,9 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   event SetReportBlockNumber(uint256 blockNumber);
   event SetReportEpochFrequency(uint256 epoch);
   event SetReportEpochNumber(uint256 epochNumber);
-  event SetMaxExitValidators(uint256 maxValidatorsToExit);
+  event SetMaxValidatorsToExit(uint256 maxValidatorsToExit);
+  event SetMinBlockBeforeExecution(uint256 minBlocksBeforeExecution);
+  event SetLastConsensusEpoch(uint256 epoch);
   event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
 
   struct Values {
@@ -219,21 +233,27 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
 
   mapping(uint256 => mapping(bytes32 => address[])) public oracleReports;
   mapping(uint256 => mapping(bytes32 => uint256)) public oracleReportsVotes;
-  mapping(uint256 => mapping(bytes32 => bool)) public oracleReportsHash;
+  mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
   mapping(uint256 => bytes32[]) public reportHistoric;
   mapping(uint256 => bytes32) public consensusReport;
+  mapping(uint256 => bool) public consensusInvalidatedReport;
 
   uint256 public reportBlockFrequency = 1;
   uint256 public reportBlockNumber = 1;
   uint256 public lastConsensusEpoch = 0;
+  uint256 public lastExecutedConsensusEpoch = 0;
 
   uint256 public maxValidatorsToExit = 100;
+  uint256 public minBlocksBeforeExecution = 600;
+  mapping(bytes32 => uint256) public reportExecutionBlock;
 
   function submitReport(
     uint256 _epoch,
     bytes32 _hash,
     Report calldata _report
   ) external onlyReportOracle nonReentrant whenNotPaused {
+    require(_epoch > lastConsensusEpoch, 'REPORT_EPOCH_MUST_BE_GREATER_THAN_LAST_CONSENSUS_EPOCH');
+    require(!consensusInvalidatedReport[_epoch], 'REPORT_CONSENSUS_INVALIDATED');
     auditReport(_report);
 
     if (block.number >= reportBlockNumber + reportBlockFrequency) {
@@ -248,14 +268,31 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       if (oracleReportsVotes[_epoch][_hash] >= reportOracleQuorum) {
         consensusReport[_epoch] = _hash;
         emit ConsensusApprove(block.number, _epoch, _hash);
-        _executeReport(_report, _hash);
+        reportExecutionBlock[_hash] = block.number;
+        lastConsensusEpoch = _report.epoch;
       } else {
         emit ConsensusNotReached(block.number, _epoch, _hash);
       }
     }
   }
 
-  function _executeReport(Report calldata _report, bytes32 _hash) internal {
+  function executeReport(
+    bytes32 _hash,
+    Report calldata _report
+  ) external nonReentrant whenNotPaused onlyReportOracle {
+    require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
+    require(
+      block.number >= reportExecutionBlock[_hash] + minBlocksBeforeExecution,
+      'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
+    );
+    require(keccak256(abi.encode(_report)) == _hash, 'REPORT_HASH_MISMATCH');
+    require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
+    require(!executedReports[_report.epoch][_hash], 'REPORT_ALREADY_EXECUTED');
+
+    reportBlockNumber += reportBlockFrequency;
+    executedReports[_report.epoch][_hash] = true;
+    lastExecutedConsensusEpoch = _report.epoch;
+
     if (_report.lossAmount > 0) {
       stakeTogether.mintPenalty(_report.epoch, _report.lossAmount);
     }
@@ -306,9 +343,6 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       LETHContract.setApr(_report.epoch, _report.apr);
     }
 
-    reportBlockNumber += reportBlockFrequency;
-    lastConsensusEpoch = _report.epoch;
-
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
       bytes32 reportHash = reportHistoric[_report.epoch][i];
       address[] memory oracles = oracleReports[_report.epoch][reportHash];
@@ -331,8 +365,47 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     return true;
   }
 
-  function isReadyToReport() public view returns (bool) {
-    return block.number >= reportBlockNumber;
+  function invalidateConsensus(
+    uint256 _epoch,
+    bytes32 _hash
+  ) external onlyRole(ORACLE_REPORT_SENTINEL_ROLE) {
+    require(_epoch == lastConsensusEpoch, 'CAN_ONLY_INVALIDATE_CURRENT_EPOCH');
+    require(consensusReport[_epoch] == _hash, 'REPORT_NOT_CONSENSUS_OR_NOT_EXISTS');
+    consensusInvalidatedReport[_epoch] = true;
+    emit InvalidateConsensus(block.number, _epoch, _hash);
+  }
+
+  function setLastConsensusEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
+    lastConsensusEpoch = _epoch;
+    emit SetLastConsensusEpoch(_epoch);
+  }
+
+  function isReadyToSubmit(uint256 _epoch) public view returns (bool) {
+    return
+      (_epoch > lastConsensusEpoch) &&
+      (!consensusInvalidatedReport[_epoch]) &&
+      (block.number >= reportBlockNumber);
+  }
+
+  function isReadyToExecute(uint256 _epoch, bytes32 _hash) public view returns (bool) {
+    return
+      (_epoch > lastConsensusEpoch) &&
+      (!consensusInvalidatedReport[_epoch]) &&
+      consensusReport[_epoch] == _hash;
+  }
+
+  function setMinBlockBeforeExecution(uint256 _minBlocksBeforeExecution) external onlyRole(ADMIN_ROLE) {
+    if (_minBlocksBeforeExecution < 300) {
+      _minBlocksBeforeExecution = 300;
+    } else {
+      minBlocksBeforeExecution = _minBlocksBeforeExecution;
+    }
+    emit SetMinBlockBeforeExecution(_minBlocksBeforeExecution);
+  }
+
+  function setMaxValidatorsToExit(uint256 _maxValidatorsToExit) external onlyRole(ADMIN_ROLE) {
+    maxValidatorsToExit = _maxValidatorsToExit;
+    emit SetMaxValidatorsToExit(_maxValidatorsToExit);
   }
 
   function setReportBlockFrequency(uint256 _frequency) external onlyRole(ADMIN_ROLE) {
