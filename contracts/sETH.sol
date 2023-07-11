@@ -332,21 +332,35 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     return delegationsShares[_account][_pool];
   }
 
-  function transferPoolShares(address _to, address _pool, uint256 _sharesAmount) external {
-    require(_to != address(0), 'TRANSFER_to_ZERO_ADDR');
-    require(_pool != address(0), 'TRANSFER_pool_ZERO_ADDR');
-    require(_pool != address(this), 'TRANSFER_pool_SETH_CONTRACT');
-    require(poolContract.isPool(_pool), 'ONLY_CAN_TRANSFER_pool_POOL');
+  function transferPoolShares(
+    address _fromPool,
+    address _toPool,
+    uint256 _sharesAmount
+  ) external nonReentrant whenNotPaused {
+    _transferPoolShares(msg.sender, _fromPool, _toPool, _sharesAmount);
+  }
 
-    require(_sharesAmount <= delegationsShares[msg.sender][_to], 'BALANCE_EXCEEDED');
+  function _transferPoolShares(
+    address _account,
+    address _fromPool,
+    address _toPool,
+    uint256 _sharesAmount
+  ) internal {
+    require(_account != address(0), 'ZERO_ADDR');
+    require(_fromPool != address(0), 'ZERO_ADDR');
+    require(_toPool != address(0), 'ZERO_ADDR');
+    require(_toPool != address(this), 'SETH_ADDR');
+    require(poolContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
 
-    poolShares[_to] -= _sharesAmount;
-    delegationsShares[msg.sender][_to] -= _sharesAmount;
+    require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
 
-    poolShares[_pool] += _sharesAmount;
-    delegationsShares[msg.sender][_pool] += _sharesAmount;
+    poolShares[_fromPool] -= _sharesAmount;
+    delegationsShares[_account][_fromPool] -= _sharesAmount;
 
-    emit TransferPoolShares(msg.sender, _to, _pool, _sharesAmount);
+    poolShares[_toPool] += _sharesAmount;
+    delegationsShares[_account][_toPool] += _sharesAmount;
+
+    emit TransferPoolShares(_account, _fromPool, _toPool, _sharesAmount);
   }
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
@@ -525,7 +539,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   event MintPenalty(uint256 epoch, uint256 amount);
   event RefundPool(uint256 epoch, uint256 amount);
   event DepositPool(uint256 amount);
-  event ClaimPoolRewards(address indexed account, uint256 sharesAmount, uint256 amount);
+  event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
 
   // Refund Pool
 
@@ -564,8 +578,8 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     address _account,
     uint256 _sharesAmount
   ) external nonReentrant whenNotPaused onlyPool {
-    uint256 amount = pooledEthByShares(_sharesAmount);
-    transferFrom(address(poolContract), _account, amount);
-    emit ClaimPoolRewards(_account, _sharesAmount, amount);
+    _transferShares(_account, address(this), _sharesAmount);
+    _transferPoolShares(address(poolContract), address(poolContract), _account, _sharesAmount);
+    emit ClaimPoolRewards(_account, _sharesAmount);
   }
 }

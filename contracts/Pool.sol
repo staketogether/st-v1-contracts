@@ -123,9 +123,6 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
    ** REWARDS **
    ***********************/
 
-  event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
-  event SetMaxBatchSize(uint256 maxBatchSize);
-
   mapping(uint256 => bytes32) public rewardsMerkleRoots;
   mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
   uint256 public maxBatchSize = 100;
@@ -142,7 +139,7 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     emit RemoveRewardsMerkleRoot(_epoch);
   }
 
-  function claimRewards(
+  function claimPoolRewards(
     uint256 _epoch,
     uint256 _index,
     address _account,
@@ -159,13 +156,11 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
       revert('INVALID_MERKLE_PROOF');
 
     _setRewardsClaimed(_epoch, _index);
-
     stakeTogether.claimPoolRewards(_account, _sharesAmount);
-
-    emit ClaimRewards(_epoch, _index, _account, _sharesAmount);
+    emit ClaimPoolRewards(_epoch, _index, _account, _sharesAmount);
   }
 
-  function claimRewardsBatch(
+  function claimPoolRewardsBatch(
     uint256[] calldata _epochs,
     uint256[] calldata _indices,
     address[] calldata _accounts,
@@ -184,11 +179,11 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
 
     uint256 totalAmount = 0;
     for (uint256 i = 0; i < length; i++) {
-      claimRewards(_epochs[i], _indices[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
+      claimPoolRewards(_epochs[i], _indices[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
       totalAmount += _sharesAmounts[i];
     }
 
-    emit ClaimRewardsBatch(msg.sender, length, totalAmount);
+    emit ClaimPoolRewardsBatch(msg.sender, length, totalAmount);
   }
 
   function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {

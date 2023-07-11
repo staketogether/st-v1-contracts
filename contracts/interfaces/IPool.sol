@@ -27,7 +27,7 @@ interface IPool {
   /// @param account The address of the account that is claiming.
   /// @param sharesAmount The amount of shares to be claimed.
   /// @param merkleProof The merkle proof that proves the claim is valid.
-  function claimRewards(
+  function claimPoolRewards(
     uint256 epoch,
     uint256 index,
     address account,
@@ -44,7 +44,7 @@ interface IPool {
    * @param _sharesAmounts An array of amounts of shares to be claimed for each account.
    * @param merkleProofs An array of merkle proofs corresponding to each epoch and account.
    */
-  function claimRewardsBatch(
+  function claimPoolRewardsBatch(
     uint256[] calldata _epochs,
     uint256[] calldata _indices,
     address[] calldata _accounts,
@@ -63,5 +63,13 @@ interface IPool {
   /// @param index The index of the account that has claimed.
   /// @param account The address of the account that has claimed.
   /// @param sharesAmount The amount of shares that were claimed.
-  event ClaimRewards(uint256 indexed epoch, uint256 index, address indexed account, uint256 sharesAmount);
+  event ClaimPoolRewards(
+    uint256 indexed epoch,
+    uint256 index,
+    address indexed account,
+    uint256 sharesAmount
+  );
+
+  event ClaimPoolRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
+  event SetMaxBatchSize(uint256 maxBatchSize);
 }
