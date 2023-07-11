@@ -30,17 +30,14 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     _;
   }
 
-  event SetStakeTogether(address stakeTogether);
-  event SetDistributor(address distributor);
-
   receive() external payable {
     _transferToStakeTogether();
-    emit EtherReceived(msg.sender, msg.value);
+    emit ReceiveEther(msg.sender, msg.value);
   }
 
   fallback() external payable {
     _transferToStakeTogether();
-    emit EtherReceived(msg.sender, msg.value);
+    emit FallbackEther(msg.sender, msg.value);
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -133,15 +130,8 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     emit AddRewardsMerkleRoot(_epoch, merkleRoot);
   }
 
-  function removeRewardsMerkleRoot(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
-    require(rewardsMerkleRoots[_epoch] != bytes32(0), 'MERKLE_NOT_SET_FOR_EPOCH');
-    rewardsMerkleRoots[_epoch] = bytes32(0);
-    emit RemoveRewardsMerkleRoot(_epoch);
-  }
-
   function claimPoolRewards(
     uint256 _epoch,
-    uint256 _index,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
@@ -149,20 +139,19 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     require(rewardsMerkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
     require(_account != address(0), 'INVALID_ADDRESS');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
-    if (isRewardsClaimed(_epoch, _index)) revert('ALREADY_CLAIMED');
+    if (isRewardsClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
 
-    bytes32 leaf = keccak256(abi.encodePacked(_index, _account, _sharesAmount));
+    bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
     if (!MerkleProof.verify(merkleProof, rewardsMerkleRoots[_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
-    _setRewardsClaimed(_epoch, _index);
+    _setRewardsClaimed(_epoch, _account);
     stakeTogether.claimPoolRewards(_account, _sharesAmount);
-    emit ClaimPoolRewards(_epoch, _index, _account, _sharesAmount);
+    emit ClaimPoolRewards(_epoch, _account, _sharesAmount);
   }
 
   function claimPoolRewardsBatch(
     uint256[] calldata _epochs,
-    uint256[] calldata _indices,
     address[] calldata _accounts,
     uint256[] calldata _sharesAmounts,
     bytes32[][] calldata merkleProofs
@@ -170,16 +159,13 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     uint256 length = _epochs.length;
     require(length <= maxBatchSize, 'BATCH_SIZE_EXCEEDS_LIMIT');
     require(
-      _indices.length == length &&
-        _accounts.length == length &&
-        _sharesAmounts.length == length &&
-        merkleProofs.length == length,
+      _accounts.length == length && _sharesAmounts.length == length && merkleProofs.length == length,
       'INVALID_ARRAYS_LENGTH'
     );
 
     uint256 totalAmount = 0;
     for (uint256 i = 0; i < length; i++) {
-      claimPoolRewards(_epochs[i], _indices[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
+      claimPoolRewards(_epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
       totalAmount += _sharesAmounts[i];
     }
 
@@ -191,17 +177,19 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     emit SetMaxBatchSize(_maxBatchSize);
   }
 
-  function isRewardsClaimed(uint256 _epoch, uint256 _index) public view returns (bool) {
-    uint256 claimedWordIndex = _index / 256;
-    uint256 claimedBitIndex = _index % 256;
+  function isRewardsClaimed(uint256 _epoch, address _account) public view returns (bool) {
+    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
+    uint256 claimedWordIndex = index / 256;
+    uint256 claimedBitIndex = index % 256;
     uint256 claimedWord = claimedBitMap[_epoch][claimedWordIndex];
     uint256 mask = (1 << claimedBitIndex);
     return claimedWord & mask == mask;
   }
 
-  function _setRewardsClaimed(uint256 _epoch, uint256 _index) private {
-    uint256 claimedWordIndex = _index / 256;
-    uint256 claimedBitIndex = _index % 256;
+  function _setRewardsClaimed(uint256 _epoch, address _account) private {
+    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
+    uint256 claimedWordIndex = index / 256;
+    uint256 claimedBitIndex = index % 256;
     claimedBitMap[_epoch][claimedWordIndex] =
       claimedBitMap[_epoch][claimedWordIndex] |
       (1 << claimedBitIndex);
