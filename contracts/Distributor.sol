@@ -203,6 +203,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   event SetMinBlockBeforeExecution(uint256 minBlocksBeforeExecution);
   event SetLastConsensusEpoch(uint256 epoch);
   event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
+  event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
 
   struct Values {
     uint256 total;
@@ -252,12 +253,15 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     bytes32 _hash,
     Report calldata _report
   ) external onlyReportOracle nonReentrant whenNotPaused {
-    require(_epoch > lastConsensusEpoch, 'REPORT_EPOCH_MUST_BE_GREATER_THAN_LAST_CONSENSUS_EPOCH');
+    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
+    require(_epoch > lastConsensusEpoch, 'EPOCH_LOWER_THAN_LAST_CONSENSUS');
     require(!consensusInvalidatedReport[_epoch], 'REPORT_CONSENSUS_INVALIDATED');
+
     auditReport(_report);
 
     if (block.number >= reportBlockNumber + reportBlockFrequency) {
       reportBlockNumber += reportBlockFrequency;
+      emit SkipNextBlockInterval(_epoch, reportBlockNumber);
     }
 
     oracleReports[_epoch][_hash].push(msg.sender);
@@ -280,14 +284,16 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     bytes32 _hash,
     Report calldata _report
   ) external nonReentrant whenNotPaused onlyReportOracle {
-    require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
     require(
       block.number >= reportExecutionBlock[_hash] + minBlocksBeforeExecution,
       'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
     );
+    require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
     require(keccak256(abi.encode(_report)) == _hash, 'REPORT_HASH_MISMATCH');
     require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
     require(!executedReports[_report.epoch][_hash], 'REPORT_ALREADY_EXECUTED');
+
+    auditReport(_report);
 
     reportBlockNumber += reportBlockFrequency;
     executedReports[_report.epoch][_hash] = true;
