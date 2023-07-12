@@ -3,14 +3,7 @@
   "ignorePaths": [],
   "dictionaryDefinitions": [],
   "dictionaries": [],
-  "words": [
-    "keccak",
-    "Merkle",
-    "Pausable",
-    "Reentrancy",
-    "struct",
-    "STWE"
-  ],
+  "words": ["keccak", "Merkle", "Pausable", "Reentrancy", "struct", "LETH"],
   "ignoreWords": [],
   "import": []
 }
