@@ -26,21 +26,6 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
    ** LIQUIDITY **
    ***********************/
 
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-
-  event SetStakeTogether(address stakeTogether);
-  event SetLiquidityFee(uint256 fee);
-  event SetStakeTogetherLiquidityFee(uint256 fee);
-  event SetPoolLiquidityFee(uint256 fee);
-  event AddLiquidity(address indexed user, uint256 amount);
-  event RemoveLiquidity(address indexed user, uint256 amount);
-  event Borrow(address indexed user, uint256 amount);
-  event RepayLoan(address indexed user, uint256 amount);
-  event ReDeposit(address indexed user, uint256 amount);
-  event ReDepositBatch(address indexed user, uint256[] amounts);
-  event SetEnableBorrow(bool enable);
-
   uint256 public liquidityFee = 0.01 ether;
   uint256 public stakeTogetherLiquidityFee = 0.15 ether;
   uint256 public poolLiquidityFee = 0.15 ether;
@@ -171,20 +156,6 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     _;
   }
 
-  event SetApr(uint256 epoch, uint256 apr);
-  event SetMaxAnticipateFraction(uint256 fraction);
-  event SetMaxAnticipationDays(uint256 anticipationDays);
-  event SetAnticipationFeeRange(uint256 minFee, uint256 maxFee);
-  event SetStakeTogetherAnticipateFee(uint256 fee);
-  event SetPoolAnticipateFee(uint256 fee);
-  event AnticipateRewards(
-    address indexed user,
-    uint256 anticipatedAmount,
-    uint256 netAmount,
-    uint256 fee
-  );
-  event SetEnableAnticipation(bool enable);
-
   uint256 public apr = 0.05 ether;
   uint256 public maxAnticipateFraction = 0.5 ether;
   uint256 public maxAnticipationDays = 365;
@@ -313,11 +284,9 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
 
   // Todo: devolute antecipated rewards
 
-  /***********************
+  /***************
    ** REDEPOSIT **
-   ***********************/
-
-  event SetMaxBatchSize(uint256 size);
+   ***************/
 
   uint256 public maxBatchSize = 100;
 
