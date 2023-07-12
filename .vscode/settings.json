@@ -34,7 +34,6 @@
     "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
   },
   "cSpell.enableFiletypes": ["solidity"],
-  "cSpell.words": ["LETH"],
   "slither.solcPath": "",
   "slither.hiddenDetectors": ["naming-convention"]
 }
