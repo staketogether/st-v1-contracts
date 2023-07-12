@@ -44,9 +44,7 @@ contract Loan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
 
-  constructor(
-    address _distributorContract
-  ) ERC20('ST Lending Ether', 'Loan') ERC20Permit('ST Lending Ether') {
+  constructor(address _distributorContract) ERC20('ST Loan Ether', 'LETH') ERC20Permit('ST Loan Ether') {
     distributor = Distributor(payable(_distributorContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
