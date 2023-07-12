@@ -12,7 +12,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './Pool.sol';
 import './Distributor.sol';
 
-contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Loan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
   bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
@@ -46,7 +46,7 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
   constructor(
     address _distributorContract
-  ) ERC20('ST Lending Ether', 'LETH') ERC20Permit('ST Lending Ether') {
+  ) ERC20('ST Lending Ether', 'Loan') ERC20Permit('ST Lending Ether') {
     distributor = Distributor(payable(_distributorContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);

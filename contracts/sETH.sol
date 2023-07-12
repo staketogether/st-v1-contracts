@@ -13,7 +13,7 @@ import './interfaces/IDepositContract.sol';
 import './Distributor.sol';
 import './Pool.sol';
 import './WETH.sol';
-import './LETH.sol';
+import './Loan.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
@@ -25,7 +25,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   Distributor public distributorContract;
   Pool public poolContract;
   WETH public WETHContract;
-  LETH public LETHContract;
+  Loan public loanContract;
   IDepositContract public depositContract;
 
   constructor() ERC20('ST Pool Ether', 'SETH') ERC20Permit('ST Pool Ether') {
@@ -207,8 +207,8 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
    ** LOCK SHARES **
    *****************/
 
-  modifier onlyLETH() {
-    require(msg.sender == address(LETHContract), 'ONLY_LETH_CONTRACT');
+  modifier onlyLoan() {
+    require(msg.sender == address(loanContract), 'ONLY_LOAN_CONTRACT');
     _;
   }
 
@@ -238,7 +238,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   function lockShares(
     uint256 _sharesAmount,
     uint256 _blocks
-  ) external onlyLETH nonReentrant whenNotPaused {
+  ) external onlyLoan nonReentrant whenNotPaused {
     require(locked[msg.sender].length < maxActiveLocks, 'TOO_MANY_LOCKS');
     require(_sharesAmount <= shares[msg.sender], 'BALANCE_EXCEEDED');
     require(_blocks > 0, 'BLOCKS_MUST_BE_GREATER_THAN_ZERO');

@@ -8,7 +8,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './WETH.sol';
-import './LETH.sol';
+import './Loan.sol';
 import './Pool.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -20,12 +20,12 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
 
   StakeTogether public stakeTogether;
   WETH public WETHContract;
-  LETH public LETHContract;
+  Loan public loanContract;
   Pool public poolContract;
 
-  constructor(address _WETH, address _LETH, address _poolContract) {
+  constructor(address _WETH, address _loanContract, address _poolContract) {
     WETHContract = WETH(payable(_WETH));
-    LETHContract = LETH(payable(_LETH));
+    loanContract = Loan(payable(_loanContract));
     poolContract = Pool(payable(_poolContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
@@ -364,7 +364,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.apr > 0) {
-      LETHContract.setApr(_report.epoch, _report.apr);
+      loanContract.setApr(_report.epoch, _report.apr);
     }
 
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {

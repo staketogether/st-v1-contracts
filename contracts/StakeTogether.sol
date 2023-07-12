@@ -12,13 +12,13 @@ contract StakeTogether is SETH {
     address _distributorContract,
     address _poolContract,
     address _WETHContract,
-    address _LETHContract,
+    address _loanContract,
     address _depositContract
   ) payable {
     distributorContract = Distributor(payable(_distributorContract));
     poolContract = Pool(payable(_poolContract));
     WETHContract = WETH(payable(_WETHContract));
-    LETHContract = LETH(payable(_LETHContract));
+    loanContract = Loan(payable(_loanContract));
     depositContract = IDepositContract(_depositContract);
   }
 
@@ -157,11 +157,11 @@ contract StakeTogether is SETH {
   }
 
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(LETHContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
+    require(_amount <= address(loanContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
     emit WithdrawBorrow(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     poolSize += _amount;
-    LETHContract.borrow(_amount, _pool);
+    loanContract.borrow(_amount, _pool);
     payable(msg.sender).transfer(_amount);
   }
 
@@ -200,7 +200,7 @@ contract StakeTogether is SETH {
   }
 
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    require(_amount >= validatorSize + address(LETHContract).balance, 'POOL_SIZE_TOO_LOW');
+    require(_amount >= validatorSize + address(loanContract).balance, 'POOL_SIZE_TOO_LOW');
     poolSize = _amount;
     emit SetPoolSize(_amount);
   }
@@ -214,14 +214,14 @@ contract StakeTogether is SETH {
   }
 
   function _repayLoan() internal {
-    if (LETHContract.balanceOf(address(this)) > 0) {
+    if (loanContract.balanceOf(address(this)) > 0) {
       uint256 loanAmount = 0;
-      if (LETHContract.balanceOf(address(this)) >= msg.value) {
+      if (loanContract.balanceOf(address(this)) >= msg.value) {
         loanAmount = msg.value;
       } else {
-        loanAmount = LETHContract.balanceOf(address(this));
+        loanAmount = loanContract.balanceOf(address(this));
       }
-      LETHContract.repayLoan{ value: loanAmount }();
+      loanContract.repayLoan{ value: loanAmount }();
       poolSize -= loanAmount;
     }
   }
