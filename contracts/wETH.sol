@@ -20,7 +20,8 @@ contract WETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     _;
   }
 
-  event EtherReceived(address indexed sender, uint amount);
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
 
@@ -31,12 +32,20 @@ contract WETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
   receive() external payable {
     _checkExtraAmount();
-    emit EtherReceived(msg.sender, msg.value);
+    emit ReceiveEther(msg.sender, msg.value);
   }
 
   fallback() external payable {
     _checkExtraAmount();
-    emit EtherReceived(msg.sender, msg.value);
+    emit FallbackEther(msg.sender, msg.value);
+  }
+
+  function pause() public onlyRole(ADMIN_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(ADMIN_ROLE) {
+    _unpause();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {

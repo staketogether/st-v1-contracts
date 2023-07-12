@@ -50,6 +50,14 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
+  function pause() public onlyRole(ADMIN_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(ADMIN_ROLE) {
+    _unpause();
+  }
+
   /*******************
    ** REPORT ORACLE **
    *******************/
@@ -207,9 +215,11 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   event SetLastConsensusEpoch(uint256 epoch);
   event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
   event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
+  event SetMaxApr(uint256 maxApr);
 
   struct Values {
     uint256 total;
+    uint256 users;
     uint256 pools;
     uint256 operators;
     uint256 stakeTogether;
@@ -251,6 +261,8 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   uint256 public minBlocksBeforeExecution = 600;
   mapping(bytes32 => uint256) public reportExecutionBlock;
 
+  uint256 public maxApr = 0.1 ether;
+
   function submitReport(
     uint256 _epoch,
     bytes32 _hash,
@@ -258,9 +270,8 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   ) external onlyReportOracle nonReentrant whenNotPaused {
     require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
     require(_epoch > lastConsensusEpoch, 'EPOCH_LOWER_THAN_LAST_CONSENSUS');
-    require(!consensusInvalidatedReport[_epoch], 'REPORT_CONSENSUS_INVALIDATED');
 
-    auditReport(_report);
+    auditReport(_report, _hash);
 
     if (block.number >= reportBlockNumber + reportBlockFrequency) {
       reportBlockNumber += reportBlockFrequency;
@@ -291,12 +302,10 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       block.number >= reportExecutionBlock[_hash] + minBlocksBeforeExecution,
       'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
     );
-    require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
-    require(keccak256(abi.encode(_report)) == _hash, 'REPORT_HASH_MISMATCH');
     require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
     require(!executedReports[_report.epoch][_hash], 'REPORT_ALREADY_EXECUTED');
 
-    auditReport(_report);
+    auditReport(_report, _hash);
 
     reportBlockNumber += reportBlockFrequency;
     executedReports[_report.epoch][_hash] = true;
@@ -323,7 +332,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     if (_report.amounts.operators > 0) {
       stakeTogether.mintRewards{ value: _report.amounts.operators }(
         _report.epoch,
-        stakeTogether.operatorFeeAddress(),
+        stakeTogether.operatorsFeeAddress(),
         _report.shares.operators
       );
     }
@@ -419,15 +428,53 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     emit SetReportBlockFrequency(_frequency);
   }
 
+  function setMaxApr(uint256 _maxApr) external onlyRole(ADMIN_ROLE) {
+    maxApr = _maxApr;
+    emit SetMaxApr(_maxApr);
+  }
+
   /******************
    ** AUDIT REPORT **
    ******************/
 
-  function auditReport(Report calldata _report) public view returns (bool) {
-    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
-    require(_report.epoch > lastConsensusEpoch, 'INVALID_EPOCH');
+  function auditReport(Report calldata _report, bytes32 _hash) public view returns (bool) {
+    require(keccak256(abi.encode(_report)) == _hash, 'REPORT_HASH_MISMATCH');
 
-    // Todo: Improve Audit Rules
+    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
+    require(_report.epoch <= lastConsensusEpoch, 'INVALID_EPOCH');
+    require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
+    require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
+
+    uint256 poolShares = Math.mulDiv(_report.shares.total, stakeTogether.poolsFee(), 1 ether);
+    uint256 operatorShares = Math.mulDiv(_report.shares.total, stakeTogether.operatorsFee(), 1 ether);
+    uint256 stakeTogetherShares = Math.mulDiv(
+      _report.shares.total,
+      stakeTogether.stakeTogetherFee(),
+      1 ether
+    );
+    uint256 userShares = _report.shares.total - poolShares - operatorShares - stakeTogetherShares;
+
+    require(userShares == _report.shares.users, 'INVALID_USER_SHARES');
+    require(poolShares == _report.shares.pools, 'INVALID_POOL_SHARES');
+    require(operatorShares == _report.shares.operators, 'INVALID_OPERATOR_SHARES');
+    require(stakeTogetherShares == _report.shares.stakeTogether, 'INVALID_STAKETOGETHER_SHARES');
+
+    require(
+      userShares + poolShares + operatorShares + stakeTogetherShares == _report.shares.total,
+      'INVALID_TOTAL_SHARES'
+    );
+
+    require(_report.poolsMerkleRoot != bytes32(0), 'INVALID_POOLS_MERKLE_ROOT');
+
+    require(_report.validatorsToExit.length <= maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
+
+    for (uint256 i = 0; i < _report.validatorsToExit.length; i++) {
+      require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');
+    }
+
+    require(_report.withdrawalsAmount <= WETHContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
+
+    require(_report.apr <= maxApr, 'INVALID_APR');
 
     return true;
   }

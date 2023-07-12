@@ -24,7 +24,9 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
    ** LIQUIDITY **
    ***********************/
 
-  event EtherReceived(address indexed sender, uint amount);
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
+
   event SetStakeTogether(address stakeTogether);
   event SetLiquidityFee(uint256 fee);
   event SetStakeTogetherLiquidityFee(uint256 fee);
@@ -52,7 +54,20 @@ contract LETH is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
 
   receive() external payable {
     _checkExtraAmount();
-    emit EtherReceived(msg.sender, msg.value);
+    emit ReceiveEther(msg.sender, msg.value);
+  }
+
+  fallback() external payable {
+    _checkExtraAmount();
+    emit FallbackEther(msg.sender, msg.value);
+  }
+
+  function pause() public onlyRole(ADMIN_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(ADMIN_ROLE) {
+    _unpause();
   }
 
   modifier onlyStakeTogether() {

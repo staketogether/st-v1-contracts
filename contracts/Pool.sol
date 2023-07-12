@@ -52,6 +52,14 @@ contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
     emit SetDistributor(_distributor);
   }
 
+  function pause() public onlyRole(ADMIN_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(ADMIN_ROLE) {
+    _unpause();
+  }
+
   function _transferToStakeTogether() private {
     payable(address(stakeTogether)).transfer(address(this).balance);
   }

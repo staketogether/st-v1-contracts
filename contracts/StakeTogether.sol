@@ -5,7 +5,8 @@ import './SETH.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is SETH {
-  event EtherReceived(address indexed sender, uint amount);
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
 
   constructor(
     address _distributorContract,
@@ -22,13 +23,21 @@ contract StakeTogether is SETH {
   }
 
   receive() external payable {
-    emit EtherReceived(msg.sender, msg.value);
+    emit ReceiveEther(msg.sender, msg.value);
     _repayLoan();
   }
 
   fallback() external payable {
-    emit EtherReceived(msg.sender, msg.value);
+    emit FallbackEther(msg.sender, msg.value);
     _repayLoan();
+  }
+
+  function pause() public onlyRole(ADMIN_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(ADMIN_ROLE) {
+    _unpause();
   }
 
   /*****************
@@ -305,7 +314,7 @@ contract StakeTogether is SETH {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant onlyValidatorOracle {
-    require(poolBalance() >= poolSize + validatorFee, 'NOT_ENOUGH_POOL_BALANCE');
+    require(poolBalance() >= poolSize + validatorsFee, 'NOT_ENOUGH_POOL_BALANCE');
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
     validators[_publicKey] = true;
@@ -330,7 +339,7 @@ contract StakeTogether is SETH {
       _depositDataRoot
     );
 
-    payable(stakeTogetherFeeAddress).transfer(validatorFee);
+    payable(stakeTogetherFeeAddress).transfer(validatorsFee);
   }
 
   function removeValidator(

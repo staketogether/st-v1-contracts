@@ -443,24 +443,24 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
    ** ADDRESSES **
    *****************/
 
-  address public poolFeeAddress;
-  address public operatorFeeAddress;
+  address public poolsFeeAddress;
+  address public operatorsFeeAddress;
   address public stakeTogetherFeeAddress;
 
-  event SetPoolFeeAddress(address indexed to);
-  event SetOperatorFeeAddress(address indexed to);
+  event SetPoolsFeeAddress(address indexed to);
+  event SetOperatorsFeeAddress(address indexed to);
   event SetStakeTogetherFeeAddress(address indexed to);
 
-  function setPoolFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
+  function setPoolsFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
-    poolFeeAddress = _to;
-    emit SetPoolFeeAddress(_to);
+    poolsFeeAddress = _to;
+    emit SetPoolsFeeAddress(_to);
   }
 
   function setOperatorFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
-    operatorFeeAddress = _to;
-    emit SetOperatorFeeAddress(_to);
+    operatorsFeeAddress = _to;
+    emit SetOperatorsFeeAddress(_to);
   }
 
   function setStakeTogetherFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
@@ -474,16 +474,16 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
    *****************/
 
   uint256 public stakeTogetherFee = 0.03 ether;
-  uint256 public operatorFee = 0.03 ether;
-  uint256 public poolFee = 0.03 ether;
-  uint256 public validatorFee = 0.001 ether;
+  uint256 public operatorsFee = 0.03 ether;
+  uint256 public poolsFee = 0.03 ether;
+  uint256 public validatorsFee = 0.001 ether;
   uint256 public addPoolFee = 1 ether;
   uint256 public entryFee = 0.003 ether;
 
   event SetStakeTogetherFee(uint256 fee);
-  event SetPoolFee(uint256 fee);
-  event SetOperatorFee(uint256 fee);
-  event SetValidatorFee(uint256 fee);
+  event SetPoolsFee(uint256 fee);
+  event SetOperatorsFee(uint256 fee);
+  event SetValidatorsFee(uint256 fee);
   event SetAddPoolFee(uint256 fee);
   event SetEntryFee(uint256 fee);
 
@@ -492,19 +492,19 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     emit SetStakeTogetherFee(_fee);
   }
 
-  function setPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
-    poolFee = _fee;
-    emit SetPoolFee(_fee);
+  function setPoolsFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
+    poolsFee = _fee;
+    emit SetPoolsFee(_fee);
   }
 
   function setOperatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
-    operatorFee = _fee;
-    emit SetOperatorFee(_fee);
+    operatorsFee = _fee;
+    emit SetOperatorsFee(_fee);
   }
 
   function setValidatorFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
-    validatorFee = _fee;
-    emit SetValidatorFee(_fee);
+    validatorsFee = _fee;
+    emit SetValidatorsFee(_fee);
   }
 
   function setAddPoolFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
@@ -553,7 +553,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
 
     if (_rewardAddress == stakeTogetherFeeAddress) {
       emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.StakeTogether);
-    } else if (_rewardAddress == operatorFeeAddress) {
+    } else if (_rewardAddress == operatorsFeeAddress) {
       emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Operator);
     } else {
       emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Pool);
