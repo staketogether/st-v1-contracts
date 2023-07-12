@@ -11,7 +11,7 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './Distributor.sol';
 
-contract Loan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
   bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
@@ -43,7 +43,9 @@ contract Loan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
   uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
 
-  constructor(address _distributorContract) ERC20('ST Loan Ether', 'LETH') ERC20Permit('ST Loan Ether') {
+  constructor(
+    address _distributorContract
+  ) ERC20('ST Loans Ether', 'LETH') ERC20Permit('ST Loans Ether') {
     distributor = Distributor(payable(_distributorContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);

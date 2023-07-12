@@ -18,7 +18,7 @@ contract StakeTogether is Shares {
     distributorContract = Distributor(payable(_distributorContract));
     poolsContract = Pools(payable(_poolContract));
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
-    loanContract = Loan(payable(_loanContract));
+    loansContract = Loans(payable(_loanContract));
     depositContract = IDepositContract(_depositContract);
   }
 
@@ -157,11 +157,11 @@ contract StakeTogether is Shares {
   }
 
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(loanContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
+    require(_amount <= address(loansContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
     emit WithdrawBorrow(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     poolSize += _amount;
-    loanContract.borrow(_amount, _pool);
+    loansContract.borrow(_amount, _pool);
     payable(msg.sender).transfer(_amount);
   }
 
@@ -200,7 +200,7 @@ contract StakeTogether is Shares {
   }
 
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    require(_amount >= validatorSize + address(loanContract).balance, 'POOL_SIZE_TOO_LOW');
+    require(_amount >= validatorSize + address(loansContract).balance, 'POOL_SIZE_TOO_LOW');
     poolSize = _amount;
     emit SetPoolSize(_amount);
   }
@@ -214,14 +214,14 @@ contract StakeTogether is Shares {
   }
 
   function _repayLoan() internal {
-    if (loanContract.balanceOf(address(this)) > 0) {
+    if (loansContract.balanceOf(address(this)) > 0) {
       uint256 loanAmount = 0;
-      if (loanContract.balanceOf(address(this)) >= msg.value) {
+      if (loansContract.balanceOf(address(this)) >= msg.value) {
         loanAmount = msg.value;
       } else {
-        loanAmount = loanContract.balanceOf(address(this));
+        loanAmount = loansContract.balanceOf(address(this));
       }
-      loanContract.repayLoan{ value: loanAmount }();
+      loansContract.repayLoan{ value: loanAmount }();
       poolSize -= loanAmount;
     }
   }

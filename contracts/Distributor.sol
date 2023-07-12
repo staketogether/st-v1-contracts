@@ -8,7 +8,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Withdrawals.sol';
-import './Loan.sol';
+import './Loans.sol';
 import './Pools.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -20,12 +20,12 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
 
   StakeTogether public stakeTogether;
   Withdrawals public withdrawalsContract;
-  Loan public loanContract;
+  Loans public loansContract;
   Pools public poolsContract;
 
   constructor(address _withdrawContract, address _loanContract, address _poolContract) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
-    loanContract = Loan(payable(_loanContract));
+    loansContract = Loans(payable(_loanContract));
     poolsContract = Pools(payable(_poolContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
@@ -364,7 +364,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.apr > 0) {
-      loanContract.setApr(_report.epoch, _report.apr);
+      loansContract.setApr(_report.epoch, _report.apr);
     }
 
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
