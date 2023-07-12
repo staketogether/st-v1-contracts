@@ -12,7 +12,7 @@ import './Loans.sol';
 import './Pools.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Distributor is AccessControl, Pausable, ReentrancyGuard {
+contract Router is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
   bytes32 public constant ORACLE_REPORT_SENTINEL_ROLE = keccak256('ORACLE_REPORT_SENTINEL_ROLE');

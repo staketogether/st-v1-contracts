@@ -10,7 +10,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IDepositContract.sol';
-import './Distributor.sol';
+import './Router.sol';
 import './Pools.sol';
 import './Withdrawals.sol';
 import './Loans.sol';
@@ -22,7 +22,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
-  Distributor public distributorContract;
+  Router public routerContract;
   Pools public poolsContract;
   Withdrawals public withdrawalsContract;
   Loans public loansContract;
@@ -35,8 +35,8 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  modifier onlyDistributor() {
-    require(msg.sender == address(distributorContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+  modifier onlyRouter() {
+    require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
 
@@ -547,7 +547,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
     uint256 _epoch,
     address _rewardAddress,
     uint256 _sharesAmount
-  ) external payable nonReentrant onlyDistributor {
+  ) external payable nonReentrant onlyRouter {
     _mintShares(_rewardAddress, _sharesAmount);
     _mintPoolShares(_rewardAddress, _rewardAddress, _sharesAmount); // Todo: verify pools shares not claimed
 
@@ -560,13 +560,13 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
     }
   }
 
-  function mintPenalty(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyDistributor {
+  function mintPenalty(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyRouter {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_blockNumber, _lossAmount);
   }
 
-  function refundPool(uint256 _epoch) external payable nonReentrant onlyDistributor {
+  function refundPool(uint256 _epoch) external payable nonReentrant onlyRouter {
     emit RefundPool(_epoch, msg.value);
   }
 

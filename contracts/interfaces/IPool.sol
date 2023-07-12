@@ -9,7 +9,7 @@ interface IPool {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetDistributor(address distributor);
+  event SetRouter(address router);
 
   /// @dev This event is triggered whenever a new merkle root is added.
   /// @param epoch The epoch for which the new merkle root is added.

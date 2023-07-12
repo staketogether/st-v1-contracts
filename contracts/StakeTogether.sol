@@ -9,13 +9,13 @@ contract StakeTogether is Shares {
   event FallbackEther(address indexed sender, uint amount);
 
   constructor(
-    address _distributorContract,
+    address _routerContract,
     address _poolContract,
     address _withdrawContract,
     address _loanContract,
     address _depositContract
   ) payable {
-    distributorContract = Distributor(payable(_distributorContract));
+    routerContract = Router(payable(_routerContract));
     poolsContract = Pools(payable(_poolContract));
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loansContract = Loans(payable(_loanContract));
@@ -345,7 +345,7 @@ contract StakeTogether is Shares {
   function removeValidator(
     uint256 _epoch,
     bytes calldata _publicKey
-  ) external payable nonReentrant onlyDistributor {
+  ) external payable nonReentrant onlyRouter {
     require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
     validators[_publicKey] = false;

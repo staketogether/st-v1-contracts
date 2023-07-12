@@ -8,7 +8,7 @@ import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import './interfaces/IPool.sol';
-import './Distributor.sol';
+import './Router.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -17,7 +17,7 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard, IPool {
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
   StakeTogether public stakeTogether;
-  Distributor public distribution;
+  Router public distribution;
 
   constructor() payable {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -25,7 +25,7 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard, IPool {
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
   }
 
-  modifier onlyDistributor() {
+  modifier onlyRouter() {
     require(msg.sender == address(distribution), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
@@ -46,10 +46,10 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard, IPool {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setDistributor(address _distributor) external onlyRole(ADMIN_ROLE) {
+  function setRouter(address _distributor) external onlyRole(ADMIN_ROLE) {
     require(_distributor != address(0), 'DISTRIBUTOR_ALREADY_SET');
-    distribution = Distributor(payable(_distributor));
-    emit SetDistributor(_distributor);
+    distribution = Router(payable(_distributor));
+    emit SetRouter(_distributor);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -132,7 +132,7 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard, IPool {
   mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
   uint256 public maxBatchSize = 100;
 
-  function addRewardsMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyDistributor {
+  function addRewardsMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyRouter {
     require(rewardsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
     rewardsMerkleRoots[_epoch] = merkleRoot;
     emit AddRewardsMerkleRoot(_epoch, merkleRoot);

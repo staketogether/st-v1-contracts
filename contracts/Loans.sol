@@ -9,7 +9,7 @@ import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
-import './Distributor.sol';
+import './Router.sol';
 
 contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -17,7 +17,7 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
   bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
 
   StakeTogether public stakeTogether;
-  Distributor public distributor;
+  Router public router;
 
   /***********************
    ** LIQUIDITY **
@@ -43,10 +43,8 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
   uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
 
-  constructor(
-    address _distributorContract
-  ) ERC20('ST Loans Ether', 'LETH') ERC20Permit('ST Loans Ether') {
-    distributor = Distributor(payable(_distributorContract));
+  constructor(address _routerContract) ERC20('ST Loans Ether', 'LETH') ERC20Permit('ST Loans Ether') {
+    router = Router(payable(_routerContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
@@ -165,8 +163,8 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
    ** ANTICIPATION **
    ***********************/
 
-  modifier onlyDistributor() {
-    require(msg.sender == address(distributor), 'ONLY_DISTRIBUTOR_CONTRACT');
+  modifier onlyRouter() {
+    require(msg.sender == address(router), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
 
@@ -194,7 +192,7 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
   uint256 public poolAnticipateFee = 0.15 ether;
   bool public enableAnticipation = true;
 
-  function setApr(uint256 _epoch, uint256 _apr) external onlyDistributor {
+  function setApr(uint256 _epoch, uint256 _apr) external onlyRouter {
     apr = _apr;
     emit SetApr(_epoch, _apr);
   }
