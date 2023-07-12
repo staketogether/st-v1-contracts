@@ -8,9 +8,18 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Withdrawals is
+  IWithdrawals,
+  AccessControl,
+  Pausable,
+  ReentrancyGuard,
+  ERC20,
+  ERC20Burnable,
+  ERC20Permit
+{
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;

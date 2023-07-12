@@ -7,12 +7,12 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import './interfaces/IPool.sol';
+import './interfaces/IPools.sol';
 import './Router.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Pools is AccessControl, Pausable, ReentrancyGuard, IPool {
+contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 

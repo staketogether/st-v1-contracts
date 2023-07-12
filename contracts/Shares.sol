@@ -14,9 +14,10 @@ import './Router.sol';
 import './Pools.sol';
 import './Withdrawals.sol';
 import './Loans.sol';
+import './interfaces/IShares.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
+abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');

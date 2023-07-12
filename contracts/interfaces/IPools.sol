@@ -5,7 +5,8 @@ pragma solidity ^0.8.18;
 /// @title Pool Contract Interface
 /// @notice Interface for a contract that manage pools and allows to claim a shares.
 /// @dev The pool interface implement shares distribution via merkle proofs.
-interface IPool {
+/// @custom:security-contact security@staketogether.app
+interface IPools {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
