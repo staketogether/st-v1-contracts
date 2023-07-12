@@ -12,7 +12,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IDepositContract.sol';
 import './Distributor.sol';
 import './Pool.sol';
-import './WETH.sol';
+import './Withdraw.sol';
 import './Loan.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -24,7 +24,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
 
   Distributor public distributorContract;
   Pool public poolContract;
-  WETH public WETHContract;
+  Withdraw public withdrawContract;
   Loan public loanContract;
   IDepositContract public depositContract;
 

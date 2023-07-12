@@ -7,7 +7,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
-import './WETH.sol';
+import './Withdraw.sol';
 import './Loan.sol';
 import './Pool.sol';
 
@@ -19,12 +19,12 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
-  WETH public WETHContract;
+  Withdraw public withdrawContract;
   Loan public loanContract;
   Pool public poolContract;
 
-  constructor(address _WETH, address _loanContract, address _poolContract) {
-    WETHContract = WETH(payable(_WETH));
+  constructor(address _withdrawContract, address _loanContract, address _poolContract) {
+    withdrawContract = Withdraw(payable(_withdrawContract));
     loanContract = Loan(payable(_loanContract));
     poolContract = Pool(payable(_poolContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -241,7 +241,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
     uint256 restExitAmount; // Rest withdrawal validator amount
-    uint256 withdrawalsAmount; // Amount of ETH to send to WETH contract
+    uint256 withdrawAmount; // Amount of ETH to send to WETH contract
     uint256 apr; // Protocol APR for lending calculation
   }
 
@@ -359,8 +359,8 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
     }
 
-    if (_report.withdrawalsAmount > 0) {
-      payable(address(WETHContract)).transfer(_report.withdrawalsAmount);
+    if (_report.withdrawAmount > 0) {
+      payable(address(withdrawContract)).transfer(_report.withdrawAmount);
     }
 
     if (_report.apr > 0) {
@@ -457,7 +457,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     require(userShares == _report.shares.users, 'INVALID_USER_SHARES');
     require(poolShares == _report.shares.pools, 'INVALID_POOL_SHARES');
     require(operatorShares == _report.shares.operators, 'INVALID_OPERATOR_SHARES');
-    require(stakeTogetherShares == _report.shares.stakeTogether, 'INVALID_STAKETOGETHER_SHARES');
+    require(stakeTogetherShares == _report.shares.stakeTogether, 'INVALID_STAKE_TOGETHER_SHARES');
 
     require(
       userShares + poolShares + operatorShares + stakeTogetherShares == _report.shares.total,
@@ -472,7 +472,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');
     }
 
-    require(_report.withdrawalsAmount <= WETHContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
+    require(_report.withdrawAmount <= withdrawContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
 
     require(_report.apr <= maxApr, 'INVALID_APR');
 

@@ -11,13 +11,13 @@ contract StakeTogether is SETH {
   constructor(
     address _distributorContract,
     address _poolContract,
-    address _WETHContract,
+    address _withdrawContract,
     address _loanContract,
     address _depositContract
   ) payable {
     distributorContract = Distributor(payable(_distributorContract));
     poolContract = Pool(payable(_poolContract));
-    WETHContract = WETH(payable(_WETHContract));
+    withdrawContract = Withdraw(payable(_withdrawContract));
     loanContract = Loan(payable(_loanContract));
     depositContract = IDepositContract(_depositContract);
   }
@@ -171,7 +171,7 @@ contract StakeTogether is SETH {
     emit WithdrawValidator(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     beaconBalance -= _amount;
-    WETHContract.mint(msg.sender, _amount);
+    withdrawContract.mint(msg.sender, _amount);
   }
 
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
