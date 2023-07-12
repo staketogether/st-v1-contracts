@@ -10,24 +10,22 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IDepositContract.sol';
-import './Router.sol';
-import './Pools.sol';
-import './Withdrawals.sol';
-import './Loans.sol';
+import './interfaces/IRouter.sol';
+import './interfaces/IPools.sol';
+import './interfaces/IWithdrawals.sol';
+import './interfaces/ILoans.sol';
 import './interfaces/IStakeTogether.sol';
+import './interfaces/IValidators.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
-  Router public routerContract;
-  Pools public poolsContract;
-  Withdrawals public withdrawalsContract;
-  Loans public loansContract;
-  IDepositContract public depositContract;
+  IRouter public routerContract;
+  IPools public poolsContract;
+  IWithdrawals public withdrawalsContract;
+  ILoans public loansContract;
+  IValidators public validatorsContract;
 
   constructor() ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     _bootstrap();
@@ -73,11 +71,11 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
     return address(this).balance;
   }
 
-  function totalSupply() public view override(ERC20, IStakeTogether) returns (uint256) {
+  function totalSupply() public view override(ERC20, IERC20) returns (uint256) {
     return totalPooledEther();
   }
 
-  function balanceOf(address _account) public view override(ERC20, IStakeTogether) returns (uint256) {
+  function balanceOf(address _account) public view override(ERC20, IERC20) returns (uint256) {
     return pooledEthByShares(netSharesOf(_account));
   }
 
@@ -97,7 +95,7 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
     return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares);
   }
 
-  function transfer(address _to, uint256 _amount) public override(ERC20, IStakeTogether) returns (bool) {
+  function transfer(address _to, uint256 _amount) public override(ERC20, IERC20) returns (bool) {
     _transfer(msg.sender, _to, _amount);
     return true;
   }
@@ -106,7 +104,7 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
     address _from,
     address _to,
     uint256 _amount
-  ) public override(ERC20, IStakeTogether) returns (bool) {
+  ) public override(ERC20, IERC20) returns (bool) {
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
 
@@ -501,7 +499,17 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
 
   uint256 public beaconBalance = 0;
 
-  // Refund Pools
+  // Todo: Implement function set beacon balance
+
+  modifier onlyValidators() {
+    require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS_CONTRACT');
+    _;
+  }
+
+  function setBeaconBalance(uint256 _amount) external onlyValidators {
+    beaconBalance = _amount;
+    emit SetBeaconBalance(_amount);
+  }
 
   function mintRewards(
     uint256 _epoch,

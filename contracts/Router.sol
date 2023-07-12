@@ -11,6 +11,7 @@ import './Withdrawals.sol';
 import './Loans.sol';
 import './Pools.sol';
 import './interfaces/IRouter.sol';
+import './Validators.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
@@ -23,11 +24,18 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
   Withdrawals public withdrawalsContract;
   Loans public loansContract;
   Pools public poolsContract;
+  Validators public validatorsContract;
 
-  constructor(address _withdrawContract, address _loanContract, address _poolContract) {
+  constructor(
+    address _withdrawContract,
+    address _loanContract,
+    address _poolContract,
+    address _validatorsContract
+  ) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loansContract = Loans(payable(_loanContract));
     poolsContract = Pools(payable(_poolContract));
+    validatorsContract = Validators(payable(_validatorsContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
@@ -285,7 +293,7 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
 
     if (_report.exitedValidators.length > 0) {
       for (uint256 i = 0; i < _report.exitedValidators.length; i++) {
-        stakeTogether.removeValidator(_report.epoch, _report.exitedValidators[i]);
+        validatorsContract.removeValidator(_report.epoch, _report.exitedValidators[i]);
       }
     }
 

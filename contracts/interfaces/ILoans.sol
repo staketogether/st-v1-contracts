@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
 /// @custom:security-contact security@staketogether.app
-interface ILoans {
+interface ILoans is IERC20 {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.18;
 
+import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+
 /// @custom:security-contact security@staketogether.app
-interface IStakeTogether {
+interface IStakeTogether is IERC20 {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
 
@@ -27,10 +29,6 @@ interface IStakeTogether {
 
   function contractBalance() external view returns (uint256);
 
-  function totalSupply() external view returns (uint256);
-
-  function balanceOf(address _account) external view returns (uint256);
-
   function sharesOf(address _account) external returns (uint256);
 
   function netSharesOf(address _account) external view returns (uint256);
@@ -38,10 +36,6 @@ interface IStakeTogether {
   function sharesByPooledEth(uint256 _ethAmount) external view returns (uint256);
 
   function pooledEthByShares(uint256 _sharesAmount) external view returns (uint256);
-
-  function transfer(address _to, uint256 _amount) external returns (bool);
-
-  function transferFrom(address _from, address _to, uint256 _amount) external returns (bool);
 
   function transferShares(address _to, uint256 _sharesAmount) external returns (uint256);
 
@@ -168,6 +162,7 @@ interface IStakeTogether {
   event RefundPool(uint256 epoch, uint256 amount);
   event DepositPool(uint256 amount);
   event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
+  event SetBeaconBalance(uint256 amount);
 
   function mintRewards(uint256 _epoch, address _rewardAddress, uint256 _sharesAmount) external payable;
 
@@ -230,49 +225,4 @@ interface IStakeTogether {
   function setPoolSize(uint256 _amount) external;
 
   function poolBalance() external view returns (uint256);
-
-  /***********************
-   ** VALIDATOR ORACLES **
-   ***********************/
-
-  event AddValidatorOracle(address indexed account);
-  event RemoveValidatorOracle(address indexed account);
-
-  function addValidatorOracle(address _oracleAddress) external;
-
-  function removeValidatorOracle(address _oracleAddress) external;
-
-  function forceNextValidatorOracle() external;
-
-  function currentValidatorOracle() external view returns (address);
-
-  /*****************
-   ** VALIDATORS **
-   *****************/
-
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
-  event SetValidatorSize(uint256 newValidatorSize);
-  event SetWithdrawalCredentials(bytes withdrawalCredentials);
-
-  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external;
-
-  function createValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external;
-
-  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable;
-
-  function setValidatorSize(uint256 _newSize) external;
-
-  function isValidator(bytes memory _publicKey) external view returns (bool);
 }

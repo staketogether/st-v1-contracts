@@ -7,16 +7,16 @@ import './Shares.sol';
 contract StakeTogether is Shares {
   constructor(
     address _routerContract,
-    address _poolContract,
-    address _withdrawContract,
-    address _loanContract,
-    address _depositContract
+    address _poolsContract,
+    address _withdrawalsContract,
+    address _loansContract,
+    address _validatorsContract
   ) payable {
-    routerContract = Router(payable(_routerContract));
-    poolsContract = Pools(payable(_poolContract));
-    withdrawalsContract = Withdrawals(payable(_withdrawContract));
-    loansContract = Loans(payable(_loanContract));
-    depositContract = IDepositContract(_depositContract);
+    routerContract = IRouter(payable(_routerContract));
+    poolsContract = IPools(payable(_poolsContract));
+    withdrawalsContract = IWithdrawals(payable(_withdrawalsContract));
+    loansContract = ILoans(payable(_loansContract));
+    validatorsContract = IValidators(payable(_validatorsContract));
   }
 
   receive() external payable {
@@ -173,7 +173,10 @@ contract StakeTogether is Shares {
   }
 
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    require(_amount >= validatorSize + address(loansContract).balance, 'POOL_SIZE_TOO_LOW');
+    require(
+      _amount >= validatorsContract.validatorSize() + address(loansContract).balance,
+      'POOL_SIZE_TOO_LOW'
+    );
     poolSize = _amount;
     emit SetPoolSize(_amount);
   }
@@ -197,128 +200,5 @@ contract StakeTogether is Shares {
       loansContract.repayLoan{ value: loanAmount }();
       poolSize -= loanAmount;
     }
-  }
-
-  /***********************
-   ** VALIDATOR ORACLES **
-   ***********************/
-
-  address[] public validatorOracles;
-  uint256 public currentOracleIndex;
-
-  modifier onlyValidatorOracle() {
-    require(hasRole(ORACLE_VALIDATOR_ROLE, msg.sender), 'MISSING_ORACLE_VALIDATOR_ROLE');
-    require(msg.sender == validatorOracles[currentOracleIndex], 'NOT_CURRENT_VALIDATOR_ORACLE');
-    _;
-  }
-
-  function addValidatorOracle(address _oracleAddress) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
-    _grantRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
-    validatorOracles.push(_oracleAddress);
-    emit AddValidatorOracle(_oracleAddress);
-  }
-
-  function removeValidatorOracle(
-    address _oracleAddress
-  ) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
-    _revokeRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
-    for (uint256 i = 0; i < validatorOracles.length; i++) {
-      if (validatorOracles[i] == _oracleAddress) {
-        validatorOracles[i] = validatorOracles[validatorOracles.length - 1];
-        validatorOracles.pop();
-        break;
-      }
-    }
-    emit RemoveValidatorOracle(_oracleAddress);
-  }
-
-  function forceNextValidatorOracle() external onlyRole(ORACLE_VALIDATOR_SENTINEL_ROLE) {
-    require(
-      hasRole(ORACLE_VALIDATOR_SENTINEL_ROLE, msg.sender) ||
-        hasRole(ORACLE_VALIDATOR_MANAGER_ROLE, msg.sender),
-      'MISSING_SENDER_ROLE'
-    );
-    require(validatorOracles.length > 0, 'NO_VALIDATOR_ORACLE');
-    _nextValidatorOracle();
-  }
-
-  function currentValidatorOracle() external view returns (address) {
-    return validatorOracles[currentOracleIndex];
-  }
-
-  function _nextValidatorOracle() internal {
-    require(validatorOracles.length > 1, 'NOT_ENOUGH_ORACLES');
-    currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
-  }
-
-  /*****************
-   ** VALIDATORS **
-   *****************/
-
-  bytes public withdrawalCredentials;
-
-  mapping(bytes => bool) public validators;
-  uint256 public totalValidators = 0;
-  uint256 public validatorSize = 32 ether;
-
-  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
-    require(withdrawalCredentials.length == 0, 'WITHDRAWAL_CREDENTIALS_ALREADY_SET');
-    withdrawalCredentials = _withdrawalCredentials;
-    emit SetWithdrawalCredentials(_withdrawalCredentials);
-  }
-
-  function createValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external nonReentrant onlyValidatorOracle {
-    require(poolBalance() >= poolSize + validatorsFee, 'NOT_ENOUGH_POOL_BALANCE');
-    require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
-
-    validators[_publicKey] = true;
-    totalValidators++;
-    beaconBalance += validatorSize;
-
-    depositContract.deposit{ value: validatorSize }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-
-    _nextValidatorOracle();
-
-    emit CreateValidator(
-      msg.sender,
-      validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-
-    payable(stakeTogetherFeeAddress).transfer(validatorsFee);
-  }
-
-  function removeValidator(
-    uint256 _epoch,
-    bytes calldata _publicKey
-  ) external payable nonReentrant onlyRouter {
-    require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
-
-    validators[_publicKey] = false;
-    totalValidators--;
-
-    emit RemoveValidator(msg.sender, _epoch, _publicKey);
-  }
-
-  function setValidatorSize(uint256 _newSize) external onlyRole(ADMIN_ROLE) {
-    require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
-    validatorSize = _newSize;
-    emit SetValidatorSize(_newSize);
-  }
-
-  function isValidator(bytes memory _publicKey) public view returns (bool) {
-    return validators[_publicKey];
   }
 }
