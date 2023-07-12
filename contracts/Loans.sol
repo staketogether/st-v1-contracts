@@ -46,7 +46,7 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
   uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
 
-  constructor(address _routerContract) ERC20('ST Loans Ether', 'LETH') ERC20Permit('ST Loans Ether') {
+  constructor(address _routerContract) ERC20('ST Loan Ether', 'LETH') ERC20Permit('ST Loan Ether') {
     router = Router(payable(_routerContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
