@@ -16,7 +16,7 @@ import './Withdraw.sol';
 import './Loan.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
+abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
@@ -28,7 +28,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   Loan public loanContract;
   IDepositContract public depositContract;
 
-  constructor() ERC20('ST Pool Ether', 'SETH') ERC20Permit('ST Pool Ether') {
+  constructor() ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     _bootstrap();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -186,7 +186,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
   function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_to != address(this), 'TRANSFER_TO_SETH_CONTRACT');
+    require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
     require(_sharesAmount <= netSharesOf(_from), 'BALANCE_EXCEEDED');
 
     shares[_from] = shares[_from] - _sharesAmount;
@@ -349,7 +349,7 @@ abstract contract SETH is AccessControl, ERC20, ERC20Permit, Pausable, Reentranc
     require(_account != address(0), 'ZERO_ADDR');
     require(_fromPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(0), 'ZERO_ADDR');
-    require(_toPool != address(this), 'SETH_ADDR');
+    require(_toPool != address(this), 'ST_ADDR');
     require(poolContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');

@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
-import './SETH.sol';
+import './Shares.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract StakeTogether is SETH {
+contract StakeTogether is Shares {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
 
