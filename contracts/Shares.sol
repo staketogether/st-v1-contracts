@@ -12,7 +12,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IDepositContract.sol';
 import './Distributor.sol';
 import './Pool.sol';
-import './Withdraw.sol';
+import './Withdrawals.sol';
 import './Loan.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -24,7 +24,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
 
   Distributor public distributorContract;
   Pool public poolContract;
-  Withdraw public withdrawContract;
+  Withdrawals public withdrawalsContract;
   Loan public loanContract;
   IDepositContract public depositContract;
 

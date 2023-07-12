@@ -17,7 +17,7 @@ contract StakeTogether is Shares {
   ) payable {
     distributorContract = Distributor(payable(_distributorContract));
     poolContract = Pool(payable(_poolContract));
-    withdrawContract = Withdraw(payable(_withdrawContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loanContract = Loan(payable(_loanContract));
     depositContract = IDepositContract(_depositContract);
   }
@@ -171,7 +171,7 @@ contract StakeTogether is Shares {
     emit WithdrawValidator(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
     beaconBalance -= _amount;
-    withdrawContract.mint(msg.sender, _amount);
+    withdrawalsContract.mint(msg.sender, _amount);
   }
 
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {

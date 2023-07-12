@@ -7,7 +7,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
-import './Withdraw.sol';
+import './Withdrawals.sol';
 import './Loan.sol';
 import './Pool.sol';
 
@@ -19,12 +19,12 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
-  Withdraw public withdrawContract;
+  Withdrawals public withdrawalsContract;
   Loan public loanContract;
   Pool public poolContract;
 
   constructor(address _withdrawContract, address _loanContract, address _poolContract) {
-    withdrawContract = Withdraw(payable(_withdrawContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loanContract = Loan(payable(_loanContract));
     poolContract = Pool(payable(_poolContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -360,7 +360,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.withdrawAmount > 0) {
-      payable(address(withdrawContract)).transfer(_report.withdrawAmount);
+      payable(address(withdrawalsContract)).transfer(_report.withdrawAmount);
     }
 
     if (_report.apr > 0) {
@@ -472,7 +472,7 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
       require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');
     }
 
-    require(_report.withdrawAmount <= withdrawContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
+    require(_report.withdrawAmount <= withdrawalsContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
 
     require(_report.apr <= maxApr, 'INVALID_APR');
 

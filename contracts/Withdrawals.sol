@@ -10,7 +10,7 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Withdraw is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
@@ -23,9 +23,9 @@ contract Withdraw is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burna
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event WithdrawETH(address indexed user, uint256 amount);
+  event Withdraw(address indexed user, uint256 amount);
 
-  constructor() ERC20('ST Withdraw Ether', 'WETH') ERC20Permit('ST Withdraw Ether') {
+  constructor() ERC20('ST Withdrawal Ether', 'stwETH') ERC20Permit('ST Withdrawal Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
@@ -58,7 +58,7 @@ contract Withdraw is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burna
     _mint(_to, _amount);
   }
 
-  function withdrawETH(uint256 _amount) public whenNotPaused nonReentrant {
+  function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
     require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_WETH_BALANCE');
@@ -67,10 +67,10 @@ contract Withdraw is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burna
     _burn(msg.sender, _amount);
     payable(msg.sender).transfer(_amount);
 
-    emit WithdrawETH(msg.sender, _amount);
+    emit Withdraw(msg.sender, _amount);
   }
 
-  function isWithdrawETHReady(uint256 _amount) public view returns (bool) {
+  function isWithdrawReady(uint256 _amount) public view returns (bool) {
     return address(this).balance >= _amount;
   }
 
