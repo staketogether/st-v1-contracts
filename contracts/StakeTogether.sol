@@ -16,7 +16,7 @@ contract StakeTogether is Shares {
     address _depositContract
   ) payable {
     distributorContract = Distributor(payable(_distributorContract));
-    poolContract = Pool(payable(_poolContract));
+    poolsContract = Pools(payable(_poolContract));
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loanContract = Loan(payable(_loanContract));
     depositContract = IDepositContract(_depositContract);
@@ -79,7 +79,7 @@ contract StakeTogether is Shares {
   uint256 public totalWithdrawn;
 
   function _depositBase(address _pool, address _to) internal {
-    require(poolContract.isPool(_pool), 'NON_POOL_DELEGATE');
+    require(poolsContract.isPool(_pool), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 

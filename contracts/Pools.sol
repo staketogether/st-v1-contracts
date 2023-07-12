@@ -12,7 +12,7 @@ import './Distributor.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Pool is AccessControl, Pausable, ReentrancyGuard, IPool {
+contract Pools is AccessControl, Pausable, ReentrancyGuard, IPool {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 

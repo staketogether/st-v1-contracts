@@ -11,7 +11,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IDepositContract.sol';
 import './Distributor.sol';
-import './Pool.sol';
+import './Pools.sol';
 import './Withdrawals.sol';
 import './Loan.sol';
 
@@ -23,7 +23,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
   bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
   Distributor public distributorContract;
-  Pool public poolContract;
+  Pools public poolsContract;
   Withdrawals public withdrawalsContract;
   Loan public loanContract;
   IDepositContract public depositContract;
@@ -41,7 +41,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
   }
 
   modifier onlyPool() {
-    require(msg.sender == address(poolContract), 'ONLY_POOL_CONTRACT');
+    require(msg.sender == address(poolsContract), 'ONLY_POOL_CONTRACT');
     _;
   }
 
@@ -350,7 +350,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
     require(_fromPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(this), 'ST_ADDR');
-    require(poolContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
+    require(poolsContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
 
@@ -365,7 +365,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(poolContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(poolsContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
     require(_sharesAmount > 0, 'MINT_INVALID_AMOUNT');
 
@@ -383,7 +383,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
 
   function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'BURN_to_ZERO_ADDR');
-    require(poolContract.isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
+    require(poolsContract.isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
     require(delegationsShares[_to][_pool] >= _sharesAmount, 'BURN_INVALID_AMOUNT');
     require(_sharesAmount > 0, 'BURN_INVALID_AMOUNT');
 
@@ -530,7 +530,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
   enum RewardType {
     StakeTogether,
     Operator,
-    Pool
+    Pools
   }
 
   uint256 public beaconBalance = 0;
@@ -541,7 +541,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
   event DepositPool(uint256 amount);
   event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
 
-  // Refund Pool
+  // Refund Pools
 
   function mintRewards(
     uint256 _epoch,
@@ -556,7 +556,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
     } else if (_rewardAddress == operatorsFeeAddress) {
       emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Operator);
     } else {
-      emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Pool);
+      emit MintRewards(_epoch, _rewardAddress, _sharesAmount, RewardType.Pools);
     }
   }
 
@@ -579,7 +579,7 @@ abstract contract Shares is AccessControl, ERC20, ERC20Permit, Pausable, Reentra
     uint256 _sharesAmount
   ) external nonReentrant whenNotPaused onlyPool {
     _transferShares(_account, address(this), _sharesAmount);
-    _transferPoolShares(address(poolContract), address(poolContract), _account, _sharesAmount);
+    _transferPoolShares(address(poolsContract), address(poolsContract), _account, _sharesAmount);
     emit ClaimPoolRewards(_account, _sharesAmount);
   }
 }

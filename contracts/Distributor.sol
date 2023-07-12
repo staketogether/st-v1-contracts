@@ -9,7 +9,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Withdrawals.sol';
 import './Loan.sol';
-import './Pool.sol';
+import './Pools.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Distributor is AccessControl, Pausable, ReentrancyGuard {
@@ -21,12 +21,12 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   Withdrawals public withdrawalsContract;
   Loan public loanContract;
-  Pool public poolContract;
+  Pools public poolsContract;
 
   constructor(address _withdrawContract, address _loanContract, address _poolContract) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loanContract = Loan(payable(_loanContract));
-    poolContract = Pool(payable(_poolContract));
+    poolsContract = Pools(payable(_poolContract));
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
@@ -322,11 +322,11 @@ contract Distributor is AccessControl, Pausable, ReentrancyGuard {
     if (_report.shares.pools > 0) {
       stakeTogether.mintRewards{ value: _report.amounts.pools }(
         _report.epoch,
-        address(poolContract),
+        address(poolsContract),
         _report.shares.pools
       );
 
-      poolContract.addRewardsMerkleRoot(_report.epoch, _report.poolsMerkleRoot);
+      poolsContract.addRewardsMerkleRoot(_report.epoch, _report.poolsMerkleRoot);
     }
 
     if (_report.amounts.operators > 0) {
