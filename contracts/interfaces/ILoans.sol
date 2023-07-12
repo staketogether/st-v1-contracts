@@ -4,13 +4,22 @@ pragma solidity ^0.8.18;
 
 /// @custom:security-contact security@staketogether.app
 interface ILoans {
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
+  event SetStakeTogether(address stakeTogether);
+
+  receive() external payable;
+
+  fallback() external payable;
+
+  function pause() external;
+
+  function unpause() external;
+
   /***********************
    ** LIQUIDITY **
    ***********************/
 
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
   event SetLiquidityFee(uint256 fee);
   event SetStakeTogetherLiquidityFee(uint256 fee);
   event SetPoolLiquidityFee(uint256 fee);
@@ -21,14 +30,6 @@ interface ILoans {
   event ReDeposit(address indexed user, uint256 amount);
   event ReDepositBatch(address indexed user, uint256[] amounts);
   event SetEnableBorrow(bool enable);
-
-  receive() external payable;
-
-  fallback() external payable;
-
-  function pause() external;
-
-  function unpause() external;
 
   function setStakeTogether(address _stakeTogether) external;
 

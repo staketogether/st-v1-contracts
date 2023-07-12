@@ -2,13 +2,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 import './Shares.sol';
-import './interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract StakeTogether is IStakeTogether, Shares {
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-
+contract StakeTogether is Shares {
   constructor(
     address _routerContract,
     address _poolContract,
@@ -44,30 +40,6 @@ contract StakeTogether is IStakeTogether, Shares {
   /*****************
    ** STAKE **
    *****************/
-
-  event DepositPool(address indexed account, uint256 amount, address delegated, address referral);
-  event DepositDonationPool(
-    address indexed donor,
-    address indexed account,
-    uint256 amount,
-    address pool,
-    address referral
-  );
-
-  event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawBorrow(address indexed account, uint256 amount, address pool);
-  event WithdrawValidator(address indexed account, uint256 amount, address pool);
-
-  event SetMinDepositPoolAmount(uint256 amount);
-  event SetPoolSize(uint256 amount);
-  event SetDepositLimit(uint256 newLimit);
-  event SetWalletDepositLimit(uint256 newLimit);
-  event SetWithdrawalLimit(uint256 newLimit);
-  event SetBlocksInterval(uint256 blocksInterval);
-
-  event DepositLimitReached(address indexed sender, uint256 amount);
-  event WalletDepositLimitReached(address indexed sender, uint256 amount);
-  event WithdrawalLimitReached(address indexed sender, uint256 amount);
 
   uint256 public poolSize = 32 ether;
   uint256 public minDepositAmount = 0.001 ether;
@@ -240,9 +212,6 @@ contract StakeTogether is IStakeTogether, Shares {
     _;
   }
 
-  event AddValidatorOracle(address indexed account);
-  event RemoveValidatorOracle(address indexed account);
-
   function addValidatorOracle(address _oracleAddress) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
     _grantRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
     validatorOracles.push(_oracleAddress);
@@ -287,18 +256,6 @@ contract StakeTogether is IStakeTogether, Shares {
    *****************/
 
   bytes public withdrawalCredentials;
-
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
-  event SetValidatorSize(uint256 newValidatorSize);
-  event SetWithdrawalCredentials(bytes withdrawalCredentials);
 
   mapping(bytes => bool) public validators;
   uint256 public totalValidators = 0;

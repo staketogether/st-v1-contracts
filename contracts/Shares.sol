@@ -14,10 +14,10 @@ import './Router.sol';
 import './Pools.sol';
 import './Withdrawals.sol';
 import './Loans.sol';
-import './interfaces/IShares.sol';
+import './interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
+abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
@@ -46,10 +46,9 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
     _;
   }
 
-  event Bootstrap(address sender, uint256 balance);
-  event MintShares(address indexed to, uint256 sharesAmount);
-  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event BurnShares(address indexed account, uint256 sharesAmount);
+  /************
+   ** SHARES **
+   ************/
 
   mapping(address => uint256) private shares;
   uint256 public totalShares = 0;
@@ -74,11 +73,11 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
     return address(this).balance;
   }
 
-  function totalSupply() public view override returns (uint256) {
+  function totalSupply() public view override(ERC20, IStakeTogether) returns (uint256) {
     return totalPooledEther();
   }
 
-  function balanceOf(address _account) public view override returns (uint256) {
+  function balanceOf(address _account) public view override(ERC20, IStakeTogether) returns (uint256) {
     return pooledEthByShares(netSharesOf(_account));
   }
 
@@ -98,12 +97,16 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
     return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares);
   }
 
-  function transfer(address _to, uint256 _amount) public override returns (bool) {
+  function transfer(address _to, uint256 _amount) public override(ERC20, IStakeTogether) returns (bool) {
     _transfer(msg.sender, _to, _amount);
     return true;
   }
 
-  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+  function transferFrom(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) public override(ERC20, IStakeTogether) returns (bool) {
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
 
@@ -127,21 +130,33 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
     return tokensAmount;
   }
 
-  function allowance(address _account, address _spender) public view override returns (uint256) {
+  function allowance(
+    address _account,
+    address _spender
+  ) public view override(ERC20, IStakeTogether) returns (uint256) {
     return allowances[_account][_spender];
   }
 
-  function approve(address _spender, uint256 _amount) public override returns (bool) {
+  function approve(
+    address _spender,
+    uint256 _amount
+  ) public override(ERC20, IStakeTogether) returns (bool) {
     _approve(msg.sender, _spender, _amount);
     return true;
   }
 
-  function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
+  function increaseAllowance(
+    address _spender,
+    uint256 _addedValue
+  ) public override(ERC20, IStakeTogether) returns (bool) {
     _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue);
     return true;
   }
 
-  function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
+  function decreaseAllowance(
+    address _spender,
+    uint256 _subtractedValue
+  ) public override(ERC20, IStakeTogether) returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
     require(currentAllowance >= _subtractedValue, 'ALLOWANCE_BELOW_ZERO');
     _approve(msg.sender, _spender, currentAllowance - _subtractedValue);
@@ -211,15 +226,6 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
   modifier onlyLoans() {
     require(msg.sender == address(loansContract), 'ONLY_LOAN_CONTRACT');
     _;
-  }
-
-  event SetMaxActiveLocks(uint256 amount);
-  event SharesLocked(address indexed account, uint256 amount, uint256 unlockBlock);
-  event SharesUnlocked(address indexed account, uint256 amount);
-
-  struct Lock {
-    uint256 amount;
-    uint256 unlockBlock;
   }
 
   mapping(address => Lock[]) public locked;
@@ -297,7 +303,7 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
   }
 
   /*****************
-   ** DELEGATIONS **
+   ** POOLS SHARES **
    *****************/
 
   mapping(address => uint256) private poolShares;
@@ -306,24 +312,6 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
   mapping(address => address[]) private delegates;
   mapping(address => mapping(address => bool)) private isDelegate;
   uint256 public maxDelegations = 64; // Todo: verify merkle tree
-
-  event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
-
-  event TransferPoolShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
-
-  event TransferDelegationShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
-
-  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
 
   function poolSharesOf(address _account) public view returns (uint256) {
     return poolShares[_account];
@@ -448,10 +436,6 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
   address public operatorsFeeAddress;
   address public stakeTogetherFeeAddress;
 
-  event SetPoolsFeeAddress(address indexed to);
-  event SetOperatorsFeeAddress(address indexed to);
-  event SetStakeTogetherFeeAddress(address indexed to);
-
   function setPoolsFeeAddress(address _to) public onlyRole(ADMIN_ROLE) {
     require(_to != address(0), 'NON_ZERO_ADDR');
     poolsFeeAddress = _to;
@@ -480,13 +464,6 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
   uint256 public validatorsFee = 0.001 ether;
   uint256 public addPoolFee = 1 ether;
   uint256 public entryFee = 0.003 ether;
-
-  event SetStakeTogetherFee(uint256 fee);
-  event SetPoolsFee(uint256 fee);
-  event SetOperatorsFee(uint256 fee);
-  event SetValidatorsFee(uint256 fee);
-  event SetAddPoolFee(uint256 fee);
-  event SetEntryFee(uint256 fee);
 
   function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {
     stakeTogetherFee = _fee;
@@ -522,25 +499,7 @@ abstract contract Shares is IShares, AccessControl, Pausable, ReentrancyGuard, E
    ** REWARDS **
    *****************/
 
-  struct Reward {
-    address recipient;
-    uint256 shares;
-    uint256 amount;
-  }
-
-  enum RewardType {
-    StakeTogether,
-    Operator,
-    Pools
-  }
-
   uint256 public beaconBalance = 0;
-
-  event MintRewards(uint256 epoch, address indexed to, uint256 sharesAmount, RewardType rewardType);
-  event MintPenalty(uint256 epoch, uint256 amount);
-  event RefundPool(uint256 epoch, uint256 amount);
-  event DepositPool(uint256 amount);
-  event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
 
   // Refund Pools
 

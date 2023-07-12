@@ -29,11 +29,6 @@ contract Withdrawals is
     _;
   }
 
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event Withdraw(address indexed user, uint256 amount);
-
   constructor() ERC20('ST Withdrawal Ether', 'WETH') ERC20Permit('ST Withdrawal Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
@@ -62,6 +57,10 @@ contract Withdrawals is
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
+
+  /**************
+   ** WITHDRAW **
+   **************/
 
   function mint(address _to, uint256 _amount) public whenNotPaused onlyStakeTogether {
     _mint(_to, _amount);

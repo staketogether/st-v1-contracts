@@ -22,10 +22,6 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
   StakeTogether public stakeTogether;
   Router public router;
 
-  /***********************
-   ** LIQUIDITY **
-   ***********************/
-
   uint256 public liquidityFee = 0.01 ether;
   uint256 public stakeTogetherLiquidityFee = 0.15 ether;
   uint256 public poolLiquidityFee = 0.15 ether;
@@ -55,19 +51,23 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     _unpause();
   }
 
+  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
+    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
+    stakeTogether = StakeTogether(payable(_stakeTogether));
+    emit SetStakeTogether(_stakeTogether);
+  }
+
   modifier onlyStakeTogether() {
     require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
     _;
   }
 
+  /***********************
+   ** LIQUIDITY **
+   ***********************/
+
   function mint(address _to, uint256 _amount) internal whenNotPaused {
     _mint(_to, _amount);
-  }
-
-  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
-    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
-    stakeTogether = StakeTogether(payable(_stakeTogether));
-    emit SetStakeTogether(_stakeTogether);
   }
 
   function setLiquidityFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {

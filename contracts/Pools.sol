@@ -68,11 +68,6 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
    ** POOLS **
    ***********************/
 
-  event AddPool(address account);
-  event RemovePool(address account);
-  event SetMaxPools(uint256 maxPools);
-  event SetPermissionLessAddPool(bool permissionLessAddPool);
-
   uint256 public maxPools = 100000;
   uint256 public poolCount = 0;
   mapping(address => bool) private pools;
