@@ -90,21 +90,28 @@ contract StakeTogether is Shares {
       uint256 stakeTogetherShares
     ) = feesContract.estimateEntryFee(msg.value);
 
+    require(depositorShares > 0, 'ZERO_DEPOSITOR_SHARES');
     _mintShares(_to, depositorShares);
     _mintPoolShares(_to, _pool, depositorShares);
 
-    _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), poolsShares);
-    _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, poolsShares);
+    if (poolsShares > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), poolsShares);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, poolsShares);
+    }
 
-    _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), operatorsShares);
-    _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, operatorsShares);
+    if (operatorsShares > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), operatorsShares);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, operatorsShares);
+    }
 
-    _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), stakeTogetherShares);
-    _mintPoolShares(
-      feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
-      _pool,
-      stakeTogetherShares
-    );
+    if (stakeTogetherShares > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), stakeTogetherShares);
+      _mintPoolShares(
+        feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
+        _pool,
+        stakeTogetherShares
+      );
+    }
 
     totalDeposited += msg.value;
 
