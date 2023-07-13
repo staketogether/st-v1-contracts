@@ -159,10 +159,10 @@ contract StakeTogether is Shares {
       revert('WITHDRAWAL_LIMIT_REACHED');
     }
 
-    uint256 userBalance = balanceOf(msg.sender);
-    require(_amount <= userBalance, 'AMOUNT_EXCEEDS_BALANCE');
+    uint256 accountBalance = balanceOf(msg.sender);
+    require(_amount <= accountBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
-    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), userBalance);
+    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
 
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
