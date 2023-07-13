@@ -19,7 +19,6 @@ interface IValidators {
   /***********************
    ** VALIDATOR ORACLES **
    ***********************/
-
   event AddValidatorOracle(address indexed account);
   event RemoveValidatorOracle(address indexed account);
 
@@ -31,10 +30,11 @@ interface IValidators {
 
   function currentValidatorOracle() external view returns (address);
 
+  function isValidatorOracle(address _oracleAddress) external view returns (bool);
+
   /*****************
    ** VALIDATORS **
    *****************/
-
   event CreateValidator(
     address indexed creator,
     uint256 indexed amount,
@@ -45,21 +45,17 @@ interface IValidators {
   );
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event SetValidatorSize(uint256 newValidatorSize);
-  event SetWithdrawalCredentials(bytes withdrawalCredentials);
-
-  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external;
 
   function createValidator(
     bytes calldata _publicKey,
+    bytes calldata _withdrawalCredentials,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external;
+  ) external payable;
 
   function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable;
 
   function setValidatorSize(uint256 _newSize) external;
 
   function validatorSize() external view returns (uint256);
-
-  function isValidator(bytes memory _publicKey) external view returns (bool);
 }

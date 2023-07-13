@@ -201,4 +201,45 @@ contract StakeTogether is Shares {
       poolSize -= loanAmount;
     }
   }
+
+  /*****************
+   ** VALIDATORS **
+   *****************/
+
+  modifier onlyValidatorOracle() {
+    require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
+    _;
+  }
+
+  bytes public withdrawalCredentials;
+
+  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
+    require(withdrawalCredentials.length == 0, 'WITHDRAWAL_CREDENTIALS_ALREADY_SET');
+    withdrawalCredentials = _withdrawalCredentials;
+    emit SetWithdrawalCredentials(_withdrawalCredentials);
+  }
+
+  function createValidator(
+    bytes calldata _publicKey,
+    bytes calldata _signature,
+    bytes32 _depositDataRoot
+  ) external nonReentrant onlyValidatorOracle {
+    validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+
+    emit CreateValidator(
+      msg.sender,
+      validatorsContract.validatorSize(),
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+
+    payable(stakeTogetherFeeAddress).transfer(validatorsFee);
+  }
 }

@@ -459,8 +459,11 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
   uint256 public stakeTogetherFee = 0.03 ether;
   uint256 public operatorsFee = 0.03 ether;
   uint256 public poolsFee = 0.03 ether;
+
   uint256 public validatorsFee = 0.001 ether;
+
   uint256 public addPoolFee = 1 ether;
+
   uint256 public entryFee = 0.003 ether;
 
   function setStakeTogetherFee(uint256 _fee) external onlyRole(ADMIN_ROLE) {

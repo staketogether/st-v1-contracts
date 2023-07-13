@@ -225,4 +225,18 @@ interface IStakeTogether is IERC20 {
   function setPoolSize(uint256 _amount) external;
 
   function poolBalance() external view returns (uint256);
+
+  /*****************
+   ** VALIDATORS **
+   *****************/
+
+  event CreateValidator(
+    address indexed creator,
+    uint256 indexed amount,
+    bytes publicKey,
+    bytes withdrawalCredentials,
+    bytes signature,
+    bytes32 depositDataRoot
+  );
+  event SetWithdrawalCredentials(bytes withdrawalCredentials);
 }

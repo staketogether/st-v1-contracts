@@ -116,6 +116,12 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
     return validatorOracles[currentOracleIndex];
   }
 
+  function isValidatorOracle(address _oracleAddress) external view returns (bool) {
+    return
+      hasRole(ORACLE_VALIDATOR_ROLE, _oracleAddress) &&
+      validatorOracles[currentOracleIndex] == _oracleAddress;
+  }
+
   function _nextValidatorOracle() internal {
     require(validatorOracles.length > 1, 'NOT_ENOUGH_ORACLES');
     currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
@@ -125,23 +131,16 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
    ** VALIDATORS **
    *****************/
 
-  bytes public withdrawalCredentials;
-
   mapping(bytes => bool) public validators;
   uint256 public totalValidators = 0;
   uint256 public validatorSize = 32 ether;
 
-  function setWithdrawalCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
-    require(withdrawalCredentials.length == 0, 'WITHDRAWAL_CREDENTIALS_ALREADY_SET');
-    withdrawalCredentials = _withdrawalCredentials;
-    emit SetWithdrawalCredentials(_withdrawalCredentials);
-  }
-
   function createValidator(
     bytes calldata _publicKey,
+    bytes calldata _withdrawalCredentials,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant onlyValidatorOracle {
+  ) external payable nonReentrant onlyStakeTogether {
     require(
       stakeTogether.poolBalance() >= stakeTogether.poolSize() + stakeTogether.validatorsFee(),
       'NOT_ENOUGH_POOL_BALANCE'
@@ -156,7 +155,7 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
 
     depositContract.deposit{ value: validatorSize }(
       _publicKey,
-      withdrawalCredentials,
+      _withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
@@ -167,12 +166,10 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
       msg.sender,
       validatorSize,
       _publicKey,
-      withdrawalCredentials,
+      _withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
-
-    payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.validatorsFee());
   }
 
   function removeValidator(
