@@ -82,15 +82,13 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
-
     (
       uint256 depositorShares,
       uint256 accountShares,
       uint256 poolsShares,
       uint256 operatorsShares,
       uint256 stakeTogetherShares
-    ) = feesContract.estimateEntryFee(sharesAmount);
+    ) = feesContract.estimateEntryFee(msg.value);
 
     _mintShares(_to, depositorShares);
     _mintPoolShares(_to, _pool, depositorShares);
@@ -122,7 +120,6 @@ contract StakeTogether is Shares {
       _to,
       _pool,
       msg.value,
-      sharesAmount,
       depositorShares,
       accountShares,
       poolsShares,

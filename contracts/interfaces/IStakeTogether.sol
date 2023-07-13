@@ -78,7 +78,6 @@ interface IStakeTogether {
     address indexed to,
     address indexed pool,
     uint256 amount,
-    uint256 sharesAmount,
     uint256 depositorShares,
     uint256 accountShares,
     uint256 poolsShares,

@@ -6,10 +6,11 @@ import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IFees.sol';
+import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Fees is IFees, AccessControl, Pausable {
-  address public stakeTogether;
+  StakeTogether public stakeTogether;
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   Fee[8] private _fees;
@@ -46,7 +47,7 @@ contract Fees is IFees, AccessControl, Pausable {
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
-    stakeTogether = _stakeTogether;
+    stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -123,8 +124,14 @@ contract Fees is IFees, AccessControl, Pausable {
    *******************/
 
   function estimateEntryFee(
-    uint256 sharesAmount
+    uint256 amount
   ) external view returns (uint256, uint256, uint256, uint256, uint256) {
+    uint256 sharesAmount = Math.mulDiv(
+      amount,
+      stakeTogether.totalShares(),
+      stakeTogether.totalPooledEther() - amount
+    );
+
     uint256 feePercentage = getTotalFee(FeeType.Entry);
 
     Fee memory entryFee = _fees[uint256(FeeType.Entry)];
