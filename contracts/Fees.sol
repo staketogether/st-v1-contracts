@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 
 import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -62,7 +63,7 @@ contract Fees is IFees, AccessControl, Pausable {
     emit SetTotalFee(_feeType, _total);
   }
 
-  function getTotalFee(FeeType _feeType) external view returns (uint256) {
+  function getTotalFee(FeeType _feeType) public view returns (uint256) {
     return _fees[uint256(_feeType)].total;
   }
 
@@ -104,6 +105,7 @@ contract Fees is IFees, AccessControl, Pausable {
     emit SetRangeAndProportion(_dayStart, _dayEnd, _proportionStart, _proportionEnd);
   }
 
+  // Todo: rename
   function calculateFee(uint256 _days) public view returns (uint256) {
     require(_days >= dayStart && _days <= dayEnd, 'DAYS_OUT_OF_RANGE');
     uint256 range = dayEnd - dayStart;
@@ -114,5 +116,45 @@ contract Fees is IFees, AccessControl, Pausable {
 
   function _transferToStakeTogether() private {
     payable(stakeTogether).transfer(address(this).balance);
+  }
+
+  /*******************
+   ** ESTIMATE FEES **
+   *******************/
+
+  function estimateEntryFee(
+    uint256 sharesAmount
+  ) external view returns (uint256, uint256, uint256, uint256, uint256) {
+    uint256 feePercentage = getTotalFee(FeeType.Entry);
+
+    Fee memory entryFee = _fees[uint256(FeeType.Entry)];
+    require(entryFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
+
+    uint256 fee = Math.mulDiv(sharesAmount, feePercentage, 1 ether); // feePercentage fee
+
+    uint256 accountFee = Math.mulDiv(
+      fee,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
+      1 ether
+    );
+    uint256 poolsFee = Math.mulDiv(
+      fee,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
+      1 ether
+    );
+    uint256 operatorsFee = Math.mulDiv(
+      fee,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
+      1 ether
+    );
+    uint256 stakeTogetherFee = Math.mulDiv(
+      fee,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
+      1 ether
+    );
+
+    uint256 depositorAmount = sharesAmount - fee;
+
+    return (depositorAmount, accountFee, poolsFee, operatorsFee, stakeTogetherFee);
   }
 }

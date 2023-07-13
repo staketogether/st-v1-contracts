@@ -74,6 +74,17 @@ interface IStakeTogether {
    ** STAKE **
    *****************/
 
+  event DepositBase(
+    address indexed to,
+    address indexed pool,
+    uint256 amount,
+    uint256 sharesAmount,
+    uint256 depositorShares,
+    uint256 accountShares,
+    uint256 poolsShares,
+    uint256 operatorsShares,
+    uint256 stakeTogetherShares
+  );
   event DepositLimitReached(address indexed sender, uint256 amount);
   event DepositPool(address indexed account, uint256 amount, address delegated, address referral);
   event DepositDonationPool(

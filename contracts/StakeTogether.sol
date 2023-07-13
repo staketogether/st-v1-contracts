@@ -84,8 +84,29 @@ contract StakeTogether is Shares {
 
     uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
 
-    _mintShares(_to, sharesAmount);
-    _mintPoolShares(_to, _pool, sharesAmount);
+    (
+      uint256 depositorShares,
+      uint256 accountShares,
+      uint256 poolsShares,
+      uint256 operatorsShares,
+      uint256 stakeTogetherShares
+    ) = feesContract.estimateEntryFee(sharesAmount);
+
+    _mintShares(_to, depositorShares);
+    _mintPoolShares(_to, _pool, depositorShares);
+
+    _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), poolsShares);
+    _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, poolsShares);
+
+    _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), operatorsShares);
+    _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, operatorsShares);
+
+    _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), stakeTogetherShares);
+    _mintPoolShares(
+      feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
+      _pool,
+      stakeTogetherShares
+    );
 
     totalDeposited += msg.value;
 
@@ -96,6 +117,18 @@ contract StakeTogether is Shares {
     }
 
     _repayLoan();
+
+    emit DepositBase(
+      _to,
+      _pool,
+      msg.value,
+      sharesAmount,
+      depositorShares,
+      accountShares,
+      poolsShares,
+      operatorsShares,
+      stakeTogetherShares
+    );
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
