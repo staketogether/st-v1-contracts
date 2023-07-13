@@ -179,4 +179,54 @@ contract Fees is IFees, AccessControl, Pausable {
 
     return (shares, amounts);
   }
+
+  function estimateRewardsFee(
+    uint256 amount
+  ) external view returns (uint256[4] memory, uint256[4] memory) {
+    uint256 sharesAmount = Math.mulDiv(
+      amount,
+      stakeTogether.totalShares(),
+      stakeTogether.totalPooledEther() - amount // Todo: check if + amount
+    );
+
+    uint256 feePercentage = getTotalFee(FeeType.Rewards);
+
+    Fee memory rewardsFee = _fees[uint256(FeeType.Rewards)];
+    require(rewardsFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
+
+    uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
+
+    uint256 poolsShares = Math.mulDiv(
+      feeShares,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
+      1 ether
+    );
+    uint256 operatorsShares = Math.mulDiv(
+      feeShares,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
+      1 ether
+    );
+    uint256 stakeTogetherShares = Math.mulDiv(
+      feeShares,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
+      1 ether
+    );
+
+    uint256 accountShares = Math.mulDiv(
+      feeShares,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
+      1 ether
+    );
+
+    uint256[4] memory shares = [poolsShares, operatorsShares, stakeTogetherShares, accountShares];
+
+    uint256[4] memory amounts = [
+      stakeTogether.pooledEthByShares(poolsShares),
+      stakeTogether.pooledEthByShares(operatorsShares),
+      stakeTogether.pooledEthByShares(stakeTogetherShares),
+      stakeTogether.pooledEthByShares(accountShares)
+    ];
+
+    return (shares, amounts);
+  }
 }

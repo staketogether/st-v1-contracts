@@ -30,14 +30,6 @@ interface IRouter {
    ** REPORT **
    ************/
 
-  struct Values {
-    uint256 total;
-    uint256 users;
-    uint256 pools;
-    uint256 operators;
-    uint256 stakeTogether;
-  }
-
   struct ValidatorOracle {
     address oracle;
     bytes[] validators;
@@ -46,10 +38,9 @@ interface IRouter {
   struct Report {
     uint256 blockNumber;
     uint256 epoch;
+    uint256 profitAmount;
     uint256 lossAmount; // Penalty or Slashing
     uint256 extraAmount; // Extra money on this contract
-    Values shares; // Shares to Mint
-    Values amounts; // Amount to Send
     bytes32 poolsMerkleRoot; // Todo: missing merkle das pools
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
