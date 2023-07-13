@@ -123,9 +123,7 @@ contract Fees is IFees, AccessControl, Pausable {
    ** ESTIMATE FEES **
    *******************/
 
-  function estimateEntryFee(
-    uint256 amount
-  ) external view returns (uint256, uint256, uint256, uint256, uint256) {
+  function estimateEntryFee(uint256 amount) external view returns (uint256[5] memory, uint256[5] memory) {
     uint256 sharesAmount = Math.mulDiv(
       amount,
       stakeTogether.totalShares(),
@@ -137,31 +135,48 @@ contract Fees is IFees, AccessControl, Pausable {
     Fee memory entryFee = _fees[uint256(FeeType.Entry)];
     require(entryFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
-    uint256 fee = Math.mulDiv(sharesAmount, feePercentage, 1 ether); // feePercentage fee
+    uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
 
-    uint256 accountFee = Math.mulDiv(
-      fee,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
-      1 ether
-    );
-    uint256 poolsFee = Math.mulDiv(
-      fee,
+    uint256 poolsShares = Math.mulDiv(
+      feeShares,
       getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
       1 ether
     );
-    uint256 operatorsFee = Math.mulDiv(
-      fee,
+    uint256 operatorsShares = Math.mulDiv(
+      feeShares,
       getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
       1 ether
     );
-    uint256 stakeTogetherFee = Math.mulDiv(
-      fee,
+    uint256 stakeTogetherShares = Math.mulDiv(
+      feeShares,
       getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
       1 ether
     );
 
-    uint256 depositorAmount = sharesAmount - fee;
+    uint256 accountShares = Math.mulDiv(
+      feeShares,
+      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
+      1 ether
+    );
 
-    return (depositorAmount, accountFee, poolsFee, operatorsFee, stakeTogetherFee);
+    uint256 depositorShares = sharesAmount - feeShares;
+
+    uint256[5] memory shares = [
+      depositorShares,
+      poolsShares,
+      operatorsShares,
+      stakeTogetherShares,
+      accountShares
+    ];
+
+    uint256[5] memory amounts = [
+      stakeTogether.pooledEthByShares(depositorShares),
+      stakeTogether.pooledEthByShares(poolsShares),
+      stakeTogether.pooledEthByShares(operatorsShares),
+      stakeTogether.pooledEthByShares(stakeTogetherShares),
+      stakeTogether.pooledEthByShares(accountShares)
+    ];
+
+    return (shares, amounts);
   }
 }

@@ -82,35 +82,25 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    (
-      uint256 depositorShares,
-      uint256 accountShares,
-      uint256 poolsShares,
-      uint256 operatorsShares,
-      uint256 stakeTogetherShares
-    ) = feesContract.estimateEntryFee(msg.value);
+    (uint256[5] memory shares, ) = feesContract.estimateEntryFee(msg.value);
 
-    require(depositorShares > 0, 'ZERO_DEPOSITOR_SHARES');
-    _mintShares(_to, depositorShares);
-    _mintPoolShares(_to, _pool, depositorShares);
+    require(shares[0] > 0, 'ZERO_DEPOSITOR_SHARES');
+    _mintShares(_to, shares[0]);
+    _mintPoolShares(_to, _pool, shares[0]);
 
-    if (poolsShares > 0) {
-      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), poolsShares);
-      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, poolsShares);
+    if (shares[1] > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), shares[1]);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, shares[1]);
     }
 
-    if (operatorsShares > 0) {
-      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), operatorsShares);
-      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, operatorsShares);
+    if (shares[2] > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), shares[2]);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, shares[2]);
     }
 
-    if (stakeTogetherShares > 0) {
-      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), stakeTogetherShares);
-      _mintPoolShares(
-        feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
-        _pool,
-        stakeTogetherShares
-      );
+    if (shares[3] > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), shares[3]);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), _pool, shares[3]);
     }
 
     totalDeposited += msg.value;
@@ -123,16 +113,7 @@ contract StakeTogether is Shares {
 
     _repayLoan();
 
-    emit DepositBase(
-      _to,
-      _pool,
-      msg.value,
-      depositorShares,
-      accountShares,
-      poolsShares,
-      operatorsShares,
-      stakeTogetherShares
-    );
+    emit DepositBase(_to, _pool, msg.value, shares[0], shares[1], shares[2], shares[3], shares[4]);
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {

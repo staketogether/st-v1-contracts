@@ -15,10 +15,10 @@ interface IFees {
   }
 
   enum FeeAddressType {
-    Accounts,
     Pools,
     Operators,
-    StakeTogether
+    StakeTogether,
+    Accounts
   }
 
   enum FeeValueType {
