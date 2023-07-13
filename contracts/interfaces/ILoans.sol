@@ -10,14 +10,6 @@ interface ILoans is IERC20 {
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
 
-  receive() external payable;
-
-  fallback() external payable;
-
-  function pause() external;
-
-  function unpause() external;
-
   /***********************
    ** LIQUIDITY **
    ***********************/
@@ -32,24 +24,6 @@ interface ILoans is IERC20 {
   event ReDeposit(address indexed user, uint256 amount);
   event ReDepositBatch(address indexed user, uint256[] amounts);
   event SetEnableBorrow(bool enable);
-
-  function setStakeTogether(address _stakeTogether) external;
-
-  function setLiquidityFee(uint256 _fee) external;
-
-  function setStakeTogetherLiquidityFee(uint256 _fee) external;
-
-  function setPoolLiquidityFee(uint256 _fee) external;
-
-  function setEnableBorrow(bool _enable) external;
-
-  function addLiquidity() external payable;
-
-  function removeLiquidity(uint256 _amount) external;
-
-  function borrow(uint256 _amount, address _pool) external;
-
-  function repayLoan() external payable;
 
   /***********************
    ** ANTICIPATION **
@@ -69,41 +43,9 @@ interface ILoans is IERC20 {
   );
   event SetEnableAnticipation(bool enable);
 
-  function setApr(uint256 _epoch, uint256 _apr) external;
-
-  function setMaxAnticipateFraction(uint256 _fraction) external;
-
-  function setMaxAnticipationDays(uint256 _days) external;
-
-  function setAnticipationFeeRange(uint256 _minFee, uint256 _maxFee) external;
-
-  function setStakeTogetherAnticipateFee(uint256 _fee) external;
-
-  function setPoolAnticipateFee(uint256 _fee) external;
-
-  function setEnableAnticipation(bool _enable) external;
-
-  function estimateMaxAnticipation(uint256 _amount, uint256 _days) external view returns (uint256);
-
-  function estimateAnticipationFee(uint256 _amount, uint256 _days) external view returns (uint256);
-
-  function estimateNetAnticipatedAmount(uint256 _amount, uint256 _days) external view returns (uint256);
-
-  function anticipateRewards(uint256 _amount, address _pool, uint256 _days) external;
-
   /***************
    ** REDEPOSIT **
    ***************/
 
   event SetMaxBatchSize(uint256 size);
-
-  function setMaxBatchSize(uint256 _size) external;
-
-  function reDeposit(uint256 _amount, address _pool, address _referral) external;
-
-  function reDepositBatch(
-    uint256[] memory _amounts,
-    address[] memory _pools,
-    address[] memory _referrals
-  ) external;
 }

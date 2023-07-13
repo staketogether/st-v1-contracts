@@ -99,8 +99,8 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
 
     if (permissionLessAddPool) {
       if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-        require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
-        payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
+        // require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
+        // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
       }
     } else {
       require(hasRole(POOL_MANAGER_ROLE, msg.sender), 'ONLY_POOL_MANAGER');
@@ -197,4 +197,14 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
       claimedBitMap[_epoch][claimedWordIndex] |
       (1 << claimedBitIndex);
   }
+
+  /*****************
+   ** FEES **
+   *****************/
+
+  uint256 public addPoolFee;
+  uint256 public addPoolFeeUsers;
+  uint256 public addPoolFeePools;
+  uint256 public addPoolFeeOperators;
+  uint256 public addPoolFeeStakeTogether;
 }

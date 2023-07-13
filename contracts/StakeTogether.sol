@@ -7,34 +7,51 @@ import './Shares.sol';
 contract StakeTogether is Shares {
   constructor(
     address _routerContract,
+    address _feesContract,
     address _poolsContract,
     address _withdrawalsContract,
     address _loansContract,
     address _validatorsContract
-  ) payable {
-    routerContract = IRouter(payable(_routerContract));
-    poolsContract = IPools(payable(_poolsContract));
-    withdrawalsContract = IWithdrawals(payable(_withdrawalsContract));
-    loansContract = ILoans(payable(_loansContract));
-    validatorsContract = IValidators(payable(_validatorsContract));
+  ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
+    routerContract = Router(payable(_routerContract));
+    feesContract = Fees(payable(_feesContract));
+    poolsContract = Pools(payable(_poolsContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+    loansContract = Loans(payable(_loansContract));
+    validatorsContract = Validators(payable(_validatorsContract));
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+
+    _bootstrap();
   }
 
+  /*********************
+   ** ACCOUNT REWARDS **
+   *********************/
+
   receive() external payable {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit MintRewardsAccounts(msg.sender, msg.value);
     _repayLoan();
   }
 
   fallback() external payable {
-    emit FallbackEther(msg.sender, msg.value);
+    emit MintRewardsAccountsFallback(msg.sender, msg.value);
     _repayLoan();
   }
 
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
+  function _repayLoan() internal {
+    if (loansContract.balanceOf(address(this)) > 0) {
+      uint256 loanAmount = 0;
+      if (loansContract.balanceOf(address(this)) >= msg.value) {
+        loanAmount = msg.value;
+      } else {
+        loanAmount = loansContract.balanceOf(address(this));
+      }
+      loansContract.repayLoan{ value: loanAmount }();
+      poolSize -= loanAmount;
+      emit RepayLoan(loanAmount);
+    }
   }
 
   /*****************
@@ -139,7 +156,6 @@ contract StakeTogether is Shares {
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    // Todo: check borrow conditional rule
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
     emit WithdrawValidator(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
@@ -157,14 +173,9 @@ contract StakeTogether is Shares {
     emit SetWithdrawalLimit(_newLimit);
   }
 
-  function setWalletDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
+  function setAccountDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     walletDepositLimit = _newLimit;
-    emit SetWalletDepositLimit(_newLimit);
-  }
-
-  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
-    blocksPerDay = _newBlocksInterval;
-    emit SetBlocksInterval(_newBlocksInterval);
+    emit SetAccountDepositLimit(_newLimit);
   }
 
   function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
@@ -182,34 +193,21 @@ contract StakeTogether is Shares {
   }
 
   function poolBalance() public view returns (uint256) {
-    return contractBalance();
+    return address(this).balance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return contractBalance() + beaconBalance;
+    return poolBalance() + beaconBalance;
   }
 
-  function _repayLoan() internal {
-    if (loansContract.balanceOf(address(this)) > 0) {
-      uint256 loanAmount = 0;
-      if (loansContract.balanceOf(address(this)) >= msg.value) {
-        loanAmount = msg.value;
-      } else {
-        loanAmount = loansContract.balanceOf(address(this));
-      }
-      loansContract.repayLoan{ value: loanAmount }();
-      poolSize -= loanAmount;
-    }
+  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
+    blocksPerDay = _newBlocksInterval;
+    emit SetBlocksInterval(_newBlocksInterval);
   }
 
   /*****************
    ** VALIDATORS **
    *****************/
-
-  modifier onlyValidatorOracle() {
-    require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
-    _;
-  }
 
   bytes public withdrawalCredentials;
 
@@ -239,7 +237,5 @@ contract StakeTogether is Shares {
       _signature,
       _depositDataRoot
     );
-
-    payable(stakeTogetherFeeAddress).transfer(validatorsFee);
   }
 }

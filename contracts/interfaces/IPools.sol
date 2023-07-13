@@ -9,14 +9,6 @@ interface IPools {
   event SetStakeTogether(address stakeTogether);
   event SetRouter(address router);
 
-  function setStakeTogether(address _stakeTogether) external;
-
-  function setRouter(address _distributor) external;
-
-  function pause() external;
-
-  function unpause() external;
-
   /***********************
    ** POOLS **
    ***********************/
@@ -26,16 +18,6 @@ interface IPools {
   event SetMaxPools(uint256 maxPools);
   event SetPermissionLessAddPool(bool permissionLessAddPool);
 
-  function setMaxPools(uint256 _maxPools) external;
-
-  function setPermissionLessAddPool(bool _permissionLessAddPool) external;
-
-  function addPool(address _pool) external payable;
-
-  function removePool(address _pool) external;
-
-  function isPool(address _pool) external view returns (bool);
-
   /***********************
    ** REWARDS **
    ***********************/
@@ -44,24 +26,4 @@ interface IPools {
   event ClaimPoolRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
   event ClaimPoolRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
   event SetMaxBatchSize(uint256 maxBatchSize);
-
-  function addRewardsMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external;
-
-  function claimPoolRewards(
-    uint256 _epoch,
-    address _account,
-    uint256 _sharesAmount,
-    bytes32[] calldata merkleProof
-  ) external;
-
-  function claimPoolRewardsBatch(
-    uint256[] calldata _epochs,
-    address[] calldata _accounts,
-    uint256[] calldata _sharesAmounts,
-    bytes32[][] calldata merkleProofs
-  ) external;
-
-  function setMaxBatchSize(uint256 _maxBatchSize) external;
-
-  function isRewardsClaimed(uint256 _epoch, address _account) external view returns (bool);
 }

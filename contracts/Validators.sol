@@ -7,6 +7,8 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './StakeTogether.sol';
 import './Router.sol';
+import './interfaces/IValidators.sol';
+import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
@@ -19,9 +21,6 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
   Router public routerContract;
   IDepositContract public depositContract;
 
-  uint256 public liquidityFee = 0.01 ether;
-  uint256 public stakeTogetherLiquidityFee = 0.15 ether;
-  uint256 public poolLiquidityFee = 0.15 ether;
   bool public enableBorrow = true;
 
   constructor(address _routerContract, address _depositContract) {
@@ -141,10 +140,10 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external payable nonReentrant onlyStakeTogether {
-    require(
-      stakeTogether.poolBalance() >= stakeTogether.poolSize() + stakeTogether.validatorsFee(),
-      'NOT_ENOUGH_POOL_BALANCE'
-    );
+    // require(
+    //   stakeTogether.poolBalance() >= stakeTogether.poolSize() + stakeTogether.validatorsFee(),
+    //   'NOT_ENOUGH_POOL_BALANCE'
+    // );
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
     validators[_publicKey] = true;
