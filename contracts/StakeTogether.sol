@@ -171,7 +171,6 @@ contract StakeTogether is Shares {
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= address(loansContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
-    loanBalance += _amount;
     loansContract.borrow(_amount, _pool);
     emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
@@ -214,11 +213,11 @@ contract StakeTogether is Shares {
   }
 
   function poolBalance() public view returns (uint256) {
-    return address(this).balance;
+    return address(this).balance - loanBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return poolBalance() + beaconBalance - loanBalance;
+    return poolBalance() + beaconBalance;
   }
 
   function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {

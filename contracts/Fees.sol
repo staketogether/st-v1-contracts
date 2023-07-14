@@ -285,7 +285,7 @@ contract Fees is IFees, AccessControl, Pausable {
       stakeTogether.pooledEthByShares(operatorsShares),
       stakeTogether.pooledEthByShares(stakeTogetherShares),
       stakeTogether.pooledEthByShares(accountShares),
-      0 // Todo: continue from here
+      feePercentage
     ];
 
     return (shares, amounts);

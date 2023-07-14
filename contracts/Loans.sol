@@ -260,12 +260,12 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     payable(address(stakeTogether)).transfer(_amounts[3]);
     payable(msg.sender).transfer(_amounts[4]);
 
-    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amounts[5]);
+    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + _amounts[5]);
 
     emit Borrow(msg.sender, _amount);
   }
 
-  function repayLoan() public payable whenNotPaused nonReentrant onlyStakeTogether {
+  function repayLoan() public payable nonReentrant onlyStakeTogether {
     require(msg.value > 0, 'ZERO_AMOUNT');
     emit RepayLoan(msg.sender, msg.value);
   }
