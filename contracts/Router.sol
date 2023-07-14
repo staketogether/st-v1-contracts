@@ -260,14 +260,12 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
-    (uint256[] memory shares, uint256[] memory amounts) = feesContract.estimateFeePercentage(
-      IFees.FeeType.Entry,
-      _report.profitAmount,
-      false
+    (uint256[5] memory shares, uint256[5] memory amounts) = feesContract.estimateEntryFee(
+      _report.profitAmount
     );
 
     if (_report.lossAmount > 0) {
-      stakeTogether.mintPenalty(_report.epoch, _report.lossAmount);
+      stakeTogether.mintPenalty(_report.lossAmount);
     }
 
     if (_report.extraAmount > 0) {
@@ -275,31 +273,25 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (shares[0] > 0) {
-      stakeTogether.mintRewards{ value: amounts[0] }(
-        _report.epoch,
+      stakeTogether.mintFeeShares{ value: amounts[0] }(
         feesContract.getFeeAddress(IFees.FeeAddressType.Pools),
-        shares[0],
-        IStakeTogether.RewardType.Pools
+        shares[0]
       );
 
       poolsContract.addRewardsMerkleRoot(_report.epoch, _report.poolsMerkleRoot);
     }
 
     if (shares[1] > 0) {
-      stakeTogether.mintRewards{ value: amounts[1] }(
-        _report.epoch,
+      stakeTogether.mintFeeShares{ value: amounts[1] }(
         feesContract.getFeeAddress(IFees.FeeAddressType.Operators),
-        shares[1],
-        IStakeTogether.RewardType.Operators
+        shares[1]
       );
     }
 
     if (shares[2] > 0) {
-      stakeTogether.mintRewards{ value: amounts[2] }(
-        _report.epoch,
+      stakeTogether.mintFeeShares{ value: amounts[2] }(
         feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
-        shares[2],
-        IStakeTogether.RewardType.StakeTogether
+        shares[2]
       );
     }
 

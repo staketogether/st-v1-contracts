@@ -32,24 +32,27 @@ contract StakeTogether is Shares {
 
   receive() external payable {
     emit MintRewardsAccounts(msg.sender, msg.value);
-    _repayLoan();
+    _repayLoan(msg.value);
   }
 
   fallback() external payable {
     emit MintRewardsAccountsFallback(msg.sender, msg.value);
-    _repayLoan();
+    _repayLoan(msg.value);
   }
 
-  function _repayLoan() internal {
-    if (loansContract.balanceOf(address(this)) > 0) {
+  function _repayLoan(uint256 _amount) internal {
+    if (loanBalance > 0) {
       uint256 loanAmount = 0;
-      if (loansContract.balanceOf(address(this)) >= msg.value) {
-        loanAmount = msg.value;
+      if (loanBalance >= _amount) {
+        loanAmount = _amount;
       } else {
-        loanAmount = loansContract.balanceOf(address(this));
+        loanAmount = loanBalance;
       }
       loansContract.repayLoan{ value: loanAmount }();
-      poolSize -= loanAmount;
+
+      uint256 sharesToBurn = Math.mulDiv(loanAmount, sharesOf(address(loansContract)), loanBalance);
+      _burnShares(address(loansContract), sharesToBurn);
+
       emit RepayLoan(loanAmount);
     }
   }
@@ -82,11 +85,7 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    (uint256[] memory shares, ) = feesContract.estimateFeePercentage(
-      IFees.FeeType.Entry,
-      msg.value,
-      true
-    );
+    (uint256[5] memory shares, ) = feesContract.estimateEntryFee(msg.value);
 
     require(shares[4] > 0, 'ZERO_DEPOSITOR_SHARES');
     _mintShares(_to, shares[4]);
@@ -115,7 +114,7 @@ contract StakeTogether is Shares {
       lastResetBlock = block.number;
     }
 
-    _repayLoan();
+    _repayLoan(msg.value);
 
     emit DepositBase(_to, _pool, msg.value, shares[0], shares[1], shares[2], shares[3], shares[4]);
   }
@@ -137,6 +136,7 @@ contract StakeTogether is Shares {
   function _withdrawBase(uint256 _amount, address _pool) internal whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
+    require(balanceOf(msg.sender) >= _amount, 'AMOUNT_EXCEEDS_BALANCE');
     require(delegationSharesOf(msg.sender, _pool) > 0, 'NOT_DELEGATION_SHARES');
 
     if (_amount + totalWithdrawn > withdrawalLimit) {
@@ -169,12 +169,11 @@ contract StakeTogether is Shares {
   }
 
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(loansContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
-    emit WithdrawBorrow(msg.sender, _amount, _pool);
+    require(_amount <= address(loansContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
-    poolSize += _amount;
+    loanBalance += _amount;
     loansContract.borrow(_amount, _pool);
-    payable(msg.sender).transfer(_amount);
+    emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
@@ -219,7 +218,7 @@ contract StakeTogether is Shares {
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return poolBalance() + beaconBalance;
+    return poolBalance() + beaconBalance - loanBalance;
   }
 
   function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {

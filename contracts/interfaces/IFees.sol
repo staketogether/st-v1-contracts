@@ -18,7 +18,8 @@ interface IFees {
     Pools,
     Operators,
     StakeTogether,
-    Accounts
+    Accounts,
+    Lenders
   }
 
   enum FeeValueType {

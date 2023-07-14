@@ -29,6 +29,9 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
   Loans public loansContract;
   Validators public validatorsContract;
 
+  uint256 public beaconBalance = 0;
+  uint256 public loanBalance = 0;
+
   modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
@@ -36,6 +39,16 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
 
   modifier onlyPool() {
     require(msg.sender == address(poolsContract), 'ONLY_POOL_CONTRACT');
+    _;
+  }
+
+  modifier onlyLoans() {
+    require(msg.sender == address(loansContract), 'ONLY_LOANS_CONTRACT');
+    _;
+  }
+
+  modifier onlyValidators() {
+    require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS_CONTRACT');
     _;
   }
 
@@ -50,6 +63,16 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
 
   function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
+  }
+
+  function setBeaconBalance(uint256 _amount) external onlyValidators {
+    beaconBalance = _amount;
+    emit SetBeaconBalance(_amount);
+  }
+
+  function setLoanBalance(uint256 _amount) external onlyLoans {
+    loanBalance = _amount;
+    emit SetLoanBalance(_amount);
   }
 
   function _bootstrap() internal {
@@ -205,11 +228,6 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
   /*****************
    ** LOCK SHARES **
    *****************/
-
-  modifier onlyLoans() {
-    require(msg.sender == address(loansContract), 'ONLY_LOAN_CONTRACT');
-    _;
-  }
 
   mapping(address => Lock[]) public locked;
   mapping(address => uint256) public lockedShares;
@@ -415,42 +433,27 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
    ** REWARDS **
    *****************/
 
-  uint256 public beaconBalance = 0;
-
-  // Todo: Implement function set beacon balance
-
-  modifier onlyValidators() {
-    require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS_CONTRACT');
-    _;
+  function mintFeeShares(address _address, uint256 _sharesAmount) external payable nonReentrant {
+    require(
+      msg.sender == address(routerContract) || msg.sender == address(loansContract),
+      'ONLY_ROUTER_OR_LOANS_CONTRACT'
+    );
+    _mintShares(_address, _sharesAmount);
+    _mintPoolShares(_address, _address, _sharesAmount);
+    emit MintFee(_address, _sharesAmount);
   }
 
-  function setBeaconBalance(uint256 _amount) external onlyValidators {
-    beaconBalance = _amount;
-    emit SetBeaconBalance(_amount);
-  }
-
-  function mintRewards(
-    uint256 _epoch,
-    address _rewardAddress,
-    uint256 _sharesAmount,
-    RewardType _rewardType
-  ) external payable nonReentrant onlyRouter {
-    _mintShares(_rewardAddress, _sharesAmount);
-    _mintPoolShares(_rewardAddress, _rewardAddress, _sharesAmount);
-    emit MintRewards(_epoch, _rewardAddress, _sharesAmount, _rewardType);
-  }
-
-  function mintPenalty(uint256 _blockNumber, uint256 _lossAmount) external nonReentrant onlyRouter {
+  function mintPenalty(uint256 _lossAmount) external nonReentrant onlyRouter {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
-    emit MintPenalty(_blockNumber, _lossAmount);
+    emit MintPenalty(_lossAmount);
   }
 
   function claimPoolRewards(
     address _account,
     uint256 _sharesAmount
   ) external nonReentrant whenNotPaused onlyPool {
-    _transferShares(_account, address(this), _sharesAmount);
+    _transferShares(address(poolsContract), _account, _sharesAmount);
     _transferPoolShares(address(poolsContract), address(poolsContract), _account, _sharesAmount);
     emit ClaimPoolRewards(_account, _sharesAmount);
   }

@@ -7,6 +7,9 @@ interface IStakeTogether {
   event Bootstrap(address sender, uint256 balance);
   event RepayLoan(uint256 amount);
 
+  event SetBeaconBalance(uint256 amount);
+  event SetLoanBalance(uint256 amount);
+
   /************
    ** SHARES **
    ************/
@@ -62,9 +65,8 @@ interface IStakeTogether {
     StakeTogether
   }
 
-  event SetBeaconBalance(uint256 amount);
-  event MintRewards(uint256 epoch, address indexed to, uint256 sharesAmount, RewardType rewardType);
-  event MintPenalty(uint256 epoch, uint256 amount);
+  event MintFee(address indexed to, uint256 sharesAmount);
+  event MintPenalty(uint256 amount);
   event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
 
   event MintRewardsAccounts(address indexed sender, uint amount);

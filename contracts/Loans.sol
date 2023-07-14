@@ -13,6 +13,7 @@ import './StakeTogether.sol';
 import './Router.sol';
 import './Fees.sol';
 import './interfaces/ILoans.sol';
+import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
@@ -71,7 +72,7 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
   mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view returns (uint256) {
-    return address(this).balance;
+    return address(this).balance + stakeTogether.loanBalance();
   }
 
   function totalSupply() public view override returns (uint256) {
@@ -236,25 +237,36 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    // uint256 total = _amount + Math.mulDiv(_amount, 'PUT Borrow Fee Here', 1 ether);
+    (uint256[6] memory _shares, uint256[6] memory _amounts) = feesContract.estimateBorrowFee(_amount);
 
-    // uint256 stakeTogetherShare = Math.mulDiv(total, stakeTogetherLiquidityFee, 1 ether);
-    // uint256 poolShare = Math.mulDiv(total, poolLiquidityFee, 1 ether);
+    if (_shares[0] > 0) {
+      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _shares[0]);
+    }
 
-    // uint256 liquidityProviderShare = total - stakeTogetherShare - poolShare;
+    if (_shares[1] > 0) {
+      stakeTogether.mintFeeShares{ value: _amounts[1] }(
+        feesContract.getFeeAddress(IFees.FeeAddressType.Operators),
+        _shares[1]
+      );
+    }
 
-    // _mint(stakeTogether.stakeTogetherFeeAddress(), stakeTogetherShare);
-    // _mint(_pool, poolShare);
-    // _mint(msg.sender, liquidityProviderShare);
+    if (_shares[2] > 0) {
+      stakeTogether.mintFeeShares{ value: _amounts[2] }(
+        feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
+        _shares[2]
+      );
+    }
+
+    payable(address(stakeTogether)).transfer(_amounts[3]);
+    payable(msg.sender).transfer(_amounts[4]);
+
+    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amounts[5]);
 
     emit Borrow(msg.sender, _amount);
   }
 
   function repayLoan() public payable whenNotPaused nonReentrant onlyStakeTogether {
     require(msg.value > 0, 'ZERO_AMOUNT');
-    require(balanceOf(msg.sender) >= msg.value, 'INSUFFICIENT_LETH_BALANCE');
-
-    _burn(msg.sender, msg.value);
     emit RepayLoan(msg.sender, msg.value);
   }
 

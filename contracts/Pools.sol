@@ -23,6 +23,8 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
+
+    // Todo: initialize stakeTogether and operator as pools fee addresses
   }
 
   modifier onlyRouter() {
@@ -197,14 +199,4 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
       claimedBitMap[_epoch][claimedWordIndex] |
       (1 << claimedBitIndex);
   }
-
-  /*****************
-   ** FEES **
-   *****************/
-
-  uint256 public addPoolFee;
-  uint256 public addPoolFeeUsers;
-  uint256 public addPoolFeePools;
-  uint256 public addPoolFeeOperators;
-  uint256 public addPoolFeeStakeTogether;
 }
