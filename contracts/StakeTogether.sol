@@ -7,34 +7,54 @@ import './Shares.sol';
 contract StakeTogether is Shares {
   constructor(
     address _routerContract,
+    address _feesContract,
     address _poolsContract,
     address _withdrawalsContract,
     address _loansContract,
     address _validatorsContract
-  ) payable {
-    routerContract = IRouter(payable(_routerContract));
-    poolsContract = IPools(payable(_poolsContract));
-    withdrawalsContract = IWithdrawals(payable(_withdrawalsContract));
-    loansContract = ILoans(payable(_loansContract));
-    validatorsContract = IValidators(payable(_validatorsContract));
+  ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
+    routerContract = Router(payable(_routerContract));
+    feesContract = Fees(payable(_feesContract));
+    poolsContract = Pools(payable(_poolsContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+    loansContract = Loans(payable(_loansContract));
+    validatorsContract = Validators(payable(_validatorsContract));
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+
+    _bootstrap();
   }
 
+  /*********************
+   ** ACCOUNT REWARDS **
+   *********************/
+
   receive() external payable {
-    emit ReceiveEther(msg.sender, msg.value);
-    _repayLoan();
+    emit MintRewardsAccounts(msg.sender, msg.value);
+    _repayLoan(msg.value);
   }
 
   fallback() external payable {
-    emit FallbackEther(msg.sender, msg.value);
-    _repayLoan();
+    emit MintRewardsAccountsFallback(msg.sender, msg.value);
+    _repayLoan(msg.value);
   }
 
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
+  function _repayLoan(uint256 _amount) internal {
+    if (loanBalance > 0) {
+      uint256 loanAmount = 0;
+      if (loanBalance >= _amount) {
+        loanAmount = _amount;
+      } else {
+        loanAmount = loanBalance;
+      }
+      loansContract.repayLoan{ value: loanAmount }();
 
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
+      uint256 sharesToBurn = Math.mulDiv(loanAmount, sharesOf(address(loansContract)), loanBalance);
+      _burnShares(address(loansContract), sharesToBurn);
+
+      emit RepayLoan(loanAmount);
+    }
   }
 
   /*****************
@@ -65,10 +85,26 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
+    (uint256[5] memory shares, ) = feesContract.estimateEntryFee(msg.value);
 
-    _mintShares(_to, sharesAmount);
-    _mintPoolShares(_to, _pool, sharesAmount);
+    require(shares[4] > 0, 'ZERO_DEPOSITOR_SHARES');
+    _mintShares(_to, shares[4]);
+    _mintPoolShares(_to, _pool, shares[4]);
+
+    if (shares[0] > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), shares[0]);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, shares[0]);
+    }
+
+    if (shares[1] > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), shares[1]);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, shares[1]);
+    }
+
+    if (shares[2] > 0) {
+      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), shares[2]);
+      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), _pool, shares[2]);
+    }
 
     totalDeposited += msg.value;
 
@@ -78,7 +114,9 @@ contract StakeTogether is Shares {
       lastResetBlock = block.number;
     }
 
-    _repayLoan();
+    _repayLoan(msg.value);
+
+    emit DepositBase(_to, _pool, msg.value, shares[0], shares[1], shares[2], shares[3], shares[4]);
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
@@ -98,6 +136,7 @@ contract StakeTogether is Shares {
   function _withdrawBase(uint256 _amount, address _pool) internal whenNotPaused {
     require(_amount > 0, 'ZERO_VALUE');
     require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
+    require(balanceOf(msg.sender) >= _amount, 'AMOUNT_EXCEEDS_BALANCE');
     require(delegationSharesOf(msg.sender, _pool) > 0, 'NOT_DELEGATION_SHARES');
 
     if (_amount + totalWithdrawn > withdrawalLimit) {
@@ -105,10 +144,10 @@ contract StakeTogether is Shares {
       revert('WITHDRAWAL_LIMIT_REACHED');
     }
 
-    uint256 userBalance = balanceOf(msg.sender);
-    require(_amount <= userBalance, 'AMOUNT_EXCEEDS_BALANCE');
+    uint256 accountBalance = balanceOf(msg.sender);
+    require(_amount <= accountBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
-    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), userBalance);
+    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
 
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
@@ -130,16 +169,14 @@ contract StakeTogether is Shares {
   }
 
   function withdrawBorrow(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(loansContract).balance, 'NOT_ENOUGH_BORROW_BALANCE');
-    emit WithdrawBorrow(msg.sender, _amount, _pool);
+    require(_amount <= address(loansContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
-    poolSize += _amount;
+    loanBalance += _amount;
     loansContract.borrow(_amount, _pool);
-    payable(msg.sender).transfer(_amount);
+    emit WithdrawBorrow(msg.sender, _amount, _pool);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    // Todo: check borrow conditional rule
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
     emit WithdrawValidator(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
@@ -157,14 +194,9 @@ contract StakeTogether is Shares {
     emit SetWithdrawalLimit(_newLimit);
   }
 
-  function setWalletDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
+  function setAccountDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     walletDepositLimit = _newLimit;
-    emit SetWalletDepositLimit(_newLimit);
-  }
-
-  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
-    blocksPerDay = _newBlocksInterval;
-    emit SetBlocksInterval(_newBlocksInterval);
+    emit SetAccountDepositLimit(_newLimit);
   }
 
   function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
@@ -182,34 +214,21 @@ contract StakeTogether is Shares {
   }
 
   function poolBalance() public view returns (uint256) {
-    return contractBalance();
+    return address(this).balance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return contractBalance() + beaconBalance;
+    return poolBalance() + beaconBalance - loanBalance;
   }
 
-  function _repayLoan() internal {
-    if (loansContract.balanceOf(address(this)) > 0) {
-      uint256 loanAmount = 0;
-      if (loansContract.balanceOf(address(this)) >= msg.value) {
-        loanAmount = msg.value;
-      } else {
-        loanAmount = loansContract.balanceOf(address(this));
-      }
-      loansContract.repayLoan{ value: loanAmount }();
-      poolSize -= loanAmount;
-    }
+  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
+    blocksPerDay = _newBlocksInterval;
+    emit SetBlocksInterval(_newBlocksInterval);
   }
 
   /*****************
    ** VALIDATORS **
    *****************/
-
-  modifier onlyValidatorOracle() {
-    require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
-    _;
-  }
 
   bytes public withdrawalCredentials;
 
@@ -239,7 +258,5 @@ contract StakeTogether is Shares {
       _signature,
       _depositDataRoot
     );
-
-    payable(stakeTogetherFeeAddress).transfer(validatorsFee);
   }
 }

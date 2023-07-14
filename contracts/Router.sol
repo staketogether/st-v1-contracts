@@ -12,6 +12,9 @@ import './Loans.sol';
 import './Pools.sol';
 import './interfaces/IRouter.sol';
 import './Validators.sol';
+import './Fees.sol';
+import './interfaces/IFees.sol';
+import './interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
@@ -21,6 +24,7 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
+  Fees public feesContract;
   Withdrawals public withdrawalsContract;
   Loans public loansContract;
   Pools public poolsContract;
@@ -30,12 +34,15 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     address _withdrawContract,
     address _loanContract,
     address _poolContract,
-    address _validatorsContract
+    address _validatorsContract,
+    address _feesContract
   ) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     loansContract = Loans(payable(_loanContract));
     poolsContract = Pools(payable(_poolContract));
     validatorsContract = Validators(payable(_validatorsContract));
+    feesContract = Fees(payable(_feesContract));
+
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
@@ -253,37 +260,38 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
+    (uint256[5] memory shares, uint256[5] memory amounts) = feesContract.estimateEntryFee(
+      _report.profitAmount
+    );
+
     if (_report.lossAmount > 0) {
-      stakeTogether.mintPenalty(_report.epoch, _report.lossAmount);
+      stakeTogether.mintPenalty(_report.lossAmount);
     }
 
     if (_report.extraAmount > 0) {
-      stakeTogether.refundPool{ value: _report.extraAmount }(_report.epoch);
+      // stakeTogether.refundPool{ value: _report.extraAmount }(_report.epoch);
     }
 
-    if (_report.shares.pools > 0) {
-      stakeTogether.mintRewards{ value: _report.amounts.pools }(
-        _report.epoch,
-        address(poolsContract),
-        _report.shares.pools
+    if (shares[0] > 0) {
+      stakeTogether.mintFeeShares{ value: amounts[0] }(
+        feesContract.getFeeAddress(IFees.FeeAddressType.Pools),
+        shares[0]
       );
 
       poolsContract.addRewardsMerkleRoot(_report.epoch, _report.poolsMerkleRoot);
     }
 
-    if (_report.amounts.operators > 0) {
-      stakeTogether.mintRewards{ value: _report.amounts.operators }(
-        _report.epoch,
-        stakeTogether.operatorsFeeAddress(),
-        _report.shares.operators
+    if (shares[1] > 0) {
+      stakeTogether.mintFeeShares{ value: amounts[1] }(
+        feesContract.getFeeAddress(IFees.FeeAddressType.Operators),
+        shares[1]
       );
     }
 
-    if (_report.amounts.stakeTogether > 0) {
-      stakeTogether.mintRewards{ value: _report.amounts.stakeTogether }(
-        _report.epoch,
-        stakeTogether.stakeTogetherFeeAddress(),
-        _report.shares.stakeTogether
+    if (shares[2] > 0) {
+      stakeTogether.mintFeeShares{ value: amounts[2] }(
+        feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
+        shares[2]
       );
     }
 
@@ -298,7 +306,7 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.restExitAmount > 0) {
-      stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
+      // stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
     }
 
     if (_report.withdrawAmount > 0) {
@@ -306,7 +314,7 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.apr > 0) {
-      loansContract.setApr(_report.epoch, _report.apr);
+      // loansContract.setApr(_report.epoch, _report.apr);
     }
 
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
@@ -386,25 +394,6 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     require(_report.epoch <= lastConsensusEpoch, 'INVALID_EPOCH');
     require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
     require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
-
-    uint256 poolShares = Math.mulDiv(_report.shares.total, stakeTogether.poolsFee(), 1 ether);
-    uint256 operatorShares = Math.mulDiv(_report.shares.total, stakeTogether.operatorsFee(), 1 ether);
-    uint256 stakeTogetherShares = Math.mulDiv(
-      _report.shares.total,
-      stakeTogether.stakeTogetherFee(),
-      1 ether
-    );
-    uint256 userShares = _report.shares.total - poolShares - operatorShares - stakeTogetherShares;
-
-    require(userShares == _report.shares.users, 'INVALID_USER_SHARES');
-    require(poolShares == _report.shares.pools, 'INVALID_POOL_SHARES');
-    require(operatorShares == _report.shares.operators, 'INVALID_OPERATOR_SHARES');
-    require(stakeTogetherShares == _report.shares.stakeTogether, 'INVALID_STAKE_TOGETHER_SHARES');
-
-    require(
-      userShares + poolShares + operatorShares + stakeTogetherShares == _report.shares.total,
-      'INVALID_TOTAL_SHARES'
-    );
 
     require(_report.poolsMerkleRoot != bytes32(0), 'INVALID_POOLS_MERKLE_ROOT');
 

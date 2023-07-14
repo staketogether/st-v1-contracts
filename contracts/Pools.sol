@@ -23,6 +23,8 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
+
+    // Todo: initialize stakeTogether and operator as pools fee addresses
   }
 
   modifier onlyRouter() {
@@ -99,8 +101,8 @@ contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
 
     if (permissionLessAddPool) {
       if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-        require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
-        payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
+        // require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
+        // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
       }
     } else {
       require(hasRole(POOL_MANAGER_ROLE, msg.sender), 'ONLY_POOL_MANAGER');
