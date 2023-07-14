@@ -260,8 +260,10 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
-    (uint256[4] memory shares, uint256[4] memory amounts) = feesContract.estimateRewardsFee(
-      _report.profitAmount
+    (uint256[] memory shares, uint256[] memory amounts) = feesContract.estimateFeePercentage(
+      IFees.FeeType.Entry,
+      _report.profitAmount,
+      false
     );
 
     if (_report.lossAmount > 0) {

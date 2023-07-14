@@ -123,109 +123,59 @@ contract Fees is IFees, AccessControl, Pausable {
    ** ESTIMATE FEES **
    *******************/
 
-  function estimateEntryFee(uint256 amount) external view returns (uint256[5] memory, uint256[5] memory) {
+  function estimateFeePercentage(
+    FeeType _feeType,
+    uint256 _amount,
+    bool _includeDepositor
+  ) external view returns (uint256[] memory, uint256[] memory) {
+    uint256 sharesLength = _includeDepositor ? 5 : 4;
+
+    uint256[] memory shares = new uint256[](sharesLength);
+    uint256[] memory amounts = new uint256[](sharesLength);
+
     uint256 sharesAmount = Math.mulDiv(
-      amount,
+      _amount,
       stakeTogether.totalShares(),
-      stakeTogether.totalPooledEther() - amount
+      stakeTogether.totalPooledEther() - _amount
     );
 
-    uint256 feePercentage = getTotalFee(FeeType.Entry);
+    uint256 feePercentage = getTotalFee(_feeType);
 
-    Fee memory entryFee = _fees[uint256(FeeType.Entry)];
-    require(entryFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
+    Fee memory fee = _fees[uint256(_feeType)];
+    require(fee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
     uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
 
-    uint256 poolsShares = Math.mulDiv(
+    shares[0] = Math.mulDiv(
       feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
+      getFeeAllocation(_feeType, feeAddresses[FeeAddressType.Pools]),
       1 ether
     );
-    uint256 operatorsShares = Math.mulDiv(
+    shares[1] = Math.mulDiv(
       feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
+      getFeeAllocation(_feeType, feeAddresses[FeeAddressType.Operators]),
       1 ether
     );
-    uint256 stakeTogetherShares = Math.mulDiv(
+    shares[2] = Math.mulDiv(
       feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
+      getFeeAllocation(_feeType, feeAddresses[FeeAddressType.StakeTogether]),
       1 ether
     );
-
-    uint256 accountShares = Math.mulDiv(
+    shares[3] = Math.mulDiv(
       feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
-      1 ether
-    );
-
-    uint256 depositorShares = sharesAmount - feeShares;
-
-    uint256[5] memory shares = [
-      depositorShares,
-      poolsShares,
-      operatorsShares,
-      stakeTogetherShares,
-      accountShares
-    ];
-
-    uint256[5] memory amounts = [
-      stakeTogether.pooledEthByShares(depositorShares),
-      stakeTogether.pooledEthByShares(poolsShares),
-      stakeTogether.pooledEthByShares(operatorsShares),
-      stakeTogether.pooledEthByShares(stakeTogetherShares),
-      stakeTogether.pooledEthByShares(accountShares)
-    ];
-
-    return (shares, amounts);
-  }
-
-  function estimateRewardsFee(
-    uint256 amount
-  ) external view returns (uint256[4] memory, uint256[4] memory) {
-    uint256 sharesAmount = Math.mulDiv(
-      amount,
-      stakeTogether.totalShares(),
-      stakeTogether.totalPooledEther() - amount // Todo: check if + amount
-    );
-
-    uint256 feePercentage = getTotalFee(FeeType.Rewards);
-
-    Fee memory rewardsFee = _fees[uint256(FeeType.Rewards)];
-    require(rewardsFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
-
-    uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
-
-    uint256 poolsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
-      1 ether
-    );
-    uint256 operatorsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
-      1 ether
-    );
-    uint256 stakeTogetherShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
+      getFeeAllocation(_feeType, feeAddresses[FeeAddressType.Accounts]),
       1 ether
     );
 
-    uint256 accountShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
-      1 ether
-    );
+    amounts[0] = stakeTogether.pooledEthByShares(shares[0]);
+    amounts[1] = stakeTogether.pooledEthByShares(shares[1]);
+    amounts[2] = stakeTogether.pooledEthByShares(shares[2]);
+    amounts[3] = stakeTogether.pooledEthByShares(shares[3]);
 
-    uint256[4] memory shares = [poolsShares, operatorsShares, stakeTogetherShares, accountShares];
-
-    uint256[4] memory amounts = [
-      stakeTogether.pooledEthByShares(poolsShares),
-      stakeTogether.pooledEthByShares(operatorsShares),
-      stakeTogether.pooledEthByShares(stakeTogetherShares),
-      stakeTogether.pooledEthByShares(accountShares)
-    ];
+    if (_includeDepositor) {
+      shares[4] = sharesAmount - feeShares;
+      amounts[4] = stakeTogether.pooledEthByShares(shares[4]);
+    }
 
     return (shares, amounts);
   }

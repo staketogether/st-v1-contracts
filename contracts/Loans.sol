@@ -36,13 +36,11 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
   }
 
   receive() external payable {
-    _checkExtraAmount();
-    emit ReceiveEther(msg.sender, msg.value);
+    emit MintRewardsAccounts(msg.sender, msg.value);
   }
 
   fallback() external payable {
-    _checkExtraAmount();
-    emit FallbackEther(msg.sender, msg.value);
+    emit MintRewardsAccountsFallback(msg.sender, msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -64,6 +62,141 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     _;
   }
 
+  /************
+   ** SHARES **
+   ************/
+
+  mapping(address => uint256) private shares;
+  uint256 public totalShares = 0;
+  mapping(address => mapping(address => uint256)) private allowances;
+
+  function totalPooledEther() public view returns (uint256) {
+    return address(this).balance;
+  }
+
+  function totalSupply() public view override returns (uint256) {
+    return totalPooledEther();
+  }
+
+  function balanceOf(address _account) public view override returns (uint256) {
+    return pooledEthByShares(sharesOf(_account));
+  }
+
+  function sharesOf(address _account) public view returns (uint256) {
+    return shares[_account];
+  }
+
+  function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
+    return Math.mulDiv(_ethAmount, totalShares, totalPooledEther());
+  }
+
+  function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
+    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares);
+  }
+
+  function transfer(address _to, uint256 _amount) public override returns (bool) {
+    _transfer(msg.sender, _to, _amount);
+    return true;
+  }
+
+  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
+
+    return true;
+  }
+
+  function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
+    _transferShares(msg.sender, _to, _sharesAmount);
+    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
+    return tokensAmount;
+  }
+
+  function transferSharesFrom(
+    address _from,
+    address _to,
+    uint256 _sharesAmount
+  ) external returns (uint256) {
+    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
+    _spendAllowance(_from, msg.sender, tokensAmount);
+    _transferShares(_from, _to, _sharesAmount);
+    return tokensAmount;
+  }
+
+  function allowance(address _account, address _spender) public view override returns (uint256) {
+    return allowances[_account][_spender];
+  }
+
+  function approve(address _spender, uint256 _amount) public override returns (bool) {
+    _approve(msg.sender, _spender, _amount);
+    return true;
+  }
+
+  function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
+    _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue);
+    return true;
+  }
+
+  function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
+    uint256 currentAllowance = allowances[msg.sender][_spender];
+    require(currentAllowance >= _subtractedValue, 'ALLOWANCE_BELOW_ZERO');
+    _approve(msg.sender, _spender, currentAllowance - _subtractedValue);
+    return true;
+  }
+
+  function _approve(address _account, address _spender, uint256 _amount) internal override {
+    require(_account != address(0), 'APPROVE_FROM_ZERO_ADDR');
+    require(_spender != address(0), 'APPROVE_TO_ZERO_ADDR');
+
+    allowances[_account][_spender] = _amount;
+    emit Approval(_account, _spender, _amount);
+  }
+
+  function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
+    require(_to != address(0), 'MINT_TO_ZERO_ADDR');
+
+    shares[_to] = shares[_to] + _sharesAmount;
+    totalShares += _sharesAmount;
+
+    emit MintShares(_to, _sharesAmount);
+  }
+
+  function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
+    require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
+    require(_sharesAmount <= sharesOf(_account), 'BALANCE_EXCEEDED');
+
+    shares[_account] = shares[_account] - _sharesAmount;
+    totalShares -= _sharesAmount;
+
+    emit BurnShares(_account, _sharesAmount);
+  }
+
+  function _transfer(address _from, address _to, uint256 _amount) internal override {
+    uint256 _sharesToTransfer = sharesByPooledEth(_amount);
+    _transferShares(_from, _to, _sharesToTransfer);
+    emit Transfer(_from, _to, _amount);
+  }
+
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
+    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
+    require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
+    require(_sharesAmount <= sharesOf(_from), 'BALANCE_EXCEEDED');
+
+    shares[_from] = shares[_from] - _sharesAmount;
+    shares[_to] = shares[_to] + _sharesAmount;
+
+    emit TransferShares(_from, _to, _sharesAmount);
+  }
+
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
+    uint256 currentAllowance = allowances[_account][_spender];
+    if (currentAllowance != ~uint256(0)) {
+      require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
+      _approve(_account, _spender, currentAllowance - _amount);
+    }
+  }
+
   /***********************
    ** LIQUIDITY **
    ***********************/
@@ -75,21 +208,25 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     emit SetEnableBorrow(_enable);
   }
 
-  function mint(address _to, uint256 _amount) internal whenNotPaused {
-    _mint(_to, _amount);
-  }
-
   function addLiquidity() public payable whenNotPaused nonReentrant {
-    _mint(msg.sender, msg.value);
+    uint256 sharesAmount = Math.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
+
+    _mintShares(msg.sender, sharesAmount);
+
     emit AddLiquidity(msg.sender, msg.value);
   }
 
   function removeLiquidity(uint256 _amount) public whenNotPaused nonReentrant {
     require(_amount > 0, 'ZERO_AMOUNT');
-    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_LETH_BALANCE');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    _burn(msg.sender, _amount);
+    uint256 accountBalance = balanceOf(msg.sender);
+    require(_amount <= accountBalance, 'AMOUNT_EXCEEDS_BALANCE');
+
+    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
+
+    _burnShares(msg.sender, sharesToBurn);
+
     payable(msg.sender).transfer(_amount);
     emit RemoveLiquidity(msg.sender, _amount);
   }
@@ -121,18 +258,6 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     emit RepayLoan(msg.sender, msg.value);
   }
 
-  function _checkExtraAmount() internal {
-    uint256 totalSupply = totalSupply();
-    if (address(this).balance > totalSupply) {
-      uint256 extraAmount = address(this).balance - totalSupply;
-      _transferToStakeTogether(extraAmount);
-    }
-  }
-
-  function _transferToStakeTogether(uint256 _amount) private {
-    payable(address(stakeTogether)).transfer(_amount);
-  }
-
   /***********************
    ** ANTICIPATION **
    ***********************/
@@ -143,16 +268,10 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
   }
 
   bool public enableAnticipation = false;
-  uint256 public apr;
 
   function setEnableAnticipation(bool _enable) external onlyRole(ADMIN_ROLE) {
     enableAnticipation = _enable;
     emit SetEnableAnticipation(_enable);
-  }
-
-  function setApr(uint256 _epoch, uint256 _apr) external onlyRouter {
-    apr = _apr;
-    emit SetApr(_epoch, _apr);
   }
 
   function setMaxAnticipateFraction(uint256 _fraction) external onlyRole(ADMIN_ROLE) {
