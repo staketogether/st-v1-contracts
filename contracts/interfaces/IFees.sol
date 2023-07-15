@@ -14,29 +14,20 @@ interface IFees {
     AddPool
   }
 
-  enum FeeAddressType {
-    Pools,
-    Operators,
-    StakeTogether,
-    Accounts,
-    Lenders
-  }
-
   enum FeeValueType {
     FIXED,
     PERCENTAGE
   }
 
   struct Fee {
-    uint256 total;
+    uint256 value;
     FeeValueType valueType;
+    mapping(string => uint256) allocations;
   }
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
 
-  event SetFeeAddress(FeeAddressType indexed addressType, address indexed _address);
-
-  event SetFeeAllocation(FeeType indexed feeType, address indexed _address, uint256 allocation);
+  event SetFeeAllocation(FeeType indexed feeType, string indexed role, uint256 allocation);
 
   event ReceiveEther(address indexed sender, uint256 amount);
 
@@ -50,4 +41,18 @@ interface IFees {
     uint256 _proportionStart,
     uint256 _proportionEnd
   );
+
+  function setFee(FeeType _feeType, uint256 _fee, FeeValueType _valueType) external;
+
+  function getFee(FeeType _feeType) external view returns (uint256);
+
+  function setFeeAllocation(FeeType _feeType, string calldata _role, uint256 _allocation) external;
+
+  function getFeeAllocation(FeeType _feeType, string calldata _role) external view returns (uint256);
+
+  function pause() external;
+
+  function unpause() external;
+
+  function setStakeTogether(address _stakeTogether) external;
 }

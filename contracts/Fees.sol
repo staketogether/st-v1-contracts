@@ -4,35 +4,67 @@ pragma solidity ^0.8.18;
 
 import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
-import './interfaces/IFees.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Fees is IFees, AccessControl, Pausable {
+contract Fees is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
-  Fee[8] private _fees;
-  mapping(FeeAddressType => address) public feeAddresses;
-  mapping(FeeType => mapping(address => uint256)) private _allocations;
+  enum FeeType {
+    EntryStake,
+    EntryLoan,
+    Rewards,
+    Borrow,
+    Anticipate,
+    RefundAnticipate,
+    Validator,
+    AddPool
+  }
 
-  uint256 public dayStart = 30;
-  uint256 public dayEnd = 365;
-  uint256 public proportionStart = 100;
-  uint256 public proportionEnd = 60;
+  enum FeeMathType {
+    FIXED,
+    PERCENTAGE
+  }
+
+  enum Roles {
+    Pools,
+    Operators,
+    StakeTogether,
+    Accounts,
+    Lenders,
+    Sender
+  }
+
+  struct Fee {
+    uint256 value;
+    FeeMathType mathType;
+    mapping(Roles => uint256) allocations;
+  }
+
+  mapping(Roles => address payable) public roleAddresses;
+  mapping(FeeType => Fee) public fees;
+
+  event SetTotalFee(FeeType indexed feeType, uint256 total);
+  event SetFeeAllocation(FeeType indexed feeType, Roles indexed role, uint256 allocation);
+  event ReceiveEther(address indexed sender, uint256 amount);
+  event FallbackEther(address indexed sender, uint256 amount);
+  event SetStakeTogether(address stakeTogether);
+  event SetFeeAddress(Roles indexed role, address indexed account);
 
   constructor() {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  receive() external payable {
+  receive() external payable whenNotPaused {
     _transferToStakeTogether();
     emit ReceiveEther(msg.sender, msg.value);
   }
 
-  fallback() external payable {
+  fallback() external payable whenNotPaused {
     _transferToStakeTogether();
     emit FallbackEther(msg.sender, msg.value);
   }
@@ -51,243 +83,105 @@ contract Fees is IFees, AccessControl, Pausable {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setTotalFee(
-    FeeType _feeType,
-    uint256 _total,
-    FeeValueType _valueType
-  ) external onlyRole(ADMIN_ROLE) {
-    if (_valueType == FeeValueType.PERCENTAGE) {
-      require(_total <= 1 ether, 'TOTAL_FEE_EXCEEDS_100_PERCENT');
+  function setFeeAddress(Roles _role, address payable _address) external onlyRole(ADMIN_ROLE) {
+    roleAddresses[_role] = _address;
+    emit SetFeeAddress(_role, _address);
+  }
+
+  function getFeeAddress(Roles _role) public view returns (address) {
+    return roleAddresses[_role];
+  }
+
+  function setFee(FeeType _feeType, uint256 _fee, FeeMathType _mathType) external onlyRole(ADMIN_ROLE) {
+    if (_mathType == FeeMathType.PERCENTAGE) {
+      require(_fee <= 1 ether, 'TOTAL_FEE_EXCEEDS_100_PERCENT');
     }
-    _fees[uint256(_feeType)].total = _total;
-    _fees[uint256(_feeType)].valueType = _valueType;
-    emit SetTotalFee(_feeType, _total);
+    fees[_feeType].value = _fee;
+    fees[_feeType].mathType = _mathType;
+    emit SetTotalFee(_feeType, _fee);
   }
 
-  function getTotalFee(FeeType _feeType) public view returns (uint256) {
-    return _fees[uint256(_feeType)].total;
-  }
-
-  function setFeeAddress(FeeAddressType _addressType, address _address) external onlyRole(ADMIN_ROLE) {
-    feeAddresses[_addressType] = _address;
-    emit SetFeeAddress(_addressType, _address);
-  }
-
-  function getFeeAddress(FeeAddressType _addressType) external view returns (address) {
-    return feeAddresses[_addressType];
+  function getFee(FeeType _feeType) public view returns (uint256, FeeMathType) {
+    return (fees[_feeType].value, fees[_feeType].mathType);
   }
 
   function setFeeAllocation(
     FeeType _feeType,
-    FeeAddressType _addressType,
+    Roles _role,
     uint256 _allocation
   ) external onlyRole(ADMIN_ROLE) {
-    address feeAddress = feeAddresses[_addressType];
-    uint256 currentTotal = _fees[uint256(_feeType)].total;
+    uint256 currentTotal = fees[_feeType].value;
     require(_allocation <= currentTotal, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
-    _allocations[_feeType][feeAddress] = _allocation;
-    emit SetFeeAllocation(_feeType, feeAddress, _allocation);
+    fees[_feeType].allocations[_role] = _allocation;
+    emit SetFeeAllocation(_feeType, _role, _allocation);
   }
 
-  function getFeeAllocation(FeeType _feeType, address _address) public view returns (uint256) {
-    return _allocations[_feeType][_address];
+  function getFeeAllocation(FeeType _feeType, Roles _role) public view returns (uint256) {
+    return fees[_feeType].allocations[_role];
   }
 
-  function setRangeAndProportion(
-    uint256 _dayStart,
-    uint256 _dayEnd,
-    uint256 _proportionStart,
-    uint256 _proportionEnd
-  ) public onlyRole(ADMIN_ROLE) {
-    dayStart = _dayStart;
-    dayEnd = _dayEnd;
-    proportionStart = _proportionStart;
-    proportionEnd = _proportionEnd;
-    emit SetRangeAndProportion(_dayStart, _dayEnd, _proportionStart, _proportionEnd);
-  }
-
-  // Todo: rename
-  function calculateFee(uint256 _days) public view returns (uint256) {
-    require(_days >= dayStart && _days <= dayEnd, 'DAYS_OUT_OF_RANGE');
-    uint256 range = dayEnd - dayStart;
-    uint256 proportionRange = proportionStart - proportionEnd;
-    uint256 daysOverStart = _days - dayStart;
-    return proportionStart - ((daysOverStart * proportionRange) / range);
-  }
-
-  function _transferToStakeTogether() private {
-    payable(stakeTogether).transfer(address(this).balance);
-  }
-
-  /*******************
-   ** ESTIMATE FEES **
-   *******************/
-
-  function estimateEntryFee(uint256 amount) external view returns (uint256[5] memory, uint256[5] memory) {
-    uint256 sharesAmount = Math.mulDiv(
-      amount,
-      stakeTogether.totalShares(),
-      stakeTogether.totalPooledEther() - amount
-    );
-
-    uint256 feePercentage = getTotalFee(FeeType.Entry);
-
-    Fee memory entryFee = _fees[uint256(FeeType.Entry)];
-    require(entryFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
-
-    uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
-
-    uint256 poolsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
-      1 ether
-    );
-    uint256 operatorsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
-      1 ether
-    );
-    uint256 stakeTogetherShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
-      1 ether
-    );
-
-    uint256 accountShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
-      1 ether
-    );
-
-    uint256 depositorShares = sharesAmount - feeShares;
-
-    uint256[5] memory shares = [
-      depositorShares,
-      poolsShares,
-      operatorsShares,
-      stakeTogetherShares,
-      accountShares
-    ];
-
-    uint256[5] memory amounts = [
-      stakeTogether.pooledEthByShares(depositorShares),
-      stakeTogether.pooledEthByShares(poolsShares),
-      stakeTogether.pooledEthByShares(operatorsShares),
-      stakeTogether.pooledEthByShares(stakeTogetherShares),
-      stakeTogether.pooledEthByShares(accountShares)
-    ];
-
-    return (shares, amounts);
-  }
-
-  function estimateRewardsFee(
-    uint256 amount
-  ) external view returns (uint256[4] memory, uint256[4] memory) {
-    uint256 sharesAmount = Math.mulDiv(
-      amount,
-      stakeTogether.totalShares(),
-      stakeTogether.totalPooledEther() - amount // Todo: check if + amount
-    );
-
-    uint256 feePercentage = getTotalFee(FeeType.Rewards);
-
-    Fee memory rewardsFee = _fees[uint256(FeeType.Rewards)];
-    require(rewardsFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
-
-    uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
-
-    uint256 poolsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
-      1 ether
-    );
-    uint256 operatorsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
-      1 ether
-    );
-    uint256 stakeTogetherShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
-      1 ether
-    );
-
-    uint256 accountShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
-      1 ether
-    );
-
-    uint256[4] memory shares = [poolsShares, operatorsShares, stakeTogetherShares, accountShares];
-
-    uint256[4] memory amounts = [
-      stakeTogether.pooledEthByShares(poolsShares),
-      stakeTogether.pooledEthByShares(operatorsShares),
-      stakeTogether.pooledEthByShares(stakeTogetherShares),
-      stakeTogether.pooledEthByShares(accountShares)
-    ];
-
-    return (shares, amounts);
-  }
-
-  function estimateBorrowFee(
-    uint256 amount
+  function estimateFeePercentage(
+    FeeType _feeType,
+    uint256 _amount
   ) external view returns (uint256[6] memory, uint256[6] memory) {
+    (uint256 fee, FeeMathType mathType) = getFee(_feeType);
+    require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
+
     uint256 sharesAmount = Math.mulDiv(
-      amount,
+      _amount,
       stakeTogether.totalShares(),
-      stakeTogether.totalPooledEther() - amount
+      stakeTogether.totalPooledEther() - _amount
     );
 
-    uint256 feePercentage = getTotalFee(FeeType.Borrow);
+    uint256 feeShares = Math.mulDiv(sharesAmount, fee, 1 ether);
 
-    Fee memory borrowFee = _fees[uint256(FeeType.Borrow)];
-    require(borrowFee.valueType == FeeValueType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
-
-    uint256 feeShares = Math.mulDiv(sharesAmount, feePercentage, 1 ether);
-
-    uint256 poolsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Pools]),
-      1 ether
-    );
-    uint256 operatorsShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Operators]),
-      1 ether
-    );
-    uint256 stakeTogetherShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.StakeTogether]),
-      1 ether
-    );
-
-    uint256 accountShares = Math.mulDiv(
-      feeShares,
-      getFeeAllocation(FeeType.Entry, feeAddresses[FeeAddressType.Accounts]),
-      1 ether
-    );
-
-    uint256 depositorShares = sharesAmount - feeShares;
-
-    uint256[6] memory shares = [
-      depositorShares,
-      poolsShares,
-      operatorsShares,
-      stakeTogetherShares,
-      accountShares,
-      0
+    Roles[6] memory roles = [
+      Roles.Pools,
+      Roles.Operators,
+      Roles.StakeTogether,
+      Roles.Accounts,
+      Roles.Lenders,
+      Roles.Sender
     ];
 
-    uint256[6] memory amounts = [
-      stakeTogether.pooledEthByShares(depositorShares),
-      stakeTogether.pooledEthByShares(poolsShares),
-      stakeTogether.pooledEthByShares(operatorsShares),
-      stakeTogether.pooledEthByShares(stakeTogetherShares),
-      stakeTogether.pooledEthByShares(accountShares),
-      feePercentage
-    ];
+    uint256[6] memory shares;
+    uint256[6] memory amounts;
+
+    for (uint256 i = 0; i < roles.length - 1; i++) {
+      shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
+    }
+
+    uint256 senderShares = sharesAmount - feeShares;
+    shares[5] = senderShares;
+    amounts[5] = stakeTogether.pooledEthByShares(senderShares);
 
     return (shares, amounts);
+  }
+
+  function estimateFeeFixed(FeeType _feeType) external view returns (uint256[6] memory) {
+    (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
+    require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
+
+    Roles[6] memory roles = [
+      Roles.Pools,
+      Roles.Operators,
+      Roles.StakeTogether,
+      Roles.Accounts,
+      Roles.Lenders,
+      Roles.Sender
+    ];
+
+    uint256[6] memory amounts;
+
+    for (uint256 i = 0; i < roles.length; i++) {
+      amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
+    }
+
+    return amounts;
+  }
+
+  function _transferToStakeTogether() private nonReentrant {
+    payable(stakeTogether).transfer(address(this).balance);
   }
 }

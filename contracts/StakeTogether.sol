@@ -71,7 +71,7 @@ contract StakeTogether is Shares {
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  function _depositBase(address _pool, address _to) internal {
+  function _depositBase(address _to, address _pool) internal {
     require(poolsContract.isPool(_pool), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
@@ -85,26 +85,34 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    (uint256[5] memory shares, ) = feesContract.estimateEntryFee(msg.value);
-
-    require(shares[4] > 0, 'ZERO_DEPOSITOR_SHARES');
-    _mintShares(_to, shares[4]);
-    _mintPoolShares(_to, _pool, shares[4]);
+    (uint256[6] memory shares, ) = feesContract.estimateFeePercentage(Fees.FeeType.EntryStake, msg.value);
 
     if (shares[0] > 0) {
-      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), shares[0]);
-      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Pools), _pool, shares[0]);
+      _mintShares(_pool, shares[0]);
+      _mintPoolShares(_pool, _pool, shares[0]);
     }
 
     if (shares[1] > 0) {
-      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), shares[1]);
-      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.Operators), _pool, shares[1]);
+      _mintShares(feesContract.getFeeAddress(Fees.Roles.Operators), shares[1]);
+      _mintPoolShares(
+        feesContract.getFeeAddress(Fees.Roles.Operators),
+        feesContract.getFeeAddress(Fees.Roles.Operators),
+        shares[1]
+      );
     }
 
     if (shares[2] > 0) {
-      _mintShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), shares[2]);
-      _mintPoolShares(feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether), _pool, shares[2]);
+      _mintShares(feesContract.getFeeAddress(Fees.Roles.StakeTogether), shares[2]);
+      _mintPoolShares(
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        shares[2]
+      );
     }
+
+    require(shares[5] > 0, 'ZERO_SHARES');
+    _mintShares(_to, shares[5]);
+    _mintPoolShares(_to, _pool, shares[5]);
 
     totalDeposited += msg.value;
 
@@ -116,20 +124,20 @@ contract StakeTogether is Shares {
 
     _repayLoan(msg.value);
 
-    emit DepositBase(_to, _pool, msg.value, shares[0], shares[1], shares[2], shares[3], shares[4]);
+    emit DepositBase(_to, _pool, msg.value, shares[0], shares[1], shares[2], shares[3], shares[5]);
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
-    _depositBase(_pool, msg.sender);
+    _depositBase(msg.sender, _pool);
     emit DepositPool(msg.sender, msg.value, _pool, _referral);
   }
 
   function depositDonationPool(
+    address _to,
     address _pool,
-    address _referral,
-    address _to
+    address _referral
   ) external payable nonReentrant whenNotPaused {
-    _depositBase(_pool, _to);
+    _depositBase(_to, _pool);
     emit DepositDonationPool(msg.sender, _to, msg.value, _pool, _referral);
   }
 

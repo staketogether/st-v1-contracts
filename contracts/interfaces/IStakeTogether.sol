@@ -84,7 +84,7 @@ interface IStakeTogether {
     uint256 operatorsShares,
     uint256 stakeTogetherShares,
     uint256 accountShares,
-    uint256 depositorShares
+    uint256 senderShares
   );
   event DepositLimitReached(address indexed sender, uint256 amount);
   event DepositPool(address indexed account, uint256 amount, address delegated, address referral);

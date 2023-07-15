@@ -16,7 +16,6 @@ import './Pools.sol';
 import './Withdrawals.sol';
 import './Loans.sol';
 import './Validators.sol';
-import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {

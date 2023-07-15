@@ -13,7 +13,6 @@ import './StakeTogether.sol';
 import './Router.sol';
 import './Fees.sol';
 import './interfaces/ILoans.sol';
-import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
@@ -237,7 +236,10 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    (uint256[6] memory _shares, uint256[6] memory _amounts) = feesContract.estimateBorrowFee(_amount);
+    (uint256[6] memory _shares, uint256[6] memory _amounts) = feesContract.estimateFeePercentage(
+      Fees.FeeType.Borrow,
+      _amount
+    );
 
     if (_shares[0] > 0) {
       stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _shares[0]);
@@ -245,22 +247,23 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
 
     if (_shares[1] > 0) {
       stakeTogether.mintFeeShares{ value: _amounts[1] }(
-        feesContract.getFeeAddress(IFees.FeeAddressType.Operators),
+        feesContract.getFeeAddress(Fees.Roles.Operators),
         _shares[1]
       );
     }
 
     if (_shares[2] > 0) {
       stakeTogether.mintFeeShares{ value: _amounts[2] }(
-        feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         _shares[2]
       );
     }
 
     payable(address(stakeTogether)).transfer(_amounts[3]);
-    payable(msg.sender).transfer(_amounts[4]);
 
-    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + _amounts[5]);
+    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + _amounts[4]);
+
+    payable(msg.sender).transfer(_amounts[5]);
 
     emit Borrow(msg.sender, _amount);
   }

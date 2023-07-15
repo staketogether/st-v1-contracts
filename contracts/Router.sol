@@ -13,7 +13,7 @@ import './Pools.sol';
 import './interfaces/IRouter.sol';
 import './Validators.sol';
 import './Fees.sol';
-import './interfaces/IFees.sol';
+
 import './interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -260,7 +260,8 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
-    (uint256[5] memory shares, uint256[5] memory amounts) = feesContract.estimateEntryFee(
+    (uint256[6] memory shares, uint256[6] memory amounts) = feesContract.estimateFeePercentage(
+      Fees.FeeType.Rewards,
       _report.profitAmount
     );
 
@@ -274,7 +275,7 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
 
     if (shares[0] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[0] }(
-        feesContract.getFeeAddress(IFees.FeeAddressType.Pools),
+        feesContract.getFeeAddress(Fees.Roles.Pools),
         shares[0]
       );
 
@@ -283,14 +284,14 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
 
     if (shares[1] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[1] }(
-        feesContract.getFeeAddress(IFees.FeeAddressType.Operators),
+        feesContract.getFeeAddress(Fees.Roles.Operators),
         shares[1]
       );
     }
 
     if (shares[2] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[2] }(
-        feesContract.getFeeAddress(IFees.FeeAddressType.StakeTogether),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         shares[2]
       );
     }
