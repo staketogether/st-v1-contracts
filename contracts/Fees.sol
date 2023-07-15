@@ -46,6 +46,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   mapping(Roles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
+  uint256 public apr;
+  uint256 public blocksPerYear = 2102400;
+  uint256 public riskMargin; // 80%
+  uint256 public minAnticipationDays = 30;
+  uint256 public maxAnticipationDays = 365;
+  uint256 public maxAnticipationFeeReduction; // 50%
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, Roles indexed role, uint256 allocation);
@@ -53,6 +59,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
   event SetFeeAddress(Roles indexed role, address indexed account);
+  event SetAPR(uint256 apr);
+
+  event SetRiskMargin(uint256 riskMargin);
+  event SetBlocksPerYear(uint256 blocksPerYear);
+  event SetMinAnticipationDays(uint256 minAnticipationDays);
+  event SetMaxAnticipationDays(uint256 maxAnticipationDays);
 
   constructor() {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -120,10 +132,43 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return fees[_feeType].allocations[_role];
   }
 
+  function setAPR(uint256 _apr) external onlyRole(ADMIN_ROLE) {
+    apr = _apr;
+    emit SetAPR(_apr);
+  }
+
+  function setRiskMargin(uint256 _riskMargin) external onlyRole(ADMIN_ROLE) {
+    riskMargin = _riskMargin;
+    emit SetRiskMargin(_riskMargin);
+  }
+
+  function setBlocksPerYear(uint256 _blocksPerYear) external onlyRole(ADMIN_ROLE) {
+    blocksPerYear = _blocksPerYear;
+    emit SetBlocksPerYear(_blocksPerYear);
+  }
+
+  function setMinAnticipationDays(uint256 _minAnticipationDays) external onlyRole(ADMIN_ROLE) {
+    minAnticipationDays = _minAnticipationDays;
+    emit SetMinAnticipationDays(_minAnticipationDays);
+  }
+
+  function setMaxAnticipationDays(uint256 _maxAnticipationDays) external onlyRole(ADMIN_ROLE) {
+    maxAnticipationDays = _maxAnticipationDays;
+    emit SetMaxAnticipationDays(_maxAnticipationDays);
+  }
+
+  function _transferToStakeTogether() private nonReentrant {
+    payable(stakeTogether).transfer(address(this).balance);
+  }
+
+  /*************
+   * ESTIMATES *
+   *************/
+
   function estimateFeePercentage(
     FeeType _feeType,
     uint256 _amount
-  ) external view returns (uint256[6] memory shares, uint256[6] memory amounts) {
+  ) public view returns (uint256[6] memory shares, uint256[6] memory amounts) {
     (uint256 fee, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
@@ -156,7 +201,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return (shares, amounts);
   }
 
-  function estimateFeeFixed(FeeType _feeType) external view returns (uint256[6] memory amounts) {
+  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[6] memory amounts) {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
@@ -176,7 +221,42 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return amounts;
   }
 
-  function _transferToStakeTogether() private nonReentrant {
-    payable(stakeTogether).transfer(address(this).balance);
+  function estimateAnticipation(
+    uint256 _amount,
+    uint256 _days
+  )
+    public
+    view
+    returns (
+      uint256 anticipatedValue,
+      uint256 riskMarginValue,
+      uint256 reduction,
+      uint256[6] memory shares,
+      uint256[6] memory amounts,
+      uint256 daysBlock
+    )
+  {
+    require(_days >= minAnticipationDays, 'ANTICIPATION_DAYS_BELOW_MIN');
+    require(_days <= maxAnticipationDays, 'ANTICIPATION_DAYS_ABOVE_MAX');
+
+    uint256 proportionalApr = Math.mulDiv(apr, _days, blocksPerYear);
+
+    uint256 anticipation = Math.mulDiv(_amount, proportionalApr, 1 ether);
+    anticipatedValue = Math.mulDiv(anticipation, riskMargin, 1 ether);
+    riskMarginValue = Math.mulDiv(anticipatedValue, riskMargin, 1 ether) - anticipation;
+
+    uint256 maxReduction = Math.mulDiv(maxAnticipationFeeReduction, anticipatedValue, 1 ether);
+    reduction = Math.mulDiv(
+      _days - minAnticipationDays,
+      maxReduction,
+      maxAnticipationDays - minAnticipationDays
+    );
+    anticipatedValue = anticipatedValue - reduction;
+
+    (shares, amounts) = estimateFeePercentage(FeeType.Anticipate, anticipatedValue);
+
+    daysBlock = (_days * blocksPerYear) / 365;
+
+    return (anticipatedValue, riskMarginValue, reduction, shares, amounts, daysBlock);
   }
 }

@@ -32,8 +32,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   struct Lock {
     uint256 amount;
+    uint256 lockedAmount;
     uint256 unlockBlock;
-    // Todo: unlockAmount
   }
 
   event Bootstrap(address sender, uint256 balance);
@@ -279,6 +279,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function lockShares(
     uint256 _sharesAmount,
+    uint256 _lockedAmount,
     uint256 _blocks
   ) external onlyLoans nonReentrant whenNotPaused {
     require(locked[msg.sender].length < maxActiveLocks, 'TOO_MANY_LOCKS');
@@ -289,7 +290,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     lockedShares[msg.sender] += _sharesAmount;
     totalLockedShares += _sharesAmount;
 
-    Lock memory newLock = Lock(_sharesAmount, block.number + _blocks);
+    Lock memory newLock = Lock(_sharesAmount, _lockedAmount, block.number + _blocks);
     locked[msg.sender].push(newLock);
 
     emit SharesLocked(msg.sender, _sharesAmount, newLock.unlockBlock);

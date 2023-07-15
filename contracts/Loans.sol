@@ -311,95 +311,56 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
     emit SetEnableAnticipation(_enable);
   }
 
-  function setMaxAnticipateFraction(uint256 _fraction) external onlyRole(ADMIN_ROLE) {
-    // maxAnticipateFraction = _fraction;
-    // emit SetMaxAnticipateFraction(_fraction);
-  }
-
-  function setMaxAnticipationDays(uint256 _days) external onlyRole(ADMIN_ROLE) {
-    // maxAnticipationDays = _days;
-    // emit SetMaxAnticipationDays(_days);
-  }
-
-  function setAnticipationFeeRange(uint256 _minFee, uint256 _maxFee) external onlyRole(ADMIN_ROLE) {
-    // minAnticipationFee = _minFee;
-    // maxAnticipationFee = _maxFee;
-    // emit SetAnticipationFeeRange(_minFee, _maxFee);
-  }
-
-  function estimateMaxAnticipation(uint256 _amount, uint256 _days) public view returns (uint256) {
-    // require(_days <= maxAnticipationDays, 'EXCEEDS_MAX_DAYS');
-    // uint256 totalApr = Math.mulDiv(_amount, apr, 1 ether);
-    // uint256 dailyApr = Math.mulDiv(totalApr, _days, maxAnticipationDays);
-    // uint256 maxAnticipate = Math.mulDiv(dailyApr, maxAnticipateFraction, 1 ether);
-    // return maxAnticipate;
-  }
-
-  function estimateAnticipationFee(uint256 _amount, uint256 _days) public view returns (uint256) {
-    // require(_days <= maxAnticipationDays, 'EXCEEDS_MAX_DAYS');
-    // uint256 maxAnticipate = estimateMaxAnticipation(_amount, _days);
-    // uint256 feeReduction = Math.mulDiv(
-    //   maxAnticipationFee - minAnticipationFee,
-    //   _days,
-    //   maxAnticipationDays
-    // );
-    // uint256 fee = Math.mulDiv(maxAnticipate, maxAnticipationFee - feeReduction, 1 ether);
-    // return fee;
-  }
-
-  function estimateNetAnticipatedAmount(uint256 _amount, uint256 _days) public view returns (uint256) {
-    // require(_days <= maxAnticipationDays, 'EXCEEDS_MAX_DAYS');
-
-    uint256 maxAnticipate = estimateMaxAnticipation(_amount, _days);
-    uint256 fee = estimateAnticipationFee(_amount, _days);
-
-    uint256 netAmount = maxAnticipate - fee;
-
-    return netAmount;
-  }
-
   function anticipateRewards(uint256 _amount, address _pool, uint256 _days) external nonReentrant {
     require(enableAnticipation, 'ANTICIPATION_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(_days > 0, 'ZERO_DAYS');
-    // require(_days <= maxAnticipationDays, 'EXCEEDS_MAX_DAYS');
 
     uint256 accountBalance = stakeTogether.balanceOf(msg.sender);
-    require(accountBalance > 0, 'ZERO_ST_BALANCE');
+    require(accountBalance >= _amount, 'INSUFFICIENT_USER_BALANCE');
 
-    uint256 maxAnticipate = estimateMaxAnticipation(accountBalance, _days);
-    require(_amount <= maxAnticipate, 'AMOUNT_EXCEEDS_MAX_ANTICIPATE');
+    (
+      uint256 anticipatedValue,
+      uint256 riskMarginValue,
+      uint256 reduction,
+      uint256[6] memory anticipationShares,
+      uint256[6] memory anticipationAmounts,
+      uint256 daysBlock
+    ) = feesContract.estimateAnticipation(_amount, _days);
 
-    uint256 fee = estimateAnticipationFee(_amount, _days);
-    require(fee < _amount, 'FEE_EXCEEDS_AMOUNT');
+    require(address(this).balance >= anticipatedValue, 'INSUFFICIENT_CONTRACT_BALANCE');
 
-    // uint256 stakeTogetherShare = Math.mulDiv(fee, stakeTogetherAnticipateFee, 1 ether);
-    // uint256 poolShare = Math.mulDiv(fee, poolAnticipateFee, 1 ether);
-    // uint256 usersShare = fee - stakeTogetherShare - poolShare;
+    uint256 sharesToLock = stakeTogether.sharesByPooledEth(riskMarginValue);
 
-    uint256 netAmount = _amount - fee;
-    require(netAmount > 0, 'NET_AMOUNT_ZERO_OR_NEGATIVE');
+    stakeTogether.lockShares(sharesToLock, riskMarginValue, daysBlock);
 
-    require(address(this).balance >= netAmount, 'INSUFFICIENT_CONTRACT_BALANCE');
+    if (anticipationShares[0] > 0) {
+      stakeTogether.mintFeeShares(_pool, anticipationShares[0]);
+    }
 
-    uint256 sharesToLock = stakeTogether.sharesByPooledEth(_amount);
+    if (anticipationShares[1] > 0) {
+      stakeTogether.mintFeeShares(
+        feesContract.getFeeAddress(Fees.Roles.Operators),
+        anticipationShares[1]
+      );
+    }
 
-    // Todo: check twice money
+    if (anticipationShares[2] > 0) {
+      stakeTogether.mintFeeShares(
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        anticipationShares[2]
+      );
+    }
 
-    uint256 blocks = (_days * 24 * 60 * 60) / 12; // Eth Block Time = 12
+    payable(address(stakeTogether)).transfer(anticipationAmounts[3]);
 
-    stakeTogether.lockShares(sharesToLock, blocks);
+    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + anticipationAmounts[4]);
 
-    payable(msg.sender).transfer(netAmount);
+    require(riskMarginValue > 0, 'ZERO_VALUE');
+    payable(msg.sender).transfer(riskMarginValue);
 
-    // _mint(stakeTogether.stakeTogetherFeeAddress(), stakeTogetherShare);
-    // _mint(_pool, poolShare);
-    // _mint(msg.sender, usersShare);
-
-    emit AnticipateRewards(msg.sender, _amount, netAmount, fee);
+    emit AnticipateRewards(msg.sender, _amount, anticipatedValue, reduction);
   }
-
-  // Todo: devolute antecipated rewards
 
   /***************
    ** REDEPOSIT **
