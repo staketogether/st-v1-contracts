@@ -60,13 +60,13 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   }
 
   receive() external payable whenNotPaused {
-    _transferToStakeTogether();
     emit ReceiveEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
   fallback() external payable whenNotPaused {
-    _transferToStakeTogether();
     emit FallbackEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -123,7 +123,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   function estimateFeePercentage(
     FeeType _feeType,
     uint256 _amount
-  ) external view returns (uint256[6] memory, uint256[6] memory) {
+  ) external view returns (uint256[6] memory shares, uint256[6] memory amounts) {
     (uint256 fee, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
@@ -144,9 +144,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
       Roles.Sender
     ];
 
-    uint256[6] memory shares;
-    uint256[6] memory amounts;
-
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
       amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
@@ -155,11 +152,9 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     uint256 senderShares = sharesAmount - feeShares;
     shares[5] = senderShares;
     amounts[5] = stakeTogether.pooledEthByShares(senderShares);
-
-    return (shares, amounts);
   }
 
-  function estimateFeeFixed(FeeType _feeType) external view returns (uint256[6] memory) {
+  function estimateFeeFixed(FeeType _feeType) external view returns (uint256[6] memory amounts) {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
@@ -172,13 +167,9 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
       Roles.Sender
     ];
 
-    uint256[6] memory amounts;
-
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
-
-    return amounts;
   }
 
   function _transferToStakeTogether() private nonReentrant {
