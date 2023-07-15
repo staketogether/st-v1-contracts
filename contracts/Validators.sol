@@ -7,11 +7,10 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import './StakeTogether.sol';
 import './Router.sol';
-import './interfaces/IValidators.sol';
 import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
+contract Validators is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
@@ -22,6 +21,22 @@ contract Validators is IValidators, AccessControl, Pausable, ReentrancyGuard {
   IDepositContract public depositContract;
 
   bool public enableBorrow = true;
+
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
+  event SetStakeTogether(address stakeTogether);
+  event AddValidatorOracle(address indexed account);
+  event RemoveValidatorOracle(address indexed account);
+  event CreateValidator(
+    address indexed creator,
+    uint256 indexed amount,
+    bytes publicKey,
+    bytes withdrawalCredentials,
+    bytes signature,
+    bytes32 depositDataRoot
+  );
+  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
+  event SetValidatorSize(uint256 newValidatorSize);
 
   constructor(address _routerContract, address _depositContract) {
     routerContract = Router(payable(_routerContract));

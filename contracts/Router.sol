@@ -10,14 +10,11 @@ import './StakeTogether.sol';
 import './Withdrawals.sol';
 import './Loans.sol';
 import './Pools.sol';
-import './interfaces/IRouter.sol';
 import './Validators.sol';
 import './Fees.sol';
 
-import './interfaces/IStakeTogether.sol';
-
 /// @custom:security-contact security@staketogether.app
-contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
+contract Router is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
   bytes32 public constant ORACLE_REPORT_SENTINEL_ROLE = keccak256('ORACLE_REPORT_SENTINEL_ROLE');
@@ -29,6 +26,61 @@ contract Router is IRouter, AccessControl, Pausable, ReentrancyGuard {
   Loans public loansContract;
   Pools public poolsContract;
   Validators public validatorsContract;
+
+  struct ValidatorOracle {
+    address oracle;
+    bytes[] validators;
+  }
+
+  struct Report {
+    uint256 blockNumber;
+    uint256 epoch;
+    uint256 profitAmount;
+    uint256 lossAmount; // Penalty or Slashing
+    uint256 extraAmount; // Extra money on this contract
+    bytes32 poolsMerkleRoot; // Todo: missing merkle das pools
+    ValidatorOracle[] validatorsToExit; // Validators that should exit
+    bytes[] exitedValidators; // Validators that already exited
+    uint256 restExitAmount; // Rest withdrawal validator amount
+    uint256 withdrawAmount; // Amount of ETH to send to WETH contract
+    uint256 apr; // Protocol APR for lending calculation
+  }
+
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
+  event SetStakeTogether(address stakeTogether);
+  event AddReportOracle(address indexed oracle);
+  event RemoveReportOracle(address indexed oracle);
+  event SetMinReportOracleQuorum(uint256 minQuorum);
+  event SetReportOracleQuorum(uint256 quorum);
+  event UpdateReportOracleQuorum(uint256 quorum);
+  event SetReportOraclePenalizeLimit(uint256 newLimit);
+  event PenalizeReportOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool blacklisted);
+  event RewardReportOracle(address indexed oracle, uint256 penalties, bytes32 hash);
+  event BlacklistReportOracle(address indexed oracle, uint256 penalties);
+  event BlacklistReportOracleManually(address indexed oracle, uint256 penalties);
+  event UnBlacklistReportOracle(address indexed oracle, uint256 penalties);
+  event SetBunkerMode(bool bunkerMode);
+  event InvalidateConsensus(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  event SubmitReport(
+    address indexed oracle,
+    uint256 indexed blockNumber,
+    uint256 indexed epoch,
+    bytes32 hash
+  );
+  event ConsensusApprove(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  event ConsensusNotReached(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  event ExecuteReport(address indexed oracle, bytes32 hash, Report report);
+  event SetReportBlockFrequency(uint256 frequency);
+  event SetReportBlockNumber(uint256 blockNumber);
+  event SetReportEpochFrequency(uint256 epoch);
+  event SetReportEpochNumber(uint256 epochNumber);
+  event SetMaxValidatorsToExit(uint256 maxValidatorsToExit);
+  event SetMinBlockBeforeExecution(uint256 minBlocksBeforeExecution);
+  event SetLastConsensusEpoch(uint256 epoch);
+  event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
+  event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
+  event SetMaxApr(uint256 maxApr);
 
   constructor(
     address _withdrawContract,

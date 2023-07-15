@@ -7,17 +7,29 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import './interfaces/IPools.sol';
 import './Router.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Pools is IPools, AccessControl, Pausable, ReentrancyGuard {
+contract Pools is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
   StakeTogether public stakeTogether;
   Router public distribution;
+
+  event ReceiveEther(address indexed sender, uint amount);
+  event FallbackEther(address indexed sender, uint amount);
+  event SetStakeTogether(address stakeTogether);
+  event SetRouter(address router);
+  event AddPool(address account);
+  event RemovePool(address account);
+  event SetMaxPools(uint256 maxPools);
+  event SetPermissionLessAddPool(bool permissionLessAddPool);
+  event AddRewardsMerkleRoot(uint256 indexed epoch, bytes32 merkleRoot);
+  event ClaimPoolRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
+  event ClaimPoolRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
+  event SetMaxBatchSize(uint256 maxBatchSize);
 
   constructor() payable {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);

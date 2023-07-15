@@ -9,7 +9,6 @@ import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
-import './interfaces/IStakeTogether.sol';
 import './Router.sol';
 import './Fees.sol';
 import './Pools.sol';
@@ -18,7 +17,7 @@ import './Loans.sol';
 import './Validators.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
+abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   Router public routerContract;
@@ -30,6 +29,42 @@ abstract contract Shares is IStakeTogether, AccessControl, Pausable, ReentrancyG
 
   uint256 public beaconBalance = 0;
   uint256 public loanBalance = 0;
+
+  struct Lock {
+    uint256 amount;
+    uint256 unlockBlock;
+    // Todo: unlockAmount
+  }
+
+  event Bootstrap(address sender, uint256 balance);
+  event RepayLoan(uint256 amount);
+  event SetBeaconBalance(uint256 amount);
+  event SetLoanBalance(uint256 amount);
+  event MintShares(address indexed to, uint256 sharesAmount);
+  event BurnShares(address indexed account, uint256 sharesAmount);
+  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event SetMaxActiveLocks(uint256 amount);
+  event SharesLocked(address indexed account, uint256 amount, uint256 unlockBlock);
+  event SharesUnlocked(address indexed account, uint256 amount);
+  event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
+  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
+  event TransferPoolShares(
+    address indexed from,
+    address indexed to,
+    address indexed pool,
+    uint256 sharesAmount
+  );
+  event TransferDelegationShares(
+    address indexed from,
+    address indexed to,
+    address indexed pool,
+    uint256 sharesAmount
+  );
+  event MintFee(address indexed to, uint256 sharesAmount);
+  event MintPenalty(uint256 amount);
+  event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
+  event MintRewardsAccounts(address indexed sender, uint amount);
+  event MintRewardsAccountsFallback(address indexed sender, uint amount);
 
   modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');

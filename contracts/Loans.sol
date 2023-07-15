@@ -12,10 +12,9 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Router.sol';
 import './Fees.sol';
-import './interfaces/ILoans.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
   bytes32 public constant ORACLE_REWARDS_ROLE = keccak256('ORACLE_REWARDS_ROLE');
@@ -23,6 +22,29 @@ contract Loans is ILoans, AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20
   StakeTogether public stakeTogether;
   Router public routerContract;
   Fees public feesContract;
+
+  event MintRewardsAccounts(address indexed sender, uint amount);
+  event MintRewardsAccountsFallback(address indexed sender, uint amount);
+  event SetStakeTogether(address stakeTogether);
+  event MintShares(address indexed to, uint256 sharesAmount);
+  event BurnShares(address indexed account, uint256 sharesAmount);
+  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event SetEnableBorrow(bool enable);
+  event AddLiquidity(address indexed user, uint256 amount);
+  event RemoveLiquidity(address indexed user, uint256 amount);
+  event Borrow(address indexed user, uint256 amount);
+  event RepayLoan(address indexed user, uint256 amount);
+  event SetEnableAnticipation(bool enable);
+  event SetApr(uint256 epoch, uint256 apr);
+  event AnticipateRewards(
+    address indexed user,
+    uint256 anticipatedAmount,
+    uint256 netAmount,
+    uint256 fee
+  );
+  event SetMaxBatchSize(uint256 size);
+  event ReDeposit(address indexed user, uint256 amount);
+  event ReDepositBatch(address indexed user, uint256[] amounts);
 
   constructor(
     address _routerContract,
