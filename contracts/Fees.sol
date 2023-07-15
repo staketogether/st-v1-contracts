@@ -152,6 +152,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     uint256 senderShares = sharesAmount - feeShares;
     shares[5] = senderShares;
     amounts[5] = stakeTogether.pooledEthByShares(senderShares);
+
+    return (shares, amounts);
   }
 
   function estimateFeeFixed(FeeType _feeType) external view returns (uint256[6] memory amounts) {
@@ -170,6 +172,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
+
+    return amounts;
   }
 
   function _transferToStakeTogether() private nonReentrant {
