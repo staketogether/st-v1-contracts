@@ -126,8 +126,6 @@ contract StakeTogether is Shares {
 
     (uint256[6] memory shares, ) = feesContract.estimateFeePercentage(Fees.FeeType.EntryStake, msg.value);
 
-    address stakeTogetherFeeAddress = feesContract.getFeeAddress(Fees.Roles.StakeTogether);
-
     if (shares[0] > 0) {
       mintFeeShares(_pool, _pool, shares[0]);
     }

@@ -331,8 +331,8 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
       uint256 anticipatedValue,
       uint256 riskMarginValue,
       uint256 reduction,
-      uint256[6] memory anticipationShares,
-      uint256[6] memory anticipationAmounts,
+      uint256[6] memory _shares,
+      uint256[6] memory _amounts,
       uint256 daysBlock
     ) = feesContract.estimateAnticipation(_amount, _days);
 
@@ -342,27 +342,35 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
 
     stakeTogether.lockShares(sharesToLock, riskMarginValue, daysBlock);
 
-    if (anticipationShares[0] > 0) {
-      stakeTogether.mintFeeShares(_pool, anticipationShares[0]);
+    if (_shares[0] > 0) {
+      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
     }
 
-    if (anticipationShares[1] > 0) {
-      stakeTogether.mintFeeShares(
+    if (_shares[1] > 0) {
+      stakeTogether.mintFeeShares{ value: _amounts[1] }(
         feesContract.getFeeAddress(Fees.Roles.Operators),
-        anticipationShares[1]
-      );
-    }
-
-    if (anticipationShares[2] > 0) {
-      stakeTogether.mintFeeShares(
         feesContract.getFeeAddress(Fees.Roles.StakeTogether),
-        anticipationShares[2]
+        _shares[1]
       );
     }
 
-    payable(address(stakeTogether)).transfer(anticipationAmounts[3]);
+    if (_shares[2] > 0) {
+      stakeTogether.mintFeeShares{ value: _amounts[2] }(
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        _shares[2]
+      );
+    }
 
-    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + anticipationAmounts[4]);
+    if (_shares[3] > 0) {
+      stakeTogether.mintFeeShares(
+        feesContract.getFeeAddress(Fees.Roles.Accounts),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        _shares[3]
+      );
+    }
+
+    stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + _amounts[4]);
 
     require(riskMarginValue > 0, 'ZERO_VALUE');
     payable(msg.sender).transfer(riskMarginValue);
