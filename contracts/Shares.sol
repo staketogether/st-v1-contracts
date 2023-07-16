@@ -60,7 +60,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address indexed pool,
     uint256 sharesAmount
   );
-  event MintFee(address indexed to, uint256 sharesAmount);
+  event MintFee(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintPenalty(uint256 amount);
   event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
   event MintRewardsAccounts(address indexed sender, uint amount);
@@ -468,14 +468,18 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
    ** REWARDS **
    *****************/
 
-  function mintFeeShares(address _address, uint256 _sharesAmount) external payable nonReentrant {
+  function mintFeeShares(
+    address _address,
+    address _pool,
+    uint256 _sharesAmount
+  ) public payable nonReentrant {
     require(
       msg.sender == address(routerContract) || msg.sender == address(loansContract),
       'ONLY_ROUTER_OR_LOANS_CONTRACT'
     );
     _mintShares(_address, _sharesAmount);
-    _mintPoolShares(_address, _address, _sharesAmount);
-    emit MintFee(_address, _sharesAmount);
+    _mintPoolShares(_address, _pool, _sharesAmount);
+    emit MintFee(_address, _pool, _sharesAmount);
   }
 
   function mintPenalty(uint256 _lossAmount) external nonReentrant onlyRouter {

@@ -126,32 +126,46 @@ contract StakeTogether is Shares {
 
     (uint256[6] memory shares, ) = feesContract.estimateFeePercentage(Fees.FeeType.EntryStake, msg.value);
 
+    address stakeTogetherFeeAddress = feesContract.getFeeAddress(Fees.Roles.StakeTogether);
+
     if (shares[0] > 0) {
-      _mintShares(_pool, shares[0]);
-      _mintPoolShares(_pool, _pool, shares[0]);
+      mintFeeShares(msg.sender, _pool, shares[0]);
     }
 
     if (shares[1] > 0) {
-      _mintShares(feesContract.getFeeAddress(Fees.Roles.Operators), shares[1]);
-      _mintPoolShares(
+      mintFeeShares(
         feesContract.getFeeAddress(Fees.Roles.Operators),
-        feesContract.getFeeAddress(Fees.Roles.Operators),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         shares[1]
       );
     }
 
     if (shares[2] > 0) {
-      _mintShares(feesContract.getFeeAddress(Fees.Roles.StakeTogether), shares[2]);
-      _mintPoolShares(
+      mintFeeShares(
         feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         shares[2]
       );
     }
 
+    if (shares[3] > 0) {
+      mintFeeShares(
+        feesContract.getFeeAddress(Fees.Roles.Accounts),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        shares[3]
+      );
+    }
+
+    if (shares[4] > 0) {
+      mintFeeShares(
+        feesContract.getFeeAddress(Fees.Roles.Lenders),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        shares[4]
+      );
+    }
+
     require(shares[5] > 0, 'ZERO_SHARES');
-    _mintShares(_to, shares[5]);
-    _mintPoolShares(_to, _pool, shares[5]);
+    mintFeeShares(_to, _pool, shares[5]);
 
     totalDeposited += msg.value;
 

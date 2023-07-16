@@ -328,6 +328,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     if (shares[0] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[0] }(
         feesContract.getFeeAddress(Fees.Roles.Pools),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         shares[0]
       );
 
@@ -337,12 +338,14 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     if (shares[1] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[1] }(
         feesContract.getFeeAddress(Fees.Roles.Operators),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         shares[1]
       );
     }
 
     if (shares[2] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[2] }(
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         shares[2]
       );
