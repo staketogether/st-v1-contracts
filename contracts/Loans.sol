@@ -264,12 +264,13 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
     );
 
     if (_shares[0] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _shares[0]);
+      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
     }
 
     if (_shares[1] > 0) {
       stakeTogether.mintFeeShares{ value: _amounts[1] }(
         feesContract.getFeeAddress(Fees.Roles.Operators),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         _shares[1]
       );
     }
@@ -277,11 +278,18 @@ contract Loans is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable
     if (_shares[2] > 0) {
       stakeTogether.mintFeeShares{ value: _amounts[2] }(
         feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
         _shares[2]
       );
     }
 
-    payable(address(stakeTogether)).transfer(_amounts[3]);
+    if (_shares[3] > 0) {
+      stakeTogether.mintFeeShares(
+        feesContract.getFeeAddress(Fees.Roles.Accounts),
+        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        _shares[3]
+      );
+    }
 
     stakeTogether.setLoanBalance(stakeTogether.loanBalance() + _amount + _amounts[4]);
 

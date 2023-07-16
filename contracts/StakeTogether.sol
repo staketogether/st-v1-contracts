@@ -129,7 +129,7 @@ contract StakeTogether is Shares {
     address stakeTogetherFeeAddress = feesContract.getFeeAddress(Fees.Roles.StakeTogether);
 
     if (shares[0] > 0) {
-      mintFeeShares(msg.sender, _pool, shares[0]);
+      mintFeeShares(_pool, _pool, shares[0]);
     }
 
     if (shares[1] > 0) {
