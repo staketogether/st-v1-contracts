@@ -84,13 +84,13 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
   constructor(
     address _withdrawContract,
-    address _loanContract,
+    address _withdrawalsLoanContract,
     address _airdropContract,
     address _validatorsContract,
     address _feesContract
   ) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
-    withdrawalsLoanContract = WithdrawalsLoan(payable(_loanContract));
+    withdrawalsLoanContract = WithdrawalsLoan(payable(_withdrawalsLoanContract));
     airdropContract = Airdrop(payable(_airdropContract));
     validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));

@@ -24,6 +24,8 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   event MintRewardsAccounts(address indexed sender, uint amount);
   event MintRewardsAccountsFallback(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
+  event SetRouterContract(address routerContract);
+  event SetFeesContract(address feesContract);
   event MintShares(address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
@@ -33,13 +35,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   event WithdrawLoan(address indexed user, uint256 amount);
   event RepayLoan(address indexed user, uint256 amount);
 
-  constructor(
-    address _routerContract,
-    address _feesContract
-  ) ERC20('ST Withdrawals Loan Ether', 'wlETH') ERC20Permit('ST Withdrawals Loan Ether') {
-    routerContract = Router(payable(_routerContract));
-    feesContract = Fees(payable(_feesContract));
-
+  constructor() ERC20('ST Withdrawals Loan Ether', 'wlETH') ERC20Permit('ST Withdrawals Loan Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
@@ -69,6 +65,18 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   modifier onlyStakeTogether() {
     require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
     _;
+  }
+
+  function setRouterContract(address _routerContract) external onlyStakeTogether {
+    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    routerContract = Router(payable(_routerContract));
+    emit SetRouterContract(_routerContract);
+  }
+
+  function setFeesContract(address _feesContract) external onlyStakeTogether {
+    require(_feesContract != address(0), 'FEES_CONTRACT_ALREADY_SET');
+    feesContract = Fees(payable(_feesContract));
+    emit SetFeesContract(_feesContract);
   }
 
   /************
@@ -198,7 +206,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _account, address _spender, uint256 _amount) internal {
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
