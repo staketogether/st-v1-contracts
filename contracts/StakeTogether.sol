@@ -47,14 +47,14 @@ contract StakeTogether is Shares {
   constructor(
     address _routerContract,
     address _feesContract,
-    address _poolsContract,
+    address _airdropContract,
     address _withdrawalsContract,
     address _withdrawalsLoanContract,
     address _validatorsContract
   ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));
-    poolsContract = Pools(payable(_poolsContract));
+    airdropContract = Airdrop(payable(_airdropContract));
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     withdrawalsLoanContract = WithdrawalsLoan(payable(_withdrawalsLoanContract));
     validatorsContract = Validators(payable(_validatorsContract));
@@ -115,7 +115,7 @@ contract StakeTogether is Shares {
   uint256 public totalWithdrawn;
 
   function _depositBase(address _to, address _pool) internal {
-    require(poolsContract.isPool(_pool), 'NON_POOL_DELEGATE');
+    require(airdropContract.isPool(_pool), 'NON_POOL_DELEGATE');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
 

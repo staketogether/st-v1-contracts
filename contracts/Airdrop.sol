@@ -11,9 +11,7 @@ import './Router.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Pools is AccessControl, Pausable, ReentrancyGuard {
-  // Todo: Rename Airdrop
-
+contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
@@ -28,9 +26,16 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard {
   event RemovePool(address account);
   event SetMaxPools(uint256 maxPools);
   event SetPermissionLessAddPool(bool permissionLessAddPool);
-  event AddRewardsMerkleRoot(uint256 indexed epoch, bytes32 merkleRoot);
-  event ClaimPoolRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
-  event ClaimPoolRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
+  event AddMerkleRoots(
+    uint256 indexed epoch,
+    bytes32 poolsRoot,
+    bytes32 operatorsRoot,
+    bytes32 stakeRoot,
+    bytes32 withdrawalsRoot,
+    bytes32 rewardsRoot
+  );
+  event ClaimRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
+  event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
   event SetMaxBatchSize(uint256 maxBatchSize);
 
   constructor() payable {
@@ -80,9 +85,11 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard {
     payable(address(stakeTogether)).transfer(address(this).balance);
   }
 
-  /***********************
+  /***********
    ** POOLS **
-   ***********************/
+   ***********/
+
+  // Todo:
 
   uint256 public maxPools = 100000;
   uint256 public poolCount = 0;
@@ -135,41 +142,77 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard {
     return pools[_pool];
   }
 
-  /***********************
-   ** REWARDS **
-   ***********************/
+  /***************
+   ** OPERATORS **
+   ***************/
 
-  mapping(uint256 => bytes32) public rewardsMerkleRoots;
-  mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
-  uint256 public maxBatchSize = 100;
+  // Todo: implement operators
 
-  function addRewardsMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyRouter {
-    require(rewardsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
-    rewardsMerkleRoots[_epoch] = merkleRoot;
-    emit AddRewardsMerkleRoot(_epoch, merkleRoot);
+  /**************
+   ** AIRDROPS **
+   **************/
+
+  event AddAirdropMerkleRoot(AirdropType indexed airdropType, uint256 indexed epoch, bytes32 merkleRoot);
+  event ClaimAirdrop(
+    AirdropType indexed airdropType,
+    uint256 indexed epoch,
+    address indexed account,
+    uint256 sharesAmount
+  );
+  event ClaimAirdropBatch(
+    address indexed claimer,
+    AirdropType indexed airdropType,
+    uint256 numClaims,
+    uint256 totalAmount
+  );
+
+  enum AirdropType {
+    Pools,
+    Operators,
+    Stakes,
+    Withdrawals,
+    Rewards
   }
 
-  function claimPoolRewards(
+  mapping(AirdropType => mapping(uint256 => bytes32)) public airdropsMerkleRoots;
+  mapping(AirdropType => mapping(uint256 => mapping(uint256 => uint256))) private claimedBitMap;
+  uint256 public maxBatchSize = 100;
+
+  function addAirdropMerkleRoot(
+    AirdropType _type,
+    uint256 _epoch,
+    bytes32 merkleRoot
+  ) external onlyRouter {
+    require(airdropsMerkleRoots[_type][_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
+    airdropsMerkleRoots[_type][_epoch] = merkleRoot;
+    emit AddAirdropMerkleRoot(_type, _epoch, merkleRoot);
+  }
+
+  function claimAirdrop(
+    AirdropType _type,
     uint256 _epoch,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) public nonReentrant whenNotPaused {
-    require(rewardsMerkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
+    require(airdropsMerkleRoots[_type][_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
     require(_account != address(0), 'INVALID_ADDRESS');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
-    if (isRewardsClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
+    if (isAirdropClaimed(_type, _epoch, _account)) revert('ALREADY_CLAIMED');
 
     bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
-    if (!MerkleProof.verify(merkleProof, rewardsMerkleRoots[_epoch], leaf))
+    if (!MerkleProof.verify(merkleProof, airdropsMerkleRoots[_type][_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
-    _setRewardsClaimed(_epoch, _account);
-    stakeTogether.claimPoolRewards(_account, _sharesAmount);
-    emit ClaimPoolRewards(_epoch, _account, _sharesAmount);
+    _setAirdropClaimed(_type, _epoch, _account);
+    // Todo: implement each type
+
+    stakeTogether.claimRewards(_account, _sharesAmount);
+    emit ClaimAirdrop(_type, _epoch, _account, _sharesAmount);
   }
 
-  function claimPoolRewardsBatch(
+  function claimAirdropBatch(
+    AirdropType _type,
     uint256[] calldata _epochs,
     address[] calldata _accounts,
     uint256[] calldata _sharesAmounts,
@@ -184,33 +227,32 @@ contract Pools is AccessControl, Pausable, ReentrancyGuard {
 
     uint256 totalAmount = 0;
     for (uint256 i = 0; i < length; i++) {
-      claimPoolRewards(_epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
+      claimAirdrop(_type, _epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
       totalAmount += _sharesAmounts[i];
     }
 
-    emit ClaimPoolRewardsBatch(msg.sender, length, totalAmount);
+    emit ClaimAirdropBatch(msg.sender, _type, length, totalAmount);
   }
 
-  function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
-    maxBatchSize = _maxBatchSize;
-    emit SetMaxBatchSize(_maxBatchSize);
-  }
-
-  function isRewardsClaimed(uint256 _epoch, address _account) public view returns (bool) {
-    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
+  function isAirdropClaimed(
+    AirdropType _type,
+    uint256 _epoch,
+    address _account
+  ) public view returns (bool) {
+    uint256 index = uint256(keccak256(abi.encodePacked(_type, _epoch, _account)));
     uint256 claimedWordIndex = index / 256;
     uint256 claimedBitIndex = index % 256;
-    uint256 claimedWord = claimedBitMap[_epoch][claimedWordIndex];
+    uint256 claimedWord = claimedBitMap[_type][_epoch][claimedWordIndex];
     uint256 mask = (1 << claimedBitIndex);
     return claimedWord & mask == mask;
   }
 
-  function _setRewardsClaimed(uint256 _epoch, address _account) private {
-    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
+  function _setAirdropClaimed(AirdropType _type, uint256 _epoch, address _account) private {
+    uint256 index = uint256(keccak256(abi.encodePacked(_type, _epoch, _account)));
     uint256 claimedWordIndex = index / 256;
     uint256 claimedBitIndex = index % 256;
-    claimedBitMap[_epoch][claimedWordIndex] =
-      claimedBitMap[_epoch][claimedWordIndex] |
+    claimedBitMap[_type][_epoch][claimedWordIndex] =
+      claimedBitMap[_type][_epoch][claimedWordIndex] |
       (1 << claimedBitIndex);
   }
 }

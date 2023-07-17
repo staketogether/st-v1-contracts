@@ -9,7 +9,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Withdrawals.sol';
 import './WithdrawalsLoan.sol';
-import './Pools.sol';
+import './Airdrop.sol';
 import './Validators.sol';
 import './Fees.sol';
 
@@ -24,7 +24,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
   Fees public feesContract;
   Withdrawals public withdrawalsContract;
   WithdrawalsLoan public withdrawalsLoanContract;
-  Pools public poolsContract;
+  Airdrop public airdropContract;
   Validators public validatorsContract;
 
   struct ValidatorOracle {
@@ -85,13 +85,13 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
   constructor(
     address _withdrawContract,
     address _loanContract,
-    address _poolContract,
+    address _airdropContract,
     address _validatorsContract,
     address _feesContract
   ) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     withdrawalsLoanContract = WithdrawalsLoan(payable(_loanContract));
-    poolsContract = Pools(payable(_poolContract));
+    airdropContract = Airdrop(payable(_airdropContract));
     validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));
 
@@ -332,7 +332,11 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
         shares[0]
       );
 
-      poolsContract.addRewardsMerkleRoot(_report.epoch, _report.poolsMerkleRoot);
+      airdropContract.addAirdropMerkleRoot(
+        Airdrop.AirdropType.Pools,
+        _report.epoch,
+        _report.poolsMerkleRoot
+      );
     }
 
     if (shares[1] > 0) {

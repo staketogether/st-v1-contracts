@@ -11,7 +11,7 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './Router.sol';
 import './Fees.sol';
-import './Pools.sol';
+import './Airdrop.sol';
 import './Withdrawals.sol';
 import './WithdrawalsLoan.sol';
 import './Validators.sol';
@@ -22,7 +22,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   Router public routerContract;
   Fees public feesContract;
-  Pools public poolsContract;
+  Airdrop public airdropContract;
   Withdrawals public withdrawalsContract;
   WithdrawalsLoan public withdrawalsLoanContract;
   Validators public validatorsContract;
@@ -69,7 +69,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   );
   event MintFeeShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintPenalty(uint256 amount);
-  event ClaimPoolRewards(address indexed account, uint256 sharesAmount);
+  event ClaimRewards(address indexed account, uint256 sharesAmount);
   event MintRewardsAccounts(address indexed sender, uint amount);
   event MintRewardsAccountsFallback(address indexed sender, uint amount);
 
@@ -78,8 +78,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _;
   }
 
-  modifier onlyPools() {
-    require(msg.sender == address(poolsContract), 'ONLY_POOL_CONTRACT');
+  modifier onlyAirdrop() {
+    require(msg.sender == address(airdropContract), 'ONLY_AIRDROP_CONTRACT');
     _;
   }
 
@@ -341,7 +341,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(poolsContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(airdropContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
     require(_sharesAmount > 0, 'MINT_INVALID_AMOUNT');
 
@@ -359,7 +359,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'BURN_to_ZERO_ADDR');
-    require(poolsContract.isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
+    require(airdropContract.isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
     require(delegationsShares[_to][_pool] >= _sharesAmount, 'BURN_INVALID_AMOUNT');
     require(_sharesAmount > 0, 'BURN_INVALID_AMOUNT');
 
@@ -392,7 +392,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_fromPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(this), 'ST_ADDR');
-    require(poolsContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
+    require(airdropContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
 
@@ -462,12 +462,12 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit MintPenalty(_lossAmount);
   }
 
-  function claimPoolRewards(
+  function claimRewards(
     address _account,
     uint256 _sharesAmount
-  ) external nonReentrant whenNotPaused onlyPools {
-    _transferShares(address(poolsContract), _account, _sharesAmount);
-    _transferPoolShares(address(poolsContract), address(poolsContract), _account, _sharesAmount);
-    emit ClaimPoolRewards(_account, _sharesAmount);
+  ) external nonReentrant whenNotPaused onlyAirdrop {
+    _transferShares(address(airdropContract), _account, _sharesAmount);
+    _transferPoolShares(address(airdropContract), address(airdropContract), _account, _sharesAmount);
+    emit ClaimRewards(_account, _sharesAmount);
   }
 }
