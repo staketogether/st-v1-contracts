@@ -117,18 +117,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit SetWithdrawalsLoanBalance(_amount);
   }
 
-  function _bootstrap() internal {
-    address stakeTogether = address(this);
-    uint256 balance = stakeTogether.balance;
-
-    require(balance > 0, 'NON_ZERO_VALUE');
-
-    emit Bootstrap(msg.sender, balance);
-
-    _mintShares(stakeTogether, balance);
-    _mintPoolShares(stakeTogether, stakeTogether, balance);
-  }
-
   /************
    ** SHARES **
    ************/

@@ -48,6 +48,8 @@ contract StakeTogether is Shares {
     bytes32 depositDataRoot
   );
 
+  bool private bootstrapped = false;
+
   constructor(
     address _routerContract,
     address _feesContract,
@@ -67,11 +69,24 @@ contract StakeTogether is Shares {
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  function bootstrap() external {
-    require(hasRole(ADMIN_ROLE, msg.sender), 'MUST_BE_ADMIN');
-    require(!isPool(address(this)), 'Already bootstrapped');
-    this.addPool(address(this));
-    _bootstrap();
+  function bootstrap() external nonReentrant {
+    require(!bootstrapped, 'ALREADY_BOOTSTRAPPED');
+    require(hasRole(ADMIN_ROLE, msg.sender), 'ONLY_ADMIN');
+    require(!isPool(address(this)), 'ALREADY_EXISTS_POOL');
+
+    bootstrapped = true;
+
+    address stakeTogether = address(this);
+    uint256 balance = stakeTogether.balance;
+
+    this.addPool(stakeTogether);
+
+    require(balance > 0, 'NON_ZERO_VALUE');
+
+    emit Bootstrap(msg.sender, balance);
+
+    _mintShares(stakeTogether, balance);
+    _mintPoolShares(stakeTogether, stakeTogether, balance);
   }
 
   /*********************

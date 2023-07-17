@@ -156,8 +156,7 @@ async function deployStakeTogether(
   const WithdrawalsLoan = await ethers.getContractAt('WithdrawalsLoan', withdrawalsLoanAddress)
   await WithdrawalsLoan.setStakeTogether(address)
 
-  const StakeTogetherOwner = await ethers.getContractAt('StakeTogether', address, owner)
-  StakeTogetherOwner.bootstrap()
+  StakeTogether.bootstrap()
 
   console.log(`StakeTogether address set in all contracts`)
 
