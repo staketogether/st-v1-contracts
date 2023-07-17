@@ -231,10 +231,11 @@ contract StakeTogether is Shares {
     emit DepositDonationPool(msg.sender, _to, msg.value, _pool, _referral);
   }
 
+  // @audit-ok | FM
   function _withdrawBase(uint256 _amount, address _pool) internal {
     require(_amount > 0, 'ZERO_VALUE');
-    require(isPool(_pool), 'POOL_NOT_FOUND');
-    require(balanceOf(msg.sender) >= _amount, 'AMOUNT_EXCEEDS_BALANCE');
+    require(!isPool(_pool), 'POOL_NOT_FOUND');
+    require(_amount >= balanceOf(msg.sender), 'AMOUNT_EXCEEDS_BALANCE');
     require(delegationSharesOf(msg.sender, _pool) > 0, 'NO_DELEGATION_SHARES');
 
     if (block.number > lastResetBlock + blocksPerDay) {
@@ -247,8 +248,6 @@ contract StakeTogether is Shares {
       emit WithdrawalLimitReached(msg.sender, _amount);
       revert('WITHDRAWAL_LIMIT_REACHED');
     }
-
-    require(_amount <= balanceOf(msg.sender), 'AMOUNT_EXCEEDS_BALANCE');
 
     uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), balanceOf(msg.sender));
 
