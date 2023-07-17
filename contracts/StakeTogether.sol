@@ -6,6 +6,7 @@ import './Shares.sol';
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
   event Bootstrap(address sender, uint256 balance);
+  event RepayLoan(uint256 amount, uint256 sharesBurned);
   event DepositBase(
     address indexed to,
     address indexed pool,
@@ -13,18 +14,23 @@ contract StakeTogether is Shares {
     uint256 poolsShares,
     uint256 operatorsShares,
     uint256 stakeTogetherShares,
-    uint256 accountShares,
+    uint256 stakeAccountsShares,
+    uint256 withdrawalsAccountsShares,
+    uint256 rewardsAccountsShares,
+    uint256 withdrawalsLendersShares,
+    uint256 rewardsLendersShares,
     uint256 senderShares
-  );
-  event DepositLimitReached(address indexed sender, uint256 amount);
-  event DepositPool(address indexed account, uint256 amount, address delegated, address referral);
+  ); // @audit-ok | FM
+  event DepositWalletLimitReached(address indexed sender, uint256 amount); // @audit-ok | FM
+  event DepositProtocolLimitReached(address indexed sender, uint256 amount); // @audit-ok | FM
+  event DepositPool(address indexed account, uint256 amount, address pool, address referral); // @audit-ok | FM
   event DepositDonationPool(
     address indexed donor,
     address indexed account,
     uint256 amount,
     address pool,
     address referral
-  );
+  ); // @audit-ok | FM
   event WithdrawalLimitReached(address indexed sender, uint256 amount);
   event WithdrawPool(address indexed account, uint256 amount, address pool);
   event WithdrawLoan(address indexed account, uint256 amount, address pool);
@@ -96,34 +102,37 @@ contract StakeTogether is Shares {
    ** ACCOUNT REWARDS **
    *********************/
 
-  receive() external payable {
+  receive() external payable nonReentrant {
     emit MintRewardsAccounts(msg.sender, msg.value);
     _repayWithdrawalsLoan(msg.value);
   }
 
-  fallback() external payable {
+  fallback() external payable nonReentrant {
     emit MintRewardsAccountsFallback(msg.sender, msg.value);
     _repayWithdrawalsLoan(msg.value);
   }
 
+  // @audit-ok | FM
   function _repayWithdrawalsLoan(uint256 _amount) internal {
     if (withdrawalsLoanBalance > 0) {
       uint256 loanAmount = 0;
+
       if (withdrawalsLoanBalance >= _amount) {
         loanAmount = _amount;
       } else {
         loanAmount = withdrawalsLoanBalance;
       }
-      withdrawalsLoanContract.repayLoan{ value: loanAmount }();
 
       uint256 sharesToBurn = Math.mulDiv(
         loanAmount,
         sharesOf(address(withdrawalsLoanContract)),
         withdrawalsLoanBalance
       );
-      _burnShares(address(withdrawalsLoanContract), sharesToBurn);
 
-      emit RepayLoan(loanAmount);
+      _burnShares(address(withdrawalsLoanContract), sharesToBurn);
+      withdrawalsLoanContract.repayLoan{ value: loanAmount }();
+
+      emit RepayLoan(loanAmount, sharesToBurn);
     }
   }
 
@@ -141,44 +150,12 @@ contract StakeTogether is Shares {
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
+  // @audit-ok | FM
   function _depositBase(address _to, address _pool) internal {
+    require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(isPool(_pool), 'POOL_NOT_FOUND');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
-
-    if (walletDepositLimit > 0) {
-      require(balanceOf(_to) + msg.value <= walletDepositLimit, 'WALLET_DEPOSIT_LIMIT_REACHED');
-    }
-
-    if (msg.value + totalDeposited > depositLimit) {
-      emit DepositLimitReached(_to, msg.value);
-      revert('DEPOSIT_LIMIT_REACHED');
-    }
-
-    (uint256[9] memory shares, ) = feesContract.estimateFeePercentage(Fees.FeeType.StakeEntry, msg.value);
-
-    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
-
-    for (uint i = 0; i < 9; i++) {
-      if (shares[i] > 0) {
-        if (roles[i] == Fees.FeeRoles.Sender) {
-          mintFeeShares(_to, _pool, shares[i]);
-        } else if (roles[i] == Fees.FeeRoles.Pools) {
-          mintFeeShares(_pool, _pool, shares[i]);
-        } else {
-          mintFeeShares(
-            feesContract.getFeeAddress(roles[i]),
-            feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-            shares[i]
-          );
-        }
-      }
-    }
-
-    require(shares[8] > 0, 'ZERO_SHARES');
-    mintFeeShares(_to, _pool, shares[8]);
-
-    totalDeposited += msg.value;
 
     if (block.number > lastResetBlock + blocksPerDay) {
       totalDeposited = msg.value;
@@ -186,16 +163,65 @@ contract StakeTogether is Shares {
       lastResetBlock = block.number;
     }
 
+    if (walletDepositLimit > 0 && balanceOf(_to) + msg.value > walletDepositLimit) {
+      emit DepositWalletLimitReached(_to, msg.value);
+      revert('WALLET_DEPOSIT_LIMIT_REACHED');
+    }
+
+    if (msg.value + totalDeposited > depositLimit) {
+      emit DepositProtocolLimitReached(_to, msg.value);
+      revert('DEPOSIT_LIMIT_REACHED');
+    }
+
+    (uint256[9] memory _shares, ) = feesContract.estimateFeePercentage(
+      Fees.FeeType.StakeEntry,
+      msg.value
+    );
+
+    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < 9; i++) {
+      if (_shares[i] > 0) {
+        if (roles[i] == Fees.FeeRoles.Sender) {
+          mintFeeShares(_to, _pool, _shares[i]);
+        } else if (roles[i] == Fees.FeeRoles.Pools) {
+          mintFeeShares(_pool, _pool, _shares[i]);
+        } else {
+          mintFeeShares(
+            feesContract.getFeeAddress(roles[i]),
+            feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+            _shares[i]
+          );
+        }
+      }
+    }
+
+    totalDeposited += msg.value;
+
     _repayWithdrawalsLoan(msg.value);
 
-    emit DepositBase(_to, _pool, msg.value, shares[0], shares[1], shares[2], shares[3], shares[5]);
+    emit DepositBase(
+      _to,
+      _pool,
+      msg.value,
+      _shares[0],
+      _shares[1],
+      _shares[2],
+      _shares[3],
+      _shares[4],
+      _shares[5],
+      _shares[6],
+      _shares[7],
+      _shares[8]
+    );
   }
 
+  // @audit-ok | FM
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
     _depositBase(msg.sender, _pool);
     emit DepositPool(msg.sender, msg.value, _pool, _referral);
   }
 
+  // @audit-ok | FM
   function depositDonationPool(
     address _to,
     address _pool,
@@ -351,6 +377,7 @@ contract StakeTogether is Shares {
     emit RemovePool(_pool);
   }
 
+  // @audit-ok FM
   function isPool(address _pool) public view override returns (bool) {
     return pools[_pool];
   }

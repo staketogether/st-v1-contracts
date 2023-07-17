@@ -99,6 +99,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
+  // @audit-ok | FM
   function getFeesRoles() public pure returns (FeeRoles[9] memory) {
     FeeRoles[9] memory roles = [
       FeeRoles.Pools,
@@ -184,6 +185,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
    * ESTIMATES *
    *************/
 
+  // @audit-ok | FM
   function estimateFeePercentage(
     FeeType _feeType,
     uint256 _amount
@@ -199,26 +201,18 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
     uint256 feeShares = Math.mulDiv(sharesAmount, fee, 1 ether);
 
-    FeeRoles[9] memory roles = [
-      FeeRoles.Pools,
-      FeeRoles.Operators,
-      FeeRoles.StakeTogether,
-      FeeRoles.StakeAccounts,
-      FeeRoles.WithdrawalsAccounts,
-      FeeRoles.RewardsAccounts,
-      FeeRoles.WithdrawalsLenders,
-      FeeRoles.RewardsLenders,
-      FeeRoles.Sender
-    ];
+    FeeRoles[9] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
-      amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
     }
 
     uint256 senderShares = sharesAmount - feeShares;
     shares[8] = senderShares;
-    amounts[8] = stakeTogether.pooledEthByShares(senderShares);
+
+    for (uint256 i = 0; i < roles.length; i++) {
+      amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
+    }
 
     return (shares, amounts);
   }

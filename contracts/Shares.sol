@@ -40,7 +40,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address pool;
   }
 
-  event RepayLoan(uint256 amount);
   event SetBeaconBalance(uint256 amount);
   event SetWithdrawalsLoanBalance(uint256 amount);
   event MintShares(address indexed to, uint256 sharesAmount);
@@ -132,6 +131,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     return totalPooledEther();
   }
 
+  // @audit-issue | FM | review netSharesOf lock mechanism
   function balanceOf(address _account) public view override returns (uint256) {
     return pooledEthByShares(netSharesOf(_account));
   }

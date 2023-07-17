@@ -21,8 +21,8 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   Router public routerContract;
   Fees public feesContract;
 
-  event MintRewardsAccounts(address indexed sender, uint amount);
-  event MintRewardsAccountsFallback(address indexed sender, uint amount);
+  event MintRewardsWithdrawalLenders(address indexed sender, uint amount); // @audit-ok | FM
+  event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount); // @audit-ok | FM
   event SetStakeTogether(address stakeTogether);
   event SetRouterContract(address routerContract);
   event SetFeesContract(address feesContract);
@@ -40,12 +40,14 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
+  // @audit-ok | FM
   receive() external payable {
-    emit MintRewardsAccounts(msg.sender, msg.value);
+    emit MintRewardsWithdrawalLenders(msg.sender, msg.value);
   }
 
+  // @audit-ok | FM
   fallback() external payable {
-    emit MintRewardsAccountsFallback(msg.sender, msg.value);
+    emit MintRewardsWithdrawalLendersFallback(msg.sender, msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
