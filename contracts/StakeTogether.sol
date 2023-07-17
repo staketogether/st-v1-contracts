@@ -5,6 +5,7 @@ import './Shares.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
+  event Bootstrap(address sender, uint256 balance);
   event DepositBase(
     address indexed to,
     address indexed pool,
@@ -48,13 +49,16 @@ contract StakeTogether is Shares {
     bytes32 depositDataRoot
   );
 
+  bool private bootstrapped = false;
+
   constructor(
     address _routerContract,
     address _feesContract,
     address _airdropContract,
     address _withdrawalsContract,
     address _withdrawalsLoanContract,
-    address _validatorsContract
+    address _validatorsContract,
+    address _rewardsLoanContract
   ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));
@@ -62,11 +66,30 @@ contract StakeTogether is Shares {
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     withdrawalsLoanContract = WithdrawalsLoan(payable(_withdrawalsLoanContract));
     validatorsContract = Validators(payable(_validatorsContract));
+    rewardsLoanContract = RewardsLoan(payable(_rewardsLoanContract));
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
+  }
 
-    _bootstrap();
+  function bootstrap() external {
+    require(!bootstrapped, 'ALREADY_BOOTSTRAPPED');
+    require(hasRole(ADMIN_ROLE, msg.sender), 'ONLY_ADMIN');
+    require(!isPool(address(this)), 'ALREADY_EXISTS_POOL');
+
+    bootstrapped = true;
+
+    address stakeTogether = address(this);
+    uint256 balance = stakeTogether.balance;
+
+    this.addPool(stakeTogether);
+
+    require(balance > 0, 'NON_ZERO_VALUE');
+
+    emit Bootstrap(msg.sender, balance);
+
+    _mintShares(stakeTogether, balance);
+    _mintPoolShares(stakeTogether, stakeTogether, balance);
   }
 
   /*********************
@@ -309,7 +332,6 @@ contract StakeTogether is Shares {
 
   function addPool(address _pool) external payable nonReentrant {
     require(_pool != address(0), 'ZERO_ADDR');
-    require(_pool != address(this), 'POOL_CANNOT_BE_THIS');
     // require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
     // require(_pool != address(distribution), 'POOL_CANNOT_BE_DISTRIBUTOR');
     require(!isPool(_pool), 'POOL_ALREADY_ADDED');
@@ -325,7 +347,11 @@ contract StakeTogether is Shares {
         // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
       }
     } else {
-      require(hasRole(POOL_MANAGER_ROLE, msg.sender), 'ONLY_POOL_MANAGER');
+      require(
+        // TODO: verify sender
+        hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.sender == address(this),
+        'ONLY_POOL_MANAGER_OR_ST_CONTRACT'
+      );
     }
   }
 

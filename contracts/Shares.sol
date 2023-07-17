@@ -15,6 +15,7 @@ import './Airdrop.sol';
 import './Withdrawals.sol';
 import './WithdrawalsLoan.sol';
 import './Validators.sol';
+import './RewardsLoan.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
@@ -27,6 +28,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   Withdrawals public withdrawalsContract;
   WithdrawalsLoan public withdrawalsLoanContract;
   Validators public validatorsContract;
+  RewardsLoan public rewardsLoanContract;
 
   uint256 public beaconBalance = 0;
   uint256 public withdrawalsLoanBalance = 0;
@@ -38,7 +40,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address pool;
   }
 
-  event Bootstrap(address sender, uint256 balance);
   event RepayLoan(uint256 amount);
   event SetBeaconBalance(uint256 amount);
   event SetWithdrawalsLoanBalance(uint256 amount);
@@ -115,18 +116,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   function setWithdrawalsLoanBalance(uint256 _amount) external onlyWithdrawalsLoan {
     withdrawalsLoanBalance = _amount;
     emit SetWithdrawalsLoanBalance(_amount);
-  }
-
-  function _bootstrap() internal {
-    address stakeTogether = address(this);
-    uint256 balance = stakeTogether.balance;
-
-    require(balance > 0, 'NON_ZERO_VALUE');
-
-    emit Bootstrap(msg.sender, balance);
-
-    _mintShares(stakeTogether, balance);
-    _mintPoolShares(stakeTogether, stakeTogether, balance);
   }
 
   /************
@@ -259,7 +248,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _account, address _spender, uint256 _amount) internal {
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
