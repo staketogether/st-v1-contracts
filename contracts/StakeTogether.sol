@@ -32,9 +32,9 @@ contract StakeTogether is Shares {
     address referral
   ); // @audit-ok | FM
   event WithdrawalLimitReached(address indexed sender, uint256 amount);
-  event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawLoan(address indexed account, uint256 amount, address pool);
-  event WithdrawValidator(address indexed account, uint256 amount, address pool);
+  event WithdrawPool(address indexed account, uint256 amount, address pool); // @audit-ok | FM
+  event WithdrawLoan(address indexed account, uint256 amount, address pool); // @audit-ok | FM
+  event WithdrawValidator(address indexed account, uint256 amount, address pool); // @audit-ok | FM
   event SetDepositLimit(uint256 newLimit);
   event SetWithdrawalLimit(uint256 newLimit);
   event SetAccountDepositLimit(uint256 newLimit);
