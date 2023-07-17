@@ -99,6 +99,21 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
+  function getFeesRoles() public pure returns (FeeRoles[9] memory) {
+    FeeRoles[9] memory roles = [
+      FeeRoles.Pools,
+      FeeRoles.Operators,
+      FeeRoles.StakeTogether,
+      FeeRoles.StakeAccounts,
+      FeeRoles.WithdrawalsAccounts,
+      FeeRoles.RewardsAccounts,
+      FeeRoles.WithdrawalsLenders,
+      FeeRoles.RewardsLenders,
+      FeeRoles.Sender
+    ];
+    return roles;
+  }
+
   function setFeeAddress(FeeRoles _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     roleAddresses[_role] = _address;
     emit SetFeeAddress(_role, _address);

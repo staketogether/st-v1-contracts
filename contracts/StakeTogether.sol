@@ -142,9 +142,9 @@ contract StakeTogether is Shares {
   uint256 public totalWithdrawn;
 
   function _depositBase(address _to, address _pool) internal {
-    require(isPool(_pool), 'NON_POOL_DELEGATE');
+    require(isPool(_pool), 'POOL_NOT_FOUND');
     require(msg.value > 0, 'ZERO_VALUE');
-    require(msg.value >= minDepositAmount, 'NON_MIN_AMOUNT');
+    require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
 
     if (walletDepositLimit > 0) {
       require(balanceOf(_to) + msg.value <= walletDepositLimit, 'WALLET_DEPOSIT_LIMIT_REACHED');
@@ -157,35 +157,23 @@ contract StakeTogether is Shares {
 
     (uint256[9] memory shares, ) = feesContract.estimateFeePercentage(Fees.FeeType.StakeEntry, msg.value);
 
-    if (shares[0] > 0) {
-      mintFeeShares(_pool, _pool, shares[0]);
-    }
+    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
 
-    if (shares[1] > 0) {
-      mintFeeShares(
-        feesContract.getFeeAddress(Fees.FeeRoles.Operators),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        shares[1]
-      );
+    for (uint i = 0; i < 9; i++) {
+      if (shares[i] > 0) {
+        if (roles[i] == Fees.FeeRoles.Sender) {
+          mintFeeShares(_to, _pool, shares[i]);
+        } else if (roles[i] == Fees.FeeRoles.Pools) {
+          mintFeeShares(_pool, _pool, shares[i]);
+        } else {
+          mintFeeShares(
+            feesContract.getFeeAddress(roles[i]),
+            feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+            shares[i]
+          );
+        }
+      }
     }
-
-    if (shares[2] > 0) {
-      mintFeeShares(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        shares[2]
-      );
-    }
-
-    if (shares[3] > 0) {
-      mintFeeShares(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeAccounts),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        shares[3]
-      );
-    }
-
-    // Todo: evaluate incentives for other type accounts
 
     require(shares[8] > 0, 'ZERO_SHARES');
     mintFeeShares(_to, _pool, shares[8]);
