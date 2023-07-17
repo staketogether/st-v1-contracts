@@ -231,53 +231,55 @@ contract StakeTogether is Shares {
     emit DepositDonationPool(msg.sender, _to, msg.value, _pool, _referral);
   }
 
-  function _withdrawBase(uint256 _amount, address _pool) internal whenNotPaused {
+  function _withdrawBase(uint256 _amount, address _pool) internal {
     require(_amount > 0, 'ZERO_VALUE');
-    require(_pool != address(0), 'MINT_TO_ZERO_ADDR');
+    require(isPool(_pool), 'POOL_NOT_FOUND');
     require(balanceOf(msg.sender) >= _amount, 'AMOUNT_EXCEEDS_BALANCE');
-    require(delegationSharesOf(msg.sender, _pool) > 0, 'NOT_DELEGATION_SHARES');
-
-    if (_amount + totalWithdrawn > withdrawalLimit) {
-      emit WithdrawalLimitReached(msg.sender, _amount);
-      revert('WITHDRAWAL_LIMIT_REACHED');
-    }
-
-    uint256 accountBalance = balanceOf(msg.sender);
-    require(_amount <= accountBalance, 'AMOUNT_EXCEEDS_BALANCE');
-
-    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
-
-    _burnShares(msg.sender, sharesToBurn);
-    _burnPoolShares(msg.sender, _pool, sharesToBurn);
-
-    totalWithdrawn += _amount;
+    require(delegationSharesOf(msg.sender, _pool) > 0, 'NO_DELEGATION_SHARES');
 
     if (block.number > lastResetBlock + blocksPerDay) {
       totalDeposited = 0;
       totalWithdrawn = _amount;
       lastResetBlock = block.number;
     }
+
+    if (_amount + totalWithdrawn > withdrawalLimit) {
+      emit WithdrawalLimitReached(msg.sender, _amount);
+      revert('WITHDRAWAL_LIMIT_REACHED');
+    }
+
+    require(_amount <= balanceOf(msg.sender), 'AMOUNT_EXCEEDS_BALANCE');
+
+    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), balanceOf(msg.sender));
+
+    _burnShares(msg.sender, sharesToBurn);
+    _burnPoolShares(msg.sender, _pool, sharesToBurn);
+
+    totalWithdrawn += _amount;
   }
 
+  // @audit-ok | FM
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= poolBalance(), 'NOT_ENOUGH_POOL_BALANCE');
-    emit WithdrawPool(msg.sender, _amount, _pool);
     _withdrawBase(_amount, _pool);
+    emit WithdrawPool(msg.sender, _amount, _pool);
     payable(msg.sender).transfer(_amount);
   }
 
+  // @audit-ok | FM
   function withdrawLoan(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= address(withdrawalsLoanContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
-    withdrawalsLoanContract.withdrawLoan(_amount, _pool);
     emit WithdrawLoan(msg.sender, _amount, _pool);
+    withdrawalsLoanContract.withdrawLoan(_amount, _pool);
   }
 
+  // @audit-ok | FM
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
-    emit WithdrawValidator(msg.sender, _amount, _pool);
-    _withdrawBase(_amount, _pool);
     beaconBalance -= _amount;
+    _withdrawBase(_amount, _pool);
+    emit WithdrawValidator(msg.sender, _amount, _pool);
     withdrawalsContract.mint(msg.sender, _amount);
   }
 
