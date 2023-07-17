@@ -347,7 +347,11 @@ contract StakeTogether is Shares {
         // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
       }
     } else {
-      require(hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.sender == address(this), 'ONLY_POOL_MANAGER');
+      require(
+        // TODO: verify sender
+        hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.sender == address(this),
+        'ONLY_POOL_MANAGER_OR_ST_CONTRACT'
+      );
     }
   }
 
