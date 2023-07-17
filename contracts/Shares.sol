@@ -15,6 +15,7 @@ import './Airdrop.sol';
 import './Withdrawals.sol';
 import './WithdrawalsLoan.sol';
 import './Validators.sol';
+import './RewardsLoan.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
@@ -27,6 +28,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   Withdrawals public withdrawalsContract;
   WithdrawalsLoan public withdrawalsLoanContract;
   Validators public validatorsContract;
+  RewardsLoan public rewardsLoanContract;
 
   uint256 public beaconBalance = 0;
   uint256 public withdrawalsLoanBalance = 0;
