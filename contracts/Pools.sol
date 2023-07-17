@@ -12,6 +12,8 @@ import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Pools is AccessControl, Pausable, ReentrancyGuard {
+  // Todo: Rename Airdrop
+
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 

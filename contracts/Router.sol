@@ -8,7 +8,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Withdrawals.sol';
-import './Loans.sol';
+import './WithdrawalsLoan.sol';
 import './Pools.sol';
 import './Validators.sol';
 import './Fees.sol';
@@ -23,7 +23,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   Fees public feesContract;
   Withdrawals public withdrawalsContract;
-  Loans public loansContract;
+  WithdrawalsLoan public withdrawalsLoanContract;
   Pools public poolsContract;
   Validators public validatorsContract;
 
@@ -90,7 +90,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     address _feesContract
   ) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
-    loansContract = Loans(payable(_loanContract));
+    withdrawalsLoanContract = WithdrawalsLoan(payable(_loanContract));
     poolsContract = Pools(payable(_poolContract));
     validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));
@@ -312,8 +312,8 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
-    (uint256[6] memory shares, uint256[6] memory amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.Rewards,
+    (uint256[9] memory shares, uint256[9] memory amounts) = feesContract.estimateFeePercentage(
+      Fees.FeeType.StakeRewards,
       _report.profitAmount
     );
 
@@ -327,8 +327,8 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
     if (shares[0] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[0] }(
-        feesContract.getFeeAddress(Fees.Roles.Pools),
-        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        feesContract.getFeeAddress(Fees.FeeRoles.Pools),
+        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         shares[0]
       );
 
@@ -337,16 +337,16 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
     if (shares[1] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[1] }(
-        feesContract.getFeeAddress(Fees.Roles.Operators),
-        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        feesContract.getFeeAddress(Fees.FeeRoles.Operators),
+        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         shares[1]
       );
     }
 
     if (shares[2] > 0) {
       stakeTogether.mintFeeShares{ value: amounts[2] }(
-        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
-        feesContract.getFeeAddress(Fees.Roles.StakeTogether),
+        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         shares[2]
       );
     }
@@ -370,7 +370,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (_report.apr > 0) {
-      // loansContract.setApr(_report.epoch, _report.apr);
+      // withdrawalsLoanContract.setApr(_report.epoch, _report.apr);
     }
 
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {

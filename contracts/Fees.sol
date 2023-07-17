@@ -14,13 +14,14 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   enum FeeType {
-    EntryStake,
-    EntryLoan,
-    Rewards,
-    Borrow,
-    Anticipate,
-    RefundAnticipate,
-    Validator,
+    StakeEntry,
+    StakeRewards,
+    WithdrawalsLoanEntry,
+    WithdrawalsLoan,
+    RewardsLoanEntry,
+    RewardsLoan,
+    RewardsLoanRefund,
+    AddValidator,
     AddPool
   }
 
@@ -29,22 +30,25 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     PERCENTAGE
   }
 
-  enum Roles {
+  enum FeeRoles {
     Pools,
     Operators,
     StakeTogether,
-    Accounts,
-    Lenders,
+    StakeAccounts,
+    WithdrawalsAccounts,
+    RewardsAccounts,
+    WithdrawalsLenders,
+    RewardsLenders,
     Sender
   }
 
   struct Fee {
     uint256 value;
     FeeMathType mathType;
-    mapping(Roles => uint256) allocations;
+    mapping(FeeRoles => uint256) allocations;
   }
 
-  mapping(Roles => address payable) public roleAddresses;
+  mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
   uint256 public apr;
   uint256 public blocksPerYear = 2102400;
@@ -54,11 +58,11 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   uint256 public maxAnticipationFeeReduction; // 50%
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
-  event SetFeeAllocation(FeeType indexed feeType, Roles indexed role, uint256 allocation);
+  event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
   event ReceiveEther(address indexed sender, uint256 amount);
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
-  event SetFeeAddress(Roles indexed role, address indexed account);
+  event SetFeeAddress(FeeRoles indexed role, address indexed account);
   event SetAPR(uint256 apr);
 
   event SetRiskMargin(uint256 riskMargin);
@@ -95,12 +99,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setFeeAddress(Roles _role, address payable _address) external onlyRole(ADMIN_ROLE) {
+  function setFeeAddress(FeeRoles _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     roleAddresses[_role] = _address;
     emit SetFeeAddress(_role, _address);
   }
 
-  function getFeeAddress(Roles _role) public view returns (address) {
+  function getFeeAddress(FeeRoles _role) public view returns (address) {
     return roleAddresses[_role];
   }
 
@@ -119,7 +123,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   function setFeeAllocation(
     FeeType _feeType,
-    Roles _role,
+    FeeRoles _role,
     uint256 _allocation
   ) external onlyRole(ADMIN_ROLE) {
     uint256 currentTotal = fees[_feeType].value;
@@ -128,7 +132,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetFeeAllocation(_feeType, _role, _allocation);
   }
 
-  function getFeeAllocation(FeeType _feeType, Roles _role) public view returns (uint256) {
+  function getFeeAllocation(FeeType _feeType, FeeRoles _role) public view returns (uint256) {
     return fees[_feeType].allocations[_role];
   }
 
@@ -168,7 +172,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   function estimateFeePercentage(
     FeeType _feeType,
     uint256 _amount
-  ) public view returns (uint256[6] memory shares, uint256[6] memory amounts) {
+  ) public view returns (uint256[9] memory shares, uint256[9] memory amounts) {
     (uint256 fee, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
@@ -180,13 +184,16 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
     uint256 feeShares = Math.mulDiv(sharesAmount, fee, 1 ether);
 
-    Roles[6] memory roles = [
-      Roles.Pools,
-      Roles.Operators,
-      Roles.StakeTogether,
-      Roles.Accounts,
-      Roles.Lenders,
-      Roles.Sender
+    FeeRoles[9] memory roles = [
+      FeeRoles.Pools,
+      FeeRoles.Operators,
+      FeeRoles.StakeTogether,
+      FeeRoles.StakeAccounts,
+      FeeRoles.WithdrawalsAccounts,
+      FeeRoles.RewardsAccounts,
+      FeeRoles.WithdrawalsLenders,
+      FeeRoles.RewardsLenders,
+      FeeRoles.Sender
     ];
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
@@ -195,23 +202,26 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     }
 
     uint256 senderShares = sharesAmount - feeShares;
-    shares[5] = senderShares;
-    amounts[5] = stakeTogether.pooledEthByShares(senderShares);
+    shares[8] = senderShares;
+    amounts[8] = stakeTogether.pooledEthByShares(senderShares);
 
     return (shares, amounts);
   }
 
-  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[6] memory amounts) {
+  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[9] memory amounts) {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
-    Roles[6] memory roles = [
-      Roles.Pools,
-      Roles.Operators,
-      Roles.StakeTogether,
-      Roles.Accounts,
-      Roles.Lenders,
-      Roles.Sender
+    FeeRoles[9] memory roles = [
+      FeeRoles.Pools,
+      FeeRoles.Operators,
+      FeeRoles.StakeTogether,
+      FeeRoles.StakeAccounts,
+      FeeRoles.WithdrawalsAccounts,
+      FeeRoles.RewardsAccounts,
+      FeeRoles.WithdrawalsLenders,
+      FeeRoles.RewardsLenders,
+      FeeRoles.Sender
     ];
 
     for (uint256 i = 0; i < roles.length; i++) {
@@ -231,8 +241,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
       uint256 anticipatedValue,
       uint256 riskMarginValue,
       uint256 reduction,
-      uint256[6] memory shares,
-      uint256[6] memory amounts,
+      uint256[9] memory shares,
+      uint256[9] memory amounts,
       uint256 daysBlock
     )
   {
@@ -253,7 +263,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     );
     anticipatedValue = anticipatedValue - reduction;
 
-    (shares, amounts) = estimateFeePercentage(FeeType.Anticipate, anticipatedValue);
+    (shares, amounts) = estimateFeePercentage(FeeType.RewardsLoan, anticipatedValue);
 
     daysBlock = (_days * blocksPerYear) / 365;
 
