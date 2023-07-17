@@ -42,11 +42,21 @@ export async function deployContracts() {
     airdropAddress,
     withdrawalsAddress,
     withdrawalsLoanAddress,
-    validatorsAddress
+    validatorsAddress,
+    rewardsLoanAddress
   )
 
   console.log('\n🔷 All contracts deployed!\n')
-  // verifyContracts(rewardsAddress, stakeTogether)
+  verifyContracts(
+    routerAddress,
+    feesAddress,
+    airdropAddress,
+    withdrawalsAddress,
+    withdrawalsLoanAddress,
+    validatorsAddress,
+    rewardsLoanAddress,
+    stakeTogether
+  )
 }
 
 async function deployFees(owner: CustomEthersSigner) {
@@ -54,7 +64,7 @@ async function deployFees(owner: CustomEthersSigner) {
 
   const address = await Fees.getAddress()
 
-  console.log(`Fees deployed:\t\t ${address}`)
+  console.log(`Fees deployed:\t\t\t ${address}`)
 
   return address
 }
@@ -106,7 +116,7 @@ async function deployWithdrawalsLoan(owner: CustomEthersSigner) {
 
   const address = await WithdrawalsLoan.getAddress()
 
-  console.log(`Withdrawals Loan deployed:\t\t ${address}`)
+  console.log(`Withdrawals Loan deployed:\t ${address}`)
 
   return address
 }
@@ -118,7 +128,8 @@ async function deployStakeTogether(
   airdropAddress: string,
   withdrawalsAddress: string,
   withdrawalsLoanAddress: string,
-  validatorsAddress: string
+  validatorsAddress: string,
+  rewardsLoanAddress: string
 ) {
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
@@ -129,6 +140,7 @@ async function deployStakeTogether(
       withdrawalsAddress,
       withdrawalsLoanAddress,
       validatorsAddress,
+      rewardsLoanAddress,
       {
         value: 1n
       }
@@ -156,9 +168,15 @@ async function deployStakeTogether(
   const WithdrawalsLoan = await ethers.getContractAt('WithdrawalsLoan', withdrawalsLoanAddress)
   await WithdrawalsLoan.setStakeTogether(address)
 
+  // Configure RewardsLoan here because it's not a part of the Router dependencies
+  const RewardsLoan = await ethers.getContractAt('RewardsLoan', rewardsLoanAddress)
+  await RewardsLoan.setStakeTogether(address)
+  await RewardsLoan.setFees(feesAddress)
+  await RewardsLoan.setRouter(routerAddress)
+
   StakeTogether.bootstrap()
 
-  console.log(`StakeTogether address set in all contracts`)
+  console.log(`\n\n\tStakeTogether address set in all contracts\n\n`)
 
   return address
 }
@@ -189,17 +207,26 @@ async function deployRouter(
   await WithdrawalsLoan.setRouter(address)
   await WithdrawalsLoan.setFees(feesAddress)
 
-  console.log(`Router address and fee address set in all contracts`)
+  console.log(`\n\n\tRouter address and fee address set in all contracts\n\n`)
 
   return address
 }
 
-async function verifyContracts(rewardsAddress: string, stakeTogether: string) {
+async function verifyContracts(
+  routerAddress: string,
+  feesAddress: string,
+  airdropAddress: string,
+  withdrawalsAddress: string,
+  withdrawalsLoanAddress: string,
+  validatorsAddress: string,
+  rewardsLoanAddress: string,
+  stakeTogether: string
+) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
   console.log(
-    `\nnpx hardhat verify --network goerli ${rewardsAddress} && npx hardhat verify --network goerli ${stakeTogether} ${rewardsAddress} ${
+    `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${withdrawalsLoanAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} && npx hardhat verify --network goerli ${feesAddress} && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${withdrawalsLoanAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
       process.env.GOERLI_DEPOSIT_ADDRESS as string
-    }`
+    } && npx hardhat verify --network goerli ${rewardsLoanAddress} && npx hardhat verify --network goerli ${stakeTogether} ${routerAddress} ${feesAddress} ${airdropAddress} ${withdrawalsAddress} ${withdrawalsLoanAddress} ${validatorsAddress} ${rewardsLoanAddress}`
   )
 }
 
