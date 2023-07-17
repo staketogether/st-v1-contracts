@@ -22,10 +22,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event SetRouter(address router);
-  event AddPool(address account);
-  event RemovePool(address account);
-  event SetMaxPools(uint256 maxPools);
-  event SetPermissionLessAddPool(bool permissionLessAddPool);
   event AddMerkleRoots(
     uint256 indexed epoch,
     bytes32 poolsRoot,
@@ -84,69 +80,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   function _transferToStakeTogether() private {
     payable(address(stakeTogether)).transfer(address(this).balance);
   }
-
-  /***********
-   ** POOLS **
-   ***********/
-
-  // Todo:
-
-  uint256 public maxPools = 100000;
-  uint256 public poolCount = 0;
-  mapping(address => bool) private pools;
-
-  bool public permissionLessAddPool = false;
-
-  function setMaxPools(uint256 _maxPools) external onlyRole(ADMIN_ROLE) {
-    require(_maxPools >= poolCount, 'INVALID_MAX_POOLS');
-    maxPools = _maxPools;
-    emit SetMaxPools(_maxPools);
-  }
-
-  function setPermissionLessAddPool(bool _permissionLessAddPool) external onlyRole(ADMIN_ROLE) {
-    permissionLessAddPool = _permissionLessAddPool;
-    emit SetPermissionLessAddPool(_permissionLessAddPool);
-  }
-
-  function addPool(address _pool) external payable nonReentrant {
-    require(_pool != address(0), 'ZERO_ADDR');
-    require(_pool != address(this), 'POOL_CANNOT_BE_THIS');
-    require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
-    require(_pool != address(distribution), 'POOL_CANNOT_BE_DISTRIBUTOR');
-    require(!isPool(_pool), 'POOL_ALREADY_ADDED');
-    require(poolCount < maxPools, 'MAX_POOLS_REACHED');
-
-    pools[_pool] = true;
-    poolCount += 1;
-    emit AddPool(_pool);
-
-    if (permissionLessAddPool) {
-      if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-        // require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
-        // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
-      }
-    } else {
-      require(hasRole(POOL_MANAGER_ROLE, msg.sender), 'ONLY_POOL_MANAGER');
-    }
-  }
-
-  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
-    require(isPool(_pool), 'POOL_NOT_FOUND');
-
-    pools[_pool] = false;
-    poolCount -= 1;
-    emit RemovePool(_pool);
-  }
-
-  function isPool(address _pool) public view returns (bool) {
-    return pools[_pool];
-  }
-
-  /***************
-   ** OPERATORS **
-   ***************/
-
-  // Todo: implement operators
 
   /**************
    ** AIRDROPS **

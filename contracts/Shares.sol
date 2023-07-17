@@ -19,6 +19,7 @@ import './Validators.sol';
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
   Router public routerContract;
   Fees public feesContract;
@@ -341,7 +342,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(airdropContract.isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
+    require(isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
     require(_sharesAmount > 0, 'MINT_INVALID_AMOUNT');
 
@@ -359,7 +360,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'BURN_to_ZERO_ADDR');
-    require(airdropContract.isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
+    require(isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
     require(delegationsShares[_to][_pool] >= _sharesAmount, 'BURN_INVALID_AMOUNT');
     require(_sharesAmount > 0, 'BURN_INVALID_AMOUNT');
 
@@ -392,7 +393,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_fromPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(this), 'ST_ADDR');
-    require(airdropContract.isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
+    require(isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
 
@@ -470,4 +471,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _transferPoolShares(address(airdropContract), address(airdropContract), _account, _sharesAmount);
     emit ClaimRewards(_account, _sharesAmount);
   }
+
+  function isPool(address _pool) public view virtual returns (bool);
 }
