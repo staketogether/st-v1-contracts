@@ -5,6 +5,7 @@ import './Shares.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
+  event Bootstrap(address sender, uint256 balance);
   event DepositBase(
     address indexed to,
     address indexed pool,
@@ -56,7 +57,8 @@ contract StakeTogether is Shares {
     address _airdropContract,
     address _withdrawalsContract,
     address _withdrawalsLoanContract,
-    address _validatorsContract
+    address _validatorsContract,
+    address _rewardsLoanContract
   ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));

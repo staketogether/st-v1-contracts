@@ -38,7 +38,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address pool;
   }
 
-  event Bootstrap(address sender, uint256 balance);
   event RepayLoan(uint256 amount);
   event SetBeaconBalance(uint256 amount);
   event SetWithdrawalsLoanBalance(uint256 amount);
