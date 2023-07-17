@@ -71,7 +71,7 @@ contract StakeTogether is Shares {
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  function bootstrap() external nonReentrant {
+  function bootstrap() external {
     require(!bootstrapped, 'ALREADY_BOOTSTRAPPED');
     require(hasRole(ADMIN_ROLE, msg.sender), 'ONLY_ADMIN');
     require(!isPool(address(this)), 'ALREADY_EXISTS_POOL');
