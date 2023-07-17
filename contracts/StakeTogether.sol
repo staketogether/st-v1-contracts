@@ -348,7 +348,7 @@ contract StakeTogether is Shares {
   function addPool(address _pool) external payable nonReentrant {
     require(_pool != address(0), 'ZERO_ADDR');
     // require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
-    // require(_pool != address(distribution), 'POOL_CANNOT_BE_DISTRIBUTOR');
+    // require(_pool != address(routerContract), 'POOL_CANNOT_BE_DISTRIBUTOR');
     require(!isPool(_pool), 'POOL_ALREADY_ADDED');
     require(poolCount < maxPools, 'MAX_POOLS_REACHED');
 

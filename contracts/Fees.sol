@@ -7,10 +7,12 @@ import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
+import './Router.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Fees is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
+  Router public routerContract;
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   enum FeeType {
@@ -59,11 +61,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
+  event SetRouterContract(address routerContract); // @audit-ok | FM
   event ReceiveEther(address indexed sender, uint256 amount);
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
-  event SetAPR(uint256 apr);
+  event SetApr(uint256 apr); // @audit-ok | FM
 
   event SetRiskMargin(uint256 riskMargin);
   event SetBlocksPerYear(uint256 blocksPerYear);
@@ -93,10 +96,23 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     _unpause();
   }
 
+  // @audit-ok | FM
+  modifier onlyRouter() {
+    require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
+    _;
+  }
+
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
+  }
+
+  // @audit-ok | FM
+  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
+    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    routerContract = Router(payable(_routerContract));
+    emit SetRouterContract(_routerContract);
   }
 
   // @audit-ok | FM
@@ -152,9 +168,10 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return fees[_feeType].allocations[_role];
   }
 
-  function setAPR(uint256 _apr) external onlyRole(ADMIN_ROLE) {
+  // @audit-ok | FM
+  function setApr(uint256 _apr) external onlyRouter {
     apr = _apr;
-    emit SetAPR(_apr);
+    emit SetApr(_apr);
   }
 
   function setRiskMargin(uint256 _riskMargin) external onlyRole(ADMIN_ROLE) {

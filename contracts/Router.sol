@@ -38,7 +38,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     uint256 profitAmount;
     uint256 lossAmount; // Penalty or Slashing
     uint256 extraAmount; // Extra money on this contract
-    bytes32 poolsMerkleRoot; // Todo: missing merkle das pools
+    bytes32[9] merkleRoots;
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
     uint256 restExitAmount; // Rest withdrawal validator amount
@@ -312,11 +312,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
-    (uint256[9] memory shares, uint256[9] memory amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.StakeRewards,
-      _report.profitAmount
-    );
-
     if (_report.lossAmount > 0) {
       stakeTogether._mintPenalty(_report.lossAmount);
     }
@@ -325,34 +320,21 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
       // stakeTogether.refundPool{ value: _report.extraAmount }(_report.epoch);
     }
 
-    if (shares[0] > 0) {
-      stakeTogether._mintFeeShares{ value: amounts[0] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.Pools),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        shares[0]
-      );
+    (uint256[9] memory _shares, uint256[9] memory _amounts) = feesContract.estimateFeePercentage(
+      Fees.FeeType.StakeRewards,
+      _report.profitAmount
+    );
 
-      airdropContract.addAirdropMerkleRoot(
-        Airdrop.AirdropType.Pools,
-        _report.epoch,
-        _report.poolsMerkleRoot
-      );
-    }
-
-    if (shares[1] > 0) {
-      stakeTogether._mintFeeShares{ value: amounts[1] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.Operators),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        shares[1]
-      );
-    }
-
-    if (shares[2] > 0) {
-      stakeTogether._mintFeeShares{ value: amounts[2] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        shares[2]
-      );
+    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < 9; i++) {
+      if (_shares[i] > 0) {
+        stakeTogether._mintFeeShares{ value: _amounts[i] }(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          _shares[i]
+        );
+        airdropContract.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);
+      }
     }
 
     if (_report.validatorsToExit.length > 0) {
@@ -369,12 +351,8 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
       // stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
     }
 
-    if (_report.withdrawAmount > 0) {
-      payable(address(withdrawalsContract)).transfer(_report.withdrawAmount);
-    }
-
     if (_report.apr > 0) {
-      // withdrawalsLoanContract.setApr(_report.epoch, _report.apr);
+      feesContract.setApr(_report.apr);
     }
 
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
@@ -388,6 +366,10 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     delete reportHistoric[_report.epoch];
 
     emit ExecuteReport(msg.sender, _hash, _report);
+
+    if (_report.withdrawAmount > 0) {
+      payable(address(withdrawalsContract)).transfer(_report.withdrawAmount);
+    }
   }
 
   function invalidateConsensus(
@@ -454,9 +436,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     require(_report.epoch <= lastConsensusEpoch, 'INVALID_EPOCH');
     require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
     require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
-
-    require(_report.poolsMerkleRoot != bytes32(0), 'INVALID_POOLS_MERKLE_ROOT');
-
+    require(_report.merkleRoots.length == 9, 'INVALID_MERKLE_ROOTS_LENGTH');
     require(_report.validatorsToExit.length <= maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
 
     for (uint256 i = 0; i < _report.validatorsToExit.length; i++) {
