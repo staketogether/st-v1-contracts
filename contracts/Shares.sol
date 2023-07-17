@@ -248,7 +248,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
