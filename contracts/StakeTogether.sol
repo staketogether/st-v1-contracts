@@ -65,7 +65,12 @@ contract StakeTogether is Shares {
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
+  }
 
+  function bootstrap() external {
+    require(hasRole(ADMIN_ROLE, msg.sender), 'MUST_BE_ADMIN');
+    require(!isPool(address(this)), 'Already bootstrapped');
+    this.addPool(address(this));
     _bootstrap();
   }
 
@@ -309,7 +314,6 @@ contract StakeTogether is Shares {
 
   function addPool(address _pool) external payable nonReentrant {
     require(_pool != address(0), 'ZERO_ADDR');
-    require(_pool != address(this), 'POOL_CANNOT_BE_THIS');
     // require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
     // require(_pool != address(distribution), 'POOL_CANNOT_BE_DISTRIBUTOR');
     require(!isPool(_pool), 'POOL_ALREADY_ADDED');
@@ -325,7 +329,7 @@ contract StakeTogether is Shares {
         // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
       }
     } else {
-      require(hasRole(POOL_MANAGER_ROLE, msg.sender), 'ONLY_POOL_MANAGER');
+      require(hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.sender == address(this), 'ONLY_POOL_MANAGER');
     }
   }
 

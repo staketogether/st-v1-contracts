@@ -138,8 +138,28 @@ async function deployStakeTogether(
 
   console.log(`StakeTogether deployed:\t\t ${address}`)
 
-  const Rewards = await ethers.getContractAt('Rewards', routerAddress)
-  await Rewards.setStakeTogether(address)
+  const Router = await ethers.getContractAt('Router', routerAddress)
+  await Router.setStakeTogether(address)
+
+  const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
+  await Airdrop.setStakeTogether(address)
+
+  const Fees = await ethers.getContractAt('Fees', feesAddress)
+  await Fees.setStakeTogether(address)
+
+  const Validators = await ethers.getContractAt('Validators', validatorsAddress)
+  await Validators.setStakeTogether(address)
+
+  const Withdrawals = await ethers.getContractAt('Withdrawals', withdrawalsAddress)
+  await Withdrawals.setStakeTogether(address)
+
+  const WithdrawalsLoan = await ethers.getContractAt('WithdrawalsLoan', withdrawalsLoanAddress)
+  await WithdrawalsLoan.setStakeTogether(address)
+
+  const StakeTogetherOwner = await ethers.getContractAt('StakeTogether', address, owner)
+  StakeTogetherOwner.bootstrap()
+
+  console.log(`StakeTogether address set in all contracts`)
 
   return address
 }
@@ -159,6 +179,18 @@ async function deployRouter(
   const address = await Router.getAddress()
 
   console.log(`Router deployed:\t\t ${address}`)
+
+  const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
+  await Airdrop.setRouter(address)
+
+  const Validators = await ethers.getContractAt('Validators', validatorsAddress)
+  await Validators.setRouter(address)
+
+  const WithdrawalsLoan = await ethers.getContractAt('WithdrawalsLoan', withdrawalsLoanAddress)
+  await WithdrawalsLoan.setRouter(address)
+  await WithdrawalsLoan.setFees(feesAddress)
+
+  console.log(`Router address and fee address set in all contracts`)
 
   return address
 }

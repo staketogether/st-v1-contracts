@@ -71,13 +71,13 @@ contract RewardsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Bu
     _;
   }
 
-  function setRouterContract(address _routerContract) external onlyStakeTogether {
+  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
     emit SetRouterContract(_routerContract);
   }
 
-  function setFeesContract(address _feesContract) external onlyStakeTogether {
+  function setFees(address _feesContract) external onlyRole(ADMIN_ROLE) {
     require(_feesContract != address(0), 'FEES_CONTRACT_ALREADY_SET');
     feesContract = Fees(payable(_feesContract));
     emit SetFeesContract(_feesContract);

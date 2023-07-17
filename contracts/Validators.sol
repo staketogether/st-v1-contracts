@@ -74,7 +74,7 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
     _;
   }
 
-  function setRouterContract(address _routerContract) external onlyStakeTogether {
+  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
     emit SetRouterContract(_routerContract);
