@@ -318,7 +318,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     );
 
     if (_report.lossAmount > 0) {
-      stakeTogether.mintPenalty(_report.lossAmount);
+      stakeTogether._mintPenalty(_report.lossAmount);
     }
 
     if (_report.extraAmount > 0) {
@@ -326,7 +326,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (shares[0] > 0) {
-      stakeTogether.mintFeeShares{ value: amounts[0] }(
+      stakeTogether._mintFeeShares{ value: amounts[0] }(
         feesContract.getFeeAddress(Fees.FeeRoles.Pools),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         shares[0]
@@ -340,7 +340,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (shares[1] > 0) {
-      stakeTogether.mintFeeShares{ value: amounts[1] }(
+      stakeTogether._mintFeeShares{ value: amounts[1] }(
         feesContract.getFeeAddress(Fees.FeeRoles.Operators),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         shares[1]
@@ -348,7 +348,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     }
 
     if (shares[2] > 0) {
-      stakeTogether.mintFeeShares{ value: amounts[2] }(
+      stakeTogether._mintFeeShares{ value: amounts[2] }(
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         shares[2]

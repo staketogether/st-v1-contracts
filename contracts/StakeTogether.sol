@@ -182,11 +182,11 @@ contract StakeTogether is Shares {
     for (uint i = 0; i < 9; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == Fees.FeeRoles.Sender) {
-          mintFeeShares(_to, _pool, _shares[i]);
+          _mintFeeShares(_to, _pool, _shares[i]);
         } else if (roles[i] == Fees.FeeRoles.Pools) {
-          mintFeeShares(_pool, _pool, _shares[i]);
+          _mintFeeShares(_pool, _pool, _shares[i]);
         } else {
-          mintFeeShares(
+          _mintFeeShares(
             feesContract.getFeeAddress(roles[i]),
             feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
             _shares[i]

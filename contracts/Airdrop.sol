@@ -140,7 +140,7 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     _setAirdropClaimed(_type, _epoch, _account);
     // Todo: implement each type
 
-    stakeTogether.claimRewards(_account, _sharesAmount);
+    stakeTogether._claimRewards(_account, _sharesAmount);
     emit ClaimAirdrop(_type, _epoch, _account, _sharesAmount);
   }
 

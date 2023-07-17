@@ -210,7 +210,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit Approval(_account, _spender, _amount);
   }
 
-  function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
+  function _mintShares(address _to, uint256 _sharesAmount) internal {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
 
     shares[_to] = shares[_to] + _sharesAmount;
@@ -219,7 +219,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit MintShares(_to, _sharesAmount);
   }
 
-  function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
+  function _burnShares(address _account, uint256 _sharesAmount) internal {
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
     require(_sharesAmount <= netSharesOf(_account), 'BALANCE_EXCEEDED');
 
@@ -236,7 +236,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit Transfer(_from, _to, _amount);
   }
 
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal {
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
@@ -432,11 +432,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
    ** REWARDS **
    *****************/
 
-  function mintFeeShares(
-    address _address,
-    address _pool,
-    uint256 _sharesAmount
-  ) public payable nonReentrant {
+  function _mintFeeShares(address _address, address _pool, uint256 _sharesAmount) public payable {
     require(
       msg.sender == address(routerContract) || msg.sender == address(withdrawalsLoanContract),
       'ONLY_ROUTER_OR_WITHDRAWALS_LOANS_CONTRACT'
@@ -446,13 +442,13 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit MintFeeShares(_address, _pool, _sharesAmount);
   }
 
-  function mintPenalty(uint256 _lossAmount) external nonReentrant onlyRouter {
+  function _mintPenalty(uint256 _lossAmount) external onlyRouter {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_lossAmount);
   }
 
-  function claimRewards(
+  function _claimRewards(
     address _account,
     uint256 _sharesAmount
   ) external nonReentrant whenNotPaused onlyAirdrop {
