@@ -24,7 +24,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   event MintRewardsWithdrawalLenders(address indexed sender, uint amount); // @audit-ok | FM
   event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount); // @audit-ok | FM
   event SetStakeTogether(address stakeTogether);
-  event SetRouterContract(address routerContract);
+  event SetRouter(address routerContract);
   event SetFeesContract(address feesContract);
   event MintShares(address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
@@ -70,10 +70,10 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   // @audit-ok | FM
-  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
-    emit SetRouterContract(_routerContract);
+    emit SetRouter(_routerContract);
   }
 
   function setFees(address _feesContract) external onlyRole(ADMIN_ROLE) {
@@ -209,7 +209,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _account, address _spender, uint256 _amount) internal {
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');

@@ -21,7 +21,7 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetRouterContract(address routerContract);
+  event SetRouter(address routerContract);
   event AddMerkleRoots(
     uint256 indexed epoch,
     bytes32 poolsRoot,
@@ -65,10 +65,10 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   }
 
   // @audit-ok | FM
-  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
-    emit SetRouterContract(_routerContract);
+    emit SetRouter(_routerContract);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
