@@ -65,21 +65,21 @@ export async function defaultFixture() {
       }
     )
 
-  await Router.setStakeTogether(await StakeTogether.getAddress())
-  await Router.addReportOracle(process.env.GOERLI_ORACLE_ADDRESS as string)
+  await StakeTogether.bootstrap()
 
-  await Airdrop.setRouter(await Router.getAddress())
+  await Router.setStakeTogether(await StakeTogether.getAddress())
+
+  await Validators.setStakeTogether(await StakeTogether.getAddress())
+  await Validators.setRouter(await Router.getAddress())
+
   await Airdrop.setStakeTogether(await StakeTogether.getAddress())
+  await Airdrop.setRouter(await Router.getAddress())
+
+  await Withdrawals.setStakeTogether(await StakeTogether.getAddress())
 
   await Fees.setStakeTogether(await StakeTogether.getAddress())
   await Fees.setRouter(await Router.getAddress())
-  await Fees.setFee(0n, 1n, 0n)
-
-  await Validators.setRouter(await Router.getAddress())
-  await Validators.addValidatorOracle(process.env.GOERLI_VALIDATOR_ADDRESS as string)
-  await Validators.setStakeTogether(await StakeTogether.getAddress())
-
-  await Withdrawals.setStakeTogether(await StakeTogether.getAddress())
+  await Fees.setFee(0n, 1000000000000000n, 1n)
 
   await WithdrawalsLoan.setFees(await Fees.getAddress())
   await WithdrawalsLoan.setRouter(await Router.getAddress())
@@ -89,7 +89,12 @@ export async function defaultFixture() {
   await RewardsLoan.setRouter(await Router.getAddress())
   await RewardsLoan.setStakeTogether(await StakeTogether.getAddress())
 
-  await StakeTogether.bootstrap()
+  await StakeTogether.grantRole(await StakeTogether.POOL_MANAGER_ROLE(), owner.address)
+  await Validators.grantRole(await Validators.ORACLE_VALIDATOR_MANAGER_ROLE(), owner.address)
+  await Router.grantRole(await Router.ORACLE_REPORT_MANAGER_ROLE(), user1.address)
+
+  await Router.addReportOracle(process.env.GOERLI_ORACLE_ADDRESS as string)
+  await Validators.addValidatorOracle(process.env.GOERLI_VALIDATOR_ADDRESS as string)
 
   await StakeTogether.addPool(user2.address)
   await StakeTogether.addPool(user3.address)
@@ -102,11 +107,6 @@ export async function defaultFixture() {
     user2,
     user3,
     user4,
-    user5,
-    user6,
-    user7,
-    user8,
-    user9,
     nullAddress,
     initialDeposit,
     Router,

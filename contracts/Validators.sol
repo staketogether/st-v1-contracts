@@ -11,7 +11,6 @@ import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Validators is AccessControl, Pausable, ReentrancyGuard {
-  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
@@ -42,7 +41,6 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   constructor(address _depositContract) {
     depositContract = IDepositContract(_depositContract);
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
   }
 
   receive() external payable {
@@ -55,15 +53,15 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
     emit FallbackEther(msg.sender, msg.value);
   }
 
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
     _unpause();
   }
 
-  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
+  function setStakeTogether(address _stakeTogether) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
@@ -75,7 +73,7 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   }
 
   // @audit-ok | FM
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouter(address _routerContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
     emit SetRouter(_routerContract);
@@ -205,7 +203,7 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
     emit RemoveValidator(msg.sender, _epoch, _publicKey);
   }
 
-  function setValidatorSize(uint256 _newSize) external onlyRole(ADMIN_ROLE) {
+  function setValidatorSize(uint256 _newSize) external onlyRole(DEFAULT_ADMIN_ROLE) {
     require(_newSize >= 32 ether, 'MINIMUM_VALIDATOR_SIZE');
     validatorSize = _newSize;
     emit SetValidatorSize(_newSize);
