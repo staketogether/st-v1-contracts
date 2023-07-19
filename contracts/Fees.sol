@@ -16,10 +16,11 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   enum FeeType {
+    Swap,
     StakeEntry,
     StakeRewards,
-    LiquidityProviders,
-    Lenders,
+    ProvideLiquidity,
+    Loan,
     AddValidator,
     AddPool
   }
@@ -276,7 +277,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     );
     anticipatedValue = anticipatedValue - reduction;
 
-    (shares, amounts) = estimateFeePercentage(FeeType.Lenders, anticipatedValue);
+    (shares, amounts) = estimateFeePercentage(FeeType.Loan, anticipatedValue);
 
     daysBlock = (_days * blocksPerYear) / 365;
 

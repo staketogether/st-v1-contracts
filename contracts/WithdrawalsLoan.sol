@@ -259,7 +259,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
     (uint256[9] memory _shares, uint256[9] memory _amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.Lenders,
+      Fees.FeeType.Loan,
       _amount
     );
 
