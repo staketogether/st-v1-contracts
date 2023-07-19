@@ -264,11 +264,11 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     );
 
     if (_shares[0] > 0) {
-      stakeTogether._mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
+      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
     }
 
     if (_shares[1] > 0) {
-      stakeTogether._mintFeeShares{ value: _amounts[1] }(
+      stakeTogether.mintFeeShares{ value: _amounts[1] }(
         feesContract.getFeeAddress(Fees.FeeRoles.Operators),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         _shares[1]
@@ -276,7 +276,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     }
 
     if (_shares[2] > 0) {
-      stakeTogether._mintFeeShares{ value: _amounts[2] }(
+      stakeTogether.mintFeeShares{ value: _amounts[2] }(
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         _shares[2]
@@ -284,7 +284,7 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     }
 
     if (_shares[3] > 0) {
-      stakeTogether._mintFeeShares{ value: _amounts[3] }(
+      stakeTogether.mintFeeShares{ value: _amounts[3] }(
         feesContract.getFeeAddress(Fees.FeeRoles.StakeAccounts),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         _shares[3]

@@ -101,12 +101,10 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _;
   }
 
-  modifier onlyRouterWithdrawOrSt() {
+  modifier onlyRouterOrLoan() {
     require(
-      msg.sender == address(routerContract) ||
-        msg.sender == address(withdrawalsLoanContract) ||
-        msg.sender == stakeTogetherAddress,
-      'ONLY_ROUTER_OR_WITHDRAWALS_LOANS_OR_ST_CONTRACT'
+      msg.sender == address(routerContract) || msg.sender == address(withdrawalsLoanContract),
+      'ONLY_ROUTER_OR_LOAN_CONTRACT'
     );
     _;
   }
@@ -444,23 +442,27 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
    ** REWARDS **
    *****************/
 
-  function _mintFeeShares(
-    address _address,
-    address _pool,
-    uint256 _sharesAmount
-  ) public payable onlyRouterWithdrawOrSt {
+  function _mintFeeShares(address _address, address _pool, uint256 _sharesAmount) internal {
     _mintShares(_address, _sharesAmount);
     _mintPoolShares(_address, _pool, _sharesAmount);
     emit MintFeeShares(_address, _pool, _sharesAmount);
   }
 
-  function _mintPenalty(uint256 _lossAmount) external onlyRouter {
+  function mintFeeShares(
+    address _address,
+    address _pool,
+    uint256 _sharesAmount
+  ) public payable onlyRouterOrLoan {
+    _mintFeeShares(_address, _pool, _sharesAmount);
+  }
+
+  function mintPenalty(uint256 _lossAmount) external onlyRouter {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_lossAmount);
   }
 
-  function _claimRewards(
+  function claimRewards(
     address _account,
     uint256 _sharesAmount
   ) external nonReentrant whenNotPaused onlyAirdrop {
