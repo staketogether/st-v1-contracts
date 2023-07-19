@@ -234,8 +234,8 @@ contract StakeTogether is Shares {
   // @audit-ok | FM
   function _withdrawBase(uint256 _amount, address _pool) internal {
     require(_amount > 0, 'ZERO_VALUE');
-    require(!isPool(_pool), 'POOL_NOT_FOUND');
-    require(_amount >= balanceOf(msg.sender), 'AMOUNT_EXCEEDS_BALANCE');
+    require(isPool(_pool), 'POOL_NOT_FOUND');
+    require(_amount <= balanceOf(msg.sender), 'AMOUNT_EXCEEDS_BALANCE');
     require(delegationSharesOf(msg.sender, _pool) > 0, 'NO_DELEGATION_SHARES');
 
     if (block.number > lastResetBlock + blocksPerDay) {

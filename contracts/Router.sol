@@ -313,7 +313,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     lastExecutedConsensusEpoch = _report.epoch;
 
     if (_report.lossAmount > 0) {
-      stakeTogether._mintPenalty(_report.lossAmount);
+      stakeTogether.mintPenalty(_report.lossAmount);
     }
 
     if (_report.extraAmount > 0) {
@@ -328,7 +328,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
     for (uint i = 0; i < 9; i++) {
       if (_shares[i] > 0) {
-        stakeTogether._mintFeeShares{ value: _amounts[i] }(
+        stakeTogether.mintFeeShares{ value: _amounts[i] }(
           feesContract.getFeeAddress(roles[i]),
           feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
           _shares[i]

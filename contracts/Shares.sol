@@ -99,6 +99,14 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _;
   }
 
+  modifier onlyRouterOrLoan() {
+    require(
+      msg.sender == address(routerContract) || msg.sender == address(withdrawalsLoanContract),
+      'ONLY_ROUTER_OR_LOAN_CONTRACT'
+    );
+    _;
+  }
+
   function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
@@ -248,7 +256,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
-  function _spendAllowance(address _account, address _spender, uint256 _amount) internal {
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
@@ -432,23 +440,27 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
    ** REWARDS **
    *****************/
 
-  function _mintFeeShares(address _address, address _pool, uint256 _sharesAmount) public payable {
-    require(
-      msg.sender == address(routerContract) || msg.sender == address(withdrawalsLoanContract),
-      'ONLY_ROUTER_OR_WITHDRAWALS_LOANS_CONTRACT'
-    );
+  function _mintFeeShares(address _address, address _pool, uint256 _sharesAmount) internal {
     _mintShares(_address, _sharesAmount);
     _mintPoolShares(_address, _pool, _sharesAmount);
     emit MintFeeShares(_address, _pool, _sharesAmount);
   }
 
-  function _mintPenalty(uint256 _lossAmount) external onlyRouter {
+  function mintFeeShares(
+    address _address,
+    address _pool,
+    uint256 _sharesAmount
+  ) public payable onlyRouterOrLoan {
+    _mintFeeShares(_address, _pool, _sharesAmount);
+  }
+
+  function mintPenalty(uint256 _lossAmount) external onlyRouter {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_lossAmount);
   }
 
-  function _claimRewards(
+  function claimRewards(
     address _account,
     uint256 _sharesAmount
   ) external nonReentrant whenNotPaused onlyAirdrop {

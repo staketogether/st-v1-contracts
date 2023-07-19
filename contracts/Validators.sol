@@ -25,7 +25,7 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetRouterContract(address routerContract);
+  event SetRouter(address routerContract);
   event AddValidatorOracle(address indexed account);
   event RemoveValidatorOracle(address indexed account);
   event CreateValidator(
@@ -55,11 +55,11 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
     emit FallbackEther(msg.sender, msg.value);
   }
 
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
     _unpause();
   }
 
@@ -75,10 +75,10 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   }
 
   // @audit-ok | FM
-  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
-    emit SetRouterContract(_routerContract);
+    emit SetRouter(_routerContract);
   }
 
   modifier onlyRouter() {
