@@ -29,6 +29,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   WithdrawalsLoan public withdrawalsLoanContract;
   Validators public validatorsContract;
   RewardsLoan public rewardsLoanContract;
+  // Validate if the type should be Shares or StakeTogether
+  address public stakeTogetherAddress;
 
   uint256 public beaconBalance = 0;
   uint256 public withdrawalsLoanBalance = 0;
@@ -96,6 +98,16 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   modifier onlyValidatorOracle() {
     require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
+    _;
+  }
+
+  modifier onlyRouterWithdrawOrSt() {
+    require(
+      msg.sender == address(routerContract) ||
+        msg.sender == address(withdrawalsLoanContract) ||
+        msg.sender == stakeTogetherAddress,
+      'ONLY_ROUTER_OR_WITHDRAWALS_LOANS_OR_ST_CONTRACT'
+    );
     _;
   }
 
@@ -432,11 +444,11 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
    ** REWARDS **
    *****************/
 
-  function _mintFeeShares(address _address, address _pool, uint256 _sharesAmount) public payable {
-    require(
-      msg.sender == address(routerContract) || msg.sender == address(withdrawalsLoanContract),
-      'ONLY_ROUTER_OR_WITHDRAWALS_LOANS_CONTRACT'
-    );
+  function _mintFeeShares(
+    address _address,
+    address _pool,
+    uint256 _sharesAmount
+  ) public payable onlyRouterWithdrawOrSt {
     _mintShares(_address, _sharesAmount);
     _mintPoolShares(_address, _pool, _sharesAmount);
     emit MintFeeShares(_address, _pool, _sharesAmount);
