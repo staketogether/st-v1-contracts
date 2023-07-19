@@ -5,11 +5,11 @@ import { checkVariables } from '../test/utils/env'
 import {
   Airdrop__factory,
   Fees__factory,
-  RewardsLoan__factory,
+  Liquidity__factory,
+  Loan__factory,
   Router__factory,
   StakeTogether__factory,
   Validators__factory,
-  WithdrawalsLoan__factory,
   Withdrawals__factory
 } from '../typechain'
 
@@ -23,13 +23,13 @@ export async function deployContracts() {
   const feesAddress = await deployFees(owner)
   const withdrawalsAddress = await deployWithdrawals(owner)
   const airdropAddress = await deployAirdrop(owner)
-  const rewardsLoanAddress = await deployRewardsLoan(owner)
+  const loanAddress = await deployLoan(owner)
   const validatorsAddress = await deployValidators(owner)
-  const withdrawalsLoanAddress = await deployWithdrawalsLoan(owner)
+  const liquidityAddress = await deployLiquidity(owner)
   const routerAddress = await deployRouter(
     owner,
     withdrawalsAddress,
-    withdrawalsLoanAddress,
+    liquidityAddress,
     airdropAddress,
     validatorsAddress,
     feesAddress
@@ -41,9 +41,9 @@ export async function deployContracts() {
     feesAddress,
     airdropAddress,
     withdrawalsAddress,
-    withdrawalsLoanAddress,
+    liquidityAddress,
     validatorsAddress,
-    rewardsLoanAddress
+    loanAddress
   )
 
   console.log('\n🔷 All contracts deployed!\n')
@@ -52,9 +52,9 @@ export async function deployContracts() {
     feesAddress,
     airdropAddress,
     withdrawalsAddress,
-    withdrawalsLoanAddress,
+    liquidityAddress,
     validatorsAddress,
-    rewardsLoanAddress,
+    loanAddress,
     stakeTogether
   )
 }
@@ -89,12 +89,12 @@ async function deployAirdrop(owner: CustomEthersSigner) {
   return address
 }
 
-async function deployRewardsLoan(owner: CustomEthersSigner) {
-  const RewardsLoan = await new RewardsLoan__factory().connect(owner).deploy()
+async function deployLoan(owner: CustomEthersSigner) {
+  const Loan = await new Loan__factory().connect(owner).deploy()
 
-  const address = await RewardsLoan.getAddress()
+  const address = await Loan.getAddress()
 
-  console.log(`Rewards Loan deployed:\t\t ${address}`)
+  console.log(`Loan deployed:\t\t\t ${address}`)
 
   return address
 }
@@ -111,12 +111,12 @@ async function deployValidators(owner: CustomEthersSigner) {
   return address
 }
 
-async function deployWithdrawalsLoan(owner: CustomEthersSigner) {
-  const WithdrawalsLoan = await new WithdrawalsLoan__factory().connect(owner).deploy()
+async function deployLiquidity(owner: CustomEthersSigner) {
+  const Liquidity = await new Liquidity__factory().connect(owner).deploy()
 
-  const address = await WithdrawalsLoan.getAddress()
+  const address = await Liquidity.getAddress()
 
-  console.log(`Withdrawals Loan deployed:\t ${address}`)
+  console.log(`Liquidity deployed:\t ${address}`)
 
   return address
 }
@@ -127,9 +127,9 @@ async function deployStakeTogether(
   feesAddress: string,
   airdropAddress: string,
   withdrawalsAddress: string,
-  withdrawalsLoanAddress: string,
+  liquidityAddress: string,
   validatorsAddress: string,
-  rewardsLoanAddress: string
+  loanAddress: string
 ) {
   const StakeTogether = await new StakeTogether__factory()
     .connect(owner)
@@ -138,9 +138,9 @@ async function deployStakeTogether(
       feesAddress,
       airdropAddress,
       withdrawalsAddress,
-      withdrawalsLoanAddress,
+      liquidityAddress,
       validatorsAddress,
-      rewardsLoanAddress,
+      loanAddress,
       {
         value: 1n
       }
@@ -165,14 +165,14 @@ async function deployStakeTogether(
   const Withdrawals = await ethers.getContractAt('Withdrawals', withdrawalsAddress)
   await Withdrawals.setStakeTogether(address)
 
-  const WithdrawalsLoan = await ethers.getContractAt('WithdrawalsLoan', withdrawalsLoanAddress)
-  await WithdrawalsLoan.setStakeTogether(address)
+  const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
+  await Liquidity.setStakeTogether(address)
 
-  // Configure RewardsLoan here because it's not a part of the Router dependencies
-  const RewardsLoan = await ethers.getContractAt('RewardsLoan', rewardsLoanAddress)
-  await RewardsLoan.setStakeTogether(address)
-  await RewardsLoan.setFees(feesAddress)
-  await RewardsLoan.setRouter(routerAddress)
+  // Configure Loan here because it's not a part of the Router dependencies
+  const Loan = await ethers.getContractAt('Loan', loanAddress)
+  await Loan.setStakeTogether(address)
+  await Loan.setFees(feesAddress)
+  await Loan.setRouter(routerAddress)
 
   StakeTogether.bootstrap()
 
@@ -184,14 +184,14 @@ async function deployStakeTogether(
 async function deployRouter(
   owner: CustomEthersSigner,
   withdrawalsAddress: string,
-  withdrawalsLoanAddress: string,
+  liquidityAddress: string,
   airdropAddress: string,
   validatorsAddress: string,
   feesAddress: string
 ) {
   const Router = await new Router__factory()
     .connect(owner)
-    .deploy(withdrawalsAddress, withdrawalsLoanAddress, airdropAddress, validatorsAddress, feesAddress)
+    .deploy(withdrawalsAddress, liquidityAddress, airdropAddress, validatorsAddress, feesAddress)
 
   const address = await Router.getAddress()
 
@@ -203,9 +203,9 @@ async function deployRouter(
   const Validators = await ethers.getContractAt('Validators', validatorsAddress)
   await Validators.setRouter(address)
 
-  const WithdrawalsLoan = await ethers.getContractAt('WithdrawalsLoan', withdrawalsLoanAddress)
-  await WithdrawalsLoan.setRouter(address)
-  await WithdrawalsLoan.setFees(feesAddress)
+  const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
+  await Liquidity.setRouter(address)
+  await Liquidity.setFees(feesAddress)
 
   console.log(`\n\n\tRouter address and fee address set in all contracts\n\n`)
 
@@ -217,16 +217,16 @@ async function verifyContracts(
   feesAddress: string,
   airdropAddress: string,
   withdrawalsAddress: string,
-  withdrawalsLoanAddress: string,
+  liquidityAddress: string,
   validatorsAddress: string,
-  rewardsLoanAddress: string,
+  loanAddress: string,
   stakeTogether: string
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
   console.log(
-    `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${withdrawalsLoanAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} && npx hardhat verify --network goerli ${feesAddress} && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${withdrawalsLoanAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
+    `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${liquidityAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} && npx hardhat verify --network goerli ${feesAddress} && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${liquidityAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
       process.env.GOERLI_DEPOSIT_ADDRESS as string
-    } && npx hardhat verify --network goerli ${rewardsLoanAddress} && npx hardhat verify --network goerli ${stakeTogether} ${routerAddress} ${feesAddress} ${airdropAddress} ${withdrawalsAddress} ${withdrawalsLoanAddress} ${validatorsAddress} ${rewardsLoanAddress}`
+    } && npx hardhat verify --network goerli ${loanAddress} && npx hardhat verify --network goerli ${stakeTogether} ${routerAddress} ${feesAddress} ${airdropAddress} ${withdrawalsAddress} ${liquidityAddress} ${validatorsAddress} ${loanAddress}`
   )
 }
 

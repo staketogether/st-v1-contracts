@@ -8,7 +8,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Withdrawals.sol';
-import './WithdrawalsLoan.sol';
+import './Liquidity.sol';
 import './Airdrop.sol';
 import './Validators.sol';
 import './Fees.sol';
@@ -23,7 +23,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   Fees public feesContract;
   Withdrawals public withdrawalsContract;
-  WithdrawalsLoan public withdrawalsLoanContract;
+  Liquidity public liquidityContract;
   Airdrop public airdropContract;
   Validators public validatorsContract;
 
@@ -84,13 +84,13 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
   constructor(
     address _withdrawContract,
-    address _withdrawalsLoanContract,
+    address _liquidityContract,
     address _airdropContract,
     address _validatorsContract,
     address _feesContract
   ) {
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
-    withdrawalsLoanContract = WithdrawalsLoan(payable(_withdrawalsLoanContract));
+    liquidityContract = Liquidity(payable(_liquidityContract));
     airdropContract = Airdrop(payable(_airdropContract));
     validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));

@@ -34,9 +34,9 @@ export async function defaultFixture() {
 
   const Fees = await new Fees__factory().connect(owner).deploy()
   const Withdrawals = await new Withdrawals__factory().connect(owner).deploy()
-  const WithdrawalsLoan = await new WithdrawalsLoan__factory().connect(owner).deploy()
+  const Liquidity = await new WithdrawalsLoan__factory().connect(owner).deploy()
   const Airdrop = await new Airdrop__factory().connect(owner).deploy()
-  const RewardsLoan = await new RewardsLoan__factory().connect(owner).deploy()
+  const Loan = await new RewardsLoan__factory().connect(owner).deploy()
   const Validators = await new Validators__factory()
     .connect(owner)
     .deploy(process.env.GOERLI_DEPOSIT_ADDRESS as string)
@@ -44,7 +44,7 @@ export async function defaultFixture() {
     .connect(owner)
     .deploy(
       await Withdrawals.getAddress(),
-      await WithdrawalsLoan.getAddress(),
+      await Liquidity.getAddress(),
       await Airdrop.getAddress(),
       await Validators.getAddress(),
       await Fees.getAddress()
@@ -57,9 +57,9 @@ export async function defaultFixture() {
       await Fees.getAddress(),
       await Airdrop.getAddress(),
       await Withdrawals.getAddress(),
-      await WithdrawalsLoan.getAddress(),
+      await Liquidity.getAddress(),
       await Validators.getAddress(),
-      await RewardsLoan.getAddress(),
+      await Loan.getAddress(),
       {
         value: initialDeposit
       }
@@ -81,13 +81,13 @@ export async function defaultFixture() {
   await Fees.setRouter(await Router.getAddress())
   await Fees.setFee(0n, 1000000000000000n, 1n)
 
-  await WithdrawalsLoan.setFees(await Fees.getAddress())
-  await WithdrawalsLoan.setRouter(await Router.getAddress())
-  await WithdrawalsLoan.setStakeTogether(await StakeTogether.getAddress())
+  await Liquidity.setFees(await Fees.getAddress())
+  await Liquidity.setRouter(await Router.getAddress())
+  await Liquidity.setStakeTogether(await StakeTogether.getAddress())
 
-  await RewardsLoan.setFees(await Fees.getAddress())
-  await RewardsLoan.setRouter(await Router.getAddress())
-  await RewardsLoan.setStakeTogether(await StakeTogether.getAddress())
+  await Loan.setFees(await Fees.getAddress())
+  await Loan.setRouter(await Router.getAddress())
+  await Loan.setStakeTogether(await StakeTogether.getAddress())
 
   await StakeTogether.grantRole(await StakeTogether.POOL_MANAGER_ROLE(), owner.address)
   await Validators.grantRole(await Validators.ORACLE_VALIDATOR_MANAGER_ROLE(), owner.address)
@@ -112,8 +112,8 @@ export async function defaultFixture() {
     Router,
     Airdrop,
     Withdrawals,
-    WithdrawalsLoan,
-    RewardsLoan,
+    Liquidity,
+    Loan,
     Validators,
     Fees,
     StakeTogether

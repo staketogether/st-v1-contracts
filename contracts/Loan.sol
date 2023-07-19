@@ -14,15 +14,15 @@ import './Router.sol';
 import './Fees.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Loan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
   Router public routerContract;
   Fees public feesContract;
 
-  event MintRewardsWithdrawalLenders(address indexed sender, uint amount); // @audit-ok | FM
-  event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount); // @audit-ok | FM
+  event MintRewardsAccounts(address indexed sender, uint amount);
+  event MintRewardsAccountsFallback(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event SetRouter(address routerContract);
   event SetFeesContract(address feesContract);
@@ -32,22 +32,24 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   event SetEnableLoan(bool enable);
   event AddLiquidity(address indexed user, uint256 amount);
   event RemoveLiquidity(address indexed user, uint256 amount);
-  event WithdrawLoan(address indexed user, uint256 amount);
-  event RepayLoan(address indexed user, uint256 amount);
+  event AnticipateRewards(
+    address indexed user,
+    uint256 anticipatedAmount,
+    uint256 netAmount,
+    uint256 fee
+  );
 
-  constructor() ERC20('ST Withdrawals Loan Ether', 'wlETH') ERC20Permit('ST Withdrawals Loan Ether') {
+  constructor() ERC20('ST Rewards Loan Ether', 'rlETH') ERC20Permit('ST Rewards Loan Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  // @audit-ok | FM
   receive() external payable {
-    emit MintRewardsWithdrawalLenders(msg.sender, msg.value);
+    emit MintRewardsAccounts(msg.sender, msg.value);
   }
 
-  // @audit-ok | FM
   fallback() external payable {
-    emit MintRewardsWithdrawalLendersFallback(msg.sender, msg.value);
+    emit MintRewardsAccountsFallback(msg.sender, msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -86,8 +88,8 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
    ** SHARES **
    ************/
 
-  mapping(address => uint256) private withdrawalsShares;
-  uint256 public totalWithdrawalsShares = 0;
+  mapping(address => uint256) private rewardsShares;
+  uint256 public totalRewardsShares = 0;
   mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view returns (uint256) {
@@ -103,15 +105,15 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   function sharesOf(address _account) public view returns (uint256) {
-    return withdrawalsShares[_account];
+    return rewardsShares[_account];
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return Math.mulDiv(_ethAmount, totalWithdrawalsShares, totalPooledEther());
+    return Math.mulDiv(_ethAmount, totalRewardsShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalWithdrawalsShares);
+    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalRewardsShares);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -175,8 +177,8 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
 
-    withdrawalsShares[_to] = withdrawalsShares[_to] + _sharesAmount;
-    totalWithdrawalsShares += _sharesAmount;
+    rewardsShares[_to] = rewardsShares[_to] + _sharesAmount;
+    totalRewardsShares += _sharesAmount;
 
     emit MintShares(_to, _sharesAmount);
   }
@@ -185,8 +187,8 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
     require(_sharesAmount <= sharesOf(_account), 'BALANCE_EXCEEDED');
 
-    withdrawalsShares[_account] = withdrawalsShares[_account] - _sharesAmount;
-    totalWithdrawalsShares -= _sharesAmount;
+    rewardsShares[_account] = rewardsShares[_account] - _sharesAmount;
+    totalRewardsShares -= _sharesAmount;
 
     emit BurnShares(_account, _sharesAmount);
   }
@@ -203,8 +205,8 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
     require(_sharesAmount <= sharesOf(_from), 'BALANCE_EXCEEDED');
 
-    withdrawalsShares[_from] = withdrawalsShares[_from] - _sharesAmount;
-    withdrawalsShares[_to] = withdrawalsShares[_to] + _sharesAmount;
+    rewardsShares[_from] = rewardsShares[_from] - _sharesAmount;
+    rewardsShares[_to] = rewardsShares[_to] + _sharesAmount;
 
     emit TransferShares(_from, _to, _sharesAmount);
   }
@@ -217,9 +219,9 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     }
   }
 
-  /***************
+  /***********************
    ** LIQUIDITY **
-   ***************/
+   ***********************/
 
   bool public enableLoan = true;
 
@@ -229,9 +231,11 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   function addLiquidity() public payable whenNotPaused nonReentrant {
-    // Todo: add fee entry loans
-    uint256 sharesAmount = Math.mulDiv(msg.value, totalWithdrawalsShares, totalPooledEther() - msg.value);
+    // Todo: implement fee
+    uint256 sharesAmount = Math.mulDiv(msg.value, totalRewardsShares, totalPooledEther() - msg.value);
+
     _mintShares(msg.sender, sharesAmount);
+
     emit AddLiquidity(msg.sender, msg.value);
   }
 
@@ -250,58 +254,76 @@ contract WithdrawalsLoan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit RemoveLiquidity(msg.sender, _amount);
   }
 
-  function withdrawLoan(
-    uint256 _amount,
-    address _pool
-  ) public whenNotPaused nonReentrant onlyStakeTogether {
-    require(enableLoan, 'BORROW_DISABLED');
-    require(_amount > 0, 'ZERO_AMOUNT');
-    require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
+  /***********************
+   ** ANTICIPATION **
+   ***********************/
 
-    (uint256[9] memory _shares, uint256[9] memory _amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.Loan,
-      _amount
-    );
-
-    if (_shares[0] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
-    }
-
-    if (_shares[1] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[1] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.Operators),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        _shares[1]
-      );
-    }
-
-    if (_shares[2] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[2] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        _shares[2]
-      );
-    }
-
-    if (_shares[3] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[3] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeAccounts),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        _shares[3]
-      );
-    }
-
-    stakeTogether.setWithdrawalsLoanBalance(
-      stakeTogether.withdrawalsLoanBalance() + _amount + _amounts[6]
-    );
-
-    payable(msg.sender).transfer(_amounts[8]);
-
-    emit WithdrawLoan(msg.sender, _amount);
+  modifier onlyRouter() {
+    require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+    _;
   }
 
-  function repayLoan() public payable nonReentrant onlyStakeTogether {
-    require(msg.value > 0, 'ZERO_AMOUNT');
-    emit RepayLoan(msg.sender, msg.value);
+  function anticipateRewards(uint256 _amount, address _pool, uint256 _days) external nonReentrant {
+    require(enableLoan, 'ANTICIPATION_DISABLED');
+    require(_amount > 0, 'ZERO_AMOUNT');
+    require(_days > 0, 'ZERO_DAYS');
+
+    uint256 accountBalance = stakeTogether.balanceOf(msg.sender);
+    require(accountBalance >= _amount, 'INSUFFICIENT_USER_BALANCE');
+
+    // (
+    //   uint256 maxValue,
+    //   uint256 secureValue,
+    //   uint256 reduction,
+    //   uint256[7] memory _shares,
+    //   uint256[7] memory _amounts,
+    //   uint256 daysBlock
+    // ) = feesContract.estimateAnticipation(_amount, _days);
+
+    // require(address(this).balance >= maxValue, 'INSUFFICIENT_CONTRACT_BALANCE');
+
+    // uint256 lockShares = stakeTogether.sharesByPooledEth(secureValue);
+
+    // uint256 debitShares = 0;
+    // // Todo: implement operation
+
+    // stakeTogether.lockShares(msg.sender, lockShares, debitShares, daysBlock, _pool);
+
+    // if (_shares[0] > 0) {
+    //   stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
+    // }
+
+    // if (_shares[1] > 0) {
+    //   stakeTogether.mintFeeShares{ value: _amounts[1] }(
+    //     feesContract.getFeeAddress(Fees.FeeRoles.Operators),
+    //     feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+    //     _shares[1]
+    //   );
+    // }
+
+    // if (_shares[2] > 0) {
+    //   stakeTogether.mintFeeShares{ value: _amounts[2] }(
+    //     feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+    //     feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+    //     _shares[2]
+    //   );
+    // }
+
+    // if (_shares[3] > 0) {
+    //   stakeTogether.mintFeeShares(
+    //     feesContract.getFeeAddress(Fees.FeeRoles.Accounts),
+    //     feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+    //     _shares[3]
+    //   );
+    // }
+
+    // stakeTogether.setWithdrawalsLoanBalance(
+    //   stakeTogether.withdrawalsLoanBalance() + _amount + _amounts[4]
+    // );
+
+    // require(secureValue > 0, 'ZERO_VALUE');
+    // payable(msg.sender).transfer(secureValue);
+
+    // emit AnticipateRewards(msg.sender, _amount, maxValue, reduction);
   }
 }

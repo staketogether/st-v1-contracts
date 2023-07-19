@@ -62,17 +62,17 @@ contract StakeTogether is Shares {
     address _feesContract,
     address _airdropContract,
     address _withdrawalsContract,
-    address _withdrawalsLoanContract,
+    address _liquidityContract,
     address _validatorsContract,
-    address _rewardsLoanContract
+    address rewardsLoanContract
   ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));
     airdropContract = Airdrop(payable(_airdropContract));
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
-    withdrawalsLoanContract = WithdrawalsLoan(payable(_withdrawalsLoanContract));
+    liquidityContract = Liquidity(payable(_liquidityContract));
     validatorsContract = Validators(payable(_validatorsContract));
-    rewardsLoanContract = RewardsLoan(payable(_rewardsLoanContract));
+    LoanContract = Loan(payable(rewardsLoanContract));
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
@@ -125,12 +125,12 @@ contract StakeTogether is Shares {
 
       uint256 sharesToBurn = Math.mulDiv(
         loanAmount,
-        sharesOf(address(withdrawalsLoanContract)),
+        sharesOf(address(liquidityContract)),
         withdrawalsLoanBalance
       );
 
-      _burnShares(address(withdrawalsLoanContract), sharesToBurn);
-      withdrawalsLoanContract.repayLoan{ value: loanAmount }();
+      _burnShares(address(liquidityContract), sharesToBurn);
+      liquidityContract.repayLoan{ value: loanAmount }();
 
       emit RepayLoan(loanAmount, sharesToBurn);
     }
@@ -267,10 +267,10 @@ contract StakeTogether is Shares {
 
   // @audit-ok | FM
   function withdrawLoan(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(_amount <= address(withdrawalsLoanContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
+    require(_amount <= address(liquidityContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
     emit WithdrawLoan(msg.sender, _amount, _pool);
-    withdrawalsLoanContract.withdrawLoan(_amount, _pool);
+    liquidityContract.withdrawLoan(_amount, _pool);
   }
 
   // @audit-ok | FM
@@ -304,7 +304,7 @@ contract StakeTogether is Shares {
 
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
     require(
-      _amount >= validatorsContract.validatorSize() + address(withdrawalsLoanContract).balance,
+      _amount >= validatorsContract.validatorSize() + address(liquidityContract).balance,
       'POOL_SIZE_TOO_LOW'
     );
     poolSize = _amount;

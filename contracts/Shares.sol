@@ -13,9 +13,9 @@ import './Router.sol';
 import './Fees.sol';
 import './Airdrop.sol';
 import './Withdrawals.sol';
-import './WithdrawalsLoan.sol';
+import './Liquidity.sol';
 import './Validators.sol';
-import './RewardsLoan.sol';
+import './Loan.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
@@ -26,9 +26,9 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   Fees public feesContract;
   Airdrop public airdropContract;
   Withdrawals public withdrawalsContract;
-  WithdrawalsLoan public withdrawalsLoanContract;
+  Liquidity public liquidityContract;
   Validators public validatorsContract;
-  RewardsLoan public rewardsLoanContract;
+  Loan public LoanContract;
 
   uint256 public beaconBalance = 0;
   uint256 public withdrawalsLoanBalance = 0;
@@ -84,8 +84,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _;
   }
 
-  modifier onlyWithdrawalsLoan() {
-    require(msg.sender == address(withdrawalsLoanContract), 'ONLY_LOANS_CONTRACT');
+  modifier onlyLiquidity() {
+    require(msg.sender == address(liquidityContract), 'ONLY_LIQUIDITY_CONTRACT');
     _;
   }
 
@@ -101,7 +101,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   modifier onlyRouterOrLoan() {
     require(
-      msg.sender == address(routerContract) || msg.sender == address(withdrawalsLoanContract),
+      msg.sender == address(routerContract) || msg.sender == address(liquidityContract),
       'ONLY_ROUTER_OR_LOAN_CONTRACT'
     );
     _;
@@ -120,7 +120,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit SetBeaconBalance(_amount);
   }
 
-  function setWithdrawalsLoanBalance(uint256 _amount) external onlyWithdrawalsLoan {
+  function setWithdrawalsLoanBalance(uint256 _amount) external onlyLiquidity {
     withdrawalsLoanBalance = _amount;
     emit SetWithdrawalsLoanBalance(_amount);
   }
@@ -294,7 +294,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     uint256 _debitSharesAmount,
     uint256 _unlockBlock,
     address _pool
-  ) external onlyWithdrawalsLoan nonReentrant whenNotPaused {
+  ) external onlyLiquidity nonReentrant whenNotPaused {
     // Todo: wrong -> rewards loan
     require(locked[_account].length < maxActiveLocks, 'TOO_MANY_LOCKS');
     require(_lockedSharesAmount <= shares[_account], 'INSUFFICIENT_SHARES');
