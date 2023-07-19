@@ -39,7 +39,7 @@ describe('StakeTogether: Unstake', function () {
     // await connect(Router, user1).report(reportNextBlock, newBeaconBalance)
     // await connect(Router, user2).report(reportNextBlock, newBeaconBalance)
 
-    const unstakeAmount = 1091002042649965437n
+    const unstakeAmount = 1000000000000000000n
     await connect(StakeTogether, user1).withdrawPool(unstakeAmount, user2)
 
     const totalPooledEther = await StakeTogether.totalPooledEther()
