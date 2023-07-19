@@ -29,8 +29,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   WithdrawalsLoan public withdrawalsLoanContract;
   Validators public validatorsContract;
   RewardsLoan public rewardsLoanContract;
-  // Validate if the type should be Shares or StakeTogether
-  address public stakeTogetherAddress;
 
   uint256 public beaconBalance = 0;
   uint256 public withdrawalsLoanBalance = 0;

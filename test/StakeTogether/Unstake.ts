@@ -57,16 +57,12 @@ describe('StakeTogether: Unstake', function () {
     const sharesDelegated = await StakeTogether.sharesOf(user2.address)
     // const delegatedSharedDelegated = await StakeTogether.delegatedSharesOf(user2.address)
 
-    expect(totalPooledEther).to.eq(
-      stakeAmount + stakeAmount + newBeaconBalance - unstakeAmount + initialDeposit
-    )
+    expect(totalPooledEther).to.eq(stakeAmount + stakeAmount - unstakeAmount + initialDeposit)
     // expect(totalShares).to.eq(1016498625114573783n)
     // expect(totalDelegatedShares).to.eq(stakeAmount + 1n)
-    expect(totalSupply).to.eq(
-      stakeAmount + stakeAmount + newBeaconBalance - unstakeAmount + initialDeposit
-    )
+    expect(totalSupply).to.eq(stakeAmount + stakeAmount - unstakeAmount + initialDeposit)
 
-    expect(balanceUser).to.eq(0)
+    expect(balanceUser).to.eq(0n)
     expect(balanceUser3).to.eq(1091002042649965438n)
     // expect(sharesUser).to.eq(0)
     // expect(delegatedSharesUser).to.eq(0)

@@ -73,7 +73,6 @@ contract StakeTogether is Shares {
     withdrawalsLoanContract = WithdrawalsLoan(payable(_withdrawalsLoanContract));
     validatorsContract = Validators(payable(_validatorsContract));
     rewardsLoanContract = RewardsLoan(payable(_rewardsLoanContract));
-    stakeTogetherAddress = address(this);
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
