@@ -18,11 +18,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   enum FeeType {
     StakeEntry,
     StakeRewards,
-    WithdrawalsLoanEntry,
-    WithdrawalsLoan,
-    RewardsLoanEntry,
-    RewardsLoan,
-    RewardsLoanRefund,
+    LiquidityProviders,
+    Lenders,
     AddValidator,
     AddPool
   }
@@ -33,14 +30,14 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   }
 
   enum FeeRoles {
+    StakeAccounts,
+    LockAccounts,
     Pools,
     Operators,
+    Oracles,
     StakeTogether,
-    StakeAccounts,
-    WithdrawalsAccounts,
-    RewardsAccounts,
-    WithdrawalsLenders,
-    RewardsLenders,
+    LiquidityProviders,
+    Lenders,
     Sender
   }
 
@@ -118,14 +115,14 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   // @audit-ok | FM
   function getFeesRoles() public pure returns (FeeRoles[9] memory) {
     FeeRoles[9] memory roles = [
+      FeeRoles.StakeAccounts,
+      FeeRoles.LockAccounts,
       FeeRoles.Pools,
       FeeRoles.Operators,
+      FeeRoles.Oracles,
       FeeRoles.StakeTogether,
-      FeeRoles.StakeAccounts,
-      FeeRoles.WithdrawalsAccounts,
-      FeeRoles.RewardsAccounts,
-      FeeRoles.WithdrawalsLenders,
-      FeeRoles.RewardsLenders,
+      FeeRoles.LiquidityProviders,
+      FeeRoles.Lenders,
       FeeRoles.Sender
     ];
     return roles;
@@ -238,17 +235,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
-    FeeRoles[9] memory roles = [
-      FeeRoles.Pools,
-      FeeRoles.Operators,
-      FeeRoles.StakeTogether,
-      FeeRoles.StakeAccounts,
-      FeeRoles.WithdrawalsAccounts,
-      FeeRoles.RewardsAccounts,
-      FeeRoles.WithdrawalsLenders,
-      FeeRoles.RewardsLenders,
-      FeeRoles.Sender
-    ];
+    FeeRoles[9] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
@@ -289,7 +276,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     );
     anticipatedValue = anticipatedValue - reduction;
 
-    (shares, amounts) = estimateFeePercentage(FeeType.RewardsLoan, anticipatedValue);
+    (shares, amounts) = estimateFeePercentage(FeeType.Lenders, anticipatedValue);
 
     daysBlock = (_days * blocksPerYear) / 365;
 
