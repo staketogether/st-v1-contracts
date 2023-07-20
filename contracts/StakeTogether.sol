@@ -20,21 +20,21 @@ contract StakeTogether is Shares {
     uint256 withdrawalsLendersShares,
     uint256 rewardsLendersShares,
     uint256 senderShares
-  ); // @audit-ok | FM
-  event DepositWalletLimitReached(address indexed sender, uint256 amount); // @audit-ok | FM
-  event DepositProtocolLimitReached(address indexed sender, uint256 amount); // @audit-ok | FM
-  event DepositPool(address indexed account, uint256 amount, address pool, address referral); // @audit-ok | FM
+  );
+  event DepositWalletLimitReached(address indexed sender, uint256 amount);
+  event DepositProtocolLimitReached(address indexed sender, uint256 amount);
+  event DepositPool(address indexed account, uint256 amount, address pool, address referral);
   event DepositDonationPool(
     address indexed donor,
     address indexed account,
     uint256 amount,
     address pool,
     address referral
-  ); // @audit-ok | FM
+  );
   event WithdrawalLimitReached(address indexed sender, uint256 amount);
-  event WithdrawPool(address indexed account, uint256 amount, address pool); // @audit-ok | FM
-  event WithdrawLoan(address indexed account, uint256 amount, address pool); // @audit-ok | FM
-  event WithdrawValidator(address indexed account, uint256 amount, address pool); // @audit-ok | FM
+  event WithdrawPool(address indexed account, uint256 amount, address pool);
+  event WithdrawLoan(address indexed account, uint256 amount, address pool);
+  event WithdrawValidator(address indexed account, uint256 amount, address pool);
   event SetDepositLimit(uint256 newLimit);
   event SetWithdrawalLimit(uint256 newLimit);
   event SetAccountDepositLimit(uint256 newLimit);
@@ -112,7 +112,6 @@ contract StakeTogether is Shares {
     _repayWithdrawalsLoan(msg.value);
   }
 
-  // @audit-ok | FM
   function _repayWithdrawalsLoan(uint256 _amount) internal {
     if (withdrawalsLoanBalance > 0) {
       uint256 loanAmount = 0;
@@ -150,7 +149,6 @@ contract StakeTogether is Shares {
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  // @audit-ok | FM
   function _depositBase(address _to, address _pool) internal {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(isPool(_pool), 'POOL_NOT_FOUND');
@@ -215,13 +213,11 @@ contract StakeTogether is Shares {
     );
   }
 
-  // @audit-ok | FM
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
     _depositBase(msg.sender, _pool);
     emit DepositPool(msg.sender, msg.value, _pool, _referral);
   }
 
-  // @audit-ok | FM
   function depositDonationPool(
     address _to,
     address _pool,
@@ -231,7 +227,6 @@ contract StakeTogether is Shares {
     emit DepositDonationPool(msg.sender, _to, msg.value, _pool, _referral);
   }
 
-  // @audit-ok | FM
   function _withdrawBase(uint256 _amount, address _pool) internal {
     require(_amount > 0, 'ZERO_VALUE');
     require(isPool(_pool), 'POOL_NOT_FOUND');
@@ -257,7 +252,6 @@ contract StakeTogether is Shares {
     totalWithdrawn += _amount;
   }
 
-  // @audit-ok | FM
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= poolBalance(), 'NOT_ENOUGH_POOL_BALANCE');
     _withdrawBase(_amount, _pool);
@@ -265,7 +259,6 @@ contract StakeTogether is Shares {
     payable(msg.sender).transfer(_amount);
   }
 
-  // @audit-ok | FM
   function withdrawLoan(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= address(liquidityContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
@@ -273,7 +266,6 @@ contract StakeTogether is Shares {
     liquidityContract.withdrawLoan(_amount, _pool);
   }
 
-  // @audit-ok | FM
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= beaconBalance, 'NOT_ENOUGH_BEACON_BALANCE');
     beaconBalance -= _amount;

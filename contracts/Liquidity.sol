@@ -21,8 +21,8 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   Router public routerContract;
   Fees public feesContract;
 
-  event MintRewardsWithdrawalLenders(address indexed sender, uint amount); // @audit-ok | FM
-  event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount); // @audit-ok | FM
+  event MintRewardsWithdrawalLenders(address indexed sender, uint amount);
+  event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event SetRouter(address routerContract);
   event SetFeesContract(address feesContract);
@@ -40,12 +40,10 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  // @audit-ok | FM
   receive() external payable {
     emit MintRewardsWithdrawalLenders(msg.sender, msg.value);
   }
 
-  // @audit-ok | FM
   fallback() external payable {
     emit MintRewardsWithdrawalLendersFallback(msg.sender, msg.value);
   }
@@ -69,7 +67,6 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     _;
   }
 
-  // @audit-ok | FM
   function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));

@@ -71,7 +71,6 @@ contract Loan is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable,
     _;
   }
 
-  // @audit-ok | FM
   function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));

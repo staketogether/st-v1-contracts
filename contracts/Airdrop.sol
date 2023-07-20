@@ -42,7 +42,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     // Todo: initialize stakeTogether and operator as pools fee addresses
   }
 
-  // @audit-ok | FM
   modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
     _;
@@ -64,7 +63,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  // @audit-ok | FM
   function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
@@ -105,7 +103,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   mapping(Fees.FeeRoles => mapping(uint256 => mapping(uint256 => uint256))) private claimedBitMap;
   uint256 public maxBatchSize = 100;
 
-  // @audit-ok | FM
   function addAirdropMerkleRoot(
     Fees.FeeRoles _role,
     uint256 _epoch,

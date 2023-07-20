@@ -59,12 +59,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
-  event SetRouter(address routerContract); // @audit-ok | FM
+  event SetRouter(address routerContract);
   event ReceiveEther(address indexed sender, uint256 amount);
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
-  event SetApr(uint256 apr); // @audit-ok | FM
+  event SetApr(uint256 apr);
 
   event SetRiskMargin(uint256 riskMargin);
   event SetBlocksPerYear(uint256 blocksPerYear);
@@ -94,7 +94,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     _unpause();
   }
 
-  // @audit-ok | FM
   modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
     _;
@@ -106,14 +105,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  // @audit-ok | FM
   function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
     emit SetRouter(_routerContract);
   }
 
-  // @audit-ok | FM
   function getFeesRoles() public pure returns (FeeRoles[9] memory) {
     FeeRoles[9] memory roles = [
       FeeRoles.StakeAccounts,
@@ -166,7 +163,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return fees[_feeType].allocations[_role];
   }
 
-  // @audit-ok | FM
   function setApr(uint256 _apr) external onlyRouter {
     apr = _apr;
     emit SetApr(_apr);
@@ -200,7 +196,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
    * ESTIMATES *
    *************/
 
-  // @audit-ok | FM
   function estimateFeePercentage(
     FeeType _feeType,
     uint256 _amount
