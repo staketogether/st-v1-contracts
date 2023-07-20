@@ -320,13 +320,13 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
       // stakeTogether.refundPool{ value: _report.extraAmount }(_report.epoch);
     }
 
-    (uint256[9] memory _shares, uint256[9] memory _amounts) = feesContract.estimateFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
       Fees.FeeType.StakeRewards,
       _report.profitAmount
     );
 
-    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < 9; i++) {
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < 8; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintFeeShares{ value: _amounts[i] }(
           feesContract.getFeeAddress(roles[i]),

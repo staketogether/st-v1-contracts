@@ -33,7 +33,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   event AddLiquidity(address indexed user, uint256 amount);
   event RemoveLiquidity(address indexed user, uint256 amount);
   event WithdrawLoan(address indexed user, uint256 amount);
-  event RepayLoan(address indexed user, uint256 amount);
+  event SupplyLiquidity(address indexed user, uint256 amount);
 
   constructor() ERC20('ST Withdrawals Loan Ether', 'wlETH') ERC20Permit('ST Withdrawals Loan Ether') {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -88,7 +88,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view returns (uint256) {
-    return address(this).balance + stakeTogether.withdrawalsLoanBalance();
+    return address(this).balance + stakeTogether.liquidityBalance();
   }
 
   function totalSupply() public view override returns (uint256) {
@@ -226,13 +226,13 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   }
 
   function addLiquidity() public payable whenNotPaused nonReentrant {
-    (uint256[9] memory _shares, ) = feesContract.estimateFeePercentage(
-      Fees.FeeType.ProvideLiquidity,
+    (uint256[8] memory _shares, ) = feesContract.estimateFeePercentage(
+      Fees.FeeType.LiquidityProvideEntry,
       msg.value
     );
 
-    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < 9; i++) {
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         _mintShares(feesContract.getFeeAddress(roles[i]), _shares[i]);
       }
@@ -256,7 +256,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     emit RemoveLiquidity(msg.sender, _amount);
   }
 
-  function withdrawLoan(
+  function withdrawLiquidity(
     uint256 _amount,
     address _pool
   ) public whenNotPaused nonReentrant onlyStakeTogether {
@@ -264,8 +264,8 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    (uint256[9] memory _shares, uint256[9] memory _amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.Loan,
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
+      Fees.FeeType.LiquidityProvide,
       _amount
     );
 
@@ -297,17 +297,15 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
       );
     }
 
-    stakeTogether.setWithdrawalsLoanBalance(
-      stakeTogether.withdrawalsLoanBalance() + _amount + _amounts[6]
-    );
+    stakeTogether.setWithdrawalsLoanBalance(stakeTogether.liquidityBalance() + _amount + _amounts[6]);
 
-    payable(msg.sender).transfer(_amounts[8]);
+    payable(msg.sender).transfer(_amounts[7]);
 
     emit WithdrawLoan(msg.sender, _amount);
   }
 
-  function repayLoan() public payable nonReentrant onlyStakeTogether {
+  function supplyLiquidity() public payable nonReentrant onlyStakeTogether {
     require(msg.value > 0, 'ZERO_AMOUNT');
-    emit RepayLoan(msg.sender, msg.value);
+    emit SupplyLiquidity(msg.sender, msg.value);
   }
 }

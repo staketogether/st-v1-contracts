@@ -15,7 +15,6 @@ import './Airdrop.sol';
 import './Withdrawals.sol';
 import './Liquidity.sol';
 import './Validators.sol';
-import './Loan.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
@@ -28,32 +27,15 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   Withdrawals public withdrawalsContract;
   Liquidity public liquidityContract;
   Validators public validatorsContract;
-  Loan public LoanContract;
 
   uint256 public beaconBalance = 0;
-  uint256 public withdrawalsLoanBalance = 0;
-
-  struct Lock {
-    uint256 sharesAmount;
-    uint256 debitSharesAmount;
-    uint256 unlockBlock;
-    address pool;
-  }
+  uint256 public liquidityBalance = 0;
 
   event SetBeaconBalance(uint256 amount);
   event SetWithdrawalsLoanBalance(uint256 amount);
   event MintShares(address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event SetMaxActiveLocks(uint256 amount);
-  event LockSharesLoan(
-    address indexed account,
-    uint256 lockedSharesAmount,
-    uint256 debitSharesAmount,
-    uint256 unlockBlock,
-    address pool
-  );
-  event SharesUnlocked(address indexed account, uint256 amount);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event TransferPoolShares(
@@ -121,7 +103,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   function setWithdrawalsLoanBalance(uint256 _amount) external onlyLiquidity {
-    withdrawalsLoanBalance = _amount;
+    liquidityBalance = _amount;
     emit SetWithdrawalsLoanBalance(_amount);
   }
 
@@ -139,17 +121,13 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     return totalPooledEther();
   }
 
-  // @audit-issue | FM | review netSharesOf lock mechanism
+  // @audit-issue | FM | review sharesOf lock mechanism
   function balanceOf(address _account) public view override returns (uint256) {
-    return pooledEthByShares(netSharesOf(_account));
+    return pooledEthByShares(sharesOf(_account));
   }
 
   function sharesOf(address _account) public view returns (uint256) {
     return shares[_account];
-  }
-
-  function netSharesOf(address _account) public view returns (uint256) {
-    return shares[_account] - lockedShares[_account];
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
@@ -229,7 +207,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function _burnShares(address _account, uint256 _sharesAmount) internal {
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_sharesAmount <= netSharesOf(_account), 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= sharesOf(_account), 'BALANCE_EXCEEDED');
 
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
@@ -248,7 +226,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
-    require(_sharesAmount <= netSharesOf(_from), 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= sharesOf(_from), 'BALANCE_EXCEEDED');
 
     shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
@@ -262,52 +240,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
       require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
       _approve(_account, _spender, currentAllowance - _amount);
     }
-  }
-
-  /*****************
-   ** LOCK SHARES **
-   *****************/
-
-  mapping(address => Lock[]) public locked;
-  mapping(address => uint256) public lockedShares;
-  uint256 public totalLockedShares;
-  mapping(address => uint256) private debitShares;
-  uint256 public totalDebitShares;
-  uint256 public maxActiveLocks = 10;
-
-  function setMaxActiveLocks(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    maxActiveLocks = _amount;
-    emit SetMaxActiveLocks(_amount);
-  }
-
-  function lockedSharesOf(address _account) public view returns (uint256) {
-    return lockedShares[_account];
-  }
-
-  function debitSharesOf(address _account) public view returns (uint256) {
-    return debitShares[_account];
-  }
-
-  function lockShares(
-    address _account,
-    uint256 _lockedSharesAmount,
-    uint256 _debitSharesAmount,
-    uint256 _unlockBlock,
-    address _pool
-  ) external onlyLiquidity nonReentrant whenNotPaused {
-    // Todo: wrong -> rewards loan
-    require(locked[_account].length < maxActiveLocks, 'TOO_MANY_LOCKS');
-    require(_lockedSharesAmount <= shares[_account], 'INSUFFICIENT_SHARES');
-    // require(_debitSharesAmount <= _lockedSharesAmount[_account], 'INSUFFICIENT_LOCKED_SHARES');
-    require(_unlockBlock > 0, 'INVALID_BLOCK_COUNT');
-    shares[_account] -= _lockedSharesAmount;
-    lockedShares[_account] += _lockedSharesAmount;
-    debitShares[_account] += _debitSharesAmount;
-    totalLockedShares += _lockedSharesAmount;
-    totalDebitShares += _debitSharesAmount;
-    Lock memory newLock = Lock(_lockedSharesAmount, _debitSharesAmount, _unlockBlock, _pool);
-    locked[_account].push(newLock);
-    // emit LockSharesLoan(_account, _lockedSharesAmount, newLock.unlockBlock);
   }
 
   /*****************

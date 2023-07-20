@@ -19,10 +19,10 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     Swap,
     StakeEntry,
     StakeRewards,
-    ProvideLiquidity,
-    Loan,
-    AddValidator,
-    AddPool
+    StakePool,
+    StakeValidator,
+    LiquidityProvideEntry,
+    LiquidityProvide
   }
 
   enum FeeMathType {
@@ -38,7 +38,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     Oracles,
     StakeTogether,
     LiquidityProviders,
-    Lenders,
     Sender
   }
 
@@ -111,8 +110,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetRouter(_routerContract);
   }
 
-  function getFeesRoles() public pure returns (FeeRoles[9] memory) {
-    FeeRoles[9] memory roles = [
+  function getFeesRoles() public pure returns (FeeRoles[8] memory) {
+    FeeRoles[8] memory roles = [
       FeeRoles.StakeAccounts,
       FeeRoles.LockAccounts,
       FeeRoles.Pools,
@@ -120,7 +119,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
       FeeRoles.Oracles,
       FeeRoles.StakeTogether,
       FeeRoles.LiquidityProviders,
-      FeeRoles.Lenders,
       FeeRoles.Sender
     ];
     return roles;
@@ -199,7 +197,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   function estimateFeePercentage(
     FeeType _feeType,
     uint256 _amount
-  ) public view returns (uint256[9] memory shares, uint256[9] memory amounts) {
+  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     (uint256 fee, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
@@ -211,14 +209,14 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
     uint256 feeShares = Math.mulDiv(sharesAmount, fee, 1 ether);
 
-    FeeRoles[9] memory roles = getFeesRoles();
+    FeeRoles[8] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     uint256 senderShares = sharesAmount - feeShares;
-    shares[8] = senderShares;
+    shares[7] = senderShares;
 
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
@@ -227,55 +225,16 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return (shares, amounts);
   }
 
-  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[9] memory amounts) {
+  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
-    FeeRoles[9] memory roles = getFeesRoles();
+    FeeRoles[8] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     return amounts;
-  }
-
-  function estimateAnticipation(
-    uint256 _amount,
-    uint256 _days
-  )
-    public
-    view
-    returns (
-      uint256 anticipatedValue,
-      uint256 riskMarginValue,
-      uint256 reduction,
-      uint256[9] memory shares,
-      uint256[9] memory amounts,
-      uint256 daysBlock
-    )
-  {
-    require(_days >= minAnticipationDays, 'ANTICIPATION_DAYS_BELOW_MIN');
-    require(_days <= maxAnticipationDays, 'ANTICIPATION_DAYS_ABOVE_MAX');
-
-    uint256 proportionalApr = Math.mulDiv(apr, _days, blocksPerYear);
-
-    uint256 anticipation = Math.mulDiv(_amount, proportionalApr, 1 ether);
-    anticipatedValue = Math.mulDiv(anticipation, riskMargin, 1 ether);
-    riskMarginValue = Math.mulDiv(anticipatedValue, riskMargin, 1 ether) - anticipation;
-
-    uint256 maxReduction = Math.mulDiv(maxAnticipationFeeReduction, anticipatedValue, 1 ether);
-    reduction = Math.mulDiv(
-      _days - minAnticipationDays,
-      maxReduction,
-      maxAnticipationDays - minAnticipationDays
-    );
-    anticipatedValue = anticipatedValue - reduction;
-
-    (shares, amounts) = estimateFeePercentage(FeeType.Loan, anticipatedValue);
-
-    daysBlock = (_days * blocksPerYear) / 365;
-
-    return (anticipatedValue, riskMarginValue, reduction, shares, amounts, daysBlock);
   }
 }

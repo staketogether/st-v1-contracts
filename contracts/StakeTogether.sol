@@ -6,21 +6,21 @@ import './Shares.sol';
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
   event Bootstrap(address sender, uint256 balance);
-  event RepayLoan(uint256 amount, uint256 sharesBurned);
+  event SupplyLiquidity(uint256 amount, uint256 sharesBurned);
   event DepositBase(
     address indexed to,
     address indexed pool,
     uint256 amount,
+    uint256 stakeAccountShares,
+    uint256 lockAccountShares,
     uint256 poolsShares,
     uint256 operatorsShares,
+    uint256 oraclesShares,
     uint256 stakeTogetherShares,
-    uint256 stakeAccountsShares,
-    uint256 withdrawalsAccountsShares,
-    uint256 rewardsAccountsShares,
-    uint256 withdrawalsLendersShares,
-    uint256 rewardsLendersShares,
+    uint256 liquidityProvidersShares,
     uint256 senderShares
   );
+
   event DepositWalletLimitReached(address indexed sender, uint256 amount);
   event DepositProtocolLimitReached(address indexed sender, uint256 amount);
   event DepositPool(address indexed account, uint256 amount, address pool, address referral);
@@ -63,8 +63,7 @@ contract StakeTogether is Shares {
     address _airdropContract,
     address _withdrawalsContract,
     address _liquidityContract,
-    address _validatorsContract,
-    address rewardsLoanContract
+    address _validatorsContract
   ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));
@@ -72,7 +71,6 @@ contract StakeTogether is Shares {
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     validatorsContract = Validators(payable(_validatorsContract));
-    LoanContract = Loan(payable(rewardsLoanContract));
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
@@ -104,34 +102,34 @@ contract StakeTogether is Shares {
 
   receive() external payable nonReentrant {
     emit MintRewardsAccounts(msg.sender, msg.value);
-    _repayWithdrawalsLoan(msg.value);
+    _supplyLiquidity(msg.value);
   }
 
   fallback() external payable nonReentrant {
     emit MintRewardsAccountsFallback(msg.sender, msg.value);
-    _repayWithdrawalsLoan(msg.value);
+    _supplyLiquidity(msg.value);
   }
 
-  function _repayWithdrawalsLoan(uint256 _amount) internal {
-    if (withdrawalsLoanBalance > 0) {
+  function _supplyLiquidity(uint256 _amount) internal {
+    if (liquidityBalance > 0) {
       uint256 loanAmount = 0;
 
-      if (withdrawalsLoanBalance >= _amount) {
+      if (liquidityBalance >= _amount) {
         loanAmount = _amount;
       } else {
-        loanAmount = withdrawalsLoanBalance;
+        loanAmount = liquidityBalance;
       }
 
       uint256 sharesToBurn = Math.mulDiv(
         loanAmount,
         sharesOf(address(liquidityContract)),
-        withdrawalsLoanBalance
+        liquidityBalance
       );
 
       _burnShares(address(liquidityContract), sharesToBurn);
-      liquidityContract.repayLoan{ value: loanAmount }();
+      liquidityContract.supplyLiquidity{ value: loanAmount }();
 
-      emit RepayLoan(loanAmount, sharesToBurn);
+      emit SupplyLiquidity(loanAmount, sharesToBurn);
     }
   }
 
@@ -171,13 +169,13 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    (uint256[9] memory _shares, ) = feesContract.estimateFeePercentage(
+    (uint256[8] memory _shares, ) = feesContract.estimateFeePercentage(
       Fees.FeeType.StakeEntry,
       msg.value
     );
 
-    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < 9; i++) {
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == Fees.FeeRoles.Sender) {
           _mintFeeShares(_to, _pool, _shares[i]);
@@ -195,7 +193,7 @@ contract StakeTogether is Shares {
 
     totalDeposited += msg.value;
 
-    _repayWithdrawalsLoan(msg.value);
+    _supplyLiquidity(msg.value);
 
     emit DepositBase(
       _to,
@@ -208,8 +206,7 @@ contract StakeTogether is Shares {
       _shares[4],
       _shares[5],
       _shares[6],
-      _shares[7],
-      _shares[8]
+      _shares[7]
     );
   }
 
@@ -259,11 +256,11 @@ contract StakeTogether is Shares {
     payable(msg.sender).transfer(_amount);
   }
 
-  function withdrawLoan(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+  function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= address(liquidityContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
     emit WithdrawLoan(msg.sender, _amount, _pool);
-    liquidityContract.withdrawLoan(_amount, _pool);
+    liquidityContract.withdrawLiquidity(_amount, _pool);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
@@ -304,7 +301,7 @@ contract StakeTogether is Shares {
   }
 
   function poolBalance() public view returns (uint256) {
-    return address(this).balance - withdrawalsLoanBalance;
+    return address(this).balance - liquidityBalance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
