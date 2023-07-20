@@ -8,6 +8,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Router.sol';
+import 'hardhat/console.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Fees is AccessControl, Pausable, ReentrancyGuard {
@@ -151,10 +152,23 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     FeeRoles _role,
     uint256 _allocation
   ) external onlyRole(ADMIN_ROLE) {
-    uint256 currentTotal = fees[_feeType].value;
-    require(_allocation <= currentTotal, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
-    fees[_feeType].allocations[_role] = _allocation;
-    emit SetFeeAllocation(_feeType, _role, _allocation);
+    uint256 feeAmount = fees[_feeType].value;
+    uint256 currentTotal = 0;
+
+    for (uint i = 0; i < 7; i++) {
+      currentTotal += fees[_feeType].allocations[FeeRoles(i)];
+    }
+
+    if (fees[_feeType].mathType == FeeMathType.PERCENTAGE) {
+      require(_allocation + currentTotal <= 1 ether, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+      fees[_feeType].allocations[_role] = _allocation;
+      emit SetFeeAllocation(_feeType, _role, _allocation);
+    } else {
+      uint256 allocationAmount = Math.mulDiv(feeAmount, _allocation, 1 ether);
+      require(allocationAmount + currentTotal <= feeAmount, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+      fees[_feeType].allocations[_role] = allocationAmount;
+      emit SetFeeAllocation(_feeType, _role, allocationAmount);
+    }
   }
 
   function getFeeAllocation(FeeType _feeType, FeeRoles _role) public view returns (uint256) {
@@ -212,10 +226,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     FeeRoles[8] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
+      console.log('sharesAmount', sharesAmount, feeShares, getFeeAllocation(_feeType, roles[i]));
       shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     uint256 senderShares = sharesAmount - feeShares;
+    console.log('senderShares', senderShares);
     shares[7] = senderShares;
 
     for (uint256 i = 0; i < roles.length; i++) {

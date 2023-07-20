@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 import './Shares.sol';
+import 'hardhat/console.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
