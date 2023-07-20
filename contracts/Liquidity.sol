@@ -29,7 +29,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   event MintShares(address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event SetEnableLoan(bool enable);
+  event SetEnableLiquidity(bool enable);
   event AddLiquidity(address indexed user, uint256 amount);
   event RemoveLiquidity(address indexed user, uint256 amount);
   event WithdrawLoan(address indexed user, uint256 amount);
@@ -218,17 +218,26 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
    ** LIQUIDITY **
    ***************/
 
-  bool public enableLoan = true;
+  bool public enableLiquidity = true;
 
-  function setEnableLoan(bool _enable) external onlyRole(ADMIN_ROLE) {
-    enableLoan = _enable;
-    emit SetEnableLoan(_enable);
+  function setEnableLiquidity(bool _enable) external onlyRole(ADMIN_ROLE) {
+    enableLiquidity = _enable;
+    emit SetEnableLiquidity(_enable);
   }
 
   function addLiquidity() public payable whenNotPaused nonReentrant {
-    // Todo: add fee entry loans
-    uint256 sharesAmount = Math.mulDiv(msg.value, totalWithdrawalsShares, totalPooledEther() - msg.value);
-    _mintShares(msg.sender, sharesAmount);
+    (uint256[9] memory _shares, ) = feesContract.estimateFeePercentage(
+      Fees.FeeType.ProvideLiquidity,
+      msg.value
+    );
+
+    Fees.FeeRoles[9] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < 9; i++) {
+      if (_shares[i] > 0) {
+        _mintShares(feesContract.getFeeAddress(roles[i]), _shares[i]);
+      }
+    }
+
     emit AddLiquidity(msg.sender, msg.value);
   }
 
@@ -251,7 +260,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     uint256 _amount,
     address _pool
   ) public whenNotPaused nonReentrant onlyStakeTogether {
-    require(enableLoan, 'BORROW_DISABLED');
+    require(enableLiquidity, 'LIQUIDITY_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
