@@ -33,7 +33,7 @@ contract StakeTogether is Shares {
   );
   event WithdrawalLimitReached(address indexed sender, uint256 amount);
   event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawLoan(address indexed account, uint256 amount, address pool);
+  event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
   event WithdrawValidator(address indexed account, uint256 amount, address pool);
   event SetDepositLimit(uint256 newLimit);
   event SetWithdrawalLimit(uint256 newLimit);
@@ -178,11 +178,11 @@ contract StakeTogether is Shares {
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == Fees.FeeRoles.Sender) {
-          _mintFeeShares(_to, _pool, _shares[i]);
+          _mintRewards(_to, _pool, _shares[i]);
         } else if (roles[i] == Fees.FeeRoles.Pools) {
-          _mintFeeShares(_pool, _pool, _shares[i]);
+          _mintRewards(_pool, _pool, _shares[i]);
         } else {
-          _mintFeeShares(
+          _mintRewards(
             feesContract.getFeeAddress(roles[i]),
             feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
             _shares[i]
@@ -259,7 +259,7 @@ contract StakeTogether is Shares {
   function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(_amount <= address(liquidityContract).balance, 'NOT_ENOUGH_LOAN_BALANCE');
     _withdrawBase(_amount, _pool);
-    emit WithdrawLoan(msg.sender, _amount, _pool);
+    emit WithdrawLiquidity(msg.sender, _amount, _pool);
     liquidityContract.withdrawLiquidity(_amount, _pool);
   }
 

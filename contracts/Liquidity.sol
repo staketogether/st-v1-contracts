@@ -25,14 +25,14 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
   event SetRouter(address routerContract);
-  event SetFeesContract(address feesContract);
+  event SetFees(address feesContract);
   event MintShares(address indexed to, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event SetEnableLiquidity(bool enable);
   event AddLiquidity(address indexed user, uint256 amount);
   event RemoveLiquidity(address indexed user, uint256 amount);
-  event WithdrawLoan(address indexed user, uint256 amount);
+  event WithdrawLiquidity(address indexed user, uint256 amount);
   event SupplyLiquidity(address indexed user, uint256 amount);
 
   constructor() ERC20('ST Withdrawals Loan Ether', 'wlETH') ERC20Permit('ST Withdrawals Loan Ether') {
@@ -76,7 +76,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   function setFees(address _feesContract) external onlyRole(ADMIN_ROLE) {
     require(_feesContract != address(0), 'FEES_CONTRACT_ALREADY_SET');
     feesContract = Fees(payable(_feesContract));
-    emit SetFeesContract(_feesContract);
+    emit SetFees(_feesContract);
   }
 
   /************
@@ -270,11 +270,11 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     );
 
     if (_shares[0] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[0] }(_pool, _pool, _shares[0]);
+      stakeTogether.mintRewards{ value: _amounts[0] }(_pool, _pool, _shares[0]);
     }
 
     if (_shares[1] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[1] }(
+      stakeTogether.mintRewards{ value: _amounts[1] }(
         feesContract.getFeeAddress(Fees.FeeRoles.Operators),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         _shares[1]
@@ -282,7 +282,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     }
 
     if (_shares[2] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[2] }(
+      stakeTogether.mintRewards{ value: _amounts[2] }(
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         _shares[2]
@@ -290,18 +290,18 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     }
 
     if (_shares[3] > 0) {
-      stakeTogether.mintFeeShares{ value: _amounts[3] }(
+      stakeTogether.mintRewards{ value: _amounts[3] }(
         feesContract.getFeeAddress(Fees.FeeRoles.StakeAccounts),
         feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
         _shares[3]
       );
     }
 
-    stakeTogether.setWithdrawalsLoanBalance(stakeTogether.liquidityBalance() + _amount + _amounts[6]);
+    stakeTogether.setLiquidityBalance(stakeTogether.liquidityBalance() + _amount + _amounts[6]);
 
     payable(msg.sender).transfer(_amounts[7]);
 
-    emit WithdrawLoan(msg.sender, _amount);
+    emit WithdrawLiquidity(msg.sender, _amount);
   }
 
   function supplyLiquidity() public payable nonReentrant onlyStakeTogether {
