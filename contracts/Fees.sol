@@ -202,6 +202,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
     // Todo: Allocation always should sum 1 ether
+    // Todo: All fee address should be set
 
     uint256 sharesAmount = Math.mulDiv(
       _amount,
@@ -230,6 +231,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
+
+    // Todo: All fee address should be set
 
     FeeRoles[8] memory roles = getFeesRoles();
 
