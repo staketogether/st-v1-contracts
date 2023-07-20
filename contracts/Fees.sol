@@ -201,6 +201,8 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     (uint256 fee, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
+    // Todo: Allocation always should sum 1 ether
+
     uint256 sharesAmount = Math.mulDiv(
       _amount,
       stakeTogether.totalShares(),
