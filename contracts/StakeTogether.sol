@@ -169,9 +169,11 @@ contract StakeTogether is Shares {
       revert('DEPOSIT_LIMIT_REACHED');
     }
 
-    (uint256[8] memory _shares, ) = feesContract.estimateFeePercentage(
+    uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
+
+    (uint256[8] memory _shares, ) = feesContract.distributeFeePercentage(
       Fees.FeeType.StakeEntry,
-      msg.value
+      sharesAmount
     );
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
