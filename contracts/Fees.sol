@@ -185,13 +185,13 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     FeeRoles[8] memory roles = getFeesRoles();
 
     uint256[8] memory allocations;
-    for (uint256 i = 0; i < 8; i++) {
+    for (uint256 i = 0; i < allocations.length; i++) {
       allocations[i] = getFeeAllocation(_feeType, roles[i]);
     }
     require(_checkAllocationSum(allocations), 'ALLOCATION_DOES_NOT_SUM_TO_1_ETHER');
 
     address[8] memory feeAddresses = getFeeRolesAddresses();
-    for (uint256 i = 0; i < 8; i++) {
+    for (uint256 i = 0; i < feeAddresses.length; i++) {
       require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
     }
 
@@ -216,7 +216,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
     address[8] memory feeAddresses = getFeeRolesAddresses();
-    for (uint256 i = 0; i < 8; i++) {
+    for (uint256 i = 0; i < feeAddresses.length; i++) {
       require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
     }
 

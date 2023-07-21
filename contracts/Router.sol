@@ -325,7 +325,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     );
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < 8; i++) {
+    for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
           feesContract.getFeeAddress(roles[i]),
