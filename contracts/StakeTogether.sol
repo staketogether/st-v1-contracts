@@ -398,6 +398,20 @@ contract StakeTogether is Shares {
       _depositDataRoot
     );
 
+    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakeValidator);
+
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+
+    for (uint i = 0; i < feeAmounts.length; i++) {
+      if (feeAmounts[i] > 0) {
+        mintRewards(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feeAmounts[i]
+        );
+      }
+    }
+
     emit CreateValidator(
       msg.sender,
       validatorsContract.validatorSize(),
