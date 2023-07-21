@@ -369,7 +369,6 @@ contract StakeTogether is Shares {
     emit RemovePool(_pool);
   }
 
-  // @audit-ok FM
   function isPool(address _pool) public view override returns (bool) {
     return pools[_pool];
   }

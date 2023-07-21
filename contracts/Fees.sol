@@ -49,12 +49,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
-  uint256 public apr;
-  uint256 public blocksPerYear = 2102400;
-  uint256 public riskMargin; // 80%
-  uint256 public minAnticipationDays = 30;
-  uint256 public maxAnticipationDays = 365;
-  uint256 public maxAnticipationFeeReduction; // 50%
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
@@ -63,12 +57,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
-  event SetApr(uint256 apr);
-
-  event SetRiskMargin(uint256 riskMargin);
-  event SetBlocksPerYear(uint256 blocksPerYear);
-  event SetMinAnticipationDays(uint256 minAnticipationDays);
-  event SetMaxAnticipationDays(uint256 maxAnticipationDays);
 
   constructor() {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -168,31 +156,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   function getFeeAllocation(FeeType _feeType, FeeRoles _role) public view returns (uint256) {
     return fees[_feeType].allocations[_role];
-  }
-
-  function setApr(uint256 _apr) external onlyRouter {
-    apr = _apr;
-    emit SetApr(_apr);
-  }
-
-  function setRiskMargin(uint256 _riskMargin) external onlyRole(ADMIN_ROLE) {
-    riskMargin = _riskMargin;
-    emit SetRiskMargin(_riskMargin);
-  }
-
-  function setBlocksPerYear(uint256 _blocksPerYear) external onlyRole(ADMIN_ROLE) {
-    blocksPerYear = _blocksPerYear;
-    emit SetBlocksPerYear(_blocksPerYear);
-  }
-
-  function setMinAnticipationDays(uint256 _minAnticipationDays) external onlyRole(ADMIN_ROLE) {
-    minAnticipationDays = _minAnticipationDays;
-    emit SetMinAnticipationDays(_minAnticipationDays);
-  }
-
-  function setMaxAnticipationDays(uint256 _maxAnticipationDays) external onlyRole(ADMIN_ROLE) {
-    maxAnticipationDays = _maxAnticipationDays;
-    emit SetMaxAnticipationDays(_maxAnticipationDays);
   }
 
   function _transferToStakeTogether() private nonReentrant {
