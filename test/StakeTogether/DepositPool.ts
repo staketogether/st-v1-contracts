@@ -66,6 +66,7 @@ describe.only('StakeTogether: Deposit', function () {
 
     const userDelegatedShares = await StakeTogether.sharesOf(user2.address)
     const poolShares = await StakeTogether.poolSharesOf(user2.address)
+    const userDelegationShares = await StakeTogether.delegationSharesOf(user1.address, user2.address)
 
     expect(totalPooledEther).to.eq(stakeAmount + 1n)
     expect(totalShares).to.eq(stakeShares + 1n)
@@ -78,5 +79,6 @@ describe.only('StakeTogether: Deposit', function () {
     expect(userDelegatedShares).to.eq(expectedPoolShares)
     expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
     expect(sharesStFee).to.eq(expectedStFeeAddressShares)
+    expect(userDelegationShares).to.eq(expectedSenderShares)
   })
 })
