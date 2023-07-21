@@ -134,6 +134,15 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return roleAddresses[_role];
   }
 
+  function getFeeRolesAddresses() public view returns (address[8] memory) {
+    FeeRoles[8] memory roles = getFeesRoles();
+    address[8] memory addresses;
+    for (uint256 i = 0; i < roles.length; i++) {
+      addresses[i] = getFeeAddress(roles[i]);
+    }
+    return addresses;
+  }
+
   function setFee(FeeType _feeType, uint256 _fee, FeeMathType _mathType) external onlyRole(ADMIN_ROLE) {
     if (_mathType == FeeMathType.PERCENTAGE) {
       require(_fee <= 1 ether, 'TOTAL_FEE_EXCEEDS_100_PERCENT');
@@ -154,21 +163,22 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   ) external onlyRole(ADMIN_ROLE) {
     uint256 feeAmount = fees[_feeType].value;
     uint256 currentTotal = 0;
+    uint256 allocationAmount;
 
     for (uint i = 0; i < 7; i++) {
       currentTotal += fees[_feeType].allocations[FeeRoles(i)];
     }
 
     if (fees[_feeType].mathType == FeeMathType.PERCENTAGE) {
-      require(_allocation + currentTotal <= 1 ether, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
-      fees[_feeType].allocations[_role] = _allocation;
-      emit SetFeeAllocation(_feeType, _role, _allocation);
+      allocationAmount = _allocation;
+      require(allocationAmount + currentTotal <= 1 ether, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
     } else {
-      uint256 allocationAmount = Math.mulDiv(feeAmount, _allocation, 1 ether);
+      allocationAmount = Math.mulDiv(feeAmount, _allocation, 1 ether);
       require(allocationAmount + currentTotal <= feeAmount, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
-      fees[_feeType].allocations[_role] = allocationAmount;
-      emit SetFeeAllocation(_feeType, _role, allocationAmount);
     }
+
+    fees[_feeType].allocations[_role] = _allocation;
+    emit SetFeeAllocation(_feeType, _role, _allocation);
   }
 
   function getFeeAllocation(FeeType _feeType, FeeRoles _role) public view returns (uint256) {
@@ -212,26 +222,39 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     FeeType _feeType,
     uint256 _amount
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
+    uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
+    return distributeFeePercentage(_feeType, sharesAmount);
+  }
+
+  function distributeFeePercentage(
+    FeeType _feeType,
+    uint256 _sharesAmount
+  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     (uint256 fee, FeeMathType mathType) = getFee(_feeType);
+    require(fee <= 1 ether, 'TOTAL_FEE_EXCEEDS_100_PERCENT');
     require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
-
-    uint256 sharesAmount = Math.mulDiv(
-      _amount,
-      stakeTogether.totalShares(),
-      stakeTogether.totalPooledEther() - _amount
-    );
-
-    uint256 feeShares = Math.mulDiv(sharesAmount, fee, 1 ether);
 
     FeeRoles[8] memory roles = getFeesRoles();
 
+    uint256[8] memory allocations;
+    for (uint256 i = 0; i < 7; i++) {
+      allocations[i] = getFeeAllocation(_feeType, roles[i]);
+    }
+    require(_checkAllocationSum(allocations), 'ALLOCATION_DOES_NOT_SUM_TO_1_ETHER');
+
+    address[8] memory feeAddresses = getFeeRolesAddresses();
+
+    for (uint256 i = 0; i < 7; i++) {
+      require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
+    }
+
+    uint256 feeShares = Math.mulDiv(_sharesAmount, fee, 1 ether);
+
     for (uint256 i = 0; i < roles.length - 1; i++) {
-      console.log('sharesAmount', sharesAmount, feeShares, getFeeAllocation(_feeType, roles[i]));
       shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
-    uint256 senderShares = sharesAmount - feeShares;
-    console.log('senderShares', senderShares);
+    uint256 senderShares = _sharesAmount - feeShares;
     shares[7] = senderShares;
 
     for (uint256 i = 0; i < roles.length; i++) {
@@ -245,6 +268,11 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
     require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
 
+    address[8] memory feeAddresses = getFeeRolesAddresses();
+    for (uint256 i = 0; i < 8; i++) {
+      require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
+    }
+
     FeeRoles[8] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length; i++) {
@@ -252,5 +280,13 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     }
 
     return amounts;
+  }
+
+  function _checkAllocationSum(uint256[8] memory allocations) internal pure returns (bool) {
+    uint256 sum = 0;
+    for (uint256 i = 0; i < allocations.length; i++) {
+      sum += allocations[i];
+    }
+    return sum == 1 ether;
   }
 }
