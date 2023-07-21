@@ -43,7 +43,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     bytes[] exitedValidators; // Validators that already exited
     uint256 restExitAmount; // Rest withdrawal validator amount
     uint256 withdrawAmount; // Amount of ETH to send to WETH contract
-    uint256 apr; // Protocol APR for lending calculation
   }
 
   event ReceiveEther(address indexed sender, uint amount);
@@ -326,7 +325,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     );
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < 8; i++) {
+    for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
           feesContract.getFeeAddress(roles[i]),
@@ -349,10 +348,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
     if (_report.restExitAmount > 0) {
       // stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
-    }
-
-    if (_report.apr > 0) {
-      feesContract.setApr(_report.apr);
     }
 
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
@@ -444,8 +439,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     }
 
     require(_report.withdrawAmount <= withdrawalsContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
-
-    require(_report.apr <= maxApr, 'INVALID_APR');
 
     return true;
   }

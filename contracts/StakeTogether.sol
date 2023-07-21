@@ -339,27 +339,28 @@ contract StakeTogether is Shares {
 
   function addPool(address _pool) external payable nonReentrant {
     require(_pool != address(0), 'ZERO_ADDR');
-    // require(_pool != address(stakeTogether), 'POOL_CANNOT_BE_STAKE_TOGETHER');
-    // require(_pool != address(routerContract), 'POOL_CANNOT_BE_DISTRIBUTOR');
     require(!isPool(_pool), 'POOL_ALREADY_ADDED');
     require(poolCount < maxPools, 'MAX_POOLS_REACHED');
+
+    if (!hasRole(POOL_MANAGER_ROLE, msg.sender) && msg.sender != address(this)) {
+      require(permissionLessAddPool, 'ONLY_POOL_MANAGER_OR_ST_CONTRACT');
+
+      uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakePool);
+
+      Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+
+      for (uint i = 0; i < feeAmounts.length; i++) {
+        mintRewards(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feeAmounts[i]
+        );
+      }
+    }
 
     pools[_pool] = true;
     poolCount += 1;
     emit AddPool(_pool);
-
-    if (permissionLessAddPool) {
-      if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-        // require(msg.value == stakeTogether.addPoolFee(), 'INVALID_FEE_AMOUNT');
-        // payable(stakeTogether.stakeTogetherFeeAddress()).transfer(stakeTogether.addPoolFee());
-      }
-    } else {
-      require(
-        // TODO: verify sender
-        hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.sender == address(this),
-        'ONLY_POOL_MANAGER_OR_ST_CONTRACT'
-      );
-    }
   }
 
   function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
@@ -370,7 +371,6 @@ contract StakeTogether is Shares {
     emit RemovePool(_pool);
   }
 
-  // @audit-ok FM
   function isPool(address _pool) public view override returns (bool) {
     return pools[_pool];
   }
@@ -398,6 +398,20 @@ contract StakeTogether is Shares {
       _signature,
       _depositDataRoot
     );
+
+    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakeValidator);
+
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+
+    for (uint i = 0; i < feeAmounts.length; i++) {
+      if (feeAmounts[i] > 0) {
+        mintRewards(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feeAmounts[i]
+        );
+      }
+    }
 
     emit CreateValidator(
       msg.sender,
