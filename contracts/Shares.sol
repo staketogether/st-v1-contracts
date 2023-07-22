@@ -273,14 +273,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
     require(_sharesAmount > 0, 'MINT_INVALID_AMOUNT');
 
-    poolShares[_pool] += _sharesAmount;
-    delegationsShares[_to][_pool] += _sharesAmount;
-    totalPoolShares += _sharesAmount;
-
-    if (!isDelegate[_to][_pool]) {
-      delegates[_to].push(_pool);
-      isDelegate[_to][_pool] = true;
-    }
+    _incrementPoolShares(_to, _pool, _sharesAmount);
+    _addDelegate(_to, _pool);
 
     emit MintPoolShares(_to, _pool, _sharesAmount);
   }
@@ -291,20 +285,10 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(delegationsShares[_to][_pool] >= _sharesAmount, 'BURN_INVALID_AMOUNT');
     require(_sharesAmount > 0, 'BURN_INVALID_AMOUNT');
 
-    poolShares[_pool] -= _sharesAmount;
-    delegationsShares[_to][_pool] -= _sharesAmount;
-    totalPoolShares -= _sharesAmount;
+    _decrementPoolShares(_to, _pool, _sharesAmount);
 
     if (delegationsShares[_to][_pool] == 0) {
-      isDelegate[_to][_pool] = false;
-
-      for (uint i = 0; i < delegates[_to].length; i++) {
-        if (delegates[_to][i] == _pool) {
-          delegates[_to][i] = delegates[_to][delegates[_to].length - 1];
-          delegates[_to].pop();
-          break;
-        }
-      }
+      _removeDelegate(_to, _pool);
     }
 
     emit BurnPoolShares(_to, _pool, _sharesAmount);
@@ -320,32 +304,13 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_fromPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(0), 'ZERO_ADDR');
     require(isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
-
     require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
 
-    poolShares[_fromPool] -= _sharesAmount;
-    delegationsShares[_account][_fromPool] -= _sharesAmount;
+    _decrementPoolShares(_account, _fromPool, _sharesAmount);
+    _removeDelegate(_account, _fromPool);
 
-    if (delegationsShares[_account][_fromPool] == 0) {
-      isDelegate[_account][_fromPool] = false;
-
-      for (uint i = 0; i < delegates[_account].length; i++) {
-        if (delegates[_account][i] == _fromPool) {
-          delegates[_account][i] = delegates[_account][delegates[_account].length - 1];
-          delegates[_account].pop();
-          break;
-        }
-      }
-    }
-
-    poolShares[_toPool] += _sharesAmount;
-    delegationsShares[_account][_toPool] += _sharesAmount;
-
-    if (!isDelegate[_account][_toPool]) {
-      require(delegates[_account].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
-      delegates[_account].push(_toPool);
-      isDelegate[_account][_toPool] = true;
-    }
+    _incrementPoolShares(_account, _toPool, _sharesAmount);
+    _addDelegate(_account, _toPool);
 
     emit TransferPoolShares(_account, _fromPool, _toPool, _sharesAmount);
   }
@@ -397,29 +362,47 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_sharesAmount > 0, 'INVALID_AMOUNT');
     require(_sharesAmount <= delegationsShares[_from][_pool], 'BALANCE_EXCEEDED');
 
-    delegationsShares[_from][_pool] -= _sharesAmount;
+    _decrementPoolShares(_from, _pool, _sharesAmount);
+    _removeDelegate(_from, _pool);
 
-    if (delegationsShares[_from][_pool] == 0) {
-      isDelegate[_from][_pool] = false;
+    _incrementPoolShares(_to, _pool, _sharesAmount);
+    _addDelegate(_to, _pool);
 
-      for (uint i = 0; i < delegates[_from].length; i++) {
-        if (delegates[_from][i] == _pool) {
-          delegates[_from][i] = delegates[_from][delegates[_from].length - 1];
-          delegates[_from].pop();
-          break;
-        }
-      }
-    }
+    emit TransferPoolDelegationShares(_from, _to, _pool, _sharesAmount);
+  }
 
+  function _incrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
+    poolShares[_pool] += _sharesAmount;
     delegationsShares[_to][_pool] += _sharesAmount;
+    totalPoolShares += _sharesAmount;
+  }
 
+  function _decrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
+    poolShares[_pool] -= _sharesAmount;
+    delegationsShares[_to][_pool] -= _sharesAmount;
+    totalPoolShares -= _sharesAmount;
+  }
+
+  function _addDelegate(address _to, address _pool) internal {
     if (!isDelegate[_to][_pool]) {
       require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
       delegates[_to].push(_pool);
       isDelegate[_to][_pool] = true;
     }
+  }
 
-    emit TransferPoolDelegationShares(_from, _to, _pool, _sharesAmount);
+  function _removeDelegate(address _to, address _pool) internal {
+    if (delegationsShares[_to][_pool] == 0) {
+      isDelegate[_to][_pool] = false;
+
+      for (uint i = 0; i < delegates[_to].length; i++) {
+        if (delegates[_to][i] == _pool) {
+          delegates[_to][i] = delegates[_to][delegates[_to].length - 1];
+          delegates[_to].pop();
+          break;
+        }
+      }
+    }
   }
 
   /*****************
