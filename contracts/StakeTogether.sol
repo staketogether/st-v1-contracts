@@ -54,6 +54,7 @@ contract StakeTogether is Shares {
     bytes signature,
     bytes32 depositDataRoot
   );
+  event RefundPool(address indexed sender, uint256 amount);
 
   bool private bootstrapped = false;
 
@@ -273,6 +274,11 @@ contract StakeTogether is Shares {
     _withdrawBase(_amount, _pool);
     emit WithdrawValidator(msg.sender, _amount, _pool);
     withdrawalsContract.mint(msg.sender, _amount);
+  }
+
+  function refundPool() external payable onlyRouter {
+    beaconBalance -= msg.value;
+    emit RefundPool(msg.sender, msg.value);
   }
 
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {

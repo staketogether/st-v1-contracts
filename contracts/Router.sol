@@ -37,12 +37,12 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     uint256 epoch;
     uint256 profitAmount;
     uint256 lossAmount; // Penalty or Slashing
-    uint256 extraAmount; // Extra money on this contract
-    bytes32[9] merkleRoots;
+    bytes32[7] merkleRoots;
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
-    uint256 restExitAmount; // Rest withdrawal validator amount
     uint256 withdrawAmount; // Amount of ETH to send to WETH contract
+    uint256 restWithdrawAmount; // Rest withdrawal validator amount
+    uint256 routerExtraAmount; // Extra money on this contract
   }
 
   event ReceiveEther(address indexed sender, uint amount);
@@ -315,10 +315,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
       stakeTogether.mintPenalty(_report.lossAmount);
     }
 
-    if (_report.extraAmount > 0) {
-      // stakeTogether.refundPool{ value: _report.extraAmount }(_report.epoch);
-    }
-
     (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
       Fees.FeeType.StakeRewards,
       _report.profitAmount
@@ -346,10 +342,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
       }
     }
 
-    if (_report.restExitAmount > 0) {
-      // stakeTogether.refundPool{ value: _report.restExitAmount }(_report.epoch);
-    }
-
     for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
       bytes32 reportHash = reportHistoric[_report.epoch][i];
       address[] memory oracles = oracleReports[_report.epoch][reportHash];
@@ -364,6 +356,14 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
     if (_report.withdrawAmount > 0) {
       payable(address(withdrawalsContract)).transfer(_report.withdrawAmount);
+    }
+
+    if (_report.restWithdrawAmount > 0) {
+      stakeTogether.refundPool{ value: _report.restWithdrawAmount }();
+    }
+
+    if (_report.routerExtraAmount > 0) {
+      payable(address(stakeTogether)).transfer(_report.routerExtraAmount);
     }
   }
 
