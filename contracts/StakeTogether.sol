@@ -152,6 +152,7 @@ contract StakeTogether is Shares {
     require(isPool(_pool), 'POOL_NOT_FOUND');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
+    require(address(msg.sender).balance > msg.value, 'AMOUNT_EXCEEDS_BALANCE');
 
     if (block.number > lastResetBlock + blocksPerDay) {
       totalDeposited = msg.value;

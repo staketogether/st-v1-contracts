@@ -8,6 +8,7 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Router.sol';
+import 'hardhat/console.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Fees is AccessControl, Pausable, ReentrancyGuard {
@@ -148,8 +149,22 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     FeeRoles _role,
     uint256 _allocation
   ) external onlyRole(ADMIN_ROLE) {
-    uint256 currentTotal = fees[_feeType].value;
-    require(_allocation <= currentTotal, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+    uint256 feeAmount = fees[_feeType].value;
+    uint256 currentTotal = 0;
+    uint256 allocationAmount;
+
+    for (uint i = 0; i < 7; i++) {
+      currentTotal += fees[_feeType].allocations[FeeRoles(i)];
+    }
+
+    if (fees[_feeType].mathType == FeeMathType.PERCENTAGE) {
+      allocationAmount = _allocation;
+      require(allocationAmount + currentTotal <= 1 ether, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+    } else {
+      allocationAmount = Math.mulDiv(feeAmount, _allocation, 1 ether);
+      require(allocationAmount + currentTotal <= feeAmount, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+    }
+
     fees[_feeType].allocations[_role] = _allocation;
     emit SetFeeAllocation(_feeType, _role, _allocation);
   }
@@ -185,13 +200,15 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     FeeRoles[8] memory roles = getFeesRoles();
 
     uint256[8] memory allocations;
-    for (uint256 i = 0; i < allocations.length; i++) {
+
+    for (uint256 i = 0; i < allocations.length - 1; i++) {
       allocations[i] = getFeeAllocation(_feeType, roles[i]);
     }
     require(_checkAllocationSum(allocations), 'ALLOCATION_DOES_NOT_SUM_TO_1_ETHER');
 
     address[8] memory feeAddresses = getFeeRolesAddresses();
-    for (uint256 i = 0; i < feeAddresses.length; i++) {
+
+    for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
       require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
     }
 
