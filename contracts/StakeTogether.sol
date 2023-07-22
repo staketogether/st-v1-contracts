@@ -119,6 +119,7 @@ contract StakeTogether is Shares {
         debitAmount = liquidityBalance;
       }
 
+      liquidityBalance -= debitAmount;
       liquidityContract.supplyLiquidity{ value: debitAmount }();
 
       emit SupplyLiquidity(debitAmount);
