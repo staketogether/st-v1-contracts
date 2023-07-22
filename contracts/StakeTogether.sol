@@ -8,7 +8,7 @@ contract StakeTogether is Shares {
   event Bootstrap(address sender, uint256 balance);
   event MintRewardsAccounts(address indexed sender, uint amount);
   event MintRewardsAccountsFallback(address indexed sender, uint amount);
-  event SupplyLiquidity(uint256 amount, uint256 sharesBurned);
+  event SupplyLiquidity(uint256 amount);
   event DepositBase(
     address indexed to,
     address indexed pool,
@@ -37,9 +37,10 @@ contract StakeTogether is Shares {
   event WithdrawPool(address indexed account, uint256 amount, address pool);
   event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
   event WithdrawValidator(address indexed account, uint256 amount, address pool);
+  event SetEnableDeposit(bool enableDeposit);
+  event SetEnableWithdrawPool(bool enableWithdrawPool);
   event SetDepositLimit(uint256 newLimit);
   event SetWithdrawalLimit(uint256 newLimit);
-  event SetAccountDepositLimit(uint256 newLimit);
   event SetMinDepositPoolAmount(uint256 amount);
   event SetPoolSize(uint256 amount);
   event SetBlocksInterval(uint256 blocksInterval);
@@ -79,24 +80,19 @@ contract StakeTogether is Shares {
     _grantRole(ADMIN_ROLE, msg.sender);
   }
 
-  function bootstrap() external {
+  function bootstrap() external payable {
     require(!bootstrapped, 'ALREADY_BOOTSTRAPPED');
     require(hasRole(ADMIN_ROLE, msg.sender), 'ONLY_ADMIN');
     require(!isPool(address(this)), 'ALREADY_EXISTS_POOL');
 
     bootstrapped = true;
 
-    address stakeTogether = address(this);
-    uint256 balance = stakeTogether.balance;
+    this.addPool(address(this));
 
-    this.addPool(stakeTogether);
+    _mintShares(address(this), msg.value);
+    _mintPoolShares(address(this), address(this), msg.value);
 
-    require(balance > 0, 'NON_ZERO_VALUE');
-
-    emit Bootstrap(msg.sender, balance);
-
-    _mintShares(stakeTogether, balance);
-    _mintPoolShares(stakeTogether, stakeTogether, balance);
+    emit Bootstrap(msg.sender, msg.value);
   }
 
   /*********************
@@ -115,24 +111,17 @@ contract StakeTogether is Shares {
 
   function _supplyLiquidity(uint256 _amount) internal {
     if (liquidityBalance > 0) {
-      uint256 loanAmount = 0;
+      uint256 debitAmount = 0;
 
       if (liquidityBalance >= _amount) {
-        loanAmount = _amount;
+        debitAmount = _amount;
       } else {
-        loanAmount = liquidityBalance;
+        debitAmount = liquidityBalance;
       }
 
-      uint256 sharesToBurn = Math.mulDiv(
-        loanAmount,
-        sharesOf(address(liquidityContract)),
-        liquidityBalance
-      );
+      liquidityContract.supplyLiquidity{ value: debitAmount }();
 
-      _burnShares(address(liquidityContract), sharesToBurn);
-      liquidityContract.supplyLiquidity{ value: loanAmount }();
-
-      emit SupplyLiquidity(loanAmount, sharesToBurn);
+      emit SupplyLiquidity(debitAmount);
     }
   }
 
@@ -140,10 +129,11 @@ contract StakeTogether is Shares {
    ** STAKE **
    *****************/
 
+  bool public enableDeposit = true;
+  bool public enableWithdrawPool = true;
   uint256 public poolSize = 32 ether;
   uint256 public minDepositAmount = 0.001 ether;
   uint256 public depositLimit = 1000 ether;
-  uint256 public walletDepositLimit = 2 ether;
   uint256 public withdrawalLimit = 1000 ether;
   uint256 public blocksPerDay = 6500;
   uint256 public lastResetBlock;
@@ -151,22 +141,14 @@ contract StakeTogether is Shares {
   uint256 public totalWithdrawn;
 
   function _depositBase(address _to, address _pool) internal {
+    require(enableDeposit, 'DEPOSIT_DISABLED');
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
     require(isPool(_pool), 'POOL_NOT_FOUND');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
     require(address(msg.sender).balance > msg.value, 'AMOUNT_EXCEEDS_BALANCE');
 
-    if (block.number > lastResetBlock + blocksPerDay) {
-      totalDeposited = msg.value;
-      totalWithdrawn = 0;
-      lastResetBlock = block.number;
-    }
-
-    if (walletDepositLimit > 0 && balanceOf(_to) + msg.value > walletDepositLimit) {
-      emit DepositWalletLimitReached(_to, msg.value);
-      revert('WALLET_DEPOSIT_LIMIT_REACHED');
-    }
+    _resetLimits();
 
     if (msg.value + totalDeposited > depositLimit) {
       emit DepositProtocolLimitReached(_to, msg.value);
@@ -237,11 +219,7 @@ contract StakeTogether is Shares {
     require(_amount <= balanceOf(msg.sender), 'AMOUNT_EXCEEDS_BALANCE');
     require(delegationSharesOf(msg.sender, _pool) > 0, 'NO_DELEGATION_SHARES');
 
-    if (block.number > lastResetBlock + blocksPerDay) {
-      totalDeposited = 0;
-      totalWithdrawn = _amount;
-      lastResetBlock = block.number;
-    }
+    _resetLimits();
 
     if (_amount + totalWithdrawn > withdrawalLimit) {
       emit WithdrawalLimitReached(msg.sender, _amount);
@@ -257,6 +235,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    require(enableWithdrawPool, 'WITHDRAW_POOL_DISABLED');
     require(_amount <= poolBalance(), 'NOT_ENOUGH_POOL_BALANCE');
     _withdrawBase(_amount, _pool);
     emit WithdrawPool(msg.sender, _amount, _pool);
@@ -283,6 +262,24 @@ contract StakeTogether is Shares {
     emit RefundPool(msg.sender, msg.value);
   }
 
+  function _resetLimits() internal {
+    if (block.number > lastResetBlock + blocksPerDay) {
+      totalDeposited = 0;
+      totalWithdrawn = 0;
+      lastResetBlock = block.number;
+    }
+  }
+
+  function setEnableDeposit(bool _enableDeposit) external onlyRole(ADMIN_ROLE) {
+    enableDeposit = _enableDeposit;
+    emit SetEnableDeposit(_enableDeposit);
+  }
+
+  function setEnableWithdrawPool(bool _enableWithdrawPool) external onlyRole(ADMIN_ROLE) {
+    enableWithdrawPool = _enableWithdrawPool;
+    emit SetEnableWithdrawPool(_enableWithdrawPool);
+  }
+
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     depositLimit = _newLimit;
     emit SetDepositLimit(_newLimit);
@@ -291,11 +288,6 @@ contract StakeTogether is Shares {
   function setWithdrawalLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     withdrawalLimit = _newLimit;
     emit SetWithdrawalLimit(_newLimit);
-  }
-
-  function setAccountDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
-    walletDepositLimit = _newLimit;
-    emit SetAccountDepositLimit(_newLimit);
   }
 
   function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
@@ -332,7 +324,6 @@ contract StakeTogether is Shares {
   uint256 public maxPools = 100000;
   uint256 public poolCount = 0;
   mapping(address => bool) private pools;
-
   bool public permissionLessAddPool = false;
 
   function setMaxPools(uint256 _maxPools) external onlyRole(ADMIN_ROLE) {
