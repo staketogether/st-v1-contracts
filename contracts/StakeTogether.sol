@@ -181,7 +181,8 @@ contract StakeTogether is Shares {
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == Fees.FeeRoles.Sender) {
-          _mintRewards(_to, _pool, _shares[i]);
+          _mintShares(_to, _shares[i]);
+          _mintPoolShares(_to, _pool, _shares[i]);
         } else if (roles[i] == Fees.FeeRoles.Pools) {
           _mintRewards(_pool, _pool, _shares[i]);
         } else {
@@ -349,7 +350,7 @@ contract StakeTogether is Shares {
 
       Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
-      for (uint i = 0; i < feeAmounts.length; i++) {
+      for (uint i = 0; i < roles.length - 1; i++) {
         mintRewards(
           feesContract.getFeeAddress(roles[i]),
           feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
@@ -403,7 +404,7 @@ contract StakeTogether is Shares {
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
-    for (uint i = 0; i < feeAmounts.length; i++) {
+    for (uint i = 0; i < feeAmounts.length - 1; i++) {
       if (feeAmounts[i] > 0) {
         mintRewards(
           feesContract.getFeeAddress(roles[i]),
