@@ -324,7 +324,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          feesContract.getFeeAddress(roles[i]),
+          address(airdropContract),
           feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
           _shares[i]
         );

@@ -38,8 +38,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
-
-    // Todo: initialize stakeTogether and operator as pools fee addresses
   }
 
   modifier onlyRouter() {
@@ -121,7 +119,7 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     bytes32[] calldata merkleProof
   ) public nonReentrant whenNotPaused {
     require(airdropsMerkleRoots[_role][_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
-    require(_account != address(0), 'INVALID_ADDRESS');
+    require(_account != address(0), 'ZERO_ADDR');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
     if (isAirdropClaimed(_role, _epoch, _account)) revert('ALREADY_CLAIMED');
 
@@ -130,9 +128,8 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
       revert('INVALID_MERKLE_PROOF');
 
     _setAirdropClaimed(_role, _epoch, _account);
-    // Todo: implement each type
 
-    stakeTogether.claimRewards(_account, _sharesAmount);
+    stakeTogether.claimRewards(_account, _sharesAmount, _role == Fees.FeeRoles.Pools);
     emit ClaimAirdrop(_role, _epoch, _account, _sharesAmount);
   }
 

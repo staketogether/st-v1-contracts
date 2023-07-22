@@ -320,7 +320,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_account != address(0), 'ZERO_ADDR');
     require(_fromPool != address(0), 'ZERO_ADDR');
     require(_toPool != address(0), 'ZERO_ADDR');
-    require(_toPool != address(this), 'ST_ADDR');
     require(isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
 
     require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
@@ -328,8 +327,26 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     poolShares[_fromPool] -= _sharesAmount;
     delegationsShares[_account][_fromPool] -= _sharesAmount;
 
+    if (delegationsShares[_account][_fromPool] == 0) {
+      isDelegate[_account][_fromPool] = false;
+
+      for (uint i = 0; i < delegates[_account].length; i++) {
+        if (delegates[_account][i] == _fromPool) {
+          delegates[_account][i] = delegates[_account][delegates[_account].length - 1];
+          delegates[_account].pop();
+          break;
+        }
+      }
+    }
+
     poolShares[_toPool] += _sharesAmount;
     delegationsShares[_account][_toPool] += _sharesAmount;
+
+    if (!isDelegate[_account][_toPool]) {
+      require(delegates[_account].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+      delegates[_account].push(_toPool);
+      isDelegate[_account][_toPool] = true;
+    }
 
     emit TransferPoolShares(_account, _fromPool, _toPool, _sharesAmount);
   }
@@ -339,6 +356,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address _to,
     uint256 _sharesToTransfer
   ) internal whenNotPaused {
+    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_sharesToTransfer <= sharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
@@ -367,6 +386,43 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     }
   }
 
+  function _transferPoolDelegationShares(
+    address _from,
+    address _to,
+    address _pool,
+    uint256 _sharesAmount
+  ) internal whenNotPaused {
+    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
+    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
+    require(isPool(_pool), 'INVALID_POOL');
+    require(_sharesAmount > 0, 'INVALID_AMOUNT');
+    require(_sharesAmount <= delegationsShares[_from][_pool], 'BALANCE_EXCEEDED');
+
+    delegationsShares[_from][_pool] -= _sharesAmount;
+
+    if (delegationsShares[_from][_pool] == 0) {
+      isDelegate[_from][_pool] = false;
+
+      for (uint i = 0; i < delegates[_from].length; i++) {
+        if (delegates[_from][i] == _pool) {
+          delegates[_from][i] = delegates[_from][delegates[_from].length - 1];
+          delegates[_from].pop();
+          break;
+        }
+      }
+    }
+
+    delegationsShares[_to][_pool] += _sharesAmount;
+
+    if (!isDelegate[_to][_pool]) {
+      require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+      delegates[_to].push(_pool);
+      isDelegate[_to][_pool] = true;
+    }
+
+    emit TransferDelegationShares(_from, _to, _pool, _sharesAmount);
+  }
+
   /*****************
    ** REWARDS **
    *****************/
@@ -387,10 +443,16 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function claimRewards(
     address _account,
-    uint256 _sharesAmount
+    uint256 _sharesAmount,
+    bool _isPool
   ) external nonReentrant whenNotPaused onlyAirdrop {
     _transferShares(address(airdropContract), _account, _sharesAmount);
-    _transferPoolShares(address(airdropContract), address(airdropContract), _account, _sharesAmount);
+    _transferPoolDelegationShares(address(airdropContract), _account, address(this), _sharesAmount);
+
+    if (_isPool) {
+      _transferPoolShares(_account, address(this), _account, _sharesAmount);
+    }
+
     emit ClaimRewards(_account, _sharesAmount);
   }
 
