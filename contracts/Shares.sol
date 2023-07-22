@@ -44,7 +44,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address indexed pool,
     uint256 sharesAmount
   );
-  event TransferDelegationShares(
+  event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event TransferPoolDelegationShares(
     address indexed from,
     address indexed to,
     address indexed pool,
@@ -53,25 +54,23 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintPenalty(uint256 amount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
-  event MintRewardsAccounts(address indexed sender, uint amount);
-  event MintRewardsAccountsFallback(address indexed sender, uint amount);
 
-  modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+  modifier onlyRouterContract() {
+    require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
     _;
   }
 
-  modifier onlyAirdrop() {
+  modifier onlyAirdropContract() {
     require(msg.sender == address(airdropContract), 'ONLY_AIRDROP_CONTRACT');
     _;
   }
 
-  modifier onlyLiquidity() {
+  modifier onlyLiquidityContract() {
     require(msg.sender == address(liquidityContract), 'ONLY_LIQUIDITY_CONTRACT');
     _;
   }
 
-  modifier onlyValidators() {
+  modifier onlyValidatorsContract() {
     require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS_CONTRACT');
     _;
   }
@@ -81,7 +80,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _;
   }
 
-  modifier onlyRouterOrLoan() {
+  modifier onlyRouterOrLiquidityContract() {
     require(
       msg.sender == address(routerContract) || msg.sender == address(liquidityContract),
       'ONLY_ROUTER_OR_LIQUIDITY_CONTRACT'
@@ -97,12 +96,12 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     _unpause();
   }
 
-  function setBeaconBalance(uint256 _amount) external onlyValidators {
+  function setBeaconBalance(uint256 _amount) external onlyValidatorsContract {
     beaconBalance = _amount;
     emit SetBeaconBalance(_amount);
   }
 
-  function setLiquidityBalance(uint256 _amount) external onlyLiquidity {
+  function setLiquidityBalance(uint256 _amount) external onlyLiquidityContract {
     liquidityBalance = _amount;
     emit SetLiquidityBalance(_amount);
   }
@@ -250,7 +249,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   mapping(address => mapping(address => uint256)) private delegationsShares;
   mapping(address => address[]) private delegates;
   mapping(address => mapping(address => bool)) private isDelegate;
-  uint256 public maxDelegations = 64; // Todo: verify merkle tree
+  uint256 public maxDelegations = 64;
 
   function poolSharesOf(address _account) public view returns (uint256) {
     return poolShares[_account];
@@ -382,7 +381,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
         isDelegate[_from][pool] = false;
       }
 
-      emit TransferDelegationShares(_from, _to, pool, delegationSharesToTransfer);
+      emit TransferDelegationShares(_from, _to, _sharesToTransfer);
     }
   }
 
@@ -420,7 +419,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
       isDelegate[_to][_pool] = true;
     }
 
-    emit TransferDelegationShares(_from, _to, _pool, _sharesAmount);
+    emit TransferPoolDelegationShares(_from, _to, _pool, _sharesAmount);
   }
 
   /*****************
@@ -437,7 +436,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address _address,
     address _pool,
     uint256 _sharesAmount
-  ) public payable onlyRouterOrLoan {
+  ) public payable onlyRouterOrLiquidityContract {
     _mintRewards(_address, _pool, _sharesAmount);
   }
 
@@ -445,7 +444,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     address _account,
     uint256 _sharesAmount,
     bool _isPool
-  ) external nonReentrant whenNotPaused onlyAirdrop {
+  ) external nonReentrant whenNotPaused onlyAirdropContract {
     _transferShares(address(airdropContract), _account, _sharesAmount);
     _transferPoolDelegationShares(address(airdropContract), _account, address(this), _sharesAmount);
 
@@ -456,7 +455,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit ClaimRewards(_account, _sharesAmount);
   }
 
-  function mintPenalty(uint256 _lossAmount) external onlyRouter {
+  function mintPenalty(uint256 _lossAmount) external onlyRouterContract {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_lossAmount);

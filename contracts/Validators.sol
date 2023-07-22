@@ -25,7 +25,7 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetRouter(address routerContract);
+  event SetRouterContract(address routerContract);
   event AddValidatorOracle(address indexed account);
   event RemoveValidatorOracle(address indexed account);
   event CreateValidator(
@@ -74,13 +74,13 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
     _;
   }
 
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
-    emit SetRouter(_routerContract);
+    emit SetRouterContract(_routerContract);
   }
 
-  modifier onlyRouter() {
+  modifier onlyRouterContract() {
     require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
@@ -195,7 +195,7 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   function removeValidator(
     uint256 _epoch,
     bytes calldata _publicKey
-  ) external payable nonReentrant onlyRouter {
+  ) external payable nonReentrant onlyRouterContract {
     require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
     validators[_publicKey] = false;

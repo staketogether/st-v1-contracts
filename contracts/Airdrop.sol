@@ -21,7 +21,7 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetRouter(address routerContract);
+  event SetRouterContract(address routerContract);
   event AddMerkleRoots(
     uint256 indexed epoch,
     bytes32 poolsRoot,
@@ -40,7 +40,7 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
   }
 
-  modifier onlyRouter() {
+  modifier onlyRouterContract() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
     _;
   }
@@ -61,10 +61,10 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
-    emit SetRouter(_routerContract);
+    emit SetRouterContract(_routerContract);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -105,7 +105,7 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     Fees.FeeRoles _role,
     uint256 _epoch,
     bytes32 merkleRoot
-  ) external onlyRouter {
+  ) external onlyRouterContract {
     require(airdropsMerkleRoots[_role][_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
     airdropsMerkleRoots[_role][_epoch] = merkleRoot;
     emit AddAirdropMerkleRoot(_role, _epoch, merkleRoot);

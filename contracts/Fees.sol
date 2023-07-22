@@ -53,7 +53,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
-  event SetRouter(address routerContract);
+  event SetRouterContract(address routerContract);
   event ReceiveEther(address indexed sender, uint256 amount);
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
@@ -82,7 +82,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     _unpause();
   }
 
-  modifier onlyRouter() {
+  modifier onlyRouterContract() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
     _;
   }
@@ -93,10 +93,10 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
+  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
-    emit SetRouter(_routerContract);
+    emit SetRouterContract(_routerContract);
   }
 
   function getFeesRoles() public pure returns (FeeRoles[8] memory) {

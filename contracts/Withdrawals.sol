@@ -31,12 +31,12 @@ contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Bu
   }
 
   receive() external payable {
-    _checkrouterExtraAmount();
+    _checkExtraAmount();
     emit ReceiveEther(msg.sender, msg.value);
   }
 
   fallback() external payable {
-    _checkrouterExtraAmount();
+    _checkExtraAmount();
     emit FallbackEther(msg.sender, msg.value);
   }
 
@@ -78,7 +78,7 @@ contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Bu
     return address(this).balance >= _amount;
   }
 
-  function _checkrouterExtraAmount() internal {
+  function _checkExtraAmount() internal {
     uint256 totalSupply = totalSupply();
     if (address(this).balance > totalSupply) {
       uint256 routerExtraAmount = address(this).balance - totalSupply;

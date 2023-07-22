@@ -6,6 +6,8 @@ import './Shares.sol';
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
   event Bootstrap(address sender, uint256 balance);
+  event MintRewardsAccounts(address indexed sender, uint amount);
+  event MintRewardsAccountsFallback(address indexed sender, uint amount);
   event SupplyLiquidity(uint256 amount, uint256 sharesBurned);
   event DepositBase(
     address indexed to,
@@ -276,7 +278,7 @@ contract StakeTogether is Shares {
     withdrawalsContract.mint(msg.sender, _amount);
   }
 
-  function refundPool() external payable onlyRouter {
+  function refundPool() external payable onlyRouterContract {
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }
