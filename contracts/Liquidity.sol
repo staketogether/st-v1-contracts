@@ -226,15 +226,19 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   }
 
   function addLiquidity() public payable whenNotPaused nonReentrant {
-    (uint256[8] memory _shares, ) = feesContract.estimateFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
       Fees.FeeType.LiquidityProvideEntry,
       msg.value
     );
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < roles.length; i++) {
+    for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
-        _mintShares(feesContract.getFeeAddress(roles[i]), _shares[i]);
+        stakeTogether.mintRewards{ value: _amounts[i] }(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          _shares[i]
+        );
       }
     }
 
@@ -269,35 +273,23 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
       _amount
     );
 
-    if (_shares[0] > 0) {
-      stakeTogether.mintRewards{ value: _amounts[0] }(_pool, _pool, _shares[0]);
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+
+    for (uint i = 0; i < roles.length - 1; i++) {
+      if (_shares[i] > 0) {
+        if (roles[i] == Fees.FeeRoles.Pools) {
+          stakeTogether.mintRewards(_pool, _pool, _shares[i]);
+        } else {
+          stakeTogether.mintRewards(
+            feesContract.getFeeAddress(roles[i]),
+            feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+            _shares[i]
+          );
+        }
+      }
     }
 
-    if (_shares[1] > 0) {
-      stakeTogether.mintRewards{ value: _amounts[1] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.Operators),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        _shares[1]
-      );
-    }
-
-    if (_shares[2] > 0) {
-      stakeTogether.mintRewards{ value: _amounts[2] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        _shares[2]
-      );
-    }
-
-    if (_shares[3] > 0) {
-      stakeTogether.mintRewards{ value: _amounts[3] }(
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeAccounts),
-        feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-        _shares[3]
-      );
-    }
-
-    stakeTogether.setLiquidityBalance(stakeTogether.liquidityBalance() + _amount + _amounts[6]);
+    stakeTogether.setLiquidityBalance(stakeTogether.liquidityBalance() + _amounts[7]);
 
     payable(msg.sender).transfer(_amounts[7]);
 

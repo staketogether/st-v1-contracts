@@ -361,7 +361,8 @@ describe.only('StakeTogether: Deposit', function () {
     expect(poolSharesSt).to.eq(0n)
     expect(poolSharesStFee).to.eq(expectedStFeeAddressShares)
   })
-  it('Should verifty the Wei loss after transfering ether to contract and depositing afterwards', async function () {
+
+  it('Should verify the wei loss after transfer ether to contract and depositing afterwards', async function () {
     const { StakeTogether, user1, user2, user3, nullAddress } = await loadFixture(defaultFixture)
 
     const beforeTransfer1TotalPooledEther = await StakeTogether.totalPooledEther()
