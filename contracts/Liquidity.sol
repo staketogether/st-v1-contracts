@@ -30,8 +30,14 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   event BurnShares(address indexed account, uint256 sharesAmount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event SetEnableLiquidity(bool enable);
-  event AddLiquidity(address indexed user, uint256 amount);
-  event RemoveLiquidity(address indexed user, uint256 amount);
+  event SetEnableDeposit(bool enableDeposit);
+  event SetDepositLimit(uint256 newLimit);
+  event SetWithdrawalLimit(uint256 newLimit);
+  event SetWithdrawalLiquidityLimit(uint256 newLimit);
+  event SetMinDepositPoolAmount(uint256 amount);
+  event SetBlocksInterval(uint256 blocksInterval);
+  event DepositPool(address indexed user, uint256 amount);
+  event WithdrawPool(address indexed user, uint256 amount);
   event WithdrawLiquidity(address indexed user, uint256 amount);
   event SupplyLiquidity(address indexed user, uint256 amount);
 
@@ -219,13 +225,24 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
    ***************/
 
   bool public enableLiquidity = true;
+  bool public enableDeposit = true;
+  uint256 public minDepositAmount = 0.001 ether;
+  uint256 public depositLimit = 1000 ether;
+  uint256 public withdrawalLimit = 1000 ether;
+  uint256 public withdrawalLiquidityLimit = 1000 ether;
+  uint256 public blocksPerDay = 6500;
+  uint256 public lastResetBlock;
+  uint256 public totalDeposited;
+  uint256 public totalWithdrawn;
+  uint256 public totalLiquidityWithdrawn;
 
-  function setEnableLiquidity(bool _enable) external onlyRole(ADMIN_ROLE) {
-    enableLiquidity = _enable;
-    emit SetEnableLiquidity(_enable);
-  }
+  function depositPool() public payable whenNotPaused nonReentrant {
+    require(enableDeposit, 'DEPOSIT_DISABLED');
+    require(msg.value > 0, 'ZERO_VALUE');
+    require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
 
-  function addLiquidity() public payable whenNotPaused nonReentrant {
+    _resetLimits();
+
     (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
       Fees.FeeType.LiquidityProvideEntry,
       msg.value
@@ -242,22 +259,28 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
       }
     }
 
-    emit AddLiquidity(msg.sender, msg.value);
+    totalDeposited += msg.value;
+
+    emit DepositPool(msg.sender, msg.value);
   }
 
-  function removeLiquidity(uint256 _amount) public whenNotPaused nonReentrant {
+  function withdrawPool(uint256 _amount) public whenNotPaused nonReentrant {
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
     uint256 accountBalance = balanceOf(msg.sender);
     require(_amount <= accountBalance, 'AMOUNT_EXCEEDS_BALANCE');
 
+    _resetLimits();
+
     uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
 
     _burnShares(msg.sender, sharesToBurn);
 
+    totalWithdrawn += _amount;
+
     payable(msg.sender).transfer(_amount);
-    emit RemoveLiquidity(msg.sender, _amount);
+    emit WithdrawPool(msg.sender, _amount);
   }
 
   function withdrawLiquidity(
@@ -293,11 +316,57 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
 
     payable(msg.sender).transfer(_amounts[7]);
 
+    totalLiquidityWithdrawn += _amounts[7];
+
     emit WithdrawLiquidity(msg.sender, _amount);
   }
 
   function supplyLiquidity() public payable nonReentrant onlyStakeTogether {
     require(msg.value > 0, 'ZERO_AMOUNT');
     emit SupplyLiquidity(msg.sender, msg.value);
+  }
+
+  function setEnableLiquidity(bool _enable) external onlyRole(ADMIN_ROLE) {
+    enableLiquidity = _enable;
+    emit SetEnableLiquidity(_enable);
+  }
+
+  function setEnableDeposit(bool _enableDeposit) external onlyRole(ADMIN_ROLE) {
+    enableDeposit = _enableDeposit;
+    emit SetEnableDeposit(_enableDeposit);
+  }
+
+  function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
+    minDepositAmount = _amount;
+    emit SetMinDepositPoolAmount(_amount);
+  }
+
+  function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
+    depositLimit = _newLimit;
+    emit SetDepositLimit(_newLimit);
+  }
+
+  function setWithdrawalLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
+    withdrawalLimit = _newLimit;
+    emit SetWithdrawalLimit(_newLimit);
+  }
+
+  function setWithdrawalLiquidityLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
+    withdrawalLiquidityLimit = _newLimit;
+    emit SetWithdrawalLiquidityLimit(_newLimit);
+  }
+
+  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
+    blocksPerDay = _newBlocksInterval;
+    emit SetBlocksInterval(_newBlocksInterval);
+  }
+
+  function _resetLimits() internal {
+    if (block.number > lastResetBlock + blocksPerDay) {
+      totalDeposited = 0;
+      totalWithdrawn = 0;
+      totalLiquidityWithdrawn = 0;
+      lastResetBlock = block.number;
+    }
   }
 }

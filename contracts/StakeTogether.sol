@@ -147,7 +147,6 @@ contract StakeTogether is Shares {
     require(isPool(_pool), 'POOL_NOT_FOUND');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
-    require(address(msg.sender).balance > msg.value, 'AMOUNT_EXCEEDS_BALANCE');
 
     _resetLimits();
 
@@ -281,6 +280,11 @@ contract StakeTogether is Shares {
     emit SetEnableWithdrawPool(_enableWithdrawPool);
   }
 
+  function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
+    minDepositAmount = _amount;
+    emit SetMinDepositPoolAmount(_amount);
+  }
+
   function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
     depositLimit = _newLimit;
     emit SetDepositLimit(_newLimit);
@@ -291,9 +295,9 @@ contract StakeTogether is Shares {
     emit SetWithdrawalLimit(_newLimit);
   }
 
-  function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    minDepositAmount = _amount;
-    emit SetMinDepositPoolAmount(_amount);
+  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
+    blocksPerDay = _newBlocksInterval;
+    emit SetBlocksInterval(_newBlocksInterval);
   }
 
   function setPoolSize(uint256 _amount) external onlyRole(ADMIN_ROLE) {
@@ -311,11 +315,6 @@ contract StakeTogether is Shares {
 
   function totalPooledEther() public view override returns (uint256) {
     return poolBalance() + beaconBalance;
-  }
-
-  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
-    blocksPerDay = _newBlocksInterval;
-    emit SetBlocksInterval(_newBlocksInterval);
   }
 
   /***********
