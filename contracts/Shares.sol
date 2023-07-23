@@ -265,12 +265,13 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   uint256 public constant minLockDay = 30;
   uint256 public constant maxLockDay = 365;
 
-  function lockShares(uint256 _sharesAmount, uint256 _lockDays) external {
+  function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
     require(_lockDays >= minLockDay && _lockDays <= maxLockDay, 'INVALID_LOCK_PERIOD');
     require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
 
     // shares[msg.sender] -= _sharesAmount;
     // Todo: mint locked tokens
+    // Todo: implement net amount
 
     uint256 newId = nextLockedSharesId;
     nextLockedSharesId += 1;
@@ -289,7 +290,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     emit LockShares(msg.sender, newId, _sharesAmount, _lockDays);
   }
 
-  function unlockShares(uint256 _id) external {
+  function unlockShares(uint256 _id) external nonReentrant whenNotPaused {
     LockedShares storage lockedShare = lockedShares[msg.sender][_id];
 
     require(lockedShare.id != 0, 'LOCKED_SHARES_DOES_NOT_EXIST');
@@ -301,6 +302,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
     // shares[msg.sender] += lockedShare.amount;
     // Todo: burn locked tokens
+    // Todo: implement net amount
 
     delete lockedShares[msg.sender][_id];
 
