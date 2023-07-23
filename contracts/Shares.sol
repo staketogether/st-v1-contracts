@@ -241,6 +241,99 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   /*****************
+   ** LOCK SHARES **
+   *****************/
+
+  event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
+  event UnlockShares(address indexed user, uint256 id, uint256 amount);
+  event SetMinLockDays(uint256 minLockDays);
+  event SetMaxLockDays(uint256 maxLockDays);
+
+  struct LockedShares {
+    uint256 id;
+    uint256 amount;
+    uint256 unlockTime;
+    uint256 lockDays;
+  }
+
+  mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
+  mapping(address => uint256) public totalAccountLockedShares;
+  mapping(address => uint256) public totalAccountLockedDays;
+  uint256 public totalLockedShares = 0;
+
+  uint256 private nextLockedSharesId = 1;
+  uint256 public constant minLockDay = 30;
+  uint256 public constant maxLockDay = 365;
+
+  function lockShares(uint256 _sharesAmount, uint256 _lockDays) external {
+    require(_lockDays >= minLockDay && _lockDays <= maxLockDay, 'INVALID_LOCK_PERIOD');
+    require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
+
+    // shares[msg.sender] -= _sharesAmount;
+    // Todo: mint locked tokens
+
+    uint256 newId = nextLockedSharesId;
+    nextLockedSharesId += 1;
+
+    lockedShares[msg.sender][newId] = LockedShares({
+      id: newId,
+      amount: _sharesAmount,
+      unlockTime: block.timestamp + (_lockDays * 1 days),
+      lockDays: _lockDays
+    });
+
+    totalLockedShares += _sharesAmount;
+    totalAccountLockedShares[msg.sender] += _sharesAmount;
+    totalAccountLockedDays[msg.sender] += _sharesAmount * _lockDays;
+
+    emit LockShares(msg.sender, newId, _sharesAmount, _lockDays);
+  }
+
+  function unlockShares(uint256 _id) external {
+    LockedShares storage lockedShare = lockedShares[msg.sender][_id];
+
+    require(lockedShare.id != 0, 'LOCKED_SHARES_DOES_NOT_EXIST');
+    require(lockedShare.unlockTime <= block.timestamp, 'SHARES_ARE_STILL_LOCKED');
+
+    totalLockedShares -= lockedShare.amount;
+    totalAccountLockedShares[msg.sender] -= lockedShare.amount;
+    totalAccountLockedDays[msg.sender] -= lockedShare.amount * lockedShare.lockDays;
+
+    // shares[msg.sender] += lockedShare.amount;
+    // Todo: burn locked tokens
+
+    delete lockedShares[msg.sender][_id];
+
+    emit UnlockShares(msg.sender, _id, lockedShare.amount);
+  }
+
+  function incentiveFactorOf(address _account) public view returns (uint256, uint256) {
+    if (totalAccountLockedShares[_account] > 0) {
+      uint256 factor = Math.mulDiv(
+        totalAccountLockedDays[_account],
+        totalAccountLockedShares[_account],
+        shares[_account]
+      );
+      uint256 percentage = Math.mulDiv(totalAccountLockedShares[_account], 1 ether, totalLockedShares);
+      return (factor, percentage);
+    } else {
+      return (0, 0);
+    }
+  }
+
+  function setMinLockDays(uint256 _minLockDays) external onlyRole(ADMIN_ROLE) {
+    require(_minLockDays > 0, 'ZERO_MIN_LOCK_DAYS');
+    require(_minLockDays <= maxLockDay, 'MIN_LOCK_DAYS_EXCEEDS_MAX_LOCK_DAYS');
+    emit SetMinLockDays(_minLockDays);
+  }
+
+  function setMaxLockDays(uint256 _maxLockDays) external onlyRole(ADMIN_ROLE) {
+    require(_maxLockDays > 0, 'ZERO_MAX_LOCK_DAYS');
+    require(_maxLockDays >= minLockDay, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
+    emit SetMaxLockDays(_maxLockDays);
+  }
+
+  /*****************
    ** POOLS SHARES **
    *****************/
 
