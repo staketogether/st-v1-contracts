@@ -121,7 +121,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return pooledEthByShares(sharesOf(_account));
+    return pooledEthByShares(netSharesOf(_account));
   }
 
   function sharesOf(address _account) public view returns (uint256) {
@@ -205,7 +205,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function _burnShares(address _account, uint256 _sharesAmount) internal {
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_sharesAmount <= sharesOf(_account), 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= netSharesOf(_account), 'BALANCE_EXCEEDED');
 
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
@@ -224,7 +224,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
-    require(_sharesAmount <= sharesOf(_from), 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= netSharesOf(_from), 'BALANCE_EXCEEDED');
 
     shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
@@ -262,16 +262,12 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   uint256 public totalLockedShares = 0;
 
   uint256 private nextLockedSharesId = 1;
-  uint256 public constant minLockDay = 30;
-  uint256 public constant maxLockDay = 365;
+  uint256 public constant minLockDays = 30;
+  uint256 public constant maxLockDays = 365;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
-    require(_lockDays >= minLockDay && _lockDays <= maxLockDay, 'INVALID_LOCK_PERIOD');
+    require(_lockDays >= minLockDays && _lockDays <= maxLockDays, 'INVALID_LOCK_PERIOD');
     require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
-
-    // shares[msg.sender] -= _sharesAmount;
-    // Todo: mint locked tokens
-    // Todo: implement net amount
 
     uint256 newId = nextLockedSharesId;
     nextLockedSharesId += 1;
@@ -300,10 +296,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     totalAccountLockedShares[msg.sender] -= lockedShare.amount;
     totalAccountLockedDays[msg.sender] -= lockedShare.amount * lockedShare.lockDays;
 
-    // shares[msg.sender] += lockedShare.amount;
-    // Todo: burn locked tokens
-    // Todo: implement net amount
-
     delete lockedShares[msg.sender][_id];
 
     emit UnlockShares(msg.sender, _id, lockedShare.amount);
@@ -325,14 +317,22 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
 
   function setMinLockDays(uint256 _minLockDays) external onlyRole(ADMIN_ROLE) {
     require(_minLockDays > 0, 'ZERO_MIN_LOCK_DAYS');
-    require(_minLockDays <= maxLockDay, 'MIN_LOCK_DAYS_EXCEEDS_MAX_LOCK_DAYS');
+    require(_minLockDays <= maxLockDays, 'MIN_LOCK_DAYS_EXCEEDS_MAX_LOCK_DAYS');
     emit SetMinLockDays(_minLockDays);
   }
 
   function setMaxLockDays(uint256 _maxLockDays) external onlyRole(ADMIN_ROLE) {
     require(_maxLockDays > 0, 'ZERO_MAX_LOCK_DAYS');
-    require(_maxLockDays >= minLockDay, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
+    require(_maxLockDays >= minLockDays, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
     emit SetMaxLockDays(_maxLockDays);
+  }
+
+  function lockedSharesOf(address _account) public view returns (uint256) {
+    return totalAccountLockedShares[_account];
+  }
+
+  function netSharesOf(address _account) public view returns (uint256) {
+    return sharesOf(_account) - totalAccountLockedShares[_account];
   }
 
   /*****************
@@ -345,6 +345,8 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   mapping(address => address[]) private delegates;
   mapping(address => mapping(address => bool)) private isDelegate;
   uint256 public maxDelegations = 64;
+
+  function isPool(address _pool) public view virtual returns (bool);
 
   function poolSharesOf(address _account) public view returns (uint256) {
     return poolShares[_account];
@@ -417,14 +419,14 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   ) internal whenNotPaused {
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_sharesToTransfer <= sharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
+    require(_sharesToTransfer <= netSharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address pool = delegates[_from][i];
       uint256 delegationSharesToTransfer = Math.mulDiv(
         delegationSharesOf(_from, pool),
         _sharesToTransfer,
-        sharesOf(_from)
+        netSharesOf(_from)
       );
 
       delegationsShares[_from][pool] -= delegationSharesToTransfer;
@@ -538,6 +540,4 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_lossAmount);
   }
-
-  function isPool(address _pool) public view virtual returns (bool);
 }

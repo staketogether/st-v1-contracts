@@ -226,7 +226,7 @@ contract StakeTogether is Shares {
       revert('WITHDRAWAL_LIMIT_REACHED');
     }
 
-    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), balanceOf(msg.sender));
+    uint256 sharesToBurn = Math.mulDiv(_amount, netSharesOf(msg.sender), balanceOf(msg.sender));
 
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
