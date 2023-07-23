@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
-import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+
+import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
 import './Router.sol';
 import './Fees.sol';
 import './Airdrop.sol';
@@ -17,7 +21,18 @@ import './Liquidity.sol';
 import './Validators.sol';
 
 /// @custom:security-contact security@staketogether.app
-abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Permit {
+abstract contract Shares is
+  Initializable,
+  ERC20Upgradeable,
+  ERC20BurnableUpgradeable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  ERC20PermitUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuard
+{
+  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
@@ -86,14 +101,6 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
       'ONLY_ROUTER_OR_LIQUIDITY_CONTRACT'
     );
     _;
-  }
-
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
   }
 
   function setBeaconBalance(uint256 _amount) external onlyValidatorsContract {

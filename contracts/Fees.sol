@@ -2,20 +2,34 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
 import './StakeTogether.sol';
 import './Router.sol';
 import './Liquidity.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Fees is AccessControl, Pausable, ReentrancyGuard {
+contract Fees is
+  Initializable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuard
+{
+  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+
   StakeTogether public stakeTogether;
   Router public routerContract;
   Liquidity public liquidityContract;
-  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+
   uint256 public maxFeeIncrease = 3 ether;
 
   enum FeeType {
@@ -64,9 +78,28 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   event SetMaxFeeIncrease(uint256 maxFeeIncrease);
 
   constructor() {
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
+    _disableInitializers();
   }
+
+  function initialize() public initializer {
+    __Pausable_init();
+    __AccessControl_init();
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+  }
+
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   receive() external payable whenNotPaused {
     emit ReceiveEther(msg.sender, msg.value);
@@ -76,14 +109,6 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   fallback() external payable whenNotPaused {
     emit FallbackEther(msg.sender, msg.value);
     _transferToStakeTogether();
-  }
-
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
   }
 
   modifier onlyRouterContract() {
@@ -188,7 +213,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     emit SetMaxFeeIncrease(_maxFeeIncrease);
   }
 
-  function _transferToStakeTogether() private nonReentrant {
+  function _transferToStakeTogether() private {
     payable(stakeTogether).transfer(address(this).balance);
   }
 

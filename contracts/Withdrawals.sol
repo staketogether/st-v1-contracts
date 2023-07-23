@@ -2,15 +2,30 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 import './StakeTogether.sol';
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/security/Pausable.sol';
+
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
-import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
+
+import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burnable, ERC20Permit {
+contract Withdrawals is
+  Initializable,
+  ERC20Upgradeable,
+  ERC20BurnableUpgradeable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  ERC20PermitUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuard
+{
+  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
@@ -25,9 +40,39 @@ contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Bu
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
 
-  constructor() ERC20('ST Withdrawal Ether', 'WETH') ERC20Permit('ST Withdrawal Ether') {
+  constructor() {
+    _disableInitializers();
+  }
+
+  function initialize() public initializer {
+    __ERC20_init('ST Withdrawals ETH', 'wETH');
+    __ERC20Burnable_init();
+    __Pausable_init();
+    __AccessControl_init();
+    __ERC20Permit_init('ST Withdrawals ETH');
+    __UUPSUpgradeable_init();
+
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+  }
+
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+  function _beforeTokenTransfer(
+    address from,
+    address to,
+    uint256 amount
+  ) internal override whenNotPaused {
+    super._beforeTokenTransfer(from, to, amount);
   }
 
   receive() external payable {
@@ -38,14 +83,6 @@ contract Withdrawals is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Bu
   fallback() external payable {
     _checkExtraAmount();
     emit FallbackEther(msg.sender, msg.value);
-  }
-
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {

@@ -2,17 +2,28 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/Pausable.sol';
-import '@openzeppelin/contracts/access/AccessControl.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import './Router.sol';
 import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
+contract Airdrop is
+  Initializable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuard
+{
+  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
   StakeTogether public stakeTogether;
   Router public routerContract;
@@ -33,11 +44,29 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
   event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
   event SetMaxBatchSize(uint256 maxBatchSize);
 
-  constructor() payable {
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(POOL_MANAGER_ROLE, msg.sender);
+  constructor() {
+    _disableInitializers();
   }
+
+  function initialize() public initializer {
+    __Pausable_init();
+    __AccessControl_init();
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+  }
+
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   modifier onlyRouterContract() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
@@ -64,14 +93,6 @@ contract Airdrop is AccessControl, Pausable, ReentrancyGuard {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
     emit SetRouterContract(_routerContract);
-  }
-
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
   }
 
   function _transferToStakeTogether() private {

@@ -2,15 +2,27 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
 import './StakeTogether.sol';
 import './Router.sol';
 import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Validators is AccessControl, Pausable, ReentrancyGuard {
+contract Validators is
+  Initializable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuard
+{
+  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
@@ -39,11 +51,31 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event SetValidatorSize(uint256 newValidatorSize);
 
-  constructor(address _depositContract) {
-    depositContract = IDepositContract(_depositContract);
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
+  constructor() {
+    _disableInitializers();
   }
+
+  function initialize(address _depositContract) public initializer {
+    __Pausable_init();
+    __AccessControl_init();
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+
+    depositContract = IDepositContract(_depositContract);
+  }
+
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   receive() external payable {
     _transferToStakeTogether();
@@ -53,14 +85,6 @@ contract Validators is AccessControl, Pausable, ReentrancyGuard {
   fallback() external payable {
     _transferToStakeTogether();
     emit FallbackEther(msg.sender, msg.value);
-  }
-
-  function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
-    _unpause();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {

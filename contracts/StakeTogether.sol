@@ -61,23 +61,53 @@ contract StakeTogether is Shares {
 
   bool private bootstrapped = false;
 
-  constructor(
+  constructor() {
+    _disableInitializers();
+  }
+
+  function initialize(
     address _routerContract,
     address _feesContract,
     address _airdropContract,
     address _withdrawalsContract,
     address _liquidityContract,
     address _validatorsContract
-  ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
+  ) public initializer {
+    __ERC20_init('ST Staked Ether', 'sETH');
+    __ERC20Burnable_init();
+    __Pausable_init();
+    __AccessControl_init();
+    __ERC20Permit_init('ST Staked Ether');
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));
     airdropContract = Airdrop(payable(_airdropContract));
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     validatorsContract = Validators(payable(_validatorsContract));
+  }
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+  function _beforeTokenTransfer(
+    address from,
+    address to,
+    uint256 amount
+  ) internal override whenNotPaused {
+    super._beforeTokenTransfer(from, to, amount);
   }
 
   function bootstrap() external payable {
