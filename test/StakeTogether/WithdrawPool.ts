@@ -4,6 +4,7 @@ import { defaultFixture } from '../fixtures/defaultFixture'
 import { ethers } from 'ethers'
 import connect from '../utils/connect'
 import { expect } from 'chai'
+import { mockedRewardsFixture } from '../fixtures/mockedRewardsFixture'
 
 dotenv.config()
 
@@ -84,6 +85,9 @@ describe.only('StakeTogether: WithdrawPool', function () {
     )
   })
   it.only('Should withdraw from pool successfully after making a deposit and receiving rewards', async function () {
+    const { StakeTogether, Fees, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
+      mockedRewardsFixture
+    )
     // TODO: Add test for rewards
   })
 })
