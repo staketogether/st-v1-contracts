@@ -67,15 +67,15 @@ export async function defaultFixture() {
   await Router.setStakeTogether(await StakeTogether.getAddress())
 
   await Validators.setStakeTogether(await StakeTogether.getAddress())
-  await Validators.setRouterContract(await Router.getAddress())
+  await Validators.setRouter(await Router.getAddress())
 
   await Airdrop.setStakeTogether(await StakeTogether.getAddress())
-  await Airdrop.setRouterContract(await Router.getAddress())
+  await Airdrop.setRouter(await Router.getAddress())
 
   await Withdrawals.setStakeTogether(await StakeTogether.getAddress())
 
   await Fees.setStakeTogether(await StakeTogether.getAddress())
-  await Fees.setRouterContract(await Router.getAddress())
+  await Fees.setRouter(await Router.getAddress())
   await Fees.setFee(1n, 1000000000000000n, 1n)
   await Fees.setFeeAllocation(1n, (await Fees.getFeesRoles())[0], 400000000000000000n)
   await Fees.setFeeAllocation(1n, (await Fees.getFeesRoles())[1], 100000000000000000n)
@@ -93,7 +93,7 @@ export async function defaultFixture() {
   await Fees.setFeeAddress((await Fees.getFeesRoles())[6], await user4.getAddress())
 
   await Liquidity.setFees(await Fees.getAddress())
-  await Liquidity.setRouterContract(await Router.getAddress())
+  await Liquidity.setRouter(await Router.getAddress())
   await Liquidity.setStakeTogether(await StakeTogether.getAddress())
 
   await StakeTogether.grantRole(await StakeTogether.POOL_MANAGER_ROLE(), owner.address)
