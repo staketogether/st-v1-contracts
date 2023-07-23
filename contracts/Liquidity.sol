@@ -127,7 +127,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalWithdrawalsShares);
+    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalWithdrawalsShares, Math.Rounding.Up);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {

@@ -133,7 +133,7 @@ abstract contract Shares is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares);
+    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares, Math.Rounding.Up);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
