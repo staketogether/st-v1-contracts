@@ -56,13 +56,10 @@ export async function defaultFixture() {
       await Airdrop.getAddress(),
       await Withdrawals.getAddress(),
       await Liquidity.getAddress(),
-      await Validators.getAddress(),
-      {
-        value: initialDeposit
-      }
+      await Validators.getAddress()
     )
 
-  await StakeTogether.bootstrap()
+  await StakeTogether.bootstrap({ value: initialDeposit })
 
   await Router.setStakeTogether(await StakeTogether.getAddress())
 
