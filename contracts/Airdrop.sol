@@ -68,8 +68,8 @@ contract Airdrop is
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  modifier onlyRouterContract() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
+  modifier onlyRouter() {
+    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
     _;
   }
 
@@ -125,7 +125,7 @@ contract Airdrop is
     Fees.FeeRoles _role,
     uint256 _epoch,
     bytes32 merkleRoot
-  ) external onlyRouterContract {
+  ) external onlyRouter {
     require(airdropsMerkleRoots[_role][_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
     airdropsMerkleRoots[_role][_epoch] = merkleRoot;
     emit AddAirdropMerkleRoot(_role, _epoch, merkleRoot);

@@ -70,45 +70,19 @@ abstract contract Shares is
   event MintPenalty(uint256 amount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
 
-  modifier onlyRouterContract() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
+  modifier onlyRouter() {
+    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
     _;
   }
 
-  modifier onlyAirdropContract() {
-    require(msg.sender == address(airdropContract), 'ONLY_AIRDROP_CONTRACT');
-    _;
-  }
-
-  modifier onlyLiquidityContract() {
-    require(msg.sender == address(liquidityContract), 'ONLY_LIQUIDITY_CONTRACT');
-    _;
-  }
-
-  modifier onlyValidatorsContract() {
-    require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS_CONTRACT');
-    _;
-  }
-
-  modifier onlyValidatorOracle() {
-    require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
-    _;
-  }
-
-  modifier onlyRouterOrLiquidityContract() {
-    require(
-      msg.sender == address(routerContract) || msg.sender == address(liquidityContract),
-      'ONLY_ROUTER_OR_LIQUIDITY_CONTRACT'
-    );
-    _;
-  }
-
-  function setBeaconBalance(uint256 _amount) external onlyValidatorsContract {
+  function setBeaconBalance(uint256 _amount) external {
+    require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS');
     beaconBalance = _amount;
     emit SetBeaconBalance(_amount);
   }
 
-  function setLiquidityBalance(uint256 _amount) external onlyLiquidityContract {
+  function setLiquidityBalance(uint256 _amount) external {
+    require(msg.sender == address(liquidityContract), 'ONLY_LIQUIDITY');
     liquidityBalance = _amount;
     emit SetLiquidityBalance(_amount);
   }
@@ -519,11 +493,11 @@ abstract contract Shares is
     emit MintRewards(_address, _pool, _sharesAmount);
   }
 
-  function mintRewards(
-    address _address,
-    address _pool,
-    uint256 _sharesAmount
-  ) public payable onlyRouterOrLiquidityContract {
+  function mintRewards(address _address, address _pool, uint256 _sharesAmount) public payable {
+    require(
+      msg.sender == address(routerContract) || msg.sender == address(liquidityContract),
+      'ONLY_ROUTER_OR_LIQUIDITY'
+    );
     _mintRewards(_address, _pool, _sharesAmount);
   }
 
@@ -531,7 +505,8 @@ abstract contract Shares is
     address _account,
     uint256 _sharesAmount,
     bool _isPool
-  ) external nonReentrant whenNotPaused onlyAirdropContract {
+  ) external nonReentrant whenNotPaused {
+    require(msg.sender == address(airdropContract), 'ONLY_AIRDROP');
     _transferShares(address(airdropContract), _account, _sharesAmount);
     _transferPoolDelegationShares(address(airdropContract), _account, address(this), _sharesAmount);
 
@@ -542,7 +517,7 @@ abstract contract Shares is
     emit ClaimRewards(_account, _sharesAmount);
   }
 
-  function mintPenalty(uint256 _lossAmount) external onlyRouterContract {
+  function mintPenalty(uint256 _lossAmount) external onlyRouter {
     beaconBalance -= _lossAmount;
     require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
     emit MintPenalty(_lossAmount);

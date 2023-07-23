@@ -288,7 +288,7 @@ contract StakeTogether is Shares {
     withdrawalsContract.mint(msg.sender, _amount);
   }
 
-  function refundPool() external payable onlyRouterContract {
+  function refundPool() external payable onlyRouter {
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }
@@ -422,7 +422,8 @@ contract StakeTogether is Shares {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant onlyValidatorOracle {
+  ) external nonReentrant {
+    require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
       _publicKey,
       withdrawalCredentials,

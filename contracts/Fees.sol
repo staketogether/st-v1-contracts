@@ -111,8 +111,8 @@ contract Fees is
     _transferToStakeTogether();
   }
 
-  modifier onlyRouterContract() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER_CONTRACT');
+  modifier onlyRouter() {
+    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
     _;
   }
 

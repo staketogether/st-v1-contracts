@@ -104,7 +104,7 @@ contract Validators is
     emit SetRouterContract(_routerContract);
   }
 
-  modifier onlyRouterContract() {
+  modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
@@ -219,7 +219,7 @@ contract Validators is
   function removeValidator(
     uint256 _epoch,
     bytes calldata _publicKey
-  ) external payable nonReentrant onlyRouterContract {
+  ) external payable nonReentrant onlyRouter {
     require(validators[_publicKey], 'PUBLIC_KEY_NOT_FOUND');
 
     validators[_publicKey] = false;
