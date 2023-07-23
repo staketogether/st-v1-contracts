@@ -159,7 +159,8 @@ contract StakeTogether is Shares {
 
     (uint256[8] memory _shares, ) = feesContract.distributeFeePercentage(
       Fees.FeeType.StakeEntry,
-      sharesAmount
+      sharesAmount,
+      0
     );
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
@@ -310,11 +311,11 @@ contract StakeTogether is Shares {
   }
 
   function poolBalance() public view returns (uint256) {
-    return address(this).balance - liquidityBalance;
+    return address(this).balance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return poolBalance() + beaconBalance;
+    return poolBalance() + beaconBalance - liquidityBalance;
   }
 
   /***********

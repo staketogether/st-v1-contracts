@@ -20,7 +20,9 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
   StakeTogether public stakeTogether;
   Router public routerContract;
   Fees public feesContract;
+  bool private bootstrapped = false;
 
+  event Bootstrap(address sender, uint256 balance);
   event MintRewardsWithdrawalLenders(address indexed sender, uint amount);
   event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
@@ -60,6 +62,17 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
 
   function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
+  }
+
+  function bootstrap() external payable {
+    require(!bootstrapped, 'ALREADY_BOOTSTRAPPED');
+    require(hasRole(ADMIN_ROLE, msg.sender), 'ONLY_ADMIN');
+
+    bootstrapped = true;
+
+    _mintShares(address(this), msg.value);
+
+    emit Bootstrap(msg.sender, msg.value);
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -291,7 +304,7 @@ contract Liquidity is AccessControl, Pausable, ReentrancyGuard, ERC20, ERC20Burn
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateDynamicFeePercentage(
       Fees.FeeType.LiquidityProvide,
       _amount
     );

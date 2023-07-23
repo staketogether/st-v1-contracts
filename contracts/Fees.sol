@@ -8,13 +8,15 @@ import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import './StakeTogether.sol';
 import './Router.sol';
-import 'hardhat/console.sol';
+import './Liquidity.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Fees is AccessControl, Pausable, ReentrancyGuard {
   StakeTogether public stakeTogether;
   Router public routerContract;
+  Liquidity public liquidityContract;
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  uint256 public maxFeeIncrease = 3 ether;
 
   enum FeeType {
     Swap,
@@ -54,10 +56,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
   event SetRouterContract(address routerContract);
+  event SetLiquidityContract(address liquidityContract);
   event ReceiveEther(address indexed sender, uint256 amount);
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
+  event SetMaxFeeIncrease(uint256 maxFeeIncrease);
 
   constructor() {
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -97,6 +101,12 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     routerContract = Router(payable(_routerContract));
     emit SetRouterContract(_routerContract);
+  }
+
+  function setLiquidityContract(address _liquidityContract) external onlyRole(ADMIN_ROLE) {
+    require(_liquidityContract != address(0), 'LIQUIDITY_CONTRACT_ALREADY_SET');
+    liquidityContract = Liquidity(payable(_liquidityContract));
+    emit SetLiquidityContract(_liquidityContract);
   }
 
   function getFeesRoles() public pure returns (FeeRoles[8] memory) {
@@ -173,6 +183,11 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     return fees[_feeType].allocations[_role];
   }
 
+  function setMaxFeeIncrease(uint256 _maxFeeIncrease) external onlyRole(ADMIN_ROLE) {
+    maxFeeIncrease = _maxFeeIncrease;
+    emit SetMaxFeeIncrease(_maxFeeIncrease);
+  }
+
   function _transferToStakeTogether() private nonReentrant {
     payable(stakeTogether).transfer(address(this).balance);
   }
@@ -186,16 +201,16 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     uint256 _amount
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
-    return distributeFeePercentage(_feeType, sharesAmount);
+    return distributeFeePercentage(_feeType, sharesAmount, 0);
   }
 
   function distributeFeePercentage(
     FeeType _feeType,
-    uint256 _sharesAmount
+    uint256 _sharesAmount,
+    uint256 _dynamicFee
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    (uint256 fee, FeeMathType mathType) = getFee(_feeType);
-    require(fee <= 1 ether, 'TOTAL_FEE_EXCEEDS_100_PERCENT');
-    require(mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
+    require(_dynamicFee <= fees[_feeType].value + maxFeeIncrease, 'TOTAL_FEE_EXCEEDS_MAX_INCREASE');
+    require(fees[_feeType].mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
 
     FeeRoles[8] memory roles = getFeesRoles();
 
@@ -212,7 +227,7 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
       require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
     }
 
-    uint256 feeShares = Math.mulDiv(_sharesAmount, fee, 1 ether);
+    uint256 feeShares = Math.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
@@ -226,6 +241,32 @@ contract Fees is AccessControl, Pausable, ReentrancyGuard {
     }
 
     return (shares, amounts);
+  }
+
+  function estimateDynamicFeePercentage(
+    FeeType _feeType,
+    uint256 _amount
+  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
+    uint256 totalPooledEtherStake = stakeTogether.totalPooledEther();
+    uint256 totalPooledEtherLiquidity = liquidityContract.totalPooledEther();
+    uint256 baseFee = fees[FeeType.LiquidityProvide].value;
+    uint256 dynamicFee;
+
+    if (totalPooledEtherLiquidity == 0) {
+      dynamicFee = Math.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
+    } else {
+      uint256 ratio = Math.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
+
+      if (ratio >= 1 ether) {
+        dynamicFee = Math.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
+      } else {
+        uint256 feeIncrease = Math.mulDiv(ratio, maxFeeIncrease, 1 ether);
+        dynamicFee = Math.mulDiv(baseFee, 1 ether + feeIncrease, 1 ether);
+      }
+    }
+
+    uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
+    return distributeFeePercentage(_feeType, sharesAmount, dynamicFee);
   }
 
   function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {
