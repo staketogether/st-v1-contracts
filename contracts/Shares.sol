@@ -20,6 +20,8 @@ import './Withdrawals.sol';
 import './Liquidity.sol';
 import './Validators.sol';
 
+import './interfaces/IStakeTogether.sol';
+
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is
   Initializable,
@@ -29,7 +31,8 @@ abstract contract Shares is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuard,
+  IStakeTogether
 {
   bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
@@ -45,30 +48,6 @@ abstract contract Shares is
 
   uint256 public beaconBalance = 0;
   uint256 public liquidityBalance = 0;
-
-  event SetBeaconBalance(uint256 amount);
-  event SetLiquidityBalance(uint256 amount);
-  event MintShares(address indexed to, uint256 sharesAmount);
-  event BurnShares(address indexed account, uint256 sharesAmount);
-  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
-  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
-  event TransferPoolShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
-  event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event TransferPoolDelegationShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
-  event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
-  event MintPenalty(uint256 amount);
-  event ClaimRewards(address indexed account, uint256 sharesAmount);
 
   modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER');
@@ -230,21 +209,14 @@ abstract contract Shares is
   event SetMinLockDays(uint256 minLockDays);
   event SetMaxLockDays(uint256 maxLockDays);
 
-  struct LockedShares {
-    uint256 id;
-    uint256 amount;
-    uint256 unlockTime;
-    uint256 lockDays;
-  }
-
   mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
   mapping(address => uint256) public totalAccountLockedShares;
   mapping(address => uint256) public totalAccountLockedDays;
   uint256 public totalLockedShares = 0;
 
   uint256 private nextLockedSharesId = 1;
-  uint256 public constant minLockDays = 30;
-  uint256 public constant maxLockDays = 365;
+  uint256 public minLockDays = 30;
+  uint256 public maxLockDays = 365;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
     require(_lockDays >= minLockDays && _lockDays <= maxLockDays, 'INVALID_LOCK_PERIOD');
@@ -299,12 +271,14 @@ abstract contract Shares is
   function setMinLockDays(uint256 _minLockDays) external onlyRole(ADMIN_ROLE) {
     require(_minLockDays > 0, 'ZERO_MIN_LOCK_DAYS');
     require(_minLockDays <= maxLockDays, 'MIN_LOCK_DAYS_EXCEEDS_MAX_LOCK_DAYS');
+    minLockDays = _minLockDays;
     emit SetMinLockDays(_minLockDays);
   }
 
   function setMaxLockDays(uint256 _maxLockDays) external onlyRole(ADMIN_ROLE) {
     require(_maxLockDays > 0, 'ZERO_MAX_LOCK_DAYS');
     require(_maxLockDays >= minLockDays, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
+    maxLockDays = _maxLockDays;
     emit SetMaxLockDays(_maxLockDays);
   }
 
