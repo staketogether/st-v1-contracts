@@ -80,6 +80,7 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
   event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
   event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
   event SetMaxApr(uint256 maxApr);
+  event RequestValidatorsExit(bytes[] publicKeys);
 
   constructor(
     address _withdrawContract,
@@ -239,6 +240,10 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
       emit PenalizeReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash, blacklist);
     }
+  }
+
+  function requestValidatorsExit(bytes[] calldata publicKeys) external onlyRole(ADMIN_ROLE) {
+    emit RequestValidatorsExit(publicKeys);
   }
 
   /************
