@@ -204,12 +204,6 @@ abstract contract Shares is
    ** LOCK SHARES **
    *****************/
 
-  event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
-  event UnlockShares(address indexed user, uint256 id, uint256 amount);
-  event SetMinLockDays(uint256 minLockDays);
-  event SetMaxLockDays(uint256 maxLockDays);
-  event SetEnableLock(bool enableLock);
-
   mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
   mapping(address => uint256) public totalAccountLockedShares;
   mapping(address => uint256) public totalAccountLockedDays;

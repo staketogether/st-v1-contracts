@@ -86,4 +86,10 @@ interface IStakeTogether {
   event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintPenalty(uint256 amount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
+
+  event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
+  event UnlockShares(address indexed user, uint256 id, uint256 amount);
+  event SetMinLockDays(uint256 minLockDays);
+  event SetMaxLockDays(uint256 maxLockDays);
+  event SetEnableLock(bool enableLock);
 }
