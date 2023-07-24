@@ -435,7 +435,7 @@ abstract contract Shares is
     address _account,
     uint256 _sharesAmount,
     Fees.FeeRoles _role
-  ) external nonReentrant whenNotPaused {
+  ) external whenNotPaused {
     require(msg.sender == address(airdropContract));
     _transferShares(feesContract.getFeeAddress(_role), _account, _sharesAmount);
     _transferPoolDelegationShares(

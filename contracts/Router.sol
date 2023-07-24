@@ -346,18 +346,6 @@ contract Router is
       _report.profitAmount
     );
 
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-    for (uint i = 0; i < roles.length - 1; i++) {
-      if (_shares[i] > 0) {
-        stakeTogether.mintRewards{ value: _amounts[i] }(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-          _shares[i]
-        );
-        airdropContract.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);
-      }
-    }
-
     if (_report.validatorsToExit.length > 0) {
       emit ValidatorsToExit(_report.epoch, _report.validatorsToExit);
     }
@@ -376,9 +364,17 @@ contract Router is
       }
     }
 
-    delete reportHistoric[_report.epoch];
-
-    emit ExecuteReport(msg.sender, _hash, _report);
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    for (uint i = 0; i < roles.length - 1; i++) {
+      if (_shares[i] > 0) {
+        stakeTogether.mintRewards{ value: _amounts[i] }(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          _shares[i]
+        );
+        airdropContract.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);
+      }
+    }
 
     if (_report.withdrawAmount > 0) {
       payable(address(withdrawalsContract)).transfer(_report.withdrawAmount);
@@ -391,6 +387,10 @@ contract Router is
     if (_report.routerExtraAmount > 0) {
       payable(address(stakeTogether)).transfer(_report.routerExtraAmount);
     }
+
+    delete reportHistoric[_report.epoch];
+
+    emit ExecuteReport(msg.sender, _hash, _report);
   }
 
   function invalidateConsensus(

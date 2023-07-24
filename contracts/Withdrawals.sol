@@ -74,14 +74,14 @@ contract Withdrawals is
     super._beforeTokenTransfer(from, to, amount);
   }
 
-  receive() external payable {
-    _checkExtraAmount();
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
+    _checkExtraAmount();
   }
 
-  fallback() external payable {
-    _checkExtraAmount();
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
+    _checkExtraAmount();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -115,9 +115,9 @@ contract Withdrawals is
   }
 
   function _checkExtraAmount() internal {
-    uint256 totalSupply = totalSupply();
-    if (address(this).balance > totalSupply) {
-      uint256 routerExtraAmount = address(this).balance - totalSupply;
+    uint256 _supply = totalSupply();
+    if (address(this).balance > _supply) {
+      uint256 routerExtraAmount = address(this).balance - _supply;
       _transferToStakeTogether(routerExtraAmount);
     }
   }

@@ -71,14 +71,14 @@ contract Airdrop is
     _;
   }
 
-  receive() external payable {
-    _transferToStakeTogether();
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
-  fallback() external payable {
-    _transferToStakeTogether();
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
