@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/access/AccessControl.sol';
-import '@openzeppelin/contracts/security/Pausable.sol';
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
 import './StakeTogether.sol';
 import './Withdrawals.sol';
 import './Liquidity.sol';
@@ -14,7 +18,15 @@ import './Validators.sol';
 import './Fees.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract Router is AccessControl, Pausable, ReentrancyGuard {
+contract Router is
+  Initializable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuard
+{
+  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
   bytes32 public constant ORACLE_REPORT_SENTINEL_ROLE = keccak256('ORACLE_REPORT_SENTINEL_ROLE');
@@ -80,24 +92,44 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
   event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
   event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
   event SetMaxApr(uint256 maxApr);
+  event RequestValidatorsExit(bytes[] publicKeys);
 
-  constructor(
+  constructor() {
+    _disableInitializers();
+  }
+
+  function initialize(
     address _withdrawContract,
     address _liquidityContract,
     address _airdropContract,
     address _validatorsContract,
     address _feesContract
-  ) {
+  ) public initializer {
+    __Pausable_init();
+    __AccessControl_init();
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+    _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
+
     withdrawalsContract = Withdrawals(payable(_withdrawContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     airdropContract = Airdrop(payable(_airdropContract));
     validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));
-
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
   }
+
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   receive() external payable {
     emit ReceiveEther(msg.sender, msg.value);
@@ -111,14 +143,6 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
-  }
-
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
   }
 
   /*******************
@@ -239,6 +263,10 @@ contract Router is AccessControl, Pausable, ReentrancyGuard {
 
       emit PenalizeReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash, blacklist);
     }
+  }
+
+  function requestValidatorsExit(bytes[] calldata publicKeys) external onlyRole(ADMIN_ROLE) {
+    emit RequestValidatorsExit(publicKeys);
   }
 
   /************

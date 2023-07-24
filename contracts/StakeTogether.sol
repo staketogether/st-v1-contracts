@@ -5,79 +5,55 @@ import './Shares.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
-  event Bootstrap(address sender, uint256 balance);
-  event MintRewardsAccounts(address indexed sender, uint amount);
-  event MintRewardsAccountsFallback(address indexed sender, uint amount);
-  event SupplyLiquidity(uint256 amount);
-  event DepositBase(
-    address indexed to,
-    address indexed pool,
-    uint256 amount,
-    uint256 stakeAccountShares,
-    uint256 lockAccountShares,
-    uint256 poolsShares,
-    uint256 operatorsShares,
-    uint256 oraclesShares,
-    uint256 stakeTogetherShares,
-    uint256 liquidityProvidersShares,
-    uint256 senderShares
-  );
-
-  event DepositWalletLimitReached(address indexed sender, uint256 amount);
-  event DepositProtocolLimitReached(address indexed sender, uint256 amount);
-  event DepositPool(address indexed account, uint256 amount, address pool, address referral);
-  event DepositDonationPool(
-    address indexed donor,
-    address indexed account,
-    uint256 amount,
-    address pool,
-    address referral
-  );
-  event WithdrawalLimitReached(address indexed sender, uint256 amount);
-  event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
-  event WithdrawValidator(address indexed account, uint256 amount, address pool);
-  event SetEnableDeposit(bool enableDeposit);
-  event SetEnableWithdrawPool(bool enableWithdrawPool);
-  event SetDepositLimit(uint256 newLimit);
-  event SetWithdrawalLimit(uint256 newLimit);
-  event SetMinDepositPoolAmount(uint256 amount);
-  event SetPoolSize(uint256 amount);
-  event SetBlocksInterval(uint256 blocksInterval);
-  event AddPool(address account);
-  event RemovePool(address account);
-  event SetMaxPools(uint256 maxPools);
-  event SetPermissionLessAddPool(bool permissionLessAddPool);
-  event SetWithdrawalCredentials(bytes withdrawalCredentials);
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event RefundPool(address indexed sender, uint256 amount);
-
   bool private bootstrapped = false;
 
-  constructor(
+  constructor() {
+    _disableInitializers();
+  }
+
+  function initialize(
     address _routerContract,
     address _feesContract,
     address _airdropContract,
     address _withdrawalsContract,
     address _liquidityContract,
     address _validatorsContract
-  ) payable ERC20('ST Staked Ether', 'SETH') ERC20Permit('ST Staked Ether') {
+  ) public initializer {
+    __ERC20_init('ST Staked Ether', 'sETH');
+    __ERC20Burnable_init();
+    __Pausable_init();
+    __AccessControl_init();
+    __ERC20Permit_init('ST Staked Ether');
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+
     routerContract = Router(payable(_routerContract));
     feesContract = Fees(payable(_feesContract));
     airdropContract = Airdrop(payable(_airdropContract));
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     validatorsContract = Validators(payable(_validatorsContract));
+  }
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
+  function pause() public onlyRole(PAUSER_ROLE) {
+    _pause();
+  }
+
+  function unpause() public onlyRole(PAUSER_ROLE) {
+    _unpause();
+  }
+
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+  function _beforeTokenTransfer(
+    address from,
+    address to,
+    uint256 amount
+  ) internal override whenNotPaused {
+    super._beforeTokenTransfer(from, to, amount);
   }
 
   function bootstrap() external payable {
@@ -159,7 +135,8 @@ contract StakeTogether is Shares {
 
     (uint256[8] memory _shares, ) = feesContract.distributeFeePercentage(
       Fees.FeeType.StakeEntry,
-      sharesAmount
+      sharesAmount,
+      0
     );
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
@@ -226,7 +203,7 @@ contract StakeTogether is Shares {
       revert('WITHDRAWAL_LIMIT_REACHED');
     }
 
-    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), balanceOf(msg.sender));
+    uint256 sharesToBurn = Math.mulDiv(_amount, netSharesOf(msg.sender), balanceOf(msg.sender));
 
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
@@ -257,7 +234,7 @@ contract StakeTogether is Shares {
     withdrawalsContract.mint(msg.sender, _amount);
   }
 
-  function refundPool() external payable onlyRouterContract {
+  function refundPool() external payable onlyRouter {
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }
@@ -310,11 +287,11 @@ contract StakeTogether is Shares {
   }
 
   function poolBalance() public view returns (uint256) {
-    return address(this).balance - liquidityBalance;
+    return address(this).balance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return poolBalance() + beaconBalance;
+    return poolBalance() + beaconBalance - liquidityBalance;
   }
 
   /***********
@@ -391,7 +368,8 @@ contract StakeTogether is Shares {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant onlyValidatorOracle {
+  ) external nonReentrant {
+    require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
       _publicKey,
       withdrawalCredentials,
