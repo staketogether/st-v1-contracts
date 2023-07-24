@@ -82,7 +82,7 @@ contract StakeTogether is Shares {
 
   fallback() external payable nonReentrant {
     _supplyLiquidity(msg.value);
-    emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
+    emit MintRewardsAccountsFallback(msg.sender, msg.value - liquidityBalance);
   }
 
   function _supplyLiquidity(uint256 _amount) internal {
