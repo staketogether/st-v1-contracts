@@ -33,7 +33,6 @@ contract Fees is
   uint256 public maxFeeIncrease = 3 ether;
 
   enum FeeType {
-    Swap,
     StakeEntry,
     StakeRewards,
     StakePool,
