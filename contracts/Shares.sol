@@ -206,19 +206,18 @@ abstract contract Shares is
    ** LOCK SHARES **
    *****************/
 
-  mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
-  mapping(address => uint256) public totalAccountLockedShares;
-  mapping(address => uint256) public totalAccountLockedDays;
   uint256 public totalLockedShares = 0;
-  uint256 private nextLockedSharesId = 1;
+  mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
+  mapping(address => uint256) public lockedSharesOf;
+  uint256 private lockSharesId = 1;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
     require(config.enableLock, 'LOCK_DISABLED');
     require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays, 'INVALID_LOCK_PERIOD');
     require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
 
-    uint256 newId = nextLockedSharesId;
-    nextLockedSharesId += 1;
+    uint256 newId = lockSharesId;
+    lockSharesId += 1;
 
     lockedShares[msg.sender][newId] = LockedShares({
       id: newId,
@@ -228,8 +227,7 @@ abstract contract Shares is
     });
 
     totalLockedShares += _sharesAmount;
-    totalAccountLockedShares[msg.sender] += _sharesAmount;
-    totalAccountLockedDays[msg.sender] += _sharesAmount * _lockDays;
+    lockedSharesOf[msg.sender] += _sharesAmount;
 
     emit LockShares(msg.sender, newId, _sharesAmount, _lockDays);
   }
@@ -241,34 +239,15 @@ abstract contract Shares is
     require(lockedShare.unlockTime <= block.timestamp, 'SHARES_ARE_STILL_LOCKED');
 
     totalLockedShares -= lockedShare.amount;
-    totalAccountLockedShares[msg.sender] -= lockedShare.amount;
-    totalAccountLockedDays[msg.sender] -= lockedShare.amount * lockedShare.lockDays;
+    lockedSharesOf[msg.sender] -= lockedShare.amount;
 
     delete lockedShares[msg.sender][_id];
 
     emit UnlockShares(msg.sender, _id, lockedShare.amount);
   }
 
-  function incentiveFactorOf(address _account) public view returns (uint256, uint256) {
-    if (totalAccountLockedShares[_account] > 0) {
-      uint256 factor = Math.mulDiv(
-        totalAccountLockedDays[_account],
-        totalAccountLockedShares[_account],
-        shares[_account]
-      );
-      uint256 percentage = Math.mulDiv(totalAccountLockedShares[_account], 1 ether, totalLockedShares);
-      return (factor, percentage);
-    } else {
-      return (0, 0);
-    }
-  }
-
-  function lockedSharesOf(address _account) public view returns (uint256) {
-    return totalAccountLockedShares[_account];
-  }
-
   function netSharesOf(address _account) public view returns (uint256) {
-    return sharesOf(_account) - totalAccountLockedShares[_account];
+    return sharesOf(_account) - lockedSharesOf[_account];
   }
 
   /*****************
