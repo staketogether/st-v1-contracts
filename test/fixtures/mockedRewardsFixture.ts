@@ -1,6 +1,8 @@
-import { AbiCoder, ParamType, ethers } from 'ethers'
+import { AbiCoder, ethers } from 'ethers'
 import { defaultFixture } from './defaultFixture'
 import { multiDiv } from '../utils/multiDiv'
+import { stObtainPools } from '../utils/stObtainPools'
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 
 export async function mockedRewardsFixture() {
   const {
@@ -28,7 +30,7 @@ export async function mockedRewardsFixture() {
   const totalPooledEth = await StakeTogether.totalPooledEther()
   const totalShares = await StakeTogether.totalShares()
   // TODO: Obtain pools addresses
-  const poolsAddresses: string[] = []
+  const poolsAddresses: string[] = await stObtainPools(StakeTogether, provider)
 
   const mockedRewardsBalance = ethers.parseEther('0.003')
 
@@ -51,6 +53,7 @@ export async function mockedRewardsFixture() {
   })
 
   const rewardsPerPool = await Promise.all(rewardsPerPoolPromises)
+  const rewardsPerPoolMerkleTree = StandardMerkleTree.of(rewardsPerPool, ['address', 'uint256'])
 
   const reportAbi = [
     'uint256', // blockNumber
@@ -71,7 +74,7 @@ export async function mockedRewardsFixture() {
     1, // epoch
     1, // profitAmount
     1, // lossAmount
-    [], // merkleRoots: ['0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00']
+    [, , rewardsPerPoolMerkleTree.root, , , ,], // merkleRoots: ['0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00']
     [], // validatorsToExit: [['0x123...', ['0xabc...', '0xdef...']]]
     [], // exitedValidators: ['0x123...', '0x456...']
     1, // withdrawAmount

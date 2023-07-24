@@ -35,36 +35,33 @@ export async function defaultFixture() {
   const Withdrawals = await new Withdrawals__factory().connect(owner).deploy()
   const Liquidity = await new Liquidity__factory().connect(owner).deploy()
   const Airdrop = await new Airdrop__factory().connect(owner).deploy()
-  const Validators = await new Validators__factory()
-    .connect(owner)
-    .deploy(process.env.GOERLI_DEPOSIT_ADDRESS as string)
-  const Router = await new Router__factory()
-    .connect(owner)
-    .deploy(
-      await Withdrawals.getAddress(),
-      await Liquidity.getAddress(),
-      await Airdrop.getAddress(),
-      await Validators.getAddress(),
-      await Fees.getAddress()
-    )
+  const Validators = await new Validators__factory().connect(owner).deploy()
+  const Router = await new Router__factory().connect(owner).deploy()
 
-  const StakeTogether = await new StakeTogether__factory()
-    .connect(owner)
-    .deploy(
-      await Router.getAddress(),
-      await Fees.getAddress(),
-      await Airdrop.getAddress(),
-      await Withdrawals.getAddress(),
-      await Liquidity.getAddress(),
-      await Validators.getAddress()
-    )
+  const StakeTogether = await new StakeTogether__factory().connect(owner).deploy()
 
+  await StakeTogether.initialize(
+    await Router.getAddress(),
+    await Fees.getAddress(),
+    await Airdrop.getAddress(),
+    await Withdrawals.getAddress(),
+    await Liquidity.getAddress(),
+    await Validators.getAddress()
+  )
   await StakeTogether.bootstrap({ value: initialDeposit })
 
   await Router.setStakeTogether(await StakeTogether.getAddress())
+  await Router.initialize(
+    await Withdrawals.getAddress(),
+    await Liquidity.getAddress(),
+    await Airdrop.getAddress(),
+    await Validators.getAddress(),
+    await Fees.getAddress()
+  )
 
   await Validators.setStakeTogether(await StakeTogether.getAddress())
   await Validators.setRouter(await Router.getAddress())
+  await Validators.initialize(process.env.GOERLI_DEPOSIT_ADDRESS as string)
 
   await Airdrop.setStakeTogether(await StakeTogether.getAddress())
   await Airdrop.setRouter(await Router.getAddress())
