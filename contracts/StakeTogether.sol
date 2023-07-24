@@ -76,13 +76,13 @@ contract StakeTogether is Shares {
    *********************/
 
   receive() external payable nonReentrant {
-    emit MintRewardsAccounts(msg.sender, msg.value);
     _supplyLiquidity(msg.value);
+    emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
   }
 
   fallback() external payable nonReentrant {
-    emit MintRewardsAccountsFallback(msg.sender, msg.value);
     _supplyLiquidity(msg.value);
+    emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
   }
 
   function _supplyLiquidity(uint256 _amount) internal {
@@ -151,9 +151,7 @@ contract StakeTogether is Shares {
     }
 
     totalDeposited += msg.value;
-
     _supplyLiquidity(msg.value);
-
     emit DepositBase(_to, _pool, msg.value, _shares);
   }
 
@@ -186,10 +184,10 @@ contract StakeTogether is Shares {
 
     uint256 sharesToBurn = Math.mulDiv(_amount, netSharesOf(msg.sender), balanceOf(msg.sender));
 
+    totalWithdrawn += _amount;
+
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
-
-    totalWithdrawn += _amount;
   }
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
@@ -220,20 +218,20 @@ contract StakeTogether is Shares {
     emit RefundPool(msg.sender, msg.value);
   }
 
-  function _resetLimits() internal {
-    if (block.number > lastResetBlock + config.blocksPerDay) {
-      totalDeposited = 0;
-      totalWithdrawn = 0;
-      lastResetBlock = block.number;
-    }
-  }
-
   function poolBalance() public view returns (uint256) {
     return address(this).balance;
   }
 
   function totalPooledEther() public view override returns (uint256) {
     return poolBalance() + beaconBalance - liquidityBalance;
+  }
+
+  function _resetLimits() internal {
+    if (block.number > lastResetBlock + config.blocksPerDay) {
+      totalDeposited = 0;
+      totalWithdrawn = 0;
+      lastResetBlock = block.number;
+    }
   }
 
   /***********
@@ -271,7 +269,6 @@ contract StakeTogether is Shares {
 
   function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
     require(isPool(_pool), 'POOL_NOT_FOUND');
-
     pools[_pool] = false;
     poolCount -= 1;
     emit RemovePool(_pool);
