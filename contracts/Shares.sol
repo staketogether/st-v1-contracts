@@ -208,6 +208,7 @@ abstract contract Shares is
   event UnlockShares(address indexed user, uint256 id, uint256 amount);
   event SetMinLockDays(uint256 minLockDays);
   event SetMaxLockDays(uint256 maxLockDays);
+  event SetEnableLock(bool enableLock);
 
   mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
   mapping(address => uint256) public totalAccountLockedShares;
@@ -217,8 +218,10 @@ abstract contract Shares is
   uint256 private nextLockedSharesId = 1;
   uint256 public minLockDays = 30;
   uint256 public maxLockDays = 365;
+  bool public enableLock = true;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
+    require(enableLock, 'LOCK_DISABLED');
     require(_lockDays >= minLockDays && _lockDays <= maxLockDays, 'INVALID_LOCK_PERIOD');
     require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
 
@@ -280,6 +283,11 @@ abstract contract Shares is
     require(_maxLockDays >= minLockDays, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
     maxLockDays = _maxLockDays;
     emit SetMaxLockDays(_maxLockDays);
+  }
+
+  function setEnableLock(bool _enableLock) external onlyRole(ADMIN_ROLE) {
+    enableLock = _enableLock;
+    emit SetEnableLock(_enableLock);
   }
 
   function lockedSharesOf(address _account) public view returns (uint256) {
