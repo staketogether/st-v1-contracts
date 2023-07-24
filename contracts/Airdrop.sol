@@ -149,7 +149,7 @@ contract Airdrop is
 
     _setAirdropClaimed(_role, _epoch, _account);
 
-    stakeTogether.claimRewards(_account, _sharesAmount, _role == Fees.FeeRoles.Pools);
+    stakeTogether.claimRewards(_account, _sharesAmount, _role);
     emit ClaimAirdrop(_role, _epoch, _account, _sharesAmount);
   }
 

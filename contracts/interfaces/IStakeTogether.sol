@@ -2,6 +2,21 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 interface IStakeTogether {
+  struct Config {
+    bool enableDeposit;
+    bool enableLock;
+    bool enableWithdrawPool;
+    uint256 poolSize;
+    uint256 minDepositAmount;
+    uint256 minLockDays;
+    uint256 maxLockDays;
+    uint256 depositLimit;
+    uint256 withdrawalLimit;
+    uint256 blocksPerDay;
+    uint256 maxPools;
+    bool permissionLessAddPool;
+  }
+
   struct LockedShares {
     uint256 id;
     uint256 amount;
@@ -10,7 +25,6 @@ interface IStakeTogether {
   }
 
   event AddPool(address account);
-  event Bootstrap(address sender, uint256 balance);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
@@ -55,20 +69,8 @@ interface IStakeTogether {
   event RefundPool(address indexed sender, uint256 amount);
   event RemovePool(address account);
   event SetBeaconBalance(uint256 amount);
-  event SetBlocksInterval(uint256 blocksInterval);
-  event SetDepositLimit(uint256 newLimit);
-  event SetEnableDeposit(bool enableDeposit);
-  event SetEnableLock(bool enableLock);
-  event SetEnableWithdrawPool(bool enableWithdrawPool);
+  event SetConfig(Config config);
   event SetLiquidityBalance(uint256 amount);
-  event SetMaxLockDays(uint256 maxLockDays);
-  event SetMaxPools(uint256 maxPools);
-  event SetMinDepositPoolAmount(uint256 amount);
-  event SetMinLockDays(uint256 minLockDays);
-  event SetPermissionLessAddPool(bool permissionLessAddPool);
-  event SetPoolSize(uint256 amount);
-  event SetWithdrawalCredentials(bytes withdrawalCredentials);
-  event SetWithdrawalLimit(uint256 newLimit);
   event SupplyLiquidity(uint256 amount);
   event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferPoolDelegationShares(

@@ -352,7 +352,7 @@ contract Router is
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          address(airdropContract),
+          feesContract.getFeeAddress(roles[i]),
           feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
           _shares[i]
         );

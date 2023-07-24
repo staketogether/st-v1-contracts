@@ -186,7 +186,7 @@ contract Validators is
     bytes32 _depositDataRoot
   ) external payable nonReentrant onlyStakeTogether {
     // require(
-    //   stakeTogether.poolBalance() >= stakeTogether.poolSize() + stakeTogether.validatorsFee(),
+    //   stakeTogether.poolBalance() >= stakeTogether.config() + stakeTogether.validatorsFee(),
     //   'NOT_ENOUGH_POOL_BALANCE'
     // );
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');

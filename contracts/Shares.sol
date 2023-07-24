@@ -46,8 +46,10 @@ abstract contract Shares is
   Liquidity public liquidityContract;
   Validators public validatorsContract;
 
+  bytes public withdrawalCredentials;
   uint256 public beaconBalance = 0;
   uint256 public liquidityBalance = 0;
+  Config public config;
 
   modifier onlyRouter() {
     require(msg.sender == address(routerContract), 'ONLY_ROUTER');
@@ -208,15 +210,11 @@ abstract contract Shares is
   mapping(address => uint256) public totalAccountLockedShares;
   mapping(address => uint256) public totalAccountLockedDays;
   uint256 public totalLockedShares = 0;
-
   uint256 private nextLockedSharesId = 1;
-  uint256 public minLockDays = 30;
-  uint256 public maxLockDays = 365;
-  bool public enableLock = true;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
-    require(enableLock, 'LOCK_DISABLED');
-    require(_lockDays >= minLockDays && _lockDays <= maxLockDays, 'INVALID_LOCK_PERIOD');
+    require(config.enableLock, 'LOCK_DISABLED');
+    require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays, 'INVALID_LOCK_PERIOD');
     require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
 
     uint256 newId = nextLockedSharesId;
@@ -263,25 +261,6 @@ abstract contract Shares is
     } else {
       return (0, 0);
     }
-  }
-
-  function setMinLockDays(uint256 _minLockDays) external onlyRole(ADMIN_ROLE) {
-    require(_minLockDays > 0, 'ZERO_MIN_LOCK_DAYS');
-    require(_minLockDays <= maxLockDays, 'MIN_LOCK_DAYS_EXCEEDS_MAX_LOCK_DAYS');
-    minLockDays = _minLockDays;
-    emit SetMinLockDays(_minLockDays);
-  }
-
-  function setMaxLockDays(uint256 _maxLockDays) external onlyRole(ADMIN_ROLE) {
-    require(_maxLockDays > 0, 'ZERO_MAX_LOCK_DAYS');
-    require(_maxLockDays >= minLockDays, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
-    maxLockDays = _maxLockDays;
-    emit SetMaxLockDays(_maxLockDays);
-  }
-
-  function setEnableLock(bool _enableLock) external onlyRole(ADMIN_ROLE) {
-    enableLock = _enableLock;
-    emit SetEnableLock(_enableLock);
   }
 
   function lockedSharesOf(address _account) public view returns (uint256) {
@@ -480,13 +459,18 @@ abstract contract Shares is
   function claimRewards(
     address _account,
     uint256 _sharesAmount,
-    bool _isPool
+    Fees.FeeRoles _role
   ) external nonReentrant whenNotPaused {
     require(msg.sender == address(airdropContract), 'ONLY_AIRDROP');
-    _transferShares(address(airdropContract), _account, _sharesAmount);
-    _transferPoolDelegationShares(address(airdropContract), _account, address(this), _sharesAmount);
+    _transferShares(feesContract.getFeeAddress(_role), _account, _sharesAmount);
+    _transferPoolDelegationShares(
+      feesContract.getFeeAddress(_role),
+      _account,
+      address(this),
+      _sharesAmount
+    );
 
-    if (_isPool) {
+    if (_role == Fees.FeeRoles.Pools) {
       _transferPoolShares(_account, address(this), _account, _sharesAmount);
     }
 
