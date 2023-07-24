@@ -27,7 +27,8 @@ export async function mockedRewardsFixture() {
   const lastConsensusEpoch = await Router.lastConsensusEpoch()
   const totalPooledEth = await StakeTogether.totalPooledEther()
   const totalShares = await StakeTogether.totalShares()
-  const poolsAddresses = await StakeTogether.getPools()
+  // TODO: Obtain pools addresses
+  const poolsAddresses: string[] = []
 
   const mockedRewardsBalance = ethers.parseEther('0.003')
 

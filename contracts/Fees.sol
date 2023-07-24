@@ -69,7 +69,6 @@ contract Fees is
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
-  event SetRouterContract(address routerContract);
   event SetRouter(address router);
   event SetLiquidity(address liquidity);
   event ReceiveEther(address indexed sender, uint256 amount);
@@ -124,13 +123,13 @@ contract Fees is
   }
 
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    require(_router != address(0), 'ROUTER_ALREADY_SET');
     router = Router(payable(_router));
     emit SetRouter(_router);
   }
 
   function setLiquidity(address _liquidity) external onlyRole(ADMIN_ROLE) {
-    require(_liquidity != address(0), 'LIQUIDITY_CONTRACT_ALREADY_SET');
+    require(_liquidity != address(0), 'LIQUIDITY_ALREADY_SET');
     liquidity = Liquidity(payable(_liquidity));
     emit SetLiquidity(_liquidity);
   }
