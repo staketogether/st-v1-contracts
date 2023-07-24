@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/utils/math/Math.sol';
-
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -23,7 +22,7 @@ contract Router is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');

@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/utils/math/Math.sol';
-
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -20,7 +19,7 @@ contract Fees is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -99,12 +98,12 @@ contract Fees is
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  receive() external payable whenNotPaused {
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
     _transferToStakeTogether();
   }
 
-  fallback() external payable whenNotPaused {
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
     _transferToStakeTogether();
   }
@@ -194,7 +193,7 @@ contract Fees is
       allocationAmount = _allocation;
       require(allocationAmount + currentTotal <= 1 ether, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
     } else {
-      allocationAmount = Math.mulDiv(feeAmount, _allocation, 1 ether);
+      allocationAmount = MathUpgradeable.mulDiv(feeAmount, _allocation, 1 ether);
       require(allocationAmount + currentTotal <= feeAmount, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
     }
 
@@ -250,10 +249,10 @@ contract Fees is
       require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
     }
 
-    uint256 feeShares = Math.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
+    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
-      shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      shares[i] = MathUpgradeable.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     uint256 senderShares = _sharesAmount - feeShares;
@@ -276,15 +275,15 @@ contract Fees is
     uint256 dynamicFee;
 
     if (totalPooledEtherLiquidity == 0) {
-      dynamicFee = Math.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
+      dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
     } else {
-      uint256 ratio = Math.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
+      uint256 ratio = MathUpgradeable.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
 
       if (ratio >= 1 ether) {
-        dynamicFee = Math.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
+        dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
       } else {
-        uint256 feeIncrease = Math.mulDiv(ratio, maxFeeIncrease, 1 ether);
-        dynamicFee = Math.mulDiv(baseFee, 1 ether + feeIncrease, 1 ether);
+        uint256 feeIncrease = MathUpgradeable.mulDiv(ratio, maxFeeIncrease, 1 ether);
+        dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + feeIncrease, 1 ether);
       }
     }
 
@@ -304,7 +303,7 @@ contract Fees is
     FeeRoles[8] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length; i++) {
-      amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      amounts[i] = MathUpgradeable.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     return amounts;

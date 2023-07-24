@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
-import './StakeTogether.sol';
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
@@ -12,6 +10,8 @@ import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol'
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+
+import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Withdrawals is
@@ -22,7 +22,7 @@ contract Withdrawals is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');

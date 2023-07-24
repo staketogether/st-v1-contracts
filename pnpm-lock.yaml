@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@openzeppelin/contracts':
-    specifier: 4.9.2
-    version: 4.9.2
   '@openzeppelin/contracts-upgradeable':
     specifier: ^4.9.2
     version: 4.9.2
@@ -1062,10 +1059,6 @@ packages:
 
   /@openzeppelin/contracts-upgradeable@4.9.2:
     resolution: {integrity: sha512-siviV3PZV/fHfPaoIC51rf1Jb6iElkYWnNYZ0leO23/ukXuvOyoC/ahy8jqiV7g+++9Nuo3n/rk5ajSN/+d/Sg==}
-    dev: false
-
-  /@openzeppelin/contracts@4.9.2:
-    resolution: {integrity: sha512-mO+y6JaqXjWeMh9glYVzVu8HYPGknAAnWyxTRhGeckOruyXQMNnlcW6w/Dx9ftLeIQk6N+ZJFuVmTwF7lEIFrg==}
     dev: false
 
   /@scure/base@1.1.1:

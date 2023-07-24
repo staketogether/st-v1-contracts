@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -20,7 +19,7 @@ contract Validators is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -93,11 +92,6 @@ contract Validators is
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
-  }
-
-  modifier onlyStakeTogether() {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
-    _;
   }
 
   function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
@@ -186,8 +180,9 @@ contract Validators is
     bytes calldata _withdrawalCredentials,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external payable nonReentrant onlyStakeTogether {
-    require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
+  ) external payable nonReentrant {
+    require(msg.sender == address(stakeTogether));
+    require(!validators[_publicKey]);
 
     validators[_publicKey] = true;
     totalValidators++;
@@ -195,8 +190,6 @@ contract Validators is
     uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakeValidator);
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-
-    // Todo: add require poolSize + fee amount
 
     for (uint i = 0; i < feeAmounts.length - 1; i++) {
       if (feeAmounts[i] > 0) {
@@ -211,18 +204,18 @@ contract Validators is
     uint256 newBeaconBalance = stakeTogether.beaconBalance() + validatorSize;
     stakeTogether.setBeaconBalance(newBeaconBalance);
 
-    depositContract.deposit{ value: validatorSize }(
+    _nextValidatorOracle();
+
+    emit CreateValidator(
+      msg.sender,
+      validatorSize,
       _publicKey,
       _withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
 
-    _nextValidatorOracle();
-
-    emit CreateValidator(
-      msg.sender,
-      validatorSize,
+    depositContract.deposit{ value: validatorSize }(
       _publicKey,
       _withdrawalCredentials,
       _signature,

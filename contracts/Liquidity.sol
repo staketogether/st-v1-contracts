@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/utils/math/Math.sol';
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
@@ -26,7 +25,7 @@ contract Liquidity is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -159,11 +158,17 @@ contract Liquidity is
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return Math.mulDiv(_ethAmount, totalWithdrawalsShares, totalPooledEther());
+    return MathUpgradeable.mulDiv(_ethAmount, totalWithdrawalsShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalWithdrawalsShares, Math.Rounding.Up);
+    return
+      MathUpgradeable.mulDiv(
+        _sharesAmount,
+        totalPooledEther(),
+        totalWithdrawalsShares,
+        MathUpgradeable.Rounding.Up
+      );
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -322,7 +327,7 @@ contract Liquidity is
 
     _resetLimits();
 
-    uint256 sharesToBurn = Math.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
+    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
 
     _burnShares(msg.sender, sharesToBurn);
 

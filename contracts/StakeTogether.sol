@@ -182,7 +182,11 @@ contract StakeTogether is Shares {
       revert();
     }
 
-    uint256 sharesToBurn = Math.mulDiv(_amount, netSharesOf(msg.sender), balanceOf(msg.sender));
+    uint256 sharesToBurn = MathUpgradeable.mulDiv(
+      _amount,
+      netSharesOf(msg.sender),
+      balanceOf(msg.sender)
+    );
 
     totalWithdrawn += _amount;
 

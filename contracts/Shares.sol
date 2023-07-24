@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/utils/math/Math.sol';
-
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
@@ -31,7 +30,7 @@ abstract contract Shares is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard,
+  ReentrancyGuardUpgradeable,
   IStakeTogether
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
@@ -90,11 +89,12 @@ abstract contract Shares is
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return Math.mulDiv(_ethAmount, totalShares, totalPooledEther());
+    return MathUpgradeable.mulDiv(_ethAmount, totalShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares, Math.Rounding.Up);
+    return
+      MathUpgradeable.mulDiv(_sharesAmount, totalPooledEther(), totalShares, MathUpgradeable.Rounding.Up);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -337,7 +337,7 @@ abstract contract Shares is
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address pool = delegates[_from][i];
-      uint256 delegationSharesToTransfer = Math.mulDiv(
+      uint256 delegationSharesToTransfer = MathUpgradeable.mulDiv(
         delegationSharesOf(_from, pool),
         _sharesToTransfer,
         netSharesOf(_from)

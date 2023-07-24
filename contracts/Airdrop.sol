@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol';
 
-import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import './Router.sol';
 import './StakeTogether.sol';
 
@@ -19,7 +18,7 @@ contract Airdrop is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -143,7 +142,7 @@ contract Airdrop is
     if (isAirdropClaimed(_role, _epoch, _account)) revert('ALREADY_CLAIMED');
 
     bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
-    if (!MerkleProof.verify(merkleProof, airdropsMerkleRoots[_role][_epoch], leaf))
+    if (!MerkleProofUpgradeable.verify(merkleProof, airdropsMerkleRoots[_role][_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
     _setAirdropClaimed(_role, _epoch, _account);
