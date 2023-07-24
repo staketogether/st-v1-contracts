@@ -11,6 +11,7 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 
 import './StakeTogether.sol';
 import './Router.sol';
+import './Fees.sol';
 import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -30,6 +31,7 @@ contract Validators is
 
   StakeTogether public stakeTogether;
   Router public routerContract;
+  Fees public feesContract;
   IDepositContract public depositContract;
 
   bool public enableBorrow = true;
@@ -55,7 +57,7 @@ contract Validators is
     _disableInitializers();
   }
 
-  function initialize(address _depositContract) public initializer {
+  function initialize(address _depositContract, address _feesContract) public initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -65,6 +67,7 @@ contract Validators is
     _grantRole(UPGRADER_ROLE, msg.sender);
 
     depositContract = IDepositContract(_depositContract);
+    feesContract = Fees(payable(_feesContract));
   }
 
   function pause() public onlyRole(PAUSER_ROLE) {
@@ -185,14 +188,26 @@ contract Validators is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external payable nonReentrant onlyStakeTogether {
-    // require(
-    //   stakeTogether.poolBalance() >= stakeTogether.config() + stakeTogether.validatorsFee(),
-    //   'NOT_ENOUGH_POOL_BALANCE'
-    // );
     require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
 
     validators[_publicKey] = true;
     totalValidators++;
+
+    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakeValidator);
+
+    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+
+    // Todo: add require poolSize + fee amount
+
+    for (uint i = 0; i < feeAmounts.length - 1; i++) {
+      if (feeAmounts[i] > 0) {
+        stakeTogether.mintRewards(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feeAmounts[i]
+        );
+      }
+    }
 
     uint256 newBeaconBalance = stakeTogether.beaconBalance() + validatorSize;
     stakeTogether.setBeaconBalance(newBeaconBalance);

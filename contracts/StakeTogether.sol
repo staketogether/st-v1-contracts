@@ -154,19 +154,7 @@ contract StakeTogether is Shares {
 
     _supplyLiquidity(msg.value);
 
-    emit DepositBase(
-      _to,
-      _pool,
-      msg.value,
-      _shares[0],
-      _shares[1],
-      _shares[2],
-      _shares[3],
-      _shares[4],
-      _shares[5],
-      _shares[6],
-      _shares[7]
-    );
+    emit DepositBase(_to, _pool, msg.value, _shares);
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
@@ -303,32 +291,9 @@ contract StakeTogether is Shares {
     bytes32 _depositDataRoot
   ) external nonReentrant {
     require(validatorsContract.isValidatorOracle(msg.sender), 'ONLY_VALIDATOR_ORACLE');
+    require(poolBalance() >= validatorsContract.validatorSize(), 'NOT_ENOUGH_POOL_BALANCE');
+
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-
-    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakeValidator);
-
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-
-    // Todo: add require poolSize + fee amount
-
-    for (uint i = 0; i < feeAmounts.length - 1; i++) {
-      if (feeAmounts[i] > 0) {
-        mintRewards(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
-          feeAmounts[i]
-        );
-      }
-    }
-
-    emit CreateValidator(
-      msg.sender,
-      validatorsContract.validatorSize(),
       _publicKey,
       withdrawalCredentials,
       _signature,

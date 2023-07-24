@@ -28,27 +28,7 @@ interface IStakeTogether {
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event DepositBase(
-    address indexed to,
-    address indexed pool,
-    uint256 amount,
-    uint256 stakeAccountShares,
-    uint256 lockAccountShares,
-    uint256 poolsShares,
-    uint256 operatorsShares,
-    uint256 oraclesShares,
-    uint256 stakeTogetherShares,
-    uint256 liquidityProvidersShares,
-    uint256 senderShares
-  );
+  event DepositBase(address indexed to, address indexed pool, uint256 amount, uint256[8] shares);
   event DepositDonationPool(
     address indexed donor,
     address indexed account,
