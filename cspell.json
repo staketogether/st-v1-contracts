@@ -5,12 +5,15 @@
   "dictionaries": [],
   "words": [
     "IERC",
+    "Initializable",
     "keccak",
     "LETH",
     "Merkle",
     "Pausable",
     "Reentrancy",
     "struct",
+    "UPGRADER",
+    "UUPS",
     "WLETH"
   ],
   "ignoreWords": [],
