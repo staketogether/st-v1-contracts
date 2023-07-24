@@ -25,7 +25,6 @@ contract Router is
   UUPSUpgradeable,
   ReentrancyGuard
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
@@ -110,7 +109,7 @@ contract Router is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
 
@@ -121,11 +120,11 @@ contract Router is
     feesContract = Fees(payable(_feesContract));
   }
 
-  function pause() public onlyRole(PAUSER_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(PAUSER_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 

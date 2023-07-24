@@ -21,7 +21,6 @@ contract Airdrop is
   UUPSUpgradeable,
   ReentrancyGuard
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
@@ -54,15 +53,15 @@ contract Airdrop is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
   }
 
-  function pause() public onlyRole(PAUSER_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(PAUSER_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
