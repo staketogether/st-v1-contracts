@@ -14,7 +14,9 @@ import {
   Router__factory,
   StakeTogether,
   StakeTogether__factory,
+  Validators,
   Validators__factory,
+  Withdrawals,
   Withdrawals__factory
 } from '../typechain'
 
@@ -43,33 +45,28 @@ export async function deploy() {
   const stakeTogether = await deployStakeTogether(
     owner,
     router.proxyAddress,
+    fees.proxyAddress,
     airdrop.proxyAddress,
     withdrawals.proxyAddress,
     liquidity.proxyAddress,
     validators.proxyAddress
   )
 
-  // Fees Contract
-  // Todo: set stake together address
-  // Todo: set liquidity address
+  await fees.feesContract.setStakeTogether(stakeTogether.proxyAddress)
+  await fees.feesContract.setLiquidityContract(liquidity.proxyAddress)
 
-  // Airdrop Contract
-  // Todo: set stake together address
-  // Todo: set router address
+  await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
+  await airdrop.airdropContract.setRouterContract(router.proxyAddress)
 
-  // Liquidity Contract
-  // Todo: set stake together address
-  // Todo: set router address
+  await liquidity.liquidityContract.setStakeTogether(stakeTogether.proxyAddress)
+  await liquidity.liquidityContract.setRouterContract(router.proxyAddress)
 
-  // Validators Contract
-  // Todo: set router address
-  // Todo: set stake together address
+  await validators.validatorsContract.setStakeTogether(stakeTogether.proxyAddress)
+  await validators.validatorsContract.setRouterContract(router.proxyAddress)
 
-  // Withdrawals Contract
-  // Todo: set stake together address
+  await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
 
-  // Router Contract
-  // Todo: set stake together address
+  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 
   console.log('\n🔷 All contracts deployed!\n')
   verifyContracts(
@@ -158,7 +155,7 @@ async function deployFees(owner: CustomEthersSigner) {
   await feesContract.setFeeAllocation(5, 5, ethers.parseEther('0.1'))
   await feesContract.setFeeAllocation(5, 6, ethers.parseEther('0.7'))
 
-  return { proxyAddress, implementationAddress }
+  return { proxyAddress, implementationAddress, feesContract }
 }
 
 async function deployAirdrop(owner: CustomEthersSigner) {
@@ -175,7 +172,7 @@ async function deployAirdrop(owner: CustomEthersSigner) {
 
   await airdropContract.setMaxBatchSize(100)
 
-  return { proxyAddress, implementationAddress }
+  return { proxyAddress, implementationAddress, airdropContract }
 }
 
 async function deployLiquidity(owner: CustomEthersSigner) {
@@ -194,18 +191,21 @@ async function deployLiquidity(owner: CustomEthersSigner) {
   await liquidityContract.initializeShares({ value: 1n })
 
   const config = {
-    enableLiquidity: true,
-    enableDeposit: true,
     depositLimit: ethers.parseEther('1000'),
     withdrawalLimit: ethers.parseEther('1000'),
     withdrawalLiquidityLimit: ethers.parseEther('1000'),
     minDepositAmount: ethers.parseEther('0.001'),
-    blocksInterval: 6500
+    blocksInterval: 6500,
+    feature: {
+      Deposit: true,
+      Withdraw: true,
+      Liquidity: true
+    }
   }
 
   await liquidityContract.setConfig(config)
 
-  return { proxyAddress, implementationAddress }
+  return { proxyAddress, implementationAddress, liquidityContract }
 }
 
 async function deployValidators(owner: CustomEthersSigner, depositAddress: string, feesAddress: string) {
@@ -219,7 +219,9 @@ async function deployValidators(owner: CustomEthersSigner, depositAddress: strin
   console.log(`Validators\t Proxy\t\t\t ${proxyAddress}`)
   console.log(`Validators\t Implementation\t\t ${implementationAddress}`)
 
-  return { proxyAddress, implementationAddress }
+  const validatorsContract = validators as unknown as Validators
+
+  return { proxyAddress, implementationAddress, validatorsContract }
 }
 
 async function deployWithdrawals(owner: CustomEthersSigner) {
@@ -233,7 +235,9 @@ async function deployWithdrawals(owner: CustomEthersSigner) {
   console.log(`Withdrawals\t Proxy\t\t\t ${proxyAddress}`)
   console.log(`Withdrawals\t Implementation\t\t ${implementationAddress}`)
 
-  return { proxyAddress, implementationAddress }
+  const withdrawalsContract = withdrawals as unknown as Withdrawals
+
+  return { proxyAddress, implementationAddress, withdrawalsContract }
 }
 
 async function deployRouter(
@@ -278,12 +282,13 @@ async function deployRouter(
   // Set the configuration
   await routerContract.setConfig(config)
 
-  return { proxyAddress, implementationAddress }
+  return { proxyAddress, implementationAddress, routerContract }
 }
 
 async function deployStakeTogether(
   owner: CustomEthersSigner,
   routerContract: string,
+  feesContract: string,
   airdropContract: string,
   withdrawalsContract: string,
   liquidityContract: string,
@@ -293,6 +298,7 @@ async function deployStakeTogether(
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     routerContract,
+    feesContract,
     airdropContract,
     withdrawalsContract,
     liquidityContract,
@@ -317,9 +323,30 @@ async function deployStakeTogether(
     return withdrawalAddress
   }
 
-  await stakeTogether.setWithdrawalAddress(convertToWithdrawalAddress(proxyAddress))
+  await stakeTogetherContract.setWithdrawalsCredentials(convertToWithdrawalAddress(proxyAddress))
 
-  return { proxyAddress, implementationAddress }
+  const config = {
+    poolSize: ethers.parseEther('32'),
+    minDepositAmount: ethers.parseEther('0.001'),
+    minLockDays: 30n,
+    maxLockDays: 365n,
+    depositLimit: ethers.parseEther('1000'),
+    withdrawalLimit: ethers.parseEther('1000'),
+    blocksPerDay: 7200n,
+    maxDelegations: 64n,
+    feature: {
+      AddPool: true,
+      Deposit: true,
+      Lock: true,
+      WithdrawPool: true,
+      WithdrawLiquidity: true,
+      WithdrawValidator: true
+    }
+  }
+
+  await stakeTogetherContract.setConfig(config)
+
+  return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
 
 async function verifyContracts(
