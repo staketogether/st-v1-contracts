@@ -133,7 +133,7 @@ contract StakeTogether is Shares {
       0
     );
 
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == IFees.FeeRoles.Sender) {
@@ -256,7 +256,7 @@ contract StakeTogether is Shares {
 
       uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
 
-      Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+      IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
       for (uint i = 0; i < roles.length - 1; i++) {
         mintRewards(

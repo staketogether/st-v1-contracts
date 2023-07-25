@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import './StakeTogether.sol';
-import './Withdrawals.sol';
-import './Liquidity.sol';
 import './Airdrop.sol';
-import './Validators.sol';
 import './Fees.sol';
+import './Liquidity.sol';
+import './StakeTogether.sol';
+import './Validators.sol';
+import './Withdrawals.sol';
 
 import './interfaces/IFees.sol';
 

@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 
-import './StakeTogether.sol';
-import './Router.sol';
 import './Fees.sol';
+import './Router.sol';
+import './StakeTogether.sol';
 
 import './interfaces/IDepositContract.sol';
 import './interfaces/IFees.sol';
@@ -192,7 +192,7 @@ contract Validators is
 
     uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
     for (uint i = 0; i < feeAmounts.length - 1; i++) {
       if (feeAmounts[i] > 0) {
