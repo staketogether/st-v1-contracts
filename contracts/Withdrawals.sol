@@ -12,6 +12,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 
 import './StakeTogether.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Withdrawals is
@@ -22,22 +23,13 @@ contract Withdrawals is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ReentrancyGuardUpgradeable,
+  IWithdrawals
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-
-  modifier onlyStakeTogether() {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
-    _;
-  }
-
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event Withdraw(address indexed user, uint256 amount);
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -95,7 +87,8 @@ contract Withdrawals is
    ** WITHDRAW **
    **************/
 
-  function mint(address _to, uint256 _amount) public whenNotPaused onlyStakeTogether {
+  function mint(address _to, uint256 _amount) public whenNotPaused {
+    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
     _mint(_to, _amount);
   }
 
