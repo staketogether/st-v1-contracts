@@ -16,7 +16,6 @@ export async function deploy() {
 
   // Fees Contract
   // Todo: set stake together address
-  // Todo: set router address
   // Todo: set liquidity address
 
   // const withdrawalsAddress = await deployWithdrawals(owner)

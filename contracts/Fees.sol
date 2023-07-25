@@ -28,7 +28,6 @@ contract Fees is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public routerContract;
   Liquidity public liquidityContract;
 
   uint256 public maxFeeIncrease;
@@ -71,21 +70,10 @@ contract Fees is
     _transferToStakeTogether();
   }
 
-  modifier onlyRouter() {
-    require(msg.sender == address(routerContract));
-    _;
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0));
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
-  }
-
-  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
-    require(_routerContract != address(0));
-    routerContract = Router(payable(_routerContract));
-    emit SetRouterContract(_routerContract);
   }
 
   function setLiquidityContract(address _liquidityContract) external onlyRole(ADMIN_ROLE) {
