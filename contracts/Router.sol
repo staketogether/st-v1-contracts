@@ -47,7 +47,7 @@ contract Router is
   }
 
   function initialize(
-    address _withdrawContract,
+    address _withdrawalsContract,
     address _liquidityContract,
     address _airdropContract,
     address _validatorsContract,
@@ -62,7 +62,7 @@ contract Router is
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
 
-    withdrawalsContract = Withdrawals(payable(_withdrawContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     airdropContract = Airdrop(payable(_airdropContract));
     validatorsContract = Validators(payable(_validatorsContract));
@@ -237,8 +237,6 @@ contract Router is
   uint256 public minBlocksBeforeExecution = 600;
   mapping(bytes32 => uint256) public reportExecutionBlock;
 
-  uint256 public maxApr = 0.1 ether;
-
   function submitReport(
     uint256 _epoch,
     bytes32 _hash,
@@ -268,6 +266,8 @@ contract Router is
         emit ConsensusNotReached(block.number, _epoch, _hash);
       }
     }
+
+    emit SubmitReport(msg.sender, block.number, _epoch, _hash);
   }
 
   function executeReport(
@@ -389,11 +389,6 @@ contract Router is
   function setReportBlockFrequency(uint256 _frequency) external onlyRole(ADMIN_ROLE) {
     reportBlockFrequency = _frequency;
     emit SetReportBlockFrequency(_frequency);
-  }
-
-  function setMaxApr(uint256 _maxApr) external onlyRole(ADMIN_ROLE) {
-    maxApr = _maxApr;
-    emit SetMaxApr(_maxApr);
   }
 
   /******************

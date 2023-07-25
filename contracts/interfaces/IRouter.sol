@@ -37,14 +37,10 @@ interface IRouter {
   event RewardReportOracle(address indexed oracle, uint256 penalties, bytes32 hash);
   event SetBunkerMode(bool bunkerMode);
   event SetLastConsensusEpoch(uint256 epoch);
-  event SetMaxApr(uint256 maxApr);
   event SetMaxValidatorsToExit(uint256 maxValidatorsToExit);
   event SetMinBlockBeforeExecution(uint256 minBlocksBeforeExecution);
   event SetMinReportOracleQuorum(uint256 minQuorum);
   event SetReportBlockFrequency(uint256 frequency);
-  event SetReportBlockNumber(uint256 blockNumber);
-  event SetReportEpochFrequency(uint256 epoch);
-  event SetReportEpochNumber(uint256 epochNumber);
   event SetReportOraclePenalizeLimit(uint256 newLimit);
   event SetReportOracleQuorum(uint256 quorum);
   event SetStakeTogether(address stakeTogether);

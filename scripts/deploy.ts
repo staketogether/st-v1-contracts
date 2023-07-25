@@ -10,11 +10,14 @@ import {
   Fees__factory,
   Liquidity,
   Liquidity__factory,
+  Router__factory,
   Validators__factory,
   Withdrawals__factory
 } from '../typechain'
 
 dotenv.config()
+
+const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
 
 export async function deploy() {
   checkVariables()
@@ -24,12 +27,16 @@ export async function deploy() {
   const fees = await deployFees(owner)
   const airdrop = await deployAirdrop(owner)
   const liquidity = await deployLiquidity(owner)
-  const validators = await deployValidators(
+  const validators = await deployValidators(owner, depositAddress, fees.proxyAddress)
+  const withdrawals = await deployWithdrawals(owner)
+  const router = await deployRouter(
     owner,
-    String(process.env.GOERLI_DEPOSIT_ADDRESS),
+    withdrawals.proxyAddress,
+    liquidity.proxyAddress,
+    airdrop.proxyAddress,
+    validators.proxyAddress,
     fees.proxyAddress
   )
-  const withdrawals = await deployWithdrawals(owner)
 
   // Fees Contract
   // Todo: set stake together address
@@ -61,7 +68,9 @@ export async function deploy() {
     validators.proxyAddress,
     validators.implementationAddress,
     withdrawals.proxyAddress,
-    withdrawals.implementationAddress
+    withdrawals.implementationAddress,
+    router.proxyAddress,
+    router.implementationAddress
   )
 }
 
@@ -211,129 +220,37 @@ async function deployWithdrawals(owner: CustomEthersSigner) {
   return { proxyAddress, implementationAddress }
 }
 
-// async function deployWithdrawals(owner: CustomEthersSigner) {
-//   const Withdrawal = await new Withdrawals__factory().connect(owner).deploy()
+async function deployRouter(
+  owner: CustomEthersSigner,
+  withdrawalsContract: string,
+  liquidityContract: string,
+  airdropContract: string,
+  validatorsContract: string,
+  feesContract: string
+) {
+  const RouterFactory = new Router__factory().connect(owner)
 
-//   const address = await Withdrawal.getAddress()
+  const router = await upgrades.deployProxy(RouterFactory, [
+    withdrawalsContract,
+    liquidityContract,
+    airdropContract,
+    validatorsContract,
+    feesContract
+  ])
 
-//   console.log(`Withdrawal deployed:\t\t ${address}`)
+  await router.waitForDeployment()
+  const proxyAddress = await router.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-//   return address
-// }
+  console.log(`Router\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Router\t\t Implementation\t\t ${implementationAddress}`)
 
-// async function deployValidators(owner: CustomEthersSigner) {
-//   const Validators = await new Validators__factory()
-//     .connect(owner)
-//     .deploy(process.env.GOERLI_DEPOSIT_ADDRESS as string)
-
-//   const address = await Validators.getAddress()
-
-//   console.log(`Validators deployed:\t\t ${address}`)
-
-//   return address
-// }
-
-// async function deployLiquidity(owner: CustomEthersSigner) {
-//   const Liquidity = await new Liquidity__factory().connect(owner).deploy()
-
-//   const address = await Liquidity.getAddress()
-
-//   console.log(`Liquidity deployed:\t ${address}`)
-
-//   return address
-// }
-
-// async function deployStakeTogether(
-//   owner: CustomEthersSigner,
-//   routerAddress: string,
-//   feesAddress: string,
-//   airdropAddress: string,
-//   withdrawalsAddress: string,
-//   liquidityAddress: string,
-//   validatorsAddress: string,
-//   loanAddress: string
-// ) {
-//   const StakeTogether = await new StakeTogether__factory()
-//     .connect(owner)
-//     .deploy(
-//       routerAddress,
-//       feesAddress,
-//       airdropAddress,
-//       withdrawalsAddress,
-//       liquidityAddress,
-//       validatorsAddress
-//       {
-//         value: 1n
-//       }
-//     )
-
-//   const address = await StakeTogether.getAddress()
-
-//   console.log(`StakeTogether deployed:\t\t ${address}`)
-
-//   const Router = await ethers.getContractAt('Router', routerAddress)
-//   await Router.setStakeTogether(address)
-
-//   const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
-//   await Airdrop.setStakeTogether(address)
-
-//   const Fees = await ethers.getContractAt('Fees', feesAddress)
-//   await Fees.setStakeTogether(address)
-
-//   const Validators = await ethers.getContractAt('Validators', validatorsAddress)
-//   await Validators.setStakeTogether(address)
-
-//   const Withdrawals = await ethers.getContractAt('Withdrawals', withdrawalsAddress)
-//   await Withdrawals.setStakeTogether(address)
-
-//   const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
-//   await Liquidity.setStakeTogether(address)
-
-//   // Configure Loan here because it's not a part of the Router dependencies
-//   const Loan = await ethers.getContractAt('Loan', loanAddress)
-//   await Loan.setStakeTogether(address)
-//   await Loan.setFees(feesAddress)
-//   await Loan.setRouterContract(routerAddress)
-
-//   console.log(`\n\n\tStakeTogether address set in all contracts\n\n`)
-
-//   return address
-// }
-
-// async function deployRouter(
-//   owner: CustomEthersSigner,
-//   withdrawalsAddress: string,
-//   liquidityAddress: string,
-//   airdropAddress: string,
-//   validatorsAddress: string,
-//   feesAddress: string
-// ) {
-//   const Router = await new Router__factory()
-//     .connect(owner)
-//     .deploy(withdrawalsAddress, liquidityAddress, airdropAddress, validatorsAddress, feesAddress)
-
-//   const address = await Router.getAddress()
-
-//   console.log(`Router deployed:\t\t ${address}`)
-
-//   const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
-//   await Airdrop.setRouterContract(address)
-
-//   const Validators = await ethers.getContractAt('Validators', validatorsAddress)
-//   await Validators.setRouterContract(address)
-
-//   const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
-//   await Liquidity.setRouterContract(address)
-//   await Liquidity.setFees(feesAddress)
-
-//   console.log(`\n\n\tRouter address and fee address set in all contracts\n\n`)
-
-//   return address
-// }
+  return { proxyAddress, implementationAddress }
+}
 
 async function verifyContracts(
-  feeProxy: string,
-  feeImplementation: string,
+  feesProxy: string,
+  feesImplementation: string,
   airdropProxy: string,
   airdropImplementation: string,
   liquidityProxy: string,
@@ -341,26 +258,26 @@ async function verifyContracts(
   validatorsProxy: string,
   validatorsImplementation: string,
   withdrawalsProxy: string,
-  withdrawalsImplementation: string
+  withdrawalsImplementation: string,
+  routerAddress: string,
+  routerImplementation: string
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network goerli ${feeProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${feeImplementation} &&`)
+  console.log(`npx hardhat verify --network goerli ${feesProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${feesImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${liquidityProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${liquidityImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${validatorsProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${validatorsProxy} ${depositAddress} ${feesProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${validatorsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation}`)
-
-  // console.log(
-  //   `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${liquidityAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} &&  && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${liquidityAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
-  //     process.env.GOERLI_DEPOSIT_ADDRESS as string
-  //   } && npx hardhat verify --network goerli ${loanAddress} && npx hardhat verify --network goerli ${stakeTogether} ${routerAddress} ${feesAddress} ${airdropAddress} ${withdrawalsAddress} ${liquidityAddress} ${validatorsAddress} ${loanAddress}`
-  // )
+  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
+  console.log(
+    `npx hardhat verify --network goerli ${routerAddress} ${withdrawalsProxy} ${liquidityProxy} ${airdropProxy} ${validatorsProxy} ${feesProxy} &&`
+  )
+  console.log(`npx hardhat verify --network goerli ${routerImplementation}`)
 }
 
 deploy().catch(error => {
