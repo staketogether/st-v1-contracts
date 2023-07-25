@@ -52,6 +52,7 @@ interface IStakeTogether {
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);
   event SetLiquidityBalance(uint256 amount);
+  event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
   event SupplyLiquidity(uint256 amount);
   event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferPoolDelegationShares(
