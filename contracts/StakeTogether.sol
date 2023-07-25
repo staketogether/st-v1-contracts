@@ -34,6 +34,13 @@ contract StakeTogether is Shares {
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     validatorsContract = Validators(payable(_validatorsContract));
+
+    beaconBalance = 0;
+    liquidityBalance = 0;
+    totalShares = 0;
+    totalLockedShares = 0;
+    lockSharesId = 1;
+    totalPoolShares = 0;
   }
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
@@ -72,7 +79,7 @@ contract StakeTogether is Shares {
   }
 
   function _supplyLiquidity(uint256 _amount) internal {
-    if (liquidityBalance > 0) {
+    if (liquidityBalance > 0 && feature.SupplyLiquidity) {
       uint256 debitAmount = 0;
       if (liquidityBalance >= _amount) {
         debitAmount = _amount;
@@ -110,7 +117,6 @@ contract StakeTogether is Shares {
   uint256 public totalWithdrawn;
 
   function _depositBase(address _to, address _pool) internal {
-    require(config.enableDeposit);
     require(_to != address(0));
     require(isPool(_pool));
     require(msg.value >= config.minDepositAmount);
@@ -154,6 +160,7 @@ contract StakeTogether is Shares {
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
+    require(feature.DepositPool);
     _depositBase(msg.sender, _pool);
     emit DepositPool(msg.sender, msg.value, _pool, _referral);
   }
@@ -163,6 +170,7 @@ contract StakeTogether is Shares {
     address _pool,
     address _referral
   ) external payable nonReentrant whenNotPaused {
+    require(feature.DepositDonationPool);
     _depositBase(_to, _pool);
     emit DepositDonationPool(msg.sender, _to, msg.value, _pool, _referral);
   }
@@ -193,7 +201,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.enableWithdrawPool);
+    require(feature.WithdrawPool);
     require(_amount <= address(this).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawPool(msg.sender, _amount, _pool);
@@ -201,7 +209,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.enableWithdrawLiquidity);
+    require(feature.WithdrawLiquidity);
     require(_amount <= address(liquidityContract).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawLiquidity(msg.sender, _amount, _pool);
@@ -209,7 +217,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.enableWithdrawValidator);
+    require(feature.WithdrawValidator);
     require(_amount <= beaconBalance);
     beaconBalance -= _amount;
     _withdrawBase(_amount, _pool);
@@ -227,7 +235,7 @@ contract StakeTogether is Shares {
     return address(this).balance + beaconBalance - liquidityBalance;
   }
 
-  function _resetLimits() internal {
+  function _resetLimits() private {
     if (block.number > lastResetBlock + config.blocksPerDay) {
       totalDeposited = 0;
       totalWithdrawn = 0;
@@ -248,12 +256,9 @@ contract StakeTogether is Shares {
     require(poolCount < config.maxPools);
 
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) && msg.sender != address(this)) {
-      require(config.enableAddPool);
-
+      require(feature.AddPool);
       uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
-
       IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-
       for (uint i = 0; i < roles.length - 1; i++) {
         mintRewards(
           feesContract.getFeeAddress(roles[i]),
@@ -262,7 +267,6 @@ contract StakeTogether is Shares {
         );
       }
     }
-
     pools[_pool] = true;
     poolCount += 1;
     emit AddPool(_pool);
@@ -287,7 +291,8 @@ contract StakeTogether is Shares {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant {
+  ) external nonReentrant whenNotPaused {
+    require(feature.CreateValidator);
     require(validatorsContract.isValidatorOracle(msg.sender));
     require(address(this).balance >= validatorsContract.validatorSize());
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(

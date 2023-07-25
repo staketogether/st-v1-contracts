@@ -5,12 +5,6 @@ pragma solidity ^0.8.18;
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
-    bool enableAddPool;
-    bool enableDeposit;
-    bool enableLock;
-    bool enableWithdrawPool;
-    bool enableWithdrawLiquidity;
-    bool enableWithdrawValidator;
     uint256 poolSize;
     uint256 minDepositAmount;
     uint256 minLockDays;
@@ -19,6 +13,19 @@ interface IStakeTogether {
     uint256 withdrawalLimit;
     uint256 blocksPerDay;
     uint256 maxPools;
+    uint256 maxDelegations;
+  }
+
+  struct Feature {
+    bool AddPool;
+    bool CreateValidator;
+    bool DepositPool;
+    bool DepositDonationPool;
+    bool Lock;
+    bool SupplyLiquidity;
+    bool WithdrawPool;
+    bool WithdrawLiquidity;
+    bool WithdrawValidator;
   }
 
   struct LockedShares {
