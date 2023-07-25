@@ -42,6 +42,7 @@ contract Airdrop is
   event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
   event SetMaxBatchSize(uint256 maxBatchSize);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }

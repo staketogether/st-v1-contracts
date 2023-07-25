@@ -39,6 +39,7 @@ contract Withdrawals is
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }

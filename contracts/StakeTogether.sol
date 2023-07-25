@@ -5,6 +5,7 @@ import './Shares.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is Shares {
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }

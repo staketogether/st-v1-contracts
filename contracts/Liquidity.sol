@@ -58,6 +58,7 @@ contract Liquidity is
   event WithdrawLiquidity(address indexed user, uint256 amount);
   event SupplyLiquidity(address indexed user, uint256 amount);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }

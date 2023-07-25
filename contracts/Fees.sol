@@ -36,6 +36,11 @@ contract Fees is
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
   function initialize() public initializer {
     __Pausable_init();
     __AccessControl_init();

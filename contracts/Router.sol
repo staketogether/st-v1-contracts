@@ -94,6 +94,7 @@ contract Router is
   event SetMaxApr(uint256 maxApr);
   event RequestValidatorsExit(bytes[] publicKeys);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }

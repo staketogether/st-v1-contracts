@@ -53,6 +53,7 @@ contract Validators is
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event SetValidatorSize(uint256 newValidatorSize);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
