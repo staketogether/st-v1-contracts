@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol';
 
-import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import './Router.sol';
 import './StakeTogether.sol';
+
+import './interfaces/IAirdrop.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Airdrop is
@@ -19,19 +20,19 @@ contract Airdrop is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable,
+  IAirdrop
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public routerContract;
+  Router public router;
 
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetRouter(address routerContract);
+  event SetRouter(address router);
   event AddMerkleRoots(
     uint256 indexed epoch,
     bytes32 poolsRoot,
@@ -54,33 +55,33 @@ contract Airdrop is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
   }
 
-  function pause() public onlyRole(PAUSER_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(PAUSER_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
+    require(msg.sender == address(router), 'ONLY_ROUTER');
     _;
   }
 
-  receive() external payable {
-    _transferToStakeTogether();
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
-  fallback() external payable {
-    _transferToStakeTogether();
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -89,10 +90,10 @@ contract Airdrop is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
-    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
-    routerContract = Router(payable(_routerContract));
-    emit SetRouter(_routerContract);
+  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
+    require(_router != address(0), 'ROUTER_ALREADY_SET');
+    router = Router(payable(_router));
+    emit SetRouter(_router);
   }
 
   function _transferToStakeTogether() private {
@@ -103,23 +104,9 @@ contract Airdrop is
    ** AIRDROPS **
    **************/
 
-  event AddAirdropMerkleRoot(Fees.FeeRoles indexed _role, uint256 indexed epoch, bytes32 merkleRoot);
-  event ClaimAirdrop(
-    Fees.FeeRoles indexed role,
-    uint256 indexed epoch,
-    address indexed account,
-    uint256 sharesAmount
-  );
-  event ClaimAirdropBatch(
-    address indexed claimer,
-    Fees.FeeRoles indexed role,
-    uint256 numClaims,
-    uint256 totalAmount
-  );
-
   mapping(Fees.FeeRoles => mapping(uint256 => bytes32)) public airdropsMerkleRoots;
   mapping(Fees.FeeRoles => mapping(uint256 => mapping(uint256 => uint256))) private claimedBitMap;
-  uint256 public maxBatchSize = 100;
+  uint256 public maxBatchSize;
 
   function addAirdropMerkleRoot(
     Fees.FeeRoles _role,
@@ -144,12 +131,12 @@ contract Airdrop is
     if (isAirdropClaimed(_role, _epoch, _account)) revert('ALREADY_CLAIMED');
 
     bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
-    if (!MerkleProof.verify(merkleProof, airdropsMerkleRoots[_role][_epoch], leaf))
+    if (!MerkleProofUpgradeable.verify(merkleProof, airdropsMerkleRoots[_role][_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
     _setAirdropClaimed(_role, _epoch, _account);
 
-    stakeTogether.claimRewards(_account, _sharesAmount, _role == Fees.FeeRoles.Pools);
+    stakeTogether.claimRewards(_account, _sharesAmount, _role);
     emit ClaimAirdrop(_role, _epoch, _account, _sharesAmount);
   }
 
@@ -174,6 +161,11 @@ contract Airdrop is
     }
 
     emit ClaimAirdropBatch(msg.sender, _role, length, totalAmount);
+  }
+
+  function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
+    maxBatchSize = _maxBatchSize;
+    emit SetMaxBatchSize(_maxBatchSize);
   }
 
   function isAirdropClaimed(

@@ -1,236 +1,302 @@
 import { CustomEthersSigner } from '@nomiclabs/hardhat-ethers/signers'
+import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
-import { ethers } from 'hardhat'
+import { ethers, network, upgrades } from 'hardhat'
 import { checkVariables } from '../test/utils/env'
-import {
-  Airdrop__factory,
-  Fees__factory,
-  Liquidity__factory,
-  Loan__factory,
-  Router__factory,
-  StakeTogether__factory,
-  Validators__factory,
-  Withdrawals__factory
-} from '../typechain'
+import { Airdrop, Airdrop__factory, Fees, Fees__factory } from '../typechain'
 
 dotenv.config()
 
-export async function deployContracts() {
+export async function deploy() {
   checkVariables()
 
   const [owner] = await ethers.getSigners()
 
-  const feesAddress = await deployFees(owner)
-  const withdrawalsAddress = await deployWithdrawals(owner)
-  const airdropAddress = await deployAirdrop(owner)
-  const loanAddress = await deployLoan(owner)
-  const validatorsAddress = await deployValidators(owner)
-  const liquidityAddress = await deployLiquidity(owner)
-  const routerAddress = await deployRouter(
-    owner,
-    withdrawalsAddress,
-    liquidityAddress,
-    airdropAddress,
-    validatorsAddress,
-    feesAddress
-  )
+  const fees = await deployFees(owner)
+  const airdrop = await deployAirdrop(owner)
 
-  const stakeTogether = await deployStakeTogether(
-    owner,
-    routerAddress,
-    feesAddress,
-    airdropAddress,
-    withdrawalsAddress,
-    liquidityAddress,
-    validatorsAddress,
-    loanAddress
-  )
+  // Fees Contract
+  // Todo: set stake together address
+  // Todo: set liquidity address
+
+  // Airdrop Contract
+  // Todo: set stake together address
+  // Todo: set router address
+
+  // const withdrawalsAddress = await deployWithdrawals(owner)
+  // const airdropAddress = await deployAirdrop(owner)
+  // const validatorsAddress = await deployValidators(owner)
+  // const liquidityAddress = await deployLiquidity(owner)
+  // const routerAddress = await deployRouter(
+  //   owner,
+  //   withdrawalsAddress,
+  //   liquidityAddress,
+  //   airdropAddress,
+  //   validatorsAddress,
+  //   feesAddress
+  // )
+
+  // const stakeTogether = await deployStakeTogether(
+  //   owner,
+  //   routerAddress,
+  //   feesAddress,
+  //   airdropAddress,
+  //   withdrawalsAddress,
+  //   liquidityAddress,
+  //   validatorsAddress
+  // )
 
   console.log('\n🔷 All contracts deployed!\n')
   verifyContracts(
-    routerAddress,
-    feesAddress,
-    airdropAddress,
-    withdrawalsAddress,
-    liquidityAddress,
-    validatorsAddress,
-    loanAddress,
-    stakeTogether
+    fees.proxyAddress,
+    fees.implementationAddress,
+    airdrop.proxyAddress,
+    airdrop.implementationAddress
+    //   //   routerAddress,
+    //   //   airdropAddress,
+    //   //   withdrawalsAddress,
+    //   //   liquidityAddress,
+    //   //   validatorsAddress,
+    //   //   stakeTogether
   )
 }
 
 async function deployFees(owner: CustomEthersSigner) {
-  const Fees = await new Fees__factory().connect(owner).deploy()
+  const FeesFactory = new Fees__factory().connect(owner)
+  const fees = await upgrades.deployProxy(FeesFactory)
+  await fees.waitForDeployment()
+  const proxyAddress = await fees.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  const address = await Fees.getAddress()
+  console.log(`Fees\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Fees\t\t Implementation\t\t ${implementationAddress}`)
 
-  console.log(`Fees deployed:\t\t\t ${address}`)
+  const feesContract = fees as unknown as Fees
 
-  return address
-}
+  // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
+  await feesContract.setFeeValue(0, ethers.parseEther('0.003'), 1)
 
-async function deployWithdrawals(owner: CustomEthersSigner) {
-  const Withdrawal = await new Withdrawals__factory().connect(owner).deploy()
+  // Set the StakeRewards fee to 0.09 ether and make it a percentage-based fee
+  await feesContract.setFeeValue(1, ethers.parseEther('0.09'), 1)
 
-  const address = await Withdrawal.getAddress()
+  // Set the StakePool fee to 1 ether and make it a fixed fee
+  await feesContract.setFeeValue(2, ethers.parseEther('1'), 0)
 
-  console.log(`Withdrawal deployed:\t\t ${address}`)
+  // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
+  await feesContract.setFeeValue(3, ethers.parseEther('0.01'), 0)
 
-  return address
+  // Set the LiquidityProvideEntry fee to 0.003 ether and make it a percentage-based fee
+  await feesContract.setFeeValue(4, ethers.parseEther('0.003'), 1)
+
+  // Set the LiquidityProvide fee to 0.001 ether and make it a percentage-based fee
+  await feesContract.setFeeValue(5, ethers.parseEther('0.001'), 1)
+
+  // Set the maximum fee increase to 3 ether (300%)
+  await feesContract.setMaxFeeIncrease(ethers.parseEther('3'))
+
+  // Todo: Change these addresses to the actual fee recipient addresses
+  for (let i = 0; i < 7; i++) {
+    await feesContract.setFeeAddress(i, owner)
+  }
+
+  // Set fee allocations: Make sure these allocations add up to 1 ether (100%) for each fee type
+
+  // StakeEntry
+  await feesContract.setFeeAllocation(0, 1, ethers.parseEther('0.2'))
+  await feesContract.setFeeAllocation(0, 2, ethers.parseEther('0.4'))
+  await feesContract.setFeeAllocation(0, 5, ethers.parseEther('0.4'))
+
+  // StakeRewards
+  await feesContract.setFeeAllocation(1, 2, ethers.parseEther('0.33'))
+  await feesContract.setFeeAllocation(1, 3, ethers.parseEther('0.33'))
+  await feesContract.setFeeAllocation(1, 5, ethers.parseEther('0.34'))
+
+  // StakePool
+  await feesContract.setFeeAllocation(2, 1, ethers.parseEther('0.2'))
+  await feesContract.setFeeAllocation(2, 5, ethers.parseEther('0.6'))
+  await feesContract.setFeeAllocation(2, 6, ethers.parseEther('0.02'))
+
+  // StakeValidator
+  await feesContract.setFeeAllocation(3, 3, ethers.parseEther('1'))
+
+  // LiquidityProvideEntry
+  await feesContract.setFeeAllocation(4, 1, ethers.parseEther('0.5'))
+  await feesContract.setFeeAllocation(4, 5, ethers.parseEther('0.5'))
+
+  // LiquidityProvide
+  await feesContract.setFeeAllocation(5, 1, ethers.parseEther('0.1'))
+  await feesContract.setFeeAllocation(5, 2, ethers.parseEther('0.1'))
+  await feesContract.setFeeAllocation(5, 5, ethers.parseEther('0.1'))
+  await feesContract.setFeeAllocation(5, 6, ethers.parseEther('0.7'))
+
+  return { proxyAddress, implementationAddress }
 }
 
 async function deployAirdrop(owner: CustomEthersSigner) {
-  const Airdrop = await new Airdrop__factory().connect(owner).deploy()
+  const AirdropFactory = new Airdrop__factory().connect(owner)
+  const airdrop = await upgrades.deployProxy(AirdropFactory)
+  await airdrop.waitForDeployment()
+  const proxyAddress = await airdrop.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  const address = await Airdrop.getAddress()
+  console.log(`Airdrop\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Airdrop\t\t Implementation\t\t ${implementationAddress}`)
 
-  console.log(`Airdrop deployed:\t\t ${address}`)
+  const airdropContract = airdrop as unknown as Airdrop
 
-  return address
+  await airdropContract.setMaxBatchSize(100)
+
+  return { proxyAddress, implementationAddress }
 }
 
-async function deployLoan(owner: CustomEthersSigner) {
-  const Loan = await new Loan__factory().connect(owner).deploy()
+// async function deployWithdrawals(owner: CustomEthersSigner) {
+//   const Withdrawal = await new Withdrawals__factory().connect(owner).deploy()
 
-  const address = await Loan.getAddress()
+//   const address = await Withdrawal.getAddress()
 
-  console.log(`Loan deployed:\t\t\t ${address}`)
+//   console.log(`Withdrawal deployed:\t\t ${address}`)
 
-  return address
-}
+//   return address
+// }
 
-async function deployValidators(owner: CustomEthersSigner) {
-  const Validators = await new Validators__factory()
-    .connect(owner)
-    .deploy(process.env.GOERLI_DEPOSIT_ADDRESS as string)
+// async function deployValidators(owner: CustomEthersSigner) {
+//   const Validators = await new Validators__factory()
+//     .connect(owner)
+//     .deploy(process.env.GOERLI_DEPOSIT_ADDRESS as string)
 
-  const address = await Validators.getAddress()
+//   const address = await Validators.getAddress()
 
-  console.log(`Validators deployed:\t\t ${address}`)
+//   console.log(`Validators deployed:\t\t ${address}`)
 
-  return address
-}
+//   return address
+// }
 
-async function deployLiquidity(owner: CustomEthersSigner) {
-  const Liquidity = await new Liquidity__factory().connect(owner).deploy()
+// async function deployLiquidity(owner: CustomEthersSigner) {
+//   const Liquidity = await new Liquidity__factory().connect(owner).deploy()
 
-  const address = await Liquidity.getAddress()
+//   const address = await Liquidity.getAddress()
 
-  console.log(`Liquidity deployed:\t ${address}`)
+//   console.log(`Liquidity deployed:\t ${address}`)
 
-  return address
-}
+//   return address
+// }
 
-async function deployStakeTogether(
-  owner: CustomEthersSigner,
-  routerAddress: string,
-  feesAddress: string,
-  airdropAddress: string,
-  withdrawalsAddress: string,
-  liquidityAddress: string,
-  validatorsAddress: string,
-  loanAddress: string
-) {
-  const StakeTogether = await new StakeTogether__factory()
-    .connect(owner)
-    .deploy(
-      routerAddress,
-      feesAddress,
-      airdropAddress,
-      withdrawalsAddress,
-      liquidityAddress,
-      validatorsAddress,
-      loanAddress,
-      {
-        value: 1n
-      }
-    )
+// async function deployStakeTogether(
+//   owner: CustomEthersSigner,
+//   routerAddress: string,
+//   feesAddress: string,
+//   airdropAddress: string,
+//   withdrawalsAddress: string,
+//   liquidityAddress: string,
+//   validatorsAddress: string,
+//   loanAddress: string
+// ) {
+//   const StakeTogether = await new StakeTogether__factory()
+//     .connect(owner)
+//     .deploy(
+//       routerAddress,
+//       feesAddress,
+//       airdropAddress,
+//       withdrawalsAddress,
+//       liquidityAddress,
+//       validatorsAddress
+//       {
+//         value: 1n
+//       }
+//     )
 
-  const address = await StakeTogether.getAddress()
+//   const address = await StakeTogether.getAddress()
 
-  console.log(`StakeTogether deployed:\t\t ${address}`)
+//   console.log(`StakeTogether deployed:\t\t ${address}`)
 
-  const Router = await ethers.getContractAt('Router', routerAddress)
-  await Router.setStakeTogether(address)
+//   const Router = await ethers.getContractAt('Router', routerAddress)
+//   await Router.setStakeTogether(address)
 
-  const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
-  await Airdrop.setStakeTogether(address)
+//   const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
+//   await Airdrop.setStakeTogether(address)
 
-  const Fees = await ethers.getContractAt('Fees', feesAddress)
-  await Fees.setStakeTogether(address)
+//   const Fees = await ethers.getContractAt('Fees', feesAddress)
+//   await Fees.setStakeTogether(address)
 
-  const Validators = await ethers.getContractAt('Validators', validatorsAddress)
-  await Validators.setStakeTogether(address)
+//   const Validators = await ethers.getContractAt('Validators', validatorsAddress)
+//   await Validators.setStakeTogether(address)
 
-  const Withdrawals = await ethers.getContractAt('Withdrawals', withdrawalsAddress)
-  await Withdrawals.setStakeTogether(address)
+//   const Withdrawals = await ethers.getContractAt('Withdrawals', withdrawalsAddress)
+//   await Withdrawals.setStakeTogether(address)
 
-  const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
-  await Liquidity.setStakeTogether(address)
+//   const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
+//   await Liquidity.setStakeTogether(address)
 
-  // Configure Loan here because it's not a part of the Router dependencies
-  const Loan = await ethers.getContractAt('Loan', loanAddress)
-  await Loan.setStakeTogether(address)
-  await Loan.setFees(feesAddress)
-  await Loan.setRouterContract(routerAddress)
+//   // Configure Loan here because it's not a part of the Router dependencies
+//   const Loan = await ethers.getContractAt('Loan', loanAddress)
+//   await Loan.setStakeTogether(address)
+//   await Loan.setFees(feesAddress)
+//   await Loan.setRouterContract(routerAddress)
 
-  StakeTogether.bootstrap()
+//   console.log(`\n\n\tStakeTogether address set in all contracts\n\n`)
 
-  console.log(`\n\n\tStakeTogether address set in all contracts\n\n`)
+//   return address
+// }
 
-  return address
-}
+// async function deployRouter(
+//   owner: CustomEthersSigner,
+//   withdrawalsAddress: string,
+//   liquidityAddress: string,
+//   airdropAddress: string,
+//   validatorsAddress: string,
+//   feesAddress: string
+// ) {
+//   const Router = await new Router__factory()
+//     .connect(owner)
+//     .deploy(withdrawalsAddress, liquidityAddress, airdropAddress, validatorsAddress, feesAddress)
 
-async function deployRouter(
-  owner: CustomEthersSigner,
-  withdrawalsAddress: string,
-  liquidityAddress: string,
-  airdropAddress: string,
-  validatorsAddress: string,
-  feesAddress: string
-) {
-  const Router = await new Router__factory()
-    .connect(owner)
-    .deploy(withdrawalsAddress, liquidityAddress, airdropAddress, validatorsAddress, feesAddress)
+//   const address = await Router.getAddress()
 
-  const address = await Router.getAddress()
+//   console.log(`Router deployed:\t\t ${address}`)
 
-  console.log(`Router deployed:\t\t ${address}`)
+//   const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
+//   await Airdrop.setRouterContract(address)
 
-  const Airdrop = await ethers.getContractAt('Airdrop', airdropAddress)
-  await Airdrop.setRouterContract(address)
+//   const Validators = await ethers.getContractAt('Validators', validatorsAddress)
+//   await Validators.setRouterContract(address)
 
-  const Validators = await ethers.getContractAt('Validators', validatorsAddress)
-  await Validators.setRouterContract(address)
+//   const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
+//   await Liquidity.setRouterContract(address)
+//   await Liquidity.setFees(feesAddress)
 
-  const Liquidity = await ethers.getContractAt('Liquidity', liquidityAddress)
-  await Liquidity.setRouterContract(address)
-  await Liquidity.setFees(feesAddress)
+//   console.log(`\n\n\tRouter address and fee address set in all contracts\n\n`)
 
-  console.log(`\n\n\tRouter address and fee address set in all contracts\n\n`)
-
-  return address
-}
+//   return address
+// }
 
 async function verifyContracts(
-  routerAddress: string,
-  feesAddress: string,
-  airdropAddress: string,
-  withdrawalsAddress: string,
-  liquidityAddress: string,
-  validatorsAddress: string,
-  loanAddress: string,
-  stakeTogether: string
+  feeProxy: string,
+  feeImplementation: string,
+  airdropProxy: string,
+  airdropImplementation: string
+  // routerAddress: string,
+  // airdropAddress: string,
+  // withdrawalsAddress: string,
+  // liquidityAddress: string,
+  // validatorsAddress: string,
+  // loanAddress: string,
+  // stakeTogether: string
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
-  console.log(
-    `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${liquidityAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} && npx hardhat verify --network goerli ${feesAddress} && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${liquidityAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
-      process.env.GOERLI_DEPOSIT_ADDRESS as string
-    } && npx hardhat verify --network goerli ${loanAddress} && npx hardhat verify --network goerli ${stakeTogether} ${routerAddress} ${feesAddress} ${airdropAddress} ${withdrawalsAddress} ${liquidityAddress} ${validatorsAddress} ${loanAddress}`
-  )
+
+  console.log(`npx hardhat verify --network goerli ${feeProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${feeImplementation} &&`)
+  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${airdropImplementation}`)
+
+  // console.log(
+  //   `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${liquidityAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} &&  && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${liquidityAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
+  //     process.env.GOERLI_DEPOSIT_ADDRESS as string
+  //   } && npx hardhat verify --network goerli ${loanAddress} && npx hardhat verify --network goerli ${stakeTogether} ${routerAddress} ${feesAddress} ${airdropAddress} ${withdrawalsAddress} ${liquidityAddress} ${validatorsAddress} ${loanAddress}`
+  // )
 }
 
-deployContracts().catch(error => {
+deploy().catch(error => {
   console.error(error)
   process.exitCode = 1
 })

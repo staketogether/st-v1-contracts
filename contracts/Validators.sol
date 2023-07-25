@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 
-import './StakeTogether.sol';
+import './Fees.sol';
 import './Router.sol';
+import './StakeTogether.sol';
+
 import './interfaces/IDepositContract.sol';
+import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Validators is
@@ -19,9 +21,8 @@ contract Validators is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
@@ -29,7 +30,8 @@ contract Validators is
   bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public routerContract;
+  Router public router;
+  Fees public feesContract;
   IDepositContract public depositContract;
 
   bool public enableBorrow = true;
@@ -37,7 +39,7 @@ contract Validators is
   event ReceiveEther(address indexed sender, uint amount);
   event FallbackEther(address indexed sender, uint amount);
   event SetStakeTogether(address stakeTogether);
-  event SetRouter(address routerContract);
+  event SetRouter(address router);
   event AddValidatorOracle(address indexed account);
   event RemoveValidatorOracle(address indexed account);
   event CreateValidator(
@@ -51,40 +53,42 @@ contract Validators is
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event SetValidatorSize(uint256 newValidatorSize);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
 
-  function initialize(address _depositContract) public initializer {
+  function initialize(address _depositContract, address _feesContract) public initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
 
     depositContract = IDepositContract(_depositContract);
+    feesContract = Fees(payable(_feesContract));
   }
 
-  function pause() public onlyRole(PAUSER_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(PAUSER_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  receive() external payable {
-    _transferToStakeTogether();
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
-  fallback() external payable {
-    _transferToStakeTogether();
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
+    _transferToStakeTogether();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -93,19 +97,14 @@ contract Validators is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  modifier onlyStakeTogether() {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
-    _;
-  }
-
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
-    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
-    routerContract = Router(payable(_routerContract));
-    emit SetRouter(_routerContract);
+  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
+    require(_router != address(0), 'ROUTER_ALREADY_SET');
+    router = Router(payable(_router));
+    emit SetRouter(_router);
   }
 
   modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+    require(msg.sender == address(router), 'ONLY_ROUTER_CONTRACT');
     _;
   }
 
@@ -184,31 +183,42 @@ contract Validators is
     bytes calldata _withdrawalCredentials,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external payable nonReentrant onlyStakeTogether {
-    // require(
-    //   stakeTogether.poolBalance() >= stakeTogether.poolSize() + stakeTogether.validatorsFee(),
-    //   'NOT_ENOUGH_POOL_BALANCE'
-    // );
-    require(!validators[_publicKey], 'PUBLIC_KEY_ALREADY_USED');
+  ) external payable nonReentrant {
+    require(msg.sender == address(stakeTogether));
+    require(!validators[_publicKey]);
 
     validators[_publicKey] = true;
     totalValidators++;
 
+    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakeValidator);
+
+    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+
+    for (uint i = 0; i < feeAmounts.length - 1; i++) {
+      if (feeAmounts[i] > 0) {
+        stakeTogether.mintRewards(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          feeAmounts[i]
+        );
+      }
+    }
+
     uint256 newBeaconBalance = stakeTogether.beaconBalance() + validatorSize;
     stakeTogether.setBeaconBalance(newBeaconBalance);
-
-    depositContract.deposit{ value: validatorSize }(
-      _publicKey,
-      _withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
 
     _nextValidatorOracle();
 
     emit CreateValidator(
       msg.sender,
       validatorSize,
+      _publicKey,
+      _withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+
+    depositContract.deposit{ value: validatorSize }(
       _publicKey,
       _withdrawalCredentials,
       _signature,

@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
-import './StakeTogether.sol';
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
-import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+
+import './StakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Withdrawals is
@@ -22,9 +22,8 @@ contract Withdrawals is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
@@ -40,6 +39,7 @@ contract Withdrawals is
   event SetStakeTogether(address stakeTogether);
   event Withdraw(address indexed user, uint256 amount);
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
@@ -57,11 +57,11 @@ contract Withdrawals is
     _grantRole(UPGRADER_ROLE, msg.sender);
   }
 
-  function pause() public onlyRole(PAUSER_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(PAUSER_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
@@ -75,14 +75,14 @@ contract Withdrawals is
     super._beforeTokenTransfer(from, to, amount);
   }
 
-  receive() external payable {
-    _checkExtraAmount();
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
+    _checkExtraAmount();
   }
 
-  fallback() external payable {
-    _checkExtraAmount();
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
+    _checkExtraAmount();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -116,9 +116,9 @@ contract Withdrawals is
   }
 
   function _checkExtraAmount() internal {
-    uint256 totalSupply = totalSupply();
-    if (address(this).balance > totalSupply) {
-      uint256 routerExtraAmount = address(this).balance - totalSupply;
+    uint256 _supply = totalSupply();
+    if (address(this).balance > _supply) {
+      uint256 routerExtraAmount = address(this).balance - _supply;
       _transferToStakeTogether(routerExtraAmount);
     }
   }

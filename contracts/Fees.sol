@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/utils/math/Math.sol';
-
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import './StakeTogether.sol';
-import './Router.sol';
 import './Liquidity.sol';
+import './Router.sol';
+import './StakeTogether.sol';
+
+import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Fees is
@@ -20,9 +21,9 @@ contract Fees is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard
+  ReentrancyGuardUpgradeable,
+  IFees
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
@@ -30,47 +31,15 @@ contract Fees is
   Router public router;
   Liquidity public liquidity;
 
-  uint256 public maxFeeIncrease = 3 ether;
-
-  enum FeeType {
-    Swap,
-    StakeEntry,
-    StakeRewards,
-    StakePool,
-    StakeValidator,
-    LiquidityProvideEntry,
-    LiquidityProvide
-  }
-
-  enum FeeMathType {
-    FIXED,
-    PERCENTAGE
-  }
-
-  enum FeeRoles {
-    StakeAccounts,
-    LockAccounts,
-    Pools,
-    Operators,
-    Oracles,
-    StakeTogether,
-    LiquidityProviders,
-    Sender
-  }
-
-  struct Fee {
-    uint256 value;
-    FeeMathType mathType;
-    mapping(FeeRoles => uint256) allocations;
-  }
+  uint256 public maxFeeIncrease;
 
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
 
   event SetTotalFee(FeeType indexed feeType, uint256 total);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
-  event SetRouter(address router);
-  event SetLiquidity(address liquidity);
+  event SetRouterContract(address routerContract);
+  event SetLiquidityContract(address liquidityContract);
   event ReceiveEther(address indexed sender, uint256 amount);
   event FallbackEther(address indexed sender, uint256 amount);
   event SetStakeTogether(address stakeTogether);
@@ -87,37 +56,37 @@ contract Fees is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(PAUSER_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
   }
 
-  function pause() public onlyRole(PAUSER_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(PAUSER_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  receive() external payable whenNotPaused {
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
     _transferToStakeTogether();
   }
 
-  fallback() external payable whenNotPaused {
+  fallback() external payable nonReentrant {
     emit FallbackEther(msg.sender, msg.value);
     _transferToStakeTogether();
   }
 
   modifier onlyRouter() {
-    require(msg.sender == address(router), 'ONLY_ROUTER');
+    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
     _;
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
-    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
+    require(_stakeTogether != address(0));
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
@@ -166,13 +135,17 @@ contract Fees is
     return addresses;
   }
 
-  function setFee(FeeType _feeType, uint256 _fee, FeeMathType _mathType) external onlyRole(ADMIN_ROLE) {
+  function setFeeValue(
+    FeeType _feeType,
+    uint256 _fee,
+    FeeMathType _mathType
+  ) external onlyRole(ADMIN_ROLE) {
     if (_mathType == FeeMathType.PERCENTAGE) {
-      require(_fee <= 1 ether, 'TOTAL_FEE_EXCEEDS_100_PERCENT');
+      require(_fee <= 1 ether);
     }
     fees[_feeType].value = _fee;
     fees[_feeType].mathType = _mathType;
-    emit SetTotalFee(_feeType, _fee);
+    emit SetFeeValue(_feeType, _fee);
   }
 
   function getFee(FeeType _feeType) public view returns (uint256, FeeMathType) {
@@ -194,10 +167,10 @@ contract Fees is
 
     if (fees[_feeType].mathType == FeeMathType.PERCENTAGE) {
       allocationAmount = _allocation;
-      require(allocationAmount + currentTotal <= 1 ether, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+      require(allocationAmount + currentTotal <= 1 ether);
     } else {
-      allocationAmount = Math.mulDiv(feeAmount, _allocation, 1 ether);
-      require(allocationAmount + currentTotal <= feeAmount, 'FEE_ALLOCATION_EXCEEDS_TOTAL');
+      allocationAmount = MathUpgradeable.mulDiv(feeAmount, _allocation, 1 ether);
+      require(allocationAmount + currentTotal <= feeAmount);
     }
 
     fees[_feeType].allocations[_role] = _allocation;
@@ -234,8 +207,8 @@ contract Fees is
     uint256 _sharesAmount,
     uint256 _dynamicFee
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    require(_dynamicFee <= fees[_feeType].value + maxFeeIncrease, 'TOTAL_FEE_EXCEEDS_MAX_INCREASE');
-    require(fees[_feeType].mathType == FeeMathType.PERCENTAGE, 'FEE_NOT_PERCENTAGE');
+    require(_dynamicFee <= fees[_feeType].value + maxFeeIncrease);
+    require(fees[_feeType].mathType == FeeMathType.PERCENTAGE);
 
     FeeRoles[8] memory roles = getFeesRoles();
 
@@ -244,18 +217,18 @@ contract Fees is
     for (uint256 i = 0; i < allocations.length - 1; i++) {
       allocations[i] = getFeeAllocation(_feeType, roles[i]);
     }
-    require(_checkAllocationSum(allocations), 'ALLOCATION_DOES_NOT_SUM_TO_1_ETHER');
+    require(_checkAllocationSum(allocations));
 
     address[8] memory feeAddresses = getFeeRolesAddresses();
 
     for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
-      require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
+      require(feeAddresses[i] != address(0));
     }
 
-    uint256 feeShares = Math.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
+    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
-      shares[i] = Math.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      shares[i] = MathUpgradeable.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     uint256 senderShares = _sharesAmount - feeShares;
@@ -278,15 +251,15 @@ contract Fees is
     uint256 dynamicFee;
 
     if (totalPooledEtherLiquidity == 0) {
-      dynamicFee = Math.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
+      dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
     } else {
-      uint256 ratio = Math.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
+      uint256 ratio = MathUpgradeable.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
 
       if (ratio >= 1 ether) {
-        dynamicFee = Math.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
+        dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
       } else {
-        uint256 feeIncrease = Math.mulDiv(ratio, maxFeeIncrease, 1 ether);
-        dynamicFee = Math.mulDiv(baseFee, 1 ether + feeIncrease, 1 ether);
+        uint256 feeIncrease = MathUpgradeable.mulDiv(ratio, maxFeeIncrease, 1 ether);
+        dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + feeIncrease, 1 ether);
       }
     }
 
@@ -296,17 +269,17 @@ contract Fees is
 
   function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {
     (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
-    require(mathType == FeeMathType.FIXED, 'FEE_NOT_FIXED');
+    require(mathType == FeeMathType.FIXED);
 
     address[8] memory feeAddresses = getFeeRolesAddresses();
     for (uint256 i = 0; i < feeAddresses.length; i++) {
-      require(feeAddresses[i] != address(0), 'FEE_ADDRESS_NOT_SET');
+      require(feeAddresses[i] != address(0));
     }
 
     FeeRoles[8] memory roles = getFeesRoles();
 
     for (uint256 i = 0; i < roles.length; i++) {
-      amounts[i] = Math.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      amounts[i] = MathUpgradeable.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
     }
 
     return amounts;

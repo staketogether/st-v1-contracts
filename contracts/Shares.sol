@@ -2,24 +2,24 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-import '@openzeppelin/contracts/utils/math/Math.sol';
-
-import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import './Router.sol';
-import './Fees.sol';
 import './Airdrop.sol';
-import './Withdrawals.sol';
+import './Fees.sol';
 import './Liquidity.sol';
+import './Router.sol';
 import './Validators.sol';
+import './Withdrawals.sol';
 
+import './interfaces/IFees.sol';
 import './interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -31,10 +31,9 @@ abstract contract Shares is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuard,
+  ReentrancyGuardUpgradeable,
   IStakeTogether
 {
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
@@ -46,22 +45,24 @@ abstract contract Shares is
   Liquidity public liquidityContract;
   Validators public validatorsContract;
 
+  bytes public withdrawalCredentials;
   uint256 public beaconBalance = 0;
   uint256 public liquidityBalance = 0;
+  Config public config;
 
   modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
+    require(msg.sender == address(routerContract));
     _;
   }
 
   function setBeaconBalance(uint256 _amount) external {
-    require(msg.sender == address(validatorsContract), 'ONLY_VALIDATORS');
+    require(msg.sender == address(validatorsContract));
     beaconBalance = _amount;
     emit SetBeaconBalance(_amount);
   }
 
   function setLiquidityBalance(uint256 _amount) external {
-    require(msg.sender == address(liquidityContract), 'ONLY_LIQUIDITY');
+    require(msg.sender == address(liquidityContract));
     liquidityBalance = _amount;
     emit SetLiquidityBalance(_amount);
   }
@@ -89,11 +90,12 @@ abstract contract Shares is
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return Math.mulDiv(_ethAmount, totalShares, totalPooledEther());
+    return MathUpgradeable.mulDiv(_ethAmount, totalShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return Math.mulDiv(_sharesAmount, totalPooledEther(), totalShares, Math.Rounding.Up);
+    return
+      MathUpgradeable.mulDiv(_sharesAmount, totalPooledEther(), totalShares, MathUpgradeable.Rounding.Up);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -141,21 +143,21 @@ abstract contract Shares is
 
   function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
-    require(currentAllowance >= _subtractedValue, 'ALLOWANCE_BELOW_ZERO');
+    require(currentAllowance >= _subtractedValue);
     _approve(msg.sender, _spender, currentAllowance - _subtractedValue);
     return true;
   }
 
   function _approve(address _account, address _spender, uint256 _amount) internal override {
-    require(_account != address(0), 'APPROVE_FROM_ZERO_ADDR');
-    require(_spender != address(0), 'APPROVE_TO_ZERO_ADDR');
+    require(_account != address(0));
+    require(_spender != address(0));
 
     allowances[_account][_spender] = _amount;
     emit Approval(_account, _spender, _amount);
   }
 
   function _mintShares(address _to, uint256 _sharesAmount) internal {
-    require(_to != address(0), 'MINT_TO_ZERO_ADDR');
+    require(_to != address(0));
 
     shares[_to] = shares[_to] + _sharesAmount;
     totalShares += _sharesAmount;
@@ -164,8 +166,8 @@ abstract contract Shares is
   }
 
   function _burnShares(address _account, uint256 _sharesAmount) internal {
-    require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_sharesAmount <= netSharesOf(_account), 'BALANCE_EXCEEDED');
+    require(_account != address(0));
+    require(_sharesAmount <= netSharesOf(_account));
 
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
@@ -181,10 +183,10 @@ abstract contract Shares is
   }
 
   function _transferShares(address _from, address _to, uint256 _sharesAmount) internal {
-    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
-    require(_sharesAmount <= netSharesOf(_from), 'BALANCE_EXCEEDED');
+    require(_from != address(0));
+    require(_to != address(0));
+    require(_to != address(this));
+    require(_sharesAmount <= netSharesOf(_from));
 
     shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
@@ -195,7 +197,7 @@ abstract contract Shares is
   function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
-      require(currentAllowance >= _amount, 'ALLOWANCE_EXCEEDED');
+      require(currentAllowance >= _amount);
       _approve(_account, _spender, currentAllowance - _amount);
     }
   }
@@ -204,29 +206,18 @@ abstract contract Shares is
    ** LOCK SHARES **
    *****************/
 
-  event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
-  event UnlockShares(address indexed user, uint256 id, uint256 amount);
-  event SetMinLockDays(uint256 minLockDays);
-  event SetMaxLockDays(uint256 maxLockDays);
-  event SetEnableLock(bool enableLock);
-
-  mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
-  mapping(address => uint256) public totalAccountLockedShares;
-  mapping(address => uint256) public totalAccountLockedDays;
   uint256 public totalLockedShares = 0;
-
-  uint256 private nextLockedSharesId = 1;
-  uint256 public minLockDays = 30;
-  uint256 public maxLockDays = 365;
-  bool public enableLock = true;
+  mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
+  mapping(address => uint256) public lockedSharesOf;
+  uint256 private lockSharesId = 1;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
-    require(enableLock, 'LOCK_DISABLED');
-    require(_lockDays >= minLockDays && _lockDays <= maxLockDays, 'INVALID_LOCK_PERIOD');
-    require(_sharesAmount <= shares[msg.sender], 'NOT_ENOUGH_SHARES');
+    require(config.enableLock);
+    require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays);
+    require(_sharesAmount <= shares[msg.sender]);
 
-    uint256 newId = nextLockedSharesId;
-    nextLockedSharesId += 1;
+    uint256 newId = lockSharesId;
+    lockSharesId += 1;
 
     lockedShares[msg.sender][newId] = LockedShares({
       id: newId,
@@ -236,8 +227,7 @@ abstract contract Shares is
     });
 
     totalLockedShares += _sharesAmount;
-    totalAccountLockedShares[msg.sender] += _sharesAmount;
-    totalAccountLockedDays[msg.sender] += _sharesAmount * _lockDays;
+    lockedSharesOf[msg.sender] += _sharesAmount;
 
     emit LockShares(msg.sender, newId, _sharesAmount, _lockDays);
   }
@@ -245,57 +235,19 @@ abstract contract Shares is
   function unlockShares(uint256 _id) external nonReentrant whenNotPaused {
     LockedShares storage lockedShare = lockedShares[msg.sender][_id];
 
-    require(lockedShare.id != 0, 'LOCKED_SHARES_DOES_NOT_EXIST');
-    require(lockedShare.unlockTime <= block.timestamp, 'SHARES_ARE_STILL_LOCKED');
+    require(lockedShare.id != 0);
+    require(lockedShare.unlockTime <= block.timestamp);
 
     totalLockedShares -= lockedShare.amount;
-    totalAccountLockedShares[msg.sender] -= lockedShare.amount;
-    totalAccountLockedDays[msg.sender] -= lockedShare.amount * lockedShare.lockDays;
+    lockedSharesOf[msg.sender] -= lockedShare.amount;
 
     delete lockedShares[msg.sender][_id];
 
     emit UnlockShares(msg.sender, _id, lockedShare.amount);
   }
 
-  function incentiveFactorOf(address _account) public view returns (uint256, uint256) {
-    if (totalAccountLockedShares[_account] > 0) {
-      uint256 factor = Math.mulDiv(
-        totalAccountLockedDays[_account],
-        totalAccountLockedShares[_account],
-        shares[_account]
-      );
-      uint256 percentage = Math.mulDiv(totalAccountLockedShares[_account], 1 ether, totalLockedShares);
-      return (factor, percentage);
-    } else {
-      return (0, 0);
-    }
-  }
-
-  function setMinLockDays(uint256 _minLockDays) external onlyRole(ADMIN_ROLE) {
-    require(_minLockDays > 0, 'ZERO_MIN_LOCK_DAYS');
-    require(_minLockDays <= maxLockDays, 'MIN_LOCK_DAYS_EXCEEDS_MAX_LOCK_DAYS');
-    minLockDays = _minLockDays;
-    emit SetMinLockDays(_minLockDays);
-  }
-
-  function setMaxLockDays(uint256 _maxLockDays) external onlyRole(ADMIN_ROLE) {
-    require(_maxLockDays > 0, 'ZERO_MAX_LOCK_DAYS');
-    require(_maxLockDays >= minLockDays, 'MAX_LOCK_DAYS_BELOW_MIN_LOCK_DAYS');
-    maxLockDays = _maxLockDays;
-    emit SetMaxLockDays(_maxLockDays);
-  }
-
-  function setEnableLock(bool _enableLock) external onlyRole(ADMIN_ROLE) {
-    enableLock = _enableLock;
-    emit SetEnableLock(_enableLock);
-  }
-
-  function lockedSharesOf(address _account) public view returns (uint256) {
-    return totalAccountLockedShares[_account];
-  }
-
   function netSharesOf(address _account) public view returns (uint256) {
-    return sharesOf(_account) - totalAccountLockedShares[_account];
+    return sharesOf(_account) - lockedSharesOf[_account];
   }
 
   /*****************
@@ -328,10 +280,10 @@ abstract contract Shares is
   }
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
-    require(_to != address(0), 'MINT_TO_ZERO_ADDR');
-    require(isPool(_pool), 'ONLY_CAN_DELEGATE_TO_POOL');
-    require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
-    require(_sharesAmount > 0, 'MINT_INVALID_AMOUNT');
+    require(_to != address(0));
+    require(isPool(_pool));
+    require(delegates[_to].length < maxDelegations);
+    require(_sharesAmount > 0);
 
     _incrementPoolShares(_to, _pool, _sharesAmount);
     _addDelegate(_to, _pool);
@@ -340,10 +292,10 @@ abstract contract Shares is
   }
 
   function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
-    require(_to != address(0), 'BURN_to_ZERO_ADDR');
-    require(isPool(_pool), 'ONLY_CAN_BURN_to_POOL');
-    require(delegationsShares[_to][_pool] >= _sharesAmount, 'BURN_INVALID_AMOUNT');
-    require(_sharesAmount > 0, 'BURN_INVALID_AMOUNT');
+    require(_to != address(0));
+    require(isPool(_pool));
+    require(delegationsShares[_to][_pool] >= _sharesAmount);
+    require(_sharesAmount > 0);
 
     _decrementPoolShares(_to, _pool, _sharesAmount);
 
@@ -360,11 +312,11 @@ abstract contract Shares is
     address _toPool,
     uint256 _sharesAmount
   ) internal {
-    require(_account != address(0), 'ZERO_ADDR');
-    require(_fromPool != address(0), 'ZERO_ADDR');
-    require(_toPool != address(0), 'ZERO_ADDR');
-    require(isPool(_toPool), 'ONLY_CAN_TRANSFER_TO_POOL');
-    require(_sharesAmount <= delegationsShares[_account][_fromPool], 'BALANCE_EXCEEDED');
+    require(_account != address(0));
+    require(_fromPool != address(0));
+    require(_toPool != address(0));
+    require(isPool(_toPool));
+    require(_sharesAmount <= delegationsShares[_account][_fromPool]);
 
     _decrementPoolShares(_account, _fromPool, _sharesAmount);
     _removeDelegate(_account, _fromPool);
@@ -380,13 +332,13 @@ abstract contract Shares is
     address _to,
     uint256 _sharesToTransfer
   ) internal whenNotPaused {
-    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(_sharesToTransfer <= netSharesOf(_from), 'TRANSFER_EXCEEDS_BALANCE');
+    require(_from != address(0));
+    require(_to != address(0));
+    require(_sharesToTransfer <= netSharesOf(_from));
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address pool = delegates[_from][i];
-      uint256 delegationSharesToTransfer = Math.mulDiv(
+      uint256 delegationSharesToTransfer = MathUpgradeable.mulDiv(
         delegationSharesOf(_from, pool),
         _sharesToTransfer,
         netSharesOf(_from)
@@ -395,7 +347,7 @@ abstract contract Shares is
       delegationsShares[_from][pool] -= delegationSharesToTransfer;
 
       if (!isDelegate[_to][pool]) {
-        require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+        require(delegates[_to].length < maxDelegations);
         delegates[_to].push(pool);
         isDelegate[_to][pool] = true;
       }
@@ -416,11 +368,11 @@ abstract contract Shares is
     address _pool,
     uint256 _sharesAmount
   ) internal whenNotPaused {
-    require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
-    require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
-    require(isPool(_pool), 'INVALID_POOL');
-    require(_sharesAmount > 0, 'INVALID_AMOUNT');
-    require(_sharesAmount <= delegationsShares[_from][_pool], 'BALANCE_EXCEEDED');
+    require(_from != address(0));
+    require(_to != address(0));
+    require(isPool(_pool));
+    require(_sharesAmount > 0);
+    require(_sharesAmount <= delegationsShares[_from][_pool]);
 
     _decrementPoolShares(_from, _pool, _sharesAmount);
     _removeDelegate(_from, _pool);
@@ -445,7 +397,7 @@ abstract contract Shares is
 
   function _addDelegate(address _to, address _pool) internal {
     if (!isDelegate[_to][_pool]) {
-      require(delegates[_to].length < maxDelegations, 'MAX_DELEGATIONS_REACHED');
+      require(delegates[_to].length < maxDelegations);
       delegates[_to].push(_pool);
       isDelegate[_to][_pool] = true;
     }
@@ -476,23 +428,25 @@ abstract contract Shares is
   }
 
   function mintRewards(address _address, address _pool, uint256 _sharesAmount) public payable {
-    require(
-      msg.sender == address(routerContract) || msg.sender == address(liquidityContract),
-      'ONLY_ROUTER_OR_LIQUIDITY'
-    );
+    require(msg.sender == address(routerContract) || msg.sender == address(liquidityContract));
     _mintRewards(_address, _pool, _sharesAmount);
   }
 
   function claimRewards(
     address _account,
     uint256 _sharesAmount,
-    bool _isPool
-  ) external nonReentrant whenNotPaused {
-    require(msg.sender == address(airdropContract), 'ONLY_AIRDROP');
-    _transferShares(address(airdropContract), _account, _sharesAmount);
-    _transferPoolDelegationShares(address(airdropContract), _account, address(this), _sharesAmount);
+    IFees.FeeRoles _role
+  ) external whenNotPaused {
+    require(msg.sender == address(airdropContract));
+    _transferShares(feesContract.getFeeAddress(_role), _account, _sharesAmount);
+    _transferPoolDelegationShares(
+      feesContract.getFeeAddress(_role),
+      _account,
+      address(this),
+      _sharesAmount
+    );
 
-    if (_isPool) {
+    if (_role == IFees.FeeRoles.Pools) {
       _transferPoolShares(_account, address(this), _account, _sharesAmount);
     }
 
@@ -501,7 +455,7 @@ abstract contract Shares is
 
   function mintPenalty(uint256 _lossAmount) external onlyRouter {
     beaconBalance -= _lossAmount;
-    require(totalPooledEther() - _lossAmount > 0, 'NEGATIVE_TOTAL_POOLED_ETHER_BALANCE');
+    require(totalPooledEther() - _lossAmount > 0);
     emit MintPenalty(_lossAmount);
   }
 }

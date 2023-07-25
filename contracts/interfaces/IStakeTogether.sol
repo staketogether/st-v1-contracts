@@ -1,7 +1,24 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.18;
 
+/// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
+  struct Config {
+    bool enableDeposit;
+    bool enableLock;
+    bool enableWithdrawPool;
+    uint256 poolSize;
+    uint256 minDepositAmount;
+    uint256 minLockDays;
+    uint256 maxLockDays;
+    uint256 depositLimit;
+    uint256 withdrawalLimit;
+    uint256 blocksPerDay;
+    uint256 maxPools;
+    bool permissionLessAddPool;
+  }
+
   struct LockedShares {
     uint256 id;
     uint256 amount;
@@ -9,27 +26,11 @@ interface IStakeTogether {
     uint256 lockDays;
   }
 
-  event Bootstrap(address sender, uint256 balance);
-  event MintRewardsAccounts(address indexed sender, uint amount);
-  event MintRewardsAccountsFallback(address indexed sender, uint amount);
-  event SupplyLiquidity(uint256 amount);
-  event DepositBase(
-    address indexed to,
-    address indexed pool,
-    uint256 amount,
-    uint256 stakeAccountShares,
-    uint256 lockAccountShares,
-    uint256 poolsShares,
-    uint256 operatorsShares,
-    uint256 oraclesShares,
-    uint256 stakeTogetherShares,
-    uint256 liquidityProvidersShares,
-    uint256 senderShares
-  );
-
-  event DepositWalletLimitReached(address indexed sender, uint256 amount);
-  event DepositProtocolLimitReached(address indexed sender, uint256 amount);
-  event DepositPool(address indexed account, uint256 amount, address pool, address referral);
+  event AddPool(address account);
+  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
+  event BurnShares(address indexed account, uint256 sharesAmount);
+  event ClaimRewards(address indexed account, uint256 sharesAmount);
+  event DepositBase(address indexed to, address indexed pool, uint256 amount, uint256[8] shares);
   event DepositDonationPool(
     address indexed donor,
     address indexed account,
@@ -37,45 +38,21 @@ interface IStakeTogether {
     address pool,
     address referral
   );
-  event WithdrawalLimitReached(address indexed sender, uint256 amount);
-  event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
-  event WithdrawValidator(address indexed account, uint256 amount, address pool);
-  event SetEnableDeposit(bool enableDeposit);
-  event SetEnableWithdrawPool(bool enableWithdrawPool);
-  event SetDepositLimit(uint256 newLimit);
-  event SetWithdrawalLimit(uint256 newLimit);
-  event SetMinDepositPoolAmount(uint256 amount);
-  event SetPoolSize(uint256 amount);
-  event SetBlocksInterval(uint256 blocksInterval);
-  event AddPool(address account);
-  event RemovePool(address account);
-  event SetMaxPools(uint256 maxPools);
-  event SetPermissionLessAddPool(bool permissionLessAddPool);
-  event SetWithdrawalCredentials(bytes withdrawalCredentials);
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event RefundPool(address indexed sender, uint256 amount);
-
-  event SetBeaconBalance(uint256 amount);
-  event SetLiquidityBalance(uint256 amount);
-  event MintShares(address indexed to, uint256 sharesAmount);
-  event BurnShares(address indexed account, uint256 sharesAmount);
-  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event DepositPool(address indexed account, uint256 amount, address pool, address referral);
+  event DepositProtocolLimitReached(address indexed sender, uint256 amount);
+  event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
+  event MintPenalty(uint256 amount);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
-  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
-  event TransferPoolShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
+  event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
+  event MintRewardsAccounts(address indexed sender, uint amount);
+  event MintRewardsAccountsFallback(address indexed sender, uint amount);
+  event MintShares(address indexed to, uint256 sharesAmount);
+  event RefundPool(address indexed sender, uint256 amount);
+  event RemovePool(address account);
+  event SetBeaconBalance(uint256 amount);
+  event SetConfig(Config config);
+  event SetLiquidityBalance(uint256 amount);
+  event SupplyLiquidity(uint256 amount);
   event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferPoolDelegationShares(
     address indexed from,
@@ -83,7 +60,16 @@ interface IStakeTogether {
     address indexed pool,
     uint256 sharesAmount
   );
-  event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
-  event MintPenalty(uint256 amount);
-  event ClaimRewards(address indexed account, uint256 sharesAmount);
+  event TransferPoolShares(
+    address indexed from,
+    address indexed to,
+    address indexed pool,
+    uint256 sharesAmount
+  );
+  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event UnlockShares(address indexed user, uint256 id, uint256 amount);
+  event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
+  event WithdrawPool(address indexed account, uint256 amount, address pool);
+  event WithdrawalLimitReached(address indexed sender, uint256 amount);
+  event WithdrawValidator(address indexed account, uint256 amount, address pool);
 }
