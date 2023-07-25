@@ -31,8 +31,6 @@ export async function mockedRewardsFixture() {
   // Mocking the rewards percentage with real values
 
   // Mocking the rewards balance and obtaining necessary info for the calculation
-  const lastConsensusEpoch = await Router.lastConsensusEpoch()
-  const blockFrequency = await Router.reportBlockFrequency()
   const totalPooledEth = await StakeTogether.totalPooledEther()
   const totalShares = await StakeTogether.totalShares()
 
@@ -44,7 +42,6 @@ export async function mockedRewardsFixture() {
   const rewardsBalanceShares = pooledEthWithRewardsShares - pooledEthShares
 
   const STAKE_REWARDS_FEE = 3n
-  const POOL_ROLE = 2
   const { shares } = await Fees.estimateFeePercentage(STAKE_REWARDS_FEE, rewardsBalanceShares)
 
   const feeRolesAddresses = await Fees.getFeeRolesAddresses()
@@ -68,7 +65,7 @@ export async function mockedRewardsFixture() {
   const liquidityProvidersAddresses = [user6.address]
 
   const rewardsPerFeeRoleRootsPromises = feeRolesAddresses.map(async (feeRoleAddress, feeRoleIndex) => {
-    const feeRoleShares = await StakeTogether.sharesOf(feeRoleAddress)
+    const feeRoleShares = shares[feeRoleIndex]
 
     switch (feeRoleIndex) {
       case STAKE_ACCOUNTS_ROLE:
@@ -217,7 +214,7 @@ export async function mockedRewardsFixture() {
   const encoder = new AbiCoder()
   const mockedReport: any = [
     await provider.getBlockNumber(), // blockNumber
-    lastConsensusEpoch, // epoch
+    123, // epoch
     rewardsBalanceShares, // profitAmount
     0, // lossAmount
     rewardsPerFeeRoleRoots, // merkleRoots: ['0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00']

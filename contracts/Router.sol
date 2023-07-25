@@ -17,6 +17,7 @@ import './Validators.sol';
 import './Withdrawals.sol';
 
 import './interfaces/IFees.sol';
+import './interfaces/IRouter.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Router is
@@ -24,7 +25,8 @@ contract Router is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ReentrancyGuardUpgradeable,
+  IRouter
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -38,61 +40,6 @@ contract Router is
   Liquidity public liquidityContract;
   Airdrop public airdropContract;
   Validators public validatorsContract;
-
-  struct ValidatorOracle {
-    address oracle;
-    bytes[] validators;
-  }
-
-  struct Report {
-    uint256 blockNumber;
-    uint256 epoch;
-    uint256 profitAmount;
-    uint256 lossAmount; // Penalty or Slashing
-    bytes32[7] merkleRoots;
-    ValidatorOracle[] validatorsToExit; // Validators that should exit
-    bytes[] exitedValidators; // Validators that already exited
-    uint256 withdrawAmount; // Amount of ETH to send to WETH contract
-    uint256 restWithdrawAmount; // Rest withdrawal validator amount
-    uint256 routerExtraAmount; // Extra money on this contract
-  }
-
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event AddReportOracle(address indexed oracle);
-  event RemoveReportOracle(address indexed oracle);
-  event SetMinReportOracleQuorum(uint256 minQuorum);
-  event SetReportOracleQuorum(uint256 quorum);
-  event UpdateReportOracleQuorum(uint256 quorum);
-  event SetReportOraclePenalizeLimit(uint256 newLimit);
-  event PenalizeReportOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool blacklisted);
-  event RewardReportOracle(address indexed oracle, uint256 penalties, bytes32 hash);
-  event BlacklistReportOracle(address indexed oracle, uint256 penalties);
-  event BlacklistReportOracleManually(address indexed oracle, uint256 penalties);
-  event UnBlacklistReportOracle(address indexed oracle, uint256 penalties);
-  event SetBunkerMode(bool bunkerMode);
-  event InvalidateConsensus(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
-  event SubmitReport(
-    address indexed oracle,
-    uint256 indexed blockNumber,
-    uint256 indexed epoch,
-    bytes32 hash
-  );
-  event ConsensusApprove(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
-  event ConsensusNotReached(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
-  event ExecuteReport(address indexed oracle, bytes32 hash, Report report);
-  event SetReportBlockFrequency(uint256 frequency);
-  event SetReportBlockNumber(uint256 blockNumber);
-  event SetReportEpochFrequency(uint256 epoch);
-  event SetReportEpochNumber(uint256 epochNumber);
-  event SetMaxValidatorsToExit(uint256 maxValidatorsToExit);
-  event SetMinBlockBeforeExecution(uint256 minBlocksBeforeExecution);
-  event SetLastConsensusEpoch(uint256 epoch);
-  event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
-  event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
-  event SetMaxApr(uint256 maxApr);
-  event RequestValidatorsExit(bytes[] publicKeys);
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {

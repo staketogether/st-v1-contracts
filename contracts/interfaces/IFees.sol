@@ -40,8 +40,8 @@ interface IFees {
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
   event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
   event SetFeeValue(FeeType indexed feeType, uint256 amount);
-  event SetLiquidityContract(address liquidityContract);
+  event SetLiquidity(address liquidity);
   event SetMaxFeeIncrease(uint256 maxFeeIncrease);
-  event SetRouterContract(address routerContract);
+  event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
 }

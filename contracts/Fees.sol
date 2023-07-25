@@ -36,16 +36,6 @@ contract Fees is
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
 
-  event SetTotalFee(FeeType indexed feeType, uint256 total);
-  event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
-  event SetRouterContract(address routerContract);
-  event SetLiquidityContract(address liquidityContract);
-  event ReceiveEther(address indexed sender, uint256 amount);
-  event FallbackEther(address indexed sender, uint256 amount);
-  event SetStakeTogether(address stakeTogether);
-  event SetFeeAddress(FeeRoles indexed role, address indexed account);
-  event SetMaxFeeIncrease(uint256 maxFeeIncrease);
-
   constructor() {
     _disableInitializers();
   }
@@ -81,7 +71,7 @@ contract Fees is
   }
 
   modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
+    require(msg.sender == address(router), 'ONLY_ROUTER');
     _;
   }
 

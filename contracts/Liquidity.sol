@@ -17,6 +17,7 @@ import './Router.sol';
 import './StakeTogether.sol';
 
 import './interfaces/IFees.sol';
+import './interfaces/ILiquidity.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Liquidity is
@@ -27,36 +28,16 @@ contract Liquidity is
   AccessControlUpgradeable,
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ReentrancyGuardUpgradeable,
+  ILiquidity
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public routerContract;
+  Router public router;
   Fees public feesContract;
-  bool private bootstrapped = false;
-
-  event Bootstrap(address sender, uint256 balance);
-  event MintRewardsWithdrawalLenders(address indexed sender, uint amount);
-  event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event SetRouter(address routerContract);
-  event SetFees(address feesContract);
-  event MintShares(address indexed to, uint256 sharesAmount);
-  event BurnShares(address indexed account, uint256 sharesAmount);
-  event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event SetEnableLiquidity(bool enable);
-  event SetEnableDeposit(bool enableDeposit);
-  event SetDepositLimit(uint256 newLimit);
-  event SetWithdrawalLimit(uint256 newLimit);
-  event SetWithdrawalLiquidityLimit(uint256 newLimit);
-  event SetMinDepositPoolAmount(uint256 amount);
-  event SetBlocksInterval(uint256 blocksInterval);
-  event DepositPool(address indexed user, uint256 amount);
-  event WithdrawPool(address indexed user, uint256 amount);
-  event WithdrawLiquidity(address indexed user, uint256 amount);
-  event SupplyLiquidity(address indexed user, uint256 amount);
+  Config public config;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -74,6 +55,13 @@ contract Liquidity is
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
+
+    totalWithdrawalsShares = 0;
+  }
+
+  function initializeShares() external payable onlyRole(ADMIN_ROLE) {
+    require(totalWithdrawalsShares == 0);
+    _mintShares(msg.sender, msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -102,17 +90,6 @@ contract Liquidity is
     emit MintRewardsWithdrawalLendersFallback(msg.sender, msg.value);
   }
 
-  function bootstrap() external payable {
-    require(!bootstrapped, 'ALREADY_BOOTSTRAPPED');
-    require(hasRole(ADMIN_ROLE, msg.sender), 'ONLY_ADMIN');
-
-    bootstrapped = true;
-
-    _mintShares(address(this), msg.value);
-
-    emit Bootstrap(msg.sender, msg.value);
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
@@ -124,16 +101,19 @@ contract Liquidity is
     _;
   }
 
-  function setRouter(address _routerContract) external onlyRole(ADMIN_ROLE) {
-    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
-    routerContract = Router(payable(_routerContract));
-    emit SetRouter(_routerContract);
+  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
+    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    router = Router(payable(_router));
+    emit SetRouter(_router);
   }
 
-  function setFees(address _feesContract) external onlyRole(ADMIN_ROLE) {
-    require(_feesContract != address(0), 'FEES_CONTRACT_ALREADY_SET');
-    feesContract = Fees(payable(_feesContract));
-    emit SetFees(_feesContract);
+  /************
+   ** CONFIG **
+   ************/
+
+  function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
+    config = _config;
+    emit SetConfig(_config);
   }
 
   /************
@@ -141,7 +121,7 @@ contract Liquidity is
    ************/
 
   mapping(address => uint256) private withdrawalsShares;
-  uint256 public totalWithdrawalsShares = 0;
+  uint256 public totalWithdrawalsShares;
   mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view returns (uint256) {
@@ -281,22 +261,15 @@ contract Liquidity is
    ** LIQUIDITY **
    ***************/
 
-  bool public enableLiquidity = true;
-  bool public enableDeposit = true;
-  uint256 public minDepositAmount = 0.001 ether;
-  uint256 public depositLimit = 1000 ether;
-  uint256 public withdrawalLimit = 1000 ether;
-  uint256 public withdrawalLiquidityLimit = 1000 ether;
-  uint256 public blocksPerDay = 6500;
   uint256 public lastResetBlock;
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
   uint256 public totalLiquidityWithdrawn;
 
   function depositPool() public payable whenNotPaused nonReentrant {
-    require(enableDeposit, 'DEPOSIT_DISABLED');
+    require(config.enableDeposit, 'DEPOSIT_DISABLED');
     require(msg.value > 0, 'ZERO_VALUE');
-    require(msg.value >= minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
+    require(msg.value >= config.minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
 
     _resetLimits();
 
@@ -331,9 +304,7 @@ contract Liquidity is
     _resetLimits();
 
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
-
     _burnShares(msg.sender, sharesToBurn);
-
     totalWithdrawn += _amount;
 
     payable(msg.sender).transfer(_amount);
@@ -344,7 +315,7 @@ contract Liquidity is
     uint256 _amount,
     address _pool
   ) public whenNotPaused nonReentrant onlyStakeTogether {
-    require(enableLiquidity, 'LIQUIDITY_DISABLED');
+    require(config.enableLiquidity, 'LIQUIDITY_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
@@ -370,9 +341,7 @@ contract Liquidity is
     }
 
     stakeTogether.setLiquidityBalance(stakeTogether.liquidityBalance() + _amounts[7]);
-
     payable(msg.sender).transfer(_amounts[7]);
-
     totalLiquidityWithdrawn += _amounts[7];
 
     emit WithdrawLiquidity(msg.sender, _amount);
@@ -383,43 +352,8 @@ contract Liquidity is
     emit SupplyLiquidity(msg.sender, msg.value);
   }
 
-  function setEnableLiquidity(bool _enable) external onlyRole(ADMIN_ROLE) {
-    enableLiquidity = _enable;
-    emit SetEnableLiquidity(_enable);
-  }
-
-  function setEnableDeposit(bool _enableDeposit) external onlyRole(ADMIN_ROLE) {
-    enableDeposit = _enableDeposit;
-    emit SetEnableDeposit(_enableDeposit);
-  }
-
-  function setMinDepositPoolAmount(uint256 _amount) external onlyRole(ADMIN_ROLE) {
-    minDepositAmount = _amount;
-    emit SetMinDepositPoolAmount(_amount);
-  }
-
-  function setDepositLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
-    depositLimit = _newLimit;
-    emit SetDepositLimit(_newLimit);
-  }
-
-  function setWithdrawalLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
-    withdrawalLimit = _newLimit;
-    emit SetWithdrawalLimit(_newLimit);
-  }
-
-  function setWithdrawalLiquidityLimit(uint256 _newLimit) external onlyRole(ADMIN_ROLE) {
-    withdrawalLiquidityLimit = _newLimit;
-    emit SetWithdrawalLiquidityLimit(_newLimit);
-  }
-
-  function setBlocksInterval(uint256 _newBlocksInterval) external onlyRole(ADMIN_ROLE) {
-    blocksPerDay = _newBlocksInterval;
-    emit SetBlocksInterval(_newBlocksInterval);
-  }
-
   function _resetLimits() internal {
-    if (block.number > lastResetBlock + blocksPerDay) {
+    if (block.number > lastResetBlock + config.blocksInterval) {
       totalDeposited = 0;
       totalWithdrawn = 0;
       totalLiquidityWithdrawn = 0;

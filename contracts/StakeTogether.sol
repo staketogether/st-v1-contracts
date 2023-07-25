@@ -16,9 +16,8 @@ contract StakeTogether is Shares {
     address _airdropContract,
     address _withdrawalsContract,
     address _liquidityContract,
-    address _validatorsContract,
-    bytes memory _withdrawalCredentials
-  ) public payable initializer {
+    address _validatorsContract
+  ) public initializer {
     __ERC20_init('ST Staked Ether', 'sETH');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -36,10 +35,11 @@ contract StakeTogether is Shares {
     withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
     validatorsContract = Validators(payable(_validatorsContract));
-    withdrawalCredentials = _withdrawalCredentials;
+  }
 
+  function initializeShares() external payable onlyRole(ADMIN_ROLE) {
+    require(totalShares == 0);
     this.addPool(address(this));
-
     _mintShares(address(this), msg.value);
     _mintPoolShares(address(this), address(this), msg.value);
   }
@@ -70,6 +70,12 @@ contract StakeTogether is Shares {
     require(_config.poolSize >= validatorsContract.validatorSize());
     config = _config;
     emit SetConfig(_config);
+  }
+
+  function setWithdrawalsCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
+    require(withdrawalCredentials.length == 0);
+    withdrawalCredentials = _withdrawalCredentials;
+    emit SetWithdrawalsCredentials(_withdrawalCredentials);
   }
 
   /*********************

@@ -14,6 +14,7 @@ import './StakeTogether.sol';
 
 import './interfaces/IDepositContract.sol';
 import './interfaces/IFees.sol';
+import './interfaces/IValidators.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Validators is
@@ -21,7 +22,8 @@ contract Validators is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ReentrancyGuardUpgradeable,
+  IValidators
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -31,34 +33,17 @@ contract Validators is
 
   StakeTogether public stakeTogether;
   Router public router;
-  Fees public feesContract;
+  Fees public fees;
   IDepositContract public depositContract;
 
   bool public enableBorrow = true;
-
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event SetRouter(address router);
-  event AddValidatorOracle(address indexed account);
-  event RemoveValidatorOracle(address indexed account);
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
-  event SetValidatorSize(uint256 newValidatorSize);
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
 
-  function initialize(address _depositContract, address _feesContract) public initializer {
+  function initialize(address _depositContract, address _fees) public initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -68,7 +53,7 @@ contract Validators is
     _grantRole(UPGRADER_ROLE, msg.sender);
 
     depositContract = IDepositContract(_depositContract);
-    feesContract = Fees(payable(_feesContract));
+    fees = Fees(payable(_fees));
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -190,15 +175,15 @@ contract Validators is
     validators[_publicKey] = true;
     totalValidators++;
 
-    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakeValidator);
+    uint256[8] memory feeAmounts = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
-    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
 
     for (uint i = 0; i < feeAmounts.length - 1; i++) {
       if (feeAmounts[i] > 0) {
         stakeTogether.mintRewards(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
           feeAmounts[i]
         );
       }

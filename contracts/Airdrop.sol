@@ -29,22 +29,6 @@ contract Airdrop is
   StakeTogether public stakeTogether;
   Router public router;
 
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event SetRouter(address router);
-  event AddMerkleRoots(
-    uint256 indexed epoch,
-    bytes32 poolsRoot,
-    bytes32 operatorsRoot,
-    bytes32 stakeRoot,
-    bytes32 withdrawalsRoot,
-    bytes32 rewardsRoot
-  );
-  event ClaimRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
-  event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
-  event SetMaxBatchSize(uint256 maxBatchSize);
-
   constructor() {
     _disableInitializers();
   }

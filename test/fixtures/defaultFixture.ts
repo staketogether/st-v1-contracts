@@ -1,5 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ethers } from 'hardhat'
+import { ethers, upgrades } from 'hardhat'
 
 import {
   Airdrop__factory,
@@ -31,37 +31,51 @@ export async function defaultFixture() {
   const initialDeposit = 1n
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
 
-  const Fees = await new Fees__factory().connect(owner).deploy()
-  const Withdrawals = await new Withdrawals__factory().connect(owner).deploy()
-  const Liquidity = await new Liquidity__factory().connect(owner).deploy()
-  const Airdrop = await new Airdrop__factory().connect(owner).deploy()
-  const Validators = await new Validators__factory().connect(owner).deploy()
-  const Router = await new Router__factory().connect(owner).deploy()
-
-  const StakeTogether = await new StakeTogether__factory().connect(owner).deploy()
-
-  await StakeTogether.initialize(
-    await Router.getAddress(),
-    await Fees.getAddress(),
-    await Airdrop.getAddress(),
-    await Withdrawals.getAddress(),
-    await Liquidity.getAddress(),
-    await Validators.getAddress()
-  )
-  await StakeTogether.bootstrap({ value: initialDeposit })
-
-  await Router.setStakeTogether(await StakeTogether.getAddress())
-  await Router.initialize(
+  const FeesFactory = await new Fees__factory().connect(owner)
+  const Fees = await upgrades.deployProxy(FeesFactory)
+  await Fees.waitForDeployment()
+  const WithdrawalsFactory = await new Withdrawals__factory().connect(owner)
+  const Withdrawals = await upgrades.deployProxy(WithdrawalsFactory)
+  await Withdrawals.waitForDeployment()
+  const LiquidityFactory = await new Liquidity__factory().connect(owner)
+  const Liquidity = await upgrades.deployProxy(LiquidityFactory)
+  await Liquidity.waitForDeployment()
+  const AirdropFactory = await new Airdrop__factory().connect(owner)
+  const Airdrop = await upgrades.deployProxy(AirdropFactory)
+  await Airdrop.waitForDeployment()
+  const ValidatorsFactory = await new Validators__factory().connect(owner)
+  const Validators = await upgrades.deployProxy(ValidatorsFactory, [
+    process.env.GOERLI_DEPOSIT_ADDRESS as string,
+    await Fees.getAddress()
+  ])
+  await Validators.waitForDeployment()
+  const RouterFactory = await new Router__factory().connect(owner)
+  const Router = await upgrades.deployProxy(RouterFactory, [
     await Withdrawals.getAddress(),
     await Liquidity.getAddress(),
     await Airdrop.getAddress(),
     await Validators.getAddress(),
     await Fees.getAddress()
-  )
+  ])
+  await Router.waitForDeployment()
+
+  const StakeTogetherFactory = await new StakeTogether__factory().connect(owner)
+  const StakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    await Router.getAddress(),
+    await Fees.getAddress(),
+    await Airdrop.getAddress(),
+    await Withdrawals.getAddress(),
+    await Liquidity.getAddress(),
+    await Validators.getAddress(),
+    '0x',
+    { value: initialDeposit }
+  ])
+  await StakeTogether.waitForDeployment()
+
+  await Router.setStakeTogether(await StakeTogether.getAddress())
 
   await Validators.setStakeTogether(await StakeTogether.getAddress())
   await Validators.setRouter(await Router.getAddress())
-  await Validators.initialize(process.env.GOERLI_DEPOSIT_ADDRESS as string)
 
   await Airdrop.setStakeTogether(await StakeTogether.getAddress())
   await Airdrop.setRouter(await Router.getAddress())
@@ -70,7 +84,7 @@ export async function defaultFixture() {
 
   await Fees.setStakeTogether(await StakeTogether.getAddress())
   await Fees.setRouter(await Router.getAddress())
-  await Fees.setFee(1n, 1000000000000000n, 1n)
+  await Fees.setFeeValue(1n, 1000000000000000n, 1n)
   await Fees.setFeeAllocation(1n, (await Fees.getFeesRoles())[0], 400000000000000000n)
   await Fees.setFeeAllocation(1n, (await Fees.getFeesRoles())[1], 100000000000000000n)
   await Fees.setFeeAllocation(1n, (await Fees.getFeesRoles())[2], 100000000000000000n)
