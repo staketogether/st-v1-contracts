@@ -9,7 +9,9 @@ import {
   Fees,
   Fees__factory,
   Liquidity,
-  Liquidity__factory
+  Liquidity__factory,
+  Validators,
+  Validators__factory
 } from '../typechain'
 
 dotenv.config()
@@ -22,6 +24,11 @@ export async function deploy() {
   const fees = await deployFees(owner)
   const airdrop = await deployAirdrop(owner)
   const liquidity = await deployLiquidity(owner)
+  const validators = await deployValidators(
+    owner,
+    String(process.env.GOERLI_DEPOSIT_ADDRESS),
+    fees.proxyAddress
+  )
 
   // Fees Contract
   // Todo: set stake together address
@@ -35,6 +42,10 @@ export async function deploy() {
   // Todo: set stake together address
   // Todo: set router address
 
+  // Validators Contract
+  // Todo: set router address
+  // Todo: set stake together address
+
   console.log('\n🔷 All contracts deployed!\n')
   verifyContracts(
     fees.proxyAddress,
@@ -42,7 +53,9 @@ export async function deploy() {
     airdrop.proxyAddress,
     airdrop.implementationAddress,
     liquidity.proxyAddress,
-    liquidity.implementationAddress
+    liquidity.implementationAddress,
+    validators.proxyAddress,
+    validators.implementationAddress
   )
 }
 
@@ -160,6 +173,36 @@ async function deployLiquidity(owner: CustomEthersSigner) {
   }
 
   await liquidityContract.setConfig(config)
+
+  return { proxyAddress, implementationAddress }
+}
+
+async function deployValidators(owner: CustomEthersSigner, depositAddress: string, feesAddress: string) {
+  const ValidatorsFactory = new Validators__factory().connect(owner)
+
+  const validators = await upgrades.deployProxy(ValidatorsFactory, [depositAddress, feesAddress])
+  await validators.waitForDeployment()
+  const proxyAddress = await validators.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+
+  console.log(`Validators\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Validators\t Implementation\t\t ${implementationAddress}`)
+
+  const liquidityContract = validators as unknown as Validators
+
+  // await liquidityContract.initializeShares({ value: 1n })
+
+  // const config = {
+  //   enableLiquidity: true,
+  //   enableDeposit: true,
+  //   depositLimit: ethers.parseEther('1000'),
+  //   withdrawalLimit: ethers.parseEther('1000'),
+  //   withdrawalLiquidityLimit: ethers.parseEther('1000'),
+  //   minDepositAmount: ethers.parseEther('0.001'),
+  //   blocksInterval: 6500
+  // }
+
+  // await liquidityContract.setConfig(config)
 
   return { proxyAddress, implementationAddress }
 }
@@ -290,7 +333,9 @@ async function verifyContracts(
   airdropProxy: string,
   airdropImplementation: string,
   liquidityProxy: string,
-  liquidityImplementation: string
+  liquidityImplementation: string,
+  validatorsProxy: string,
+  validatorsImplementation: string
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
@@ -299,7 +344,9 @@ async function verifyContracts(
   console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${liquidityProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${liquidityImplementation}`)
+  console.log(`npx hardhat verify --network goerli ${liquidityImplementation} &&`)
+  console.log(`npx hardhat verify --network goerli ${validatorsProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${validatorsImplementation}`)
 
   // console.log(
   //   `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${liquidityAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} &&  && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${liquidityAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${
