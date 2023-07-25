@@ -3,7 +3,7 @@ import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
 import { checkVariables } from '../test/utils/env'
-import { Fees, Fees__factory } from '../typechain'
+import { Airdrop, Airdrop__factory, Fees, Fees__factory } from '../typechain'
 
 dotenv.config()
 
@@ -13,10 +13,15 @@ export async function deploy() {
   const [owner] = await ethers.getSigners()
 
   const fees = await deployFees(owner)
+  const airdrop = await deployAirdrop(owner)
 
   // Fees Contract
   // Todo: set stake together address
   // Todo: set liquidity address
+
+  // Airdrop Contract
+  // Todo: set stake together address
+  // Todo: set router address
 
   // const withdrawalsAddress = await deployWithdrawals(owner)
   // const airdropAddress = await deployAirdrop(owner)
@@ -44,25 +49,27 @@ export async function deploy() {
   console.log('\n🔷 All contracts deployed!\n')
   verifyContracts(
     fees.proxyAddress,
-    fees.implementationAddress
-    //   routerAddress,
-    //   airdropAddress,
-    //   withdrawalsAddress,
-    //   liquidityAddress,
-    //   validatorsAddress,
-    //   stakeTogether
+    fees.implementationAddress,
+    airdrop.proxyAddress,
+    airdrop.implementationAddress
+    //   //   routerAddress,
+    //   //   airdropAddress,
+    //   //   withdrawalsAddress,
+    //   //   liquidityAddress,
+    //   //   validatorsAddress,
+    //   //   stakeTogether
   )
 }
 
 async function deployFees(owner: CustomEthersSigner) {
-  const Fees = new Fees__factory().connect(owner)
-  const fees = await upgrades.deployProxy(Fees)
+  const FeesFactory = new Fees__factory().connect(owner)
+  const fees = await upgrades.deployProxy(FeesFactory)
   await fees.waitForDeployment()
   const proxyAddress = await fees.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`Fees Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Fees Implementation\t\t ${implementationAddress}`)
+  console.log(`Fees\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Fees\t\t Implementation\t\t ${implementationAddress}`)
 
   const feesContract = fees as unknown as Fees
 
@@ -125,22 +132,29 @@ async function deployFees(owner: CustomEthersSigner) {
   return { proxyAddress, implementationAddress }
 }
 
+async function deployAirdrop(owner: CustomEthersSigner) {
+  const AirdropFactory = new Airdrop__factory().connect(owner)
+  const airdrop = await upgrades.deployProxy(AirdropFactory)
+  await airdrop.waitForDeployment()
+  const proxyAddress = await airdrop.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+
+  console.log(`Airdrop\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Airdrop\t\t Implementation\t\t ${implementationAddress}`)
+
+  const airdropContract = airdrop as unknown as Airdrop
+
+  await airdropContract.setMaxBatchSize(100)
+
+  return { proxyAddress, implementationAddress }
+}
+
 // async function deployWithdrawals(owner: CustomEthersSigner) {
 //   const Withdrawal = await new Withdrawals__factory().connect(owner).deploy()
 
 //   const address = await Withdrawal.getAddress()
 
 //   console.log(`Withdrawal deployed:\t\t ${address}`)
-
-//   return address
-// }
-
-// async function deployAirdrop(owner: CustomEthersSigner) {
-//   const Airdrop = await new Airdrop__factory().connect(owner).deploy()
-
-//   const address = await Airdrop.getAddress()
-
-//   console.log(`Airdrop deployed:\t\t ${address}`)
 
 //   return address
 // }
@@ -257,7 +271,9 @@ async function deployFees(owner: CustomEthersSigner) {
 
 async function verifyContracts(
   feeProxy: string,
-  feeImplementation: string
+  feeImplementation: string,
+  airdropProxy: string,
+  airdropImplementation: string
   // routerAddress: string,
   // airdropAddress: string,
   // withdrawalsAddress: string,
@@ -269,7 +285,9 @@ async function verifyContracts(
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
   console.log(`npx hardhat verify --network goerli ${feeProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${feeImplementation}`)
+  console.log(`npx hardhat verify --network goerli ${feeImplementation} &&`)
+  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${airdropImplementation}`)
 
   // console.log(
   //   `\nnpx hardhat verify --network goerli ${routerAddress} ${withdrawalsAddress} ${liquidityAddress} ${airdropAddress} ${validatorsAddress} ${feesAddress} &&  && npx hardhat verify --network goerli ${airdropAddress} && npx hardhat verify --network goerli ${withdrawalsAddress} && npx hardhat verify --network goerli ${liquidityAddress} && npx hardhat verify --network goerli ${validatorsAddress} ${

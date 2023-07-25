@@ -12,35 +12,22 @@ import '@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgrad
 import './Router.sol';
 import './StakeTogether.sol';
 
+import './interfaces/IAirdrop.sol';
+
 /// @custom:security-contact security@staketogether.app
 contract Airdrop is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ReentrancyGuardUpgradeable,
+  IAirdrop
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
   Router public routerContract;
-
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event SetRouterContract(address routerContract);
-  event AddMerkleRoots(
-    uint256 indexed epoch,
-    bytes32 poolsRoot,
-    bytes32 operatorsRoot,
-    bytes32 stakeRoot,
-    bytes32 withdrawalsRoot,
-    bytes32 rewardsRoot
-  );
-  event ClaimRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
-  event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
-  event SetMaxBatchSize(uint256 maxBatchSize);
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -102,23 +89,9 @@ contract Airdrop is
    ** AIRDROPS **
    **************/
 
-  event AddAirdropMerkleRoot(Fees.FeeRoles indexed _role, uint256 indexed epoch, bytes32 merkleRoot);
-  event ClaimAirdrop(
-    Fees.FeeRoles indexed role,
-    uint256 indexed epoch,
-    address indexed account,
-    uint256 sharesAmount
-  );
-  event ClaimAirdropBatch(
-    address indexed claimer,
-    Fees.FeeRoles indexed role,
-    uint256 numClaims,
-    uint256 totalAmount
-  );
-
   mapping(Fees.FeeRoles => mapping(uint256 => bytes32)) public airdropsMerkleRoots;
   mapping(Fees.FeeRoles => mapping(uint256 => mapping(uint256 => uint256))) private claimedBitMap;
-  uint256 public maxBatchSize = 100;
+  uint256 public maxBatchSize;
 
   function addAirdropMerkleRoot(
     Fees.FeeRoles _role,
@@ -173,6 +146,11 @@ contract Airdrop is
     }
 
     emit ClaimAirdropBatch(msg.sender, _role, length, totalAmount);
+  }
+
+  function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
+    maxBatchSize = _maxBatchSize;
+    emit SetMaxBatchSize(_maxBatchSize);
   }
 
   function isAirdropClaimed(
