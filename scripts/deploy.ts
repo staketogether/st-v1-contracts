@@ -92,25 +92,31 @@ async function deployFees(owner: CustomEthersSigner) {
     await feesContract.setFeeAddress(i, owner)
   }
 
-  //
   // Set fee allocations: Make sure these allocations add up to 1 ether (100%) for each fee type
+
+  // StakeEntry
   await feesContract.setFeeAllocation(0, 1, ethers.parseEther('0.2'))
   await feesContract.setFeeAllocation(0, 2, ethers.parseEther('0.4'))
   await feesContract.setFeeAllocation(0, 5, ethers.parseEther('0.4'))
 
+  // StakeRewards
   await feesContract.setFeeAllocation(1, 2, ethers.parseEther('0.33'))
   await feesContract.setFeeAllocation(1, 3, ethers.parseEther('0.33'))
   await feesContract.setFeeAllocation(1, 5, ethers.parseEther('0.34'))
 
+  // StakePool
   await feesContract.setFeeAllocation(2, 1, ethers.parseEther('0.2'))
   await feesContract.setFeeAllocation(2, 5, ethers.parseEther('0.6'))
   await feesContract.setFeeAllocation(2, 6, ethers.parseEther('0.02'))
 
+  // StakeValidator
   await feesContract.setFeeAllocation(3, 3, ethers.parseEther('1'))
 
+  // LiquidityProvideEntry
   await feesContract.setFeeAllocation(4, 1, ethers.parseEther('0.5'))
   await feesContract.setFeeAllocation(4, 5, ethers.parseEther('0.5'))
 
+  // LiquidityProvide
   await feesContract.setFeeAllocation(5, 1, ethers.parseEther('0.1'))
   await feesContract.setFeeAllocation(5, 2, ethers.parseEther('0.1'))
   await feesContract.setFeeAllocation(5, 5, ethers.parseEther('0.1'))
