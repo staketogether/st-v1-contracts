@@ -16,6 +16,8 @@ import './Airdrop.sol';
 import './Validators.sol';
 import './Fees.sol';
 
+import './interfaces/IFees.sol';
+
 /// @custom:security-contact security@staketogether.app
 contract Router is
   Initializable,
@@ -342,7 +344,7 @@ contract Router is
     }
 
     (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.StakeRewards,
+      IFees.FeeType.StakeRewards,
       _report.profitAmount
     );
 
@@ -369,7 +371,7 @@ contract Router is
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
           feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
           _shares[i]
         );
         airdropContract.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);

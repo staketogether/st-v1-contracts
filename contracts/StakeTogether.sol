@@ -127,7 +127,7 @@ contract StakeTogether is Shares {
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
     (uint256[8] memory _shares, ) = feesContract.distributeFeePercentage(
-      Fees.FeeType.StakeEntry,
+      IFees.FeeType.StakeEntry,
       sharesAmount,
       0
     );
@@ -135,15 +135,15 @@ contract StakeTogether is Shares {
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
-        if (roles[i] == Fees.FeeRoles.Sender) {
+        if (roles[i] == IFees.FeeRoles.Sender) {
           _mintShares(_to, _shares[i]);
           _mintPoolShares(_to, _pool, _shares[i]);
-        } else if (roles[i] == Fees.FeeRoles.Pools) {
+        } else if (roles[i] == IFees.FeeRoles.Pools) {
           _mintRewards(_pool, _pool, _shares[i]);
         } else {
           _mintRewards(
             feesContract.getFeeAddress(roles[i]),
-            feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+            feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
             _shares[i]
           );
         }
@@ -253,14 +253,14 @@ contract StakeTogether is Shares {
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) && msg.sender != address(this)) {
       require(config.permissionLessAddPool);
 
-      uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakePool);
+      uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
 
       Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
       for (uint i = 0; i < roles.length - 1; i++) {
         mintRewards(
           feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
           feeAmounts[i]
         );
       }

@@ -11,7 +11,9 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import './StakeTogether.sol';
 import './Router.sol';
 import './Fees.sol';
+
 import './interfaces/IDepositContract.sol';
+import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Validators is
@@ -187,7 +189,7 @@ contract Validators is
     validators[_publicKey] = true;
     totalValidators++;
 
-    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(Fees.FeeType.StakeValidator);
+    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
     Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
@@ -195,7 +197,7 @@ contract Validators is
       if (feeAmounts[i] > 0) {
         stakeTogether.mintRewards(
           feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
           feeAmounts[i]
         );
       }

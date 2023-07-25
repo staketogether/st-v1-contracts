@@ -16,6 +16,8 @@ import './StakeTogether.sol';
 import './Router.sol';
 import './Fees.sol';
 
+import './interfaces/IFees.sol';
+
 /// @custom:security-contact security@staketogether.app
 contract Liquidity is
   Initializable,
@@ -298,16 +300,16 @@ contract Liquidity is
     _resetLimits();
 
     (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
-      Fees.FeeType.LiquidityProvideEntry,
+      IFees.FeeType.LiquidityProvideEntry,
       msg.value
     );
 
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
           feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
           _shares[i]
         );
       }
@@ -346,20 +348,20 @@ contract Liquidity is
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
     (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateDynamicFeePercentage(
-      Fees.FeeType.LiquidityProvide,
+      IFees.FeeType.LiquidityProvide,
       _amount
     );
 
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
 
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
-        if (roles[i] == Fees.FeeRoles.Pools) {
+        if (roles[i] == IFees.FeeRoles.Pools) {
           stakeTogether.mintRewards(_pool, _pool, _shares[i]);
         } else {
           stakeTogether.mintRewards(
             feesContract.getFeeAddress(roles[i]),
-            feesContract.getFeeAddress(Fees.FeeRoles.StakeTogether),
+            feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
             _shares[i]
           );
         }

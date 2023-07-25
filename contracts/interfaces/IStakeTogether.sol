@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
+/// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
     bool enableDeposit;

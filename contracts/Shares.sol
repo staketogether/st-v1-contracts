@@ -20,6 +20,7 @@ import './Liquidity.sol';
 import './Validators.sol';
 
 import './interfaces/IStakeTogether.sol';
+import './interfaces/IFees.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is
@@ -434,7 +435,7 @@ abstract contract Shares is
   function claimRewards(
     address _account,
     uint256 _sharesAmount,
-    Fees.FeeRoles _role
+    IFees.FeeRoles _role
   ) external whenNotPaused {
     require(msg.sender == address(airdropContract));
     _transferShares(feesContract.getFeeAddress(_role), _account, _sharesAmount);
@@ -445,7 +446,7 @@ abstract contract Shares is
       _sharesAmount
     );
 
-    if (_role == Fees.FeeRoles.Pools) {
+    if (_role == IFees.FeeRoles.Pools) {
       _transferPoolShares(_account, address(this), _account, _sharesAmount);
     }
 
