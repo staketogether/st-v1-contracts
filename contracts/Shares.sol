@@ -49,7 +49,6 @@ abstract contract Shares is
   uint256 public beaconBalance;
   uint256 public liquidityBalance;
   Config public config;
-  Feature public feature;
 
   function setBeaconBalance(uint256 _amount) external {
     require(msg.sender == address(validatorsContract));
@@ -67,7 +66,7 @@ abstract contract Shares is
    ** SHARES **
    ************/
 
-  mapping(address => uint256) private shares;
+  mapping(address => uint256) public sharesOf;
   uint256 public totalShares;
   mapping(address => mapping(address => uint256)) private allowances;
 
@@ -79,10 +78,6 @@ abstract contract Shares is
 
   function balanceOf(address _account) public view override returns (uint256) {
     return pooledEthByShares(netSharesOf(_account));
-  }
-
-  function sharesOf(address _account) public view returns (uint256) {
-    return shares[_account];
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
@@ -109,17 +104,6 @@ abstract contract Shares is
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
     uint256 tokensAmount = pooledEthByShares(_sharesAmount);
-    return tokensAmount;
-  }
-
-  function transferSharesFrom(
-    address _from,
-    address _to,
-    uint256 _sharesAmount
-  ) external returns (uint256) {
-    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
-    _spendAllowance(_from, msg.sender, tokensAmount);
-    _transferShares(_from, _to, _sharesAmount);
     return tokensAmount;
   }
 
@@ -155,7 +139,7 @@ abstract contract Shares is
   function _mintShares(address _to, uint256 _sharesAmount) internal {
     require(_to != address(0));
 
-    shares[_to] = shares[_to] + _sharesAmount;
+    sharesOf[_to] = sharesOf[_to] + _sharesAmount;
     totalShares += _sharesAmount;
 
     emit MintShares(_to, _sharesAmount);
@@ -165,25 +149,25 @@ abstract contract Shares is
     require(_account != address(0));
     require(_sharesAmount <= netSharesOf(_account));
 
-    shares[_account] = shares[_account] - _sharesAmount;
+    sharesOf[_account] = sharesOf[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
 
     emit BurnShares(_account, _sharesAmount);
   }
 
-  function _transfer(address _from, address _to, uint256 _amount) internal override {
+  function _transfer(address _from, address _to, uint256 _amount) internal override whenNotPaused {
     uint256 _sharesToTransfer = sharesByPooledEth(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     _transferDelegationShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
   }
 
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal {
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0));
     require(_to != address(0));
     require(_sharesAmount <= netSharesOf(_from));
-    shares[_from] = shares[_from] - _sharesAmount;
-    shares[_to] = shares[_to] + _sharesAmount;
+    sharesOf[_from] = sharesOf[_from] - _sharesAmount;
+    sharesOf[_to] = sharesOf[_to] + _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
@@ -205,9 +189,9 @@ abstract contract Shares is
   uint256 internal lockSharesId;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
-    require(feature.Lock);
+    require(config.feature.Lock);
     require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays);
-    require(_sharesAmount <= shares[msg.sender]);
+    require(_sharesAmount <= sharesOf[msg.sender]);
 
     uint256 newId = lockSharesId;
     lockSharesId += 1;
@@ -240,24 +224,18 @@ abstract contract Shares is
   }
 
   function netSharesOf(address _account) public view returns (uint256) {
-    return sharesOf(_account) - lockedSharesOf[_account];
+    return sharesOf[_account] - lockedSharesOf[_account];
   }
 
   /*****************
    ** POOLS SHARES **
    *****************/
 
-  mapping(address => uint256) private poolShares;
+  mapping(address => uint256) private poolSharesOf;
   uint256 public totalPoolShares;
   mapping(address => mapping(address => uint256)) private delegationsShares;
   mapping(address => address[]) private delegates;
   mapping(address => mapping(address => bool)) private isDelegate;
-
-  function isPool(address _pool) public view virtual returns (bool);
-
-  function poolSharesOf(address _account) public view returns (uint256) {
-    return poolShares[_account];
-  }
 
   function delegationSharesOf(address _account, address _pool) public view returns (uint256) {
     return delegationsShares[_account][_pool];
@@ -273,7 +251,7 @@ abstract contract Shares is
 
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0));
-    require(isPool(_pool));
+    require(pools[_pool]);
     require(delegates[_to].length < config.maxDelegations);
     require(_sharesAmount > 0);
 
@@ -285,7 +263,7 @@ abstract contract Shares is
 
   function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0));
-    require(isPool(_pool));
+    require(pools[_pool]);
     require(delegationsShares[_to][_pool] >= _sharesAmount);
     require(_sharesAmount > 0);
 
@@ -306,8 +284,7 @@ abstract contract Shares is
   ) internal {
     require(_account != address(0));
     require(_fromPool != address(0));
-    require(_toPool != address(0));
-    require(isPool(_toPool));
+    require(pools[_toPool]);
     require(_sharesAmount <= delegationsShares[_account][_fromPool]);
 
     _decrementPoolShares(_account, _fromPool, _sharesAmount);
@@ -362,7 +339,7 @@ abstract contract Shares is
   ) internal whenNotPaused {
     require(_from != address(0));
     require(_to != address(0));
-    require(isPool(_pool));
+    require(pools[_pool]);
     require(_sharesAmount > 0);
     require(_sharesAmount <= delegationsShares[_from][_pool]);
 
@@ -376,13 +353,13 @@ abstract contract Shares is
   }
 
   function _incrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
-    poolShares[_pool] += _sharesAmount;
+    poolSharesOf[_pool] += _sharesAmount;
     delegationsShares[_to][_pool] += _sharesAmount;
     totalPoolShares += _sharesAmount;
   }
 
   function _decrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
-    poolShares[_pool] -= _sharesAmount;
+    poolSharesOf[_pool] -= _sharesAmount;
     delegationsShares[_to][_pool] -= _sharesAmount;
     totalPoolShares -= _sharesAmount;
   }
@@ -407,6 +384,38 @@ abstract contract Shares is
         }
       }
     }
+  }
+
+  /***********
+   ** POOLS **
+   ***********/
+
+  mapping(address => bool) internal pools;
+
+  function addPool(address _pool) public payable nonReentrant {
+    require(_pool != address(0));
+    require(!pools[_pool]);
+
+    if (!hasRole(POOL_MANAGER_ROLE, msg.sender) && msg.sender != address(this)) {
+      require(config.feature.AddPool);
+      uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
+      IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+      for (uint i = 0; i < roles.length - 1; i++) {
+        mintRewards(
+          feesContract.getFeeAddress(roles[i]),
+          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          feeAmounts[i]
+        );
+      }
+    }
+    pools[_pool] = true;
+    emit AddPool(_pool);
+  }
+
+  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
+    require(pools[_pool]);
+    pools[_pool] = false;
+    emit RemovePool(_pool);
   }
 
   /*****************

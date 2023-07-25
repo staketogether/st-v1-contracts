@@ -12,17 +12,14 @@ interface IStakeTogether {
     uint256 depositLimit;
     uint256 withdrawalLimit;
     uint256 blocksPerDay;
-    uint256 maxPools;
     uint256 maxDelegations;
+    Feature feature;
   }
 
   struct Feature {
     bool AddPool;
-    bool CreateValidator;
-    bool DepositPool;
-    bool DepositDonationPool;
+    bool Deposit;
     bool Lock;
-    bool SupplyLiquidity;
     bool WithdrawPool;
     bool WithdrawLiquidity;
     bool WithdrawValidator;
