@@ -40,6 +40,7 @@ contract Router is
   Liquidity public liquidityContract;
   Airdrop public airdropContract;
   Validators public validatorsContract;
+  Config public config;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -67,6 +68,10 @@ contract Router is
     airdropContract = Airdrop(payable(_airdropContract));
     validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));
+
+    reportBlockNumber = 1;
+    lastConsensusEpoch = 0;
+    lastExecutedConsensusEpoch = 0;
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -93,13 +98,27 @@ contract Router is
     emit SetStakeTogether(_stakeTogether);
   }
 
+  /************
+   ** CONFIG **
+   ************/
+
+  function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
+    if (config.minBlocksBeforeExecution < 300) {
+      config.minBlocksBeforeExecution = 300;
+    } else {
+      config.minBlocksBeforeExecution = config.minBlocksBeforeExecution;
+    }
+    config = _config;
+    emit SetConfig(_config);
+  }
+
   /*******************
    ** REPORT ORACLE **
    *******************/
 
   modifier onlyReportOracle() {
     require(
-      reportOracles[msg.sender] && reportOraclesBlacklist[msg.sender] < oracleBlackListLimit,
+      reportOracles[msg.sender] && reportOraclesBlacklist[msg.sender] < config.oracleBlackListLimit,
       'ONLY_REPORT_ORACLE'
     );
     _;
@@ -108,21 +127,17 @@ contract Router is
   uint256 public totalReportOracles;
   mapping(address => bool) private reportOracles;
   mapping(address => uint256) public reportOraclesBlacklist;
-  uint256 public minReportOracleQuorum = 5;
-  uint256 public reportOracleQuorum = minReportOracleQuorum;
-  uint256 public oracleBlackListLimit = 3;
-  bool public bunkerMode = false;
 
   function isReportOracle(address _oracle) public view returns (bool) {
-    return reportOracles[_oracle] && reportOraclesBlacklist[_oracle] < oracleBlackListLimit;
+    return reportOracles[_oracle] && reportOraclesBlacklist[_oracle] < config.oracleBlackListLimit;
   }
 
   function isReportOracleBlackListed(address _oracle) public view returns (bool) {
-    return reportOraclesBlacklist[_oracle] >= oracleBlackListLimit;
+    return reportOraclesBlacklist[_oracle] >= config.oracleBlackListLimit;
   }
 
   function addReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(totalReportOracles < reportOracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
+    require(totalReportOracles < config.reportOracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
     require(!reportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
     _grantRole(ORACLE_REPORT_ROLE, _oracle);
     reportOracles[_oracle] = true;
@@ -140,23 +155,8 @@ contract Router is
     _updateReportOracleQuorum();
   }
 
-  function setMinReportOracleQuorum(uint256 _quorum) external onlyRole(ADMIN_ROLE) {
-    minReportOracleQuorum = _quorum;
-    emit SetMinReportOracleQuorum(_quorum);
-  }
-
-  function setReportOracleQuorum(uint256 _quorum) external onlyRole(ADMIN_ROLE) {
-    reportOracleQuorum = _quorum;
-    emit SetReportOracleQuorum(_quorum);
-  }
-
-  function setReportOraclePenalizeLimit(uint256 _oraclePenalizeLimit) external onlyRole(ADMIN_ROLE) {
-    oracleBlackListLimit = _oraclePenalizeLimit;
-    emit SetReportOraclePenalizeLimit(_oraclePenalizeLimit);
-  }
-
   function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    reportOraclesBlacklist[_oracle] = oracleBlackListLimit;
+    reportOraclesBlacklist[_oracle] = config.oracleBlackListLimit;
     reportOracles[_oracle] = false;
     emit BlacklistReportOracleManually(_oracle, reportOraclesBlacklist[_oracle]);
   }
@@ -164,7 +164,7 @@ contract Router is
   function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
     require(reportOracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
     require(
-      reportOraclesBlacklist[_oracle] >= oracleBlackListLimit || !reportOracles[_oracle],
+      reportOraclesBlacklist[_oracle] >= config.oracleBlackListLimit || !reportOracles[_oracle],
       'REPORT_ORACLE_NOT_BLACKLISTED'
     );
     reportOraclesBlacklist[_oracle] = 0;
@@ -182,14 +182,11 @@ contract Router is
     revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
   }
 
-  function setBunkerMode(bool _bunkerMode) external onlyRole(ADMIN_ROLE) {
-    bunkerMode = _bunkerMode;
-    emit SetBunkerMode(_bunkerMode);
-  }
-
   function _updateReportOracleQuorum() internal {
     uint256 newQuorum = (totalReportOracles * 8) / 10;
-    reportOracleQuorum = newQuorum < minReportOracleQuorum ? minReportOracleQuorum : newQuorum;
+    config.reportOracleQuorum = newQuorum < config.minReportOracleQuorum
+      ? config.minReportOracleQuorum
+      : newQuorum;
     emit UpdateReportOracleQuorum(newQuorum);
   }
 
@@ -202,7 +199,7 @@ contract Router is
     } else {
       reportOraclesBlacklist[_oracle]++;
 
-      bool blacklist = reportOraclesBlacklist[_oracle] >= oracleBlackListLimit;
+      bool blacklist = reportOraclesBlacklist[_oracle] >= config.oracleBlackListLimit;
       if (blacklist) {
         reportOracles[_oracle] = false;
         emit BlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
@@ -228,13 +225,10 @@ contract Router is
   mapping(uint256 => bytes32) public consensusReport;
   mapping(uint256 => bool) public consensusInvalidatedReport;
 
-  uint256 public reportBlockFrequency = 1;
-  uint256 public reportBlockNumber = 1;
-  uint256 public lastConsensusEpoch = 0;
-  uint256 public lastExecutedConsensusEpoch = 0;
+  uint256 public reportBlockNumber;
+  uint256 public lastConsensusEpoch;
+  uint256 public lastExecutedConsensusEpoch;
 
-  uint256 public maxValidatorsToExit = 100;
-  uint256 public minBlocksBeforeExecution = 600;
   mapping(bytes32 => uint256) public reportExecutionBlock;
 
   function submitReport(
@@ -247,8 +241,8 @@ contract Router is
 
     auditReport(_report, _hash);
 
-    if (block.number >= reportBlockNumber + reportBlockFrequency) {
-      reportBlockNumber += reportBlockFrequency;
+    if (block.number >= reportBlockNumber + config.reportBlockFrequency) {
+      reportBlockNumber += config.reportBlockFrequency;
       emit SkipNextBlockInterval(_epoch, reportBlockNumber);
     }
 
@@ -257,7 +251,7 @@ contract Router is
     reportHistoric[_epoch].push(_hash);
 
     if (consensusReport[_epoch] == bytes32(0)) {
-      if (oracleReportsVotes[_epoch][_hash] >= reportOracleQuorum) {
+      if (oracleReportsVotes[_epoch][_hash] >= config.reportOracleQuorum) {
         consensusReport[_epoch] = _hash;
         emit ConsensusApprove(block.number, _epoch, _hash);
         reportExecutionBlock[_hash] = block.number;
@@ -275,7 +269,7 @@ contract Router is
     Report calldata _report
   ) external nonReentrant whenNotPaused onlyReportOracle {
     require(
-      block.number >= reportExecutionBlock[_hash] + minBlocksBeforeExecution,
+      block.number >= reportExecutionBlock[_hash] + config.minBlocksBeforeExecution,
       'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
     );
     require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
@@ -283,7 +277,7 @@ contract Router is
 
     auditReport(_report, _hash);
 
-    reportBlockNumber += reportBlockFrequency;
+    reportBlockNumber += config.reportBlockFrequency;
     executedReports[_report.epoch][_hash] = true;
     lastExecutedConsensusEpoch = _report.epoch;
 
@@ -372,25 +366,6 @@ contract Router is
       consensusReport[_epoch] == _hash;
   }
 
-  function setMinBlockBeforeExecution(uint256 _minBlocksBeforeExecution) external onlyRole(ADMIN_ROLE) {
-    if (_minBlocksBeforeExecution < 300) {
-      _minBlocksBeforeExecution = 300;
-    } else {
-      minBlocksBeforeExecution = _minBlocksBeforeExecution;
-    }
-    emit SetMinBlockBeforeExecution(_minBlocksBeforeExecution);
-  }
-
-  function setMaxValidatorsToExit(uint256 _maxValidatorsToExit) external onlyRole(ADMIN_ROLE) {
-    maxValidatorsToExit = _maxValidatorsToExit;
-    emit SetMaxValidatorsToExit(_maxValidatorsToExit);
-  }
-
-  function setReportBlockFrequency(uint256 _frequency) external onlyRole(ADMIN_ROLE) {
-    reportBlockFrequency = _frequency;
-    emit SetReportBlockFrequency(_frequency);
-  }
-
   /******************
    ** AUDIT REPORT **
    ******************/
@@ -403,7 +378,7 @@ contract Router is
     require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
     require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
     require(_report.merkleRoots.length == 9, 'INVALID_MERKLE_ROOTS_LENGTH');
-    require(_report.validatorsToExit.length <= maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
+    require(_report.validatorsToExit.length <= config.maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
 
     for (uint256 i = 0; i < _report.validatorsToExit.length; i++) {
       require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');

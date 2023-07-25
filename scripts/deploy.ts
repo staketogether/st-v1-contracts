@@ -10,6 +10,7 @@ import {
   Fees__factory,
   Liquidity,
   Liquidity__factory,
+  Router,
   Router__factory,
   Validators__factory,
   Withdrawals__factory
@@ -55,6 +56,9 @@ export async function deploy() {
   // Todo: set stake together address
 
   // Withdrawals Contract
+  // Todo: set stake together address
+
+  // Router Contract
   // Todo: set stake together address
 
   console.log('\n🔷 All contracts deployed!\n')
@@ -244,6 +248,23 @@ async function deployRouter(
 
   console.log(`Router\t\t Proxy\t\t\t ${proxyAddress}`)
   console.log(`Router\t\t Implementation\t\t ${implementationAddress}`)
+
+  // Create the configuration
+  const config = {
+    bunkerMode: false,
+    maxValidatorsToExit: 100,
+    minBlocksBeforeExecution: 600,
+    minReportOracleQuorum: 5,
+    reportOracleQuorum: 5,
+    oracleBlackListLimit: 3,
+    reportBlockFrequency: 1
+  }
+
+  // Cast the contract to the correct type
+  const routerContract = router as unknown as Router
+
+  // Set the configuration
+  await routerContract.setConfig(config)
 
   return { proxyAddress, implementationAddress }
 }
