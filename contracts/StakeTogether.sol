@@ -196,7 +196,7 @@ contract StakeTogether is Shares {
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.enableWithdrawPool);
-    require(_amount <= poolBalance());
+    require(_amount <= address(this).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawPool(msg.sender, _amount, _pool);
     payable(msg.sender).transfer(_amount);
@@ -223,12 +223,8 @@ contract StakeTogether is Shares {
     emit RefundPool(msg.sender, msg.value);
   }
 
-  function poolBalance() public view returns (uint256) {
-    return address(this).balance;
-  }
-
   function totalPooledEther() public view override returns (uint256) {
-    return poolBalance() + beaconBalance - liquidityBalance;
+    return address(this).balance + beaconBalance - liquidityBalance;
   }
 
   function _resetLimits() internal {
@@ -293,7 +289,7 @@ contract StakeTogether is Shares {
     bytes32 _depositDataRoot
   ) external nonReentrant {
     require(validatorsContract.isValidatorOracle(msg.sender));
-    require(poolBalance() >= validatorsContract.validatorSize());
+    require(address(this).balance >= validatorsContract.validatorSize());
 
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
       _publicKey,
