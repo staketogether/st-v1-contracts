@@ -50,11 +50,6 @@ abstract contract Shares is
   uint256 public liquidityBalance = 0;
   Config public config;
 
-  modifier onlyRouter() {
-    require(msg.sender == address(routerContract));
-    _;
-  }
-
   function setBeaconBalance(uint256 _amount) external {
     require(msg.sender == address(validatorsContract));
     beaconBalance = _amount;
@@ -451,11 +446,5 @@ abstract contract Shares is
     }
 
     emit ClaimRewards(_account, _sharesAmount);
-  }
-
-  function mintPenalty(uint256 _lossAmount) external onlyRouter {
-    beaconBalance -= _lossAmount;
-    require(totalPooledEther() - _lossAmount > 0);
-    emit MintPenalty(_lossAmount);
   }
 }

@@ -282,7 +282,8 @@ contract Router is
     lastExecutedConsensusEpoch = _report.epoch;
 
     if (_report.lossAmount > 0) {
-      stakeTogether.mintPenalty(_report.lossAmount);
+      uint256 newBeaconBalance = stakeTogether.beaconBalance() - _report.lossAmount;
+      stakeTogether.setBeaconBalance(newBeaconBalance);
     }
 
     (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
@@ -385,6 +386,8 @@ contract Router is
     }
 
     require(_report.withdrawAmount <= withdrawalsContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
+
+    require(stakeTogether.beaconBalance() - _report.lossAmount > 0, 'INVALID_BEACON_BALANCE');
 
     return true;
   }

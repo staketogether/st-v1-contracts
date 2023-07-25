@@ -62,6 +62,30 @@ contract StakeTogether is Shares {
     super._beforeTokenTransfer(from, to, amount);
   }
 
+  receive() external payable nonReentrant {
+    _supplyLiquidity(msg.value);
+    emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
+  }
+
+  fallback() external payable nonReentrant {
+    _supplyLiquidity(msg.value);
+    emit MintRewardsAccountsFallback(msg.sender, msg.value - liquidityBalance);
+  }
+
+  function _supplyLiquidity(uint256 _amount) internal {
+    if (liquidityBalance > 0) {
+      uint256 debitAmount = 0;
+      if (liquidityBalance >= _amount) {
+        debitAmount = _amount;
+      } else {
+        debitAmount = liquidityBalance;
+      }
+      liquidityBalance -= debitAmount;
+      liquidityContract.supplyLiquidity{ value: debitAmount }();
+      emit SupplyLiquidity(debitAmount);
+    }
+  }
+
   /************
    ** CONFIG **
    ************/
@@ -76,37 +100,6 @@ contract StakeTogether is Shares {
     require(withdrawalCredentials.length == 0);
     withdrawalCredentials = _withdrawalCredentials;
     emit SetWithdrawalsCredentials(_withdrawalCredentials);
-  }
-
-  /*********************
-   ** ACCOUNT REWARDS **
-   *********************/
-
-  receive() external payable nonReentrant {
-    _supplyLiquidity(msg.value);
-    emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
-  }
-
-  fallback() external payable nonReentrant {
-    _supplyLiquidity(msg.value);
-    emit MintRewardsAccountsFallback(msg.sender, msg.value - liquidityBalance);
-  }
-
-  function _supplyLiquidity(uint256 _amount) internal {
-    if (liquidityBalance > 0) {
-      uint256 debitAmount = 0;
-
-      if (liquidityBalance >= _amount) {
-        debitAmount = _amount;
-      } else {
-        debitAmount = liquidityBalance;
-      }
-
-      liquidityBalance -= debitAmount;
-      liquidityContract.supplyLiquidity{ value: debitAmount }();
-
-      emit SupplyLiquidity(debitAmount);
-    }
   }
 
   /*****************
@@ -224,7 +217,8 @@ contract StakeTogether is Shares {
     withdrawalsContract.mint(msg.sender, _amount);
   }
 
-  function refundPool() external payable onlyRouter {
+  function refundPool() external payable {
+    require(msg.sender == address(routerContract));
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }
