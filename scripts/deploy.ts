@@ -12,6 +12,8 @@ import {
   Liquidity__factory,
   Router,
   Router__factory,
+  StakeTogether,
+  StakeTogether__factory,
   Validators__factory,
   Withdrawals__factory
 } from '../typechain'
@@ -37,6 +39,14 @@ export async function deploy() {
     airdrop.proxyAddress,
     validators.proxyAddress,
     fees.proxyAddress
+  )
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    router.proxyAddress,
+    airdrop.proxyAddress,
+    withdrawals.proxyAddress,
+    liquidity.proxyAddress,
+    validators.proxyAddress
   )
 
   // Fees Contract
@@ -74,7 +84,9 @@ export async function deploy() {
     withdrawals.proxyAddress,
     withdrawals.implementationAddress,
     router.proxyAddress,
-    router.implementationAddress
+    router.implementationAddress,
+    stakeTogether.proxyAddress,
+    stakeTogether.implementationAddress
   )
 }
 
@@ -269,6 +281,47 @@ async function deployRouter(
   return { proxyAddress, implementationAddress }
 }
 
+async function deployStakeTogether(
+  owner: CustomEthersSigner,
+  routerContract: string,
+  airdropContract: string,
+  withdrawalsContract: string,
+  liquidityContract: string,
+  validatorsContract: string
+) {
+  const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
+
+  const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    routerContract,
+    airdropContract,
+    withdrawalsContract,
+    liquidityContract,
+    validatorsContract
+  ])
+
+  await stakeTogether.waitForDeployment()
+  const proxyAddress = await stakeTogether.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+
+  console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
+
+  const stakeTogetherContract = stakeTogether as unknown as StakeTogether
+
+  await stakeTogetherContract.initializeShares({ value: 1n })
+
+  function convertToWithdrawalAddress(eth1Address: string): string {
+    const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
+    const paddedAddress = address.padStart(64, '0')
+    const withdrawalAddress = '0x01' + paddedAddress
+    return withdrawalAddress
+  }
+
+  await stakeTogether.setWithdrawalAddress(convertToWithdrawalAddress(proxyAddress))
+
+  return { proxyAddress, implementationAddress }
+}
+
 async function verifyContracts(
   feesProxy: string,
   feesImplementation: string,
@@ -281,7 +334,9 @@ async function verifyContracts(
   withdrawalsProxy: string,
   withdrawalsImplementation: string,
   routerAddress: string,
-  routerImplementation: string
+  routerImplementation: string,
+  stakeTogetherProxy: string,
+  stakeTogetherImplementation: string
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
@@ -298,7 +353,11 @@ async function verifyContracts(
   console.log(
     `npx hardhat verify --network goerli ${routerAddress} ${withdrawalsProxy} ${liquidityProxy} ${airdropProxy} ${validatorsProxy} ${feesProxy} &&`
   )
-  console.log(`npx hardhat verify --network goerli ${routerImplementation}`)
+  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
+  console.log(
+    `npx hardhat verify --network goerli ${stakeTogetherProxy} ${routerAddress} ${airdropProxy} ${withdrawalsProxy} ${liquidityProxy} ${validatorsProxy} &&`
+  )
+  console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation}`)
 }
 
 deploy().catch(error => {

@@ -5,9 +5,12 @@ pragma solidity ^0.8.18;
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
+    bool enableAddPool;
     bool enableDeposit;
     bool enableLock;
     bool enableWithdrawPool;
+    bool enableWithdrawLiquidity;
+    bool enableWithdrawValidator;
     uint256 poolSize;
     uint256 minDepositAmount;
     uint256 minLockDays;
@@ -16,7 +19,6 @@ interface IStakeTogether {
     uint256 withdrawalLimit;
     uint256 blocksPerDay;
     uint256 maxPools;
-    bool permissionLessAddPool;
   }
 
   struct LockedShares {
@@ -39,7 +41,7 @@ interface IStakeTogether {
     address referral
   );
   event DepositPool(address indexed account, uint256 amount, address pool, address referral);
-  event DepositProtocolLimitReached(address indexed sender, uint256 amount);
+  event DepositLimitReached(address indexed sender, uint256 amount);
   event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
@@ -70,6 +72,6 @@ interface IStakeTogether {
   event UnlockShares(address indexed user, uint256 id, uint256 amount);
   event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
   event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawalLimitReached(address indexed sender, uint256 amount);
+  event WithdrawalsLimitReached(address indexed sender, uint256 amount);
   event WithdrawValidator(address indexed account, uint256 amount, address pool);
 }

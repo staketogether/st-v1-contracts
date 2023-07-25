@@ -25,7 +25,6 @@ contract StakeTogether is Shares {
     __ERC20Permit_init('ST Staked Ether');
     __UUPSUpgradeable_init();
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
 
@@ -90,7 +89,7 @@ contract StakeTogether is Shares {
    ** CONFIG **
    ************/
 
-  function setConfig(Config memory _config) public onlyRole('ADMIN_ROLE') {
+  function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
     require(_config.poolSize >= validatorsContract.validatorSize());
     config = _config;
     emit SetConfig(_config);
@@ -114,13 +113,12 @@ contract StakeTogether is Shares {
     require(config.enableDeposit);
     require(_to != address(0));
     require(isPool(_pool));
-    require(msg.value > 0);
     require(msg.value >= config.minDepositAmount);
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
-      emit DepositProtocolLimitReached(_to, msg.value);
+      emit DepositLimitReached(_to, msg.value);
       revert();
     }
 
@@ -171,14 +169,14 @@ contract StakeTogether is Shares {
 
   function _withdrawBase(uint256 _amount, address _pool) internal {
     require(_amount > 0);
-    require(isPool(_pool));
     require(_amount <= balanceOf(msg.sender));
+    require(isPool(_pool));
     require(delegationSharesOf(msg.sender, _pool) > 0);
 
     _resetLimits();
 
     if (_amount + totalWithdrawn > config.withdrawalLimit) {
-      emit WithdrawalLimitReached(msg.sender, _amount);
+      emit WithdrawalsLimitReached(msg.sender, _amount);
       revert();
     }
 
@@ -203,6 +201,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    require(config.enableWithdrawLiquidity);
     require(_amount <= address(liquidityContract).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawLiquidity(msg.sender, _amount, _pool);
@@ -210,6 +209,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    require(config.enableWithdrawValidator);
     require(_amount <= beaconBalance);
     beaconBalance -= _amount;
     _withdrawBase(_amount, _pool);
@@ -248,7 +248,7 @@ contract StakeTogether is Shares {
     require(poolCount < config.maxPools);
 
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) && msg.sender != address(this)) {
-      require(config.permissionLessAddPool);
+      require(config.enableAddPool);
 
       uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
 
@@ -290,7 +290,6 @@ contract StakeTogether is Shares {
   ) external nonReentrant {
     require(validatorsContract.isValidatorOracle(msg.sender));
     require(address(this).balance >= validatorsContract.validatorSize());
-
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
       _publicKey,
       withdrawalCredentials,
