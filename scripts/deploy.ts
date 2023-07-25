@@ -1,17 +1,11 @@
 import { CustomEthersSigner } from '@nomiclabs/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
-import { Contract } from 'ethers'
 import { ethers, network, upgrades } from 'hardhat'
 import { checkVariables } from '../test/utils/env'
 import { Fees, Fees__factory } from '../typechain'
 
 dotenv.config()
-
-async function deployContract<T extends Contract>(name: string, ...args: any[]): Promise<T> {
-  const factory = (await ethers.getContractFactory(name)) as any
-  return (await upgrades.deployProxy(factory, args, { initializer: 'initialize' })) as T
-}
 
 export async function deploy() {
   checkVariables()
