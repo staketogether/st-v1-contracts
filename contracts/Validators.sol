@@ -14,6 +14,7 @@ import './StakeTogether.sol';
 
 import './interfaces/IDepositContract.sol';
 import './interfaces/IFees.sol';
+import './interfaces/IValidators.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Validators is
@@ -21,7 +22,8 @@ contract Validators is
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ReentrancyGuardUpgradeable,
+  IValidators
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
@@ -35,23 +37,6 @@ contract Validators is
   IDepositContract public depositContract;
 
   bool public enableBorrow = true;
-
-  event ReceiveEther(address indexed sender, uint amount);
-  event FallbackEther(address indexed sender, uint amount);
-  event SetStakeTogether(address stakeTogether);
-  event SetRouterContract(address routerContract);
-  event AddValidatorOracle(address indexed account);
-  event RemoveValidatorOracle(address indexed account);
-  event CreateValidator(
-    address indexed creator,
-    uint256 indexed amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
-  event SetValidatorSize(uint256 newValidatorSize);
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
