@@ -40,13 +40,13 @@ contract StakeTogether is Shares {
     liquidityBalance = 0;
     totalShares = 0;
     totalLockedShares = 0;
-    lockSharesId = 1;
+    lockId = 1;
     totalPoolShares = 0;
   }
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
-    pools[address(this)] = true;
+    addPool(address(this), false);
     _mintShares(address(this), msg.value);
     _mintPoolShares(address(this), address(this), msg.value);
   }
