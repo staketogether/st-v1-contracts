@@ -105,7 +105,7 @@ export async function mockedRewardsFixture() {
         const poolAccountsMerkleData = await Promise.all(
           poolsAddresses.map(async address => {
             // Account shares
-            const accountShares = await StakeTogether.sharesOf(address)
+            const accountShares = await StakeTogether.shares(address)
             // Account percentage of the total shares
             const accountPercentage = multiDiv(accountShares, totalShares)
             // Account rewards is the account percentage of the fee role shares

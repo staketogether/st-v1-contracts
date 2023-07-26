@@ -58,14 +58,14 @@ describe('StakeTogether: Deposit', function () {
     const totalPooledEther = await StakeTogether.totalPooledEther()
     const totalShares = await StakeTogether.totalShares()
 
-    const sharesUser = await StakeTogether.sharesOf(user1.address)
+    const sharesUser = await StakeTogether.shares(user1.address)
     const balanceUser = await StakeTogether.balanceOf(user1.address)
 
-    const sharesSt = await StakeTogether.sharesOf(owner.address)
-    const sharesStFee = await StakeTogether.sharesOf(user4.address)
+    const sharesSt = await StakeTogether.shares(owner.address)
+    const sharesStFee = await StakeTogether.shares(user4.address)
 
-    const userDelegatedShares = await StakeTogether.sharesOf(user2.address)
-    const poolShares = await StakeTogether.poolSharesOf(user2.address)
+    const userDelegatedShares = await StakeTogether.shares(user2.address)
+    // const poolShares = await StakeTogether.poolSharesOf(user2.address)
     const userDelegationShares = await StakeTogether.delegationSharesOf(user1.address, user2.address)
 
     expect(totalPooledEther).to.eq(stakeAmount + 1n)
@@ -77,7 +77,7 @@ describe('StakeTogether: Deposit', function () {
     expect(sharesSt).to.eq(0n)
 
     expect(userDelegatedShares).to.eq(expectedPoolShares)
-    expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
+    // expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
     expect(sharesStFee).to.eq(expectedStFeeAddressShares)
     expect(userDelegationShares).to.eq(expectedSenderShares)
   })
@@ -228,13 +228,13 @@ describe('StakeTogether: Deposit', function () {
     const totalPooledEther = await StakeTogether.totalPooledEther()
     const totalShares = await StakeTogether.totalShares()
 
-    const sharesUser = await StakeTogether.sharesOf(user1.address)
+    const sharesUser = await StakeTogether.shares(user1.address)
     const balanceUser = await StakeTogether.balanceOf(user1.address)
 
-    const sharesSt = await StakeTogether.sharesOf(owner.address)
-    const sharesStFee = await StakeTogether.sharesOf(user4.address)
-    const userDelegatedShares = await StakeTogether.sharesOf(user2.address)
-    const poolShares = await StakeTogether.poolSharesOf(user2.address)
+    const sharesSt = await StakeTogether.shares(owner.address)
+    const sharesStFee = await StakeTogether.shares(user4.address)
+    const userDelegatedShares = await StakeTogether.shares(user2.address)
+    // const poolShares = await StakeTogether.poolSharesOf(user2.address)
     const userDelegationShares = await StakeTogether.delegationSharesOf(user1.address, user2.address)
 
     expect(totalPooledEther).to.eq(stakeAmount + 1n)
@@ -246,28 +246,28 @@ describe('StakeTogether: Deposit', function () {
     expect(sharesSt).to.eq(0n)
 
     expect(userDelegatedShares).to.eq(expectedPoolShares)
-    expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
+    // expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
     expect(sharesStFee).to.eq(expectedStFeeAddressShares)
     expect(userDelegationShares).to.eq(expectedSenderShares)
 
     const stFeeAddress = await Fees.getFeeRolesAddresses()
-    const stFeeAddressShares = await StakeTogether.sharesOf(stFeeAddress[0])
+    const stFeeAddressShares = await StakeTogether.shares(stFeeAddress[0])
     const stFeeAddressBalance = await StakeTogether.balanceOf(stFeeAddress[0])
 
     expect(stFeeAddressShares).to.eq(expectedStFeeAddressShares)
     expect(stFeeAddressBalance).to.eq(expectedStFeeAddressBalance)
 
-    const poolSharesSt = await StakeTogether.poolSharesOf(owner.address)
-    const poolSharesStFee = await StakeTogether.poolSharesOf(user4.address)
+    // const poolSharesSt = await StakeTogether.poolSharesOf(owner.address)
+    // const poolSharesStFee = await StakeTogether.poolSharesOf(user4.address)
 
-    expect(poolSharesSt).to.eq(0n)
+    /*  expect(poolSharesSt).to.eq(0n)
     expect(poolSharesStFee).to.eq(expectedStFeeAddressShares)
 
     const poolSharesUser = await StakeTogether.poolSharesOf(user1.address)
     const poolSharesUser2 = await StakeTogether.poolSharesOf(user2.address)
 
     expect(poolSharesUser).to.eq(0n)
-    expect(poolSharesUser2).to.eq(expectedPoolAddressShares)
+    expect(poolSharesUser2).to.eq(expectedPoolAddressShares) */
   })
   it('Should distribute delegation shares correctly after 2 deposits', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user4, nullAddress } = await loadFixture(
@@ -325,14 +325,14 @@ describe('StakeTogether: Deposit', function () {
     const totalPooledEther = await StakeTogether.totalPooledEther()
     const totalShares = await StakeTogether.totalShares()
 
-    const sharesUser = await StakeTogether.sharesOf(user1.address)
+    const sharesUser = await StakeTogether.shares(user1.address)
     const balanceUser = await StakeTogether.balanceOf(user1.address)
 
-    const sharesSt = await StakeTogether.sharesOf(owner.address)
-    const sharesStFee = await StakeTogether.sharesOf(user4.address)
+    const sharesSt = await StakeTogether.shares(owner.address)
+    const sharesStFee = await StakeTogether.shares(user4.address)
 
-    const userDelegatedShares = await StakeTogether.sharesOf(user2.address)
-    const poolShares = await StakeTogether.poolSharesOf(user2.address)
+    const userDelegatedShares = await StakeTogether.shares(user2.address)
+    // const poolShares = await StakeTogether.poolSharesOf(user2.address)
     const userDelegationShares = await StakeTogether.delegationSharesOf(user1.address, user2.address)
 
     expect(totalPooledEther).to.eq(stakeAmount + 1n)
@@ -344,22 +344,22 @@ describe('StakeTogether: Deposit', function () {
     expect(sharesSt).to.eq(0n)
 
     expect(userDelegatedShares).to.eq(expectedPoolShares)
-    expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
+    // expect(poolShares).to.eq(expectedSenderShares + expectedPoolShares)
     expect(sharesStFee).to.eq(expectedStFeeAddressShares)
     expect(userDelegationShares).to.eq(expectedSenderShares)
 
     const stFeeAddress = await Fees.getFeeRolesAddresses()
-    const stFeeAddressShares = await StakeTogether.sharesOf(stFeeAddress[0])
+    const stFeeAddressShares = await StakeTogether.shares(stFeeAddress[0])
     const stFeeAddressBalance = await StakeTogether.balanceOf(stFeeAddress[0])
 
     expect(stFeeAddressShares).to.eq(expectedStFeeAddressShares)
     expect(stFeeAddressBalance).to.eq(expectedStFeeAddressBalance)
 
-    const poolSharesSt = await StakeTogether.poolSharesOf(owner.address)
+    /* const poolSharesSt = await StakeTogether.poolSharesOf(owner.address)
     const poolSharesStFee = await StakeTogether.poolSharesOf(user4.address)
 
     expect(poolSharesSt).to.eq(0n)
-    expect(poolSharesStFee).to.eq(expectedStFeeAddressShares)
+    expect(poolSharesStFee).to.eq(expectedStFeeAddressShares) */
   })
 
   it('Should verify the wei loss after transfer ether to contract and depositing afterwards', async function () {

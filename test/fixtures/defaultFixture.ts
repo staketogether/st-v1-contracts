@@ -118,9 +118,9 @@ export async function defaultFixture() {
   await Router.addReportOracle(process.env.GOERLI_ORACLE_ADDRESS as string)
   await Validators.addValidatorOracle(process.env.GOERLI_VALIDATOR_ADDRESS as string)
 
-  await StakeTogether.addPool(user2.address)
-  await StakeTogether.addPool(user3.address)
-  await StakeTogether.addPool(user4.address)
+  await StakeTogether.addPool(user2.address, true)
+  await StakeTogether.addPool(user3.address, true)
+  await StakeTogether.addPool(user4.address, true)
 
   return {
     provider,
