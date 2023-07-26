@@ -53,16 +53,16 @@ export async function deploy() {
   )
 
   await fees.feesContract.setStakeTogether(stakeTogether.proxyAddress)
-  await fees.feesContract.setLiquidityContract(liquidity.proxyAddress)
+  await fees.feesContract.setLiquidity(liquidity.proxyAddress)
 
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
-  await airdrop.airdropContract.setRouterContract(router.proxyAddress)
+  await airdrop.airdropContract.setRouter(router.proxyAddress)
 
   await liquidity.liquidityContract.setStakeTogether(stakeTogether.proxyAddress)
-  await liquidity.liquidityContract.setRouterContract(router.proxyAddress)
+  await liquidity.liquidityContract.setRouter(router.proxyAddress)
 
   await validators.validatorsContract.setStakeTogether(stakeTogether.proxyAddress)
-  await validators.validatorsContract.setRouterContract(router.proxyAddress)
+  await validators.validatorsContract.setRouter(router.proxyAddress)
 
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
 

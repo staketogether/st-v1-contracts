@@ -1,8 +1,8 @@
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { AbiCoder, ethers } from 'ethers'
-import { defaultFixture } from './defaultFixture'
 import { multiDiv } from '../utils/multiDiv'
 import { stObtainPools } from '../utils/stObtainPools'
-import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
+import { defaultFixture } from './defaultFixture'
 
 export async function mockedRewardsFixture() {
   const {
@@ -31,20 +31,20 @@ export async function mockedRewardsFixture() {
   // Mocking the rewards percentage with real values
 
   // Mocking the rewards balance and obtaining necessary info for the calculation
-  const totalPooledEth = await StakeTogether.totalPooledEther()
-  const totalShares = await StakeTogether.totalShares()
+  const totalPooledEth = await StakeTogether.contract.totalPooledEther()
+  const totalShares = await StakeTogether.contract.totalShares()
 
   const mockedRewardsBalance = ethers.parseEther('0.003')
 
   const pooledEthWithRewards = totalPooledEth + mockedRewardsBalance
-  const pooledEthShares = await StakeTogether.sharesByPooledEth(totalPooledEth)
-  const pooledEthWithRewardsShares = await StakeTogether.sharesByPooledEth(pooledEthWithRewards)
+  const pooledEthShares = await StakeTogether.contract.sharesByPooledEth(totalPooledEth)
+  const pooledEthWithRewardsShares = await StakeTogether.contract.sharesByPooledEth(pooledEthWithRewards)
   const rewardsBalanceShares = pooledEthWithRewardsShares - pooledEthShares
 
   const STAKE_REWARDS_FEE = 3n
-  const { shares } = await Fees.estimateFeePercentage(STAKE_REWARDS_FEE, rewardsBalanceShares)
+  const { shares } = await Fees.contract.estimateFeePercentage(STAKE_REWARDS_FEE, rewardsBalanceShares)
 
-  const feeRolesAddresses = await Fees.getFeeRolesAddresses()
+  const feeRolesAddresses = await Fees.contract.getFeeRolesAddresses()
 
   const STAKE_ACCOUNTS_ROLE = 0
   const LOCK_ACCOUNTS_ROLE = 1
@@ -58,7 +58,11 @@ export async function mockedRewardsFixture() {
   // TODO: Obtain pools addresses
   const stakedAddresses = [user1.address, user2.address]
   const lockedAddresses = [user3.address]
-  const poolsAddresses: string[] = await stObtainPools(StakeTogether, provider)
+  const poolsAddresses: string[] = await stObtainPools(
+    StakeTogether.contract,
+    StakeTogether.implementationAddress,
+    provider
+  )
   const operatorsAddresses = [user4.address]
   const oraclesAddresses = [user5.address]
   const stakeTogetherAddresses = [owner.address]
@@ -105,7 +109,7 @@ export async function mockedRewardsFixture() {
         const poolAccountsMerkleData = await Promise.all(
           poolsAddresses.map(async address => {
             // Account shares
-            const accountShares = await StakeTogether.shares(address)
+            const accountShares = await StakeTogether.contract.shares(address)
             // Account percentage of the total shares
             const accountPercentage = multiDiv(accountShares, totalShares)
             // Account rewards is the account percentage of the fee role shares
@@ -226,7 +230,7 @@ export async function mockedRewardsFixture() {
   ]
   const mockedReportHash = encoder.encode(reportAbi, mockedReport)
 
-  const auditedReport = await Router.auditReport(mockedReport, mockedReportHash)
+  const auditedReport = await Router.contract.auditReport(mockedReport, mockedReportHash)
 
   if (!auditedReport) {
     throw new Error('Audit report failed')

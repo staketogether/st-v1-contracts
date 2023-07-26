@@ -54,10 +54,14 @@ async function getPastValidators(provider: ethers.Provider, stContract: StakeTog
   return stValidatorsKeys
 }
 
-export const stObtainPools = async (stakeTogether: StakeTogether, provider: ethers.Provider) => {
+export const stObtainPools = async (
+  stakeTogether: StakeTogether,
+  implementationAddress: string,
+  provider: ethers.Provider
+) => {
   const stContractAddress = process.env.ST_CONTRACT as string
   const stContract = new ethers.Contract(
-    await stakeTogether.getAddress(),
+    implementationAddress,
     stakeTogether.interface.format(),
     provider
   )
