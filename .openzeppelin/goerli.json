@@ -860,6 +860,11 @@
       "address": "0xbE3879D0BDC3a94f77546e8Db5a22F02aEE284Cb",
       "txHash": "0xe5c3ad4ab22f87470bc62d42dc7549f13a408fe24ae18b61d1b142886e139e99",
       "kind": "uups"
+    },
+    {
+      "address": "0x77a34B4d235C6C37553316092DEd76e398EA5baF",
+      "txHash": "0x9023202629d35e0f63d196b12209c1956a01604921cd785a960a98c5d657c1b4",
+      "kind": "uups"
     }
   ],
   "impls": {
