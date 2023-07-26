@@ -11,12 +11,12 @@ contract StakeTogether is Shares {
   }
 
   function initialize(
-    address _routerContract,
-    address _feesContract,
     address _airdropContract,
-    address _withdrawalsContract,
+    address _feesContract,
     address _liquidityContract,
-    address _validatorsContract
+    address _routerContract,
+    address _validatorsContract,
+    address _withdrawalsContract
   ) public initializer {
     __ERC20_init('ST Staked Ether', 'sETH');
     __ERC20Burnable_init();
@@ -25,21 +25,28 @@ contract StakeTogether is Shares {
     __ERC20Permit_init('ST Staked Ether');
     __UUPSUpgradeable_init();
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
+    _grantRole(POOL_MANAGER_ROLE, msg.sender);
 
-    routerContract = Router(payable(_routerContract));
-    feesContract = Fees(payable(_feesContract));
     airdropContract = Airdrop(payable(_airdropContract));
-    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+    feesContract = Fees(payable(_feesContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
+    routerContract = Router(payable(_routerContract));
     validatorsContract = Validators(payable(_validatorsContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+
+    beaconBalance = 0;
+    liquidityBalance = 0;
+    totalShares = 0;
+    totalLockedShares = 0;
+    lockSharesId = 1;
+    totalPoolShares = 0;
   }
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
-    this.addPool(address(this));
+    pools[address(this)] = true;
     _mintShares(address(this), msg.value);
     _mintPoolShares(address(this), address(this), msg.value);
   }
@@ -54,34 +61,6 @@ contract StakeTogether is Shares {
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 amount
-  ) internal override whenNotPaused {
-    super._beforeTokenTransfer(from, to, amount);
-  }
-
-  /************
-   ** CONFIG **
-   ************/
-
-  function setConfig(Config memory _config) public onlyRole('ADMIN_ROLE') {
-    require(_config.poolSize >= validatorsContract.validatorSize());
-    config = _config;
-    emit SetConfig(_config);
-  }
-
-  function setWithdrawalsCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
-    require(withdrawalCredentials.length == 0);
-    withdrawalCredentials = _withdrawalCredentials;
-    emit SetWithdrawalsCredentials(_withdrawalCredentials);
-  }
-
-  /*********************
-   ** ACCOUNT REWARDS **
-   *********************/
-
   receive() external payable nonReentrant {
     _supplyLiquidity(msg.value);
     emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
@@ -93,20 +72,33 @@ contract StakeTogether is Shares {
   }
 
   function _supplyLiquidity(uint256 _amount) internal {
-    if (liquidityBalance > 0) {
-      uint256 debitAmount = 0;
-
-      if (liquidityBalance >= _amount) {
-        debitAmount = _amount;
-      } else {
-        debitAmount = liquidityBalance;
-      }
-
+    uint256 debitAmount = 0;
+    if (liquidityBalance >= _amount) {
+      debitAmount = _amount;
+    } else {
+      debitAmount = liquidityBalance;
+    }
+    if (debitAmount > 0) {
       liquidityBalance -= debitAmount;
       liquidityContract.supplyLiquidity{ value: debitAmount }();
-
       emit SupplyLiquidity(debitAmount);
     }
+  }
+
+  /************
+   ** CONFIG **
+   ************/
+
+  function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
+    require(_config.poolSize >= validatorsContract.validatorSize());
+    config = _config;
+    emit SetConfig(_config);
+  }
+
+  function setWithdrawalsCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
+    require(withdrawalCredentials.length == 0);
+    withdrawalCredentials = _withdrawalCredentials;
+    emit SetWithdrawalsCredentials(_withdrawalCredentials);
   }
 
   /*****************
@@ -118,16 +110,15 @@ contract StakeTogether is Shares {
   uint256 public totalWithdrawn;
 
   function _depositBase(address _to, address _pool) internal {
-    require(config.enableDeposit);
+    require(config.feature.Deposit);
     require(_to != address(0));
-    require(isPool(_pool));
-    require(msg.value > 0);
+    require(pools[_pool]);
     require(msg.value >= config.minDepositAmount);
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
-      emit DepositProtocolLimitReached(_to, msg.value);
+      emit DepositLimitReached(_to, msg.value);
       revert();
     }
 
@@ -178,22 +169,18 @@ contract StakeTogether is Shares {
 
   function _withdrawBase(uint256 _amount, address _pool) internal {
     require(_amount > 0);
-    require(isPool(_pool));
     require(_amount <= balanceOf(msg.sender));
+    require(pools[_pool]);
     require(delegationSharesOf(msg.sender, _pool) > 0);
 
     _resetLimits();
 
     if (_amount + totalWithdrawn > config.withdrawalLimit) {
-      emit WithdrawalLimitReached(msg.sender, _amount);
+      emit WithdrawalsLimitReached(msg.sender, _amount);
       revert();
     }
 
-    uint256 sharesToBurn = MathUpgradeable.mulDiv(
-      _amount,
-      netSharesOf(msg.sender),
-      balanceOf(msg.sender)
-    );
+    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, netShares(msg.sender), balanceOf(msg.sender));
 
     totalWithdrawn += _amount;
 
@@ -202,14 +189,15 @@ contract StakeTogether is Shares {
   }
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.enableWithdrawPool);
-    require(_amount <= poolBalance());
+    require(config.feature.WithdrawPool);
+    require(_amount <= address(this).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawPool(msg.sender, _amount, _pool);
     payable(msg.sender).transfer(_amount);
   }
 
   function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    require(config.feature.WithdrawLiquidity);
     require(_amount <= address(liquidityContract).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawLiquidity(msg.sender, _amount, _pool);
@@ -217,6 +205,7 @@ contract StakeTogether is Shares {
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+    require(config.feature.WithdrawValidator);
     require(_amount <= beaconBalance);
     beaconBalance -= _amount;
     _withdrawBase(_amount, _pool);
@@ -224,69 +213,22 @@ contract StakeTogether is Shares {
     withdrawalsContract.mint(msg.sender, _amount);
   }
 
-  function refundPool() external payable onlyRouter {
+  function refundPool() external payable {
+    require(msg.sender == address(routerContract));
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }
 
-  function poolBalance() public view returns (uint256) {
-    return address(this).balance;
-  }
-
   function totalPooledEther() public view override returns (uint256) {
-    return poolBalance() + beaconBalance - liquidityBalance;
+    return address(this).balance + beaconBalance - liquidityBalance;
   }
 
-  function _resetLimits() internal {
+  function _resetLimits() private {
     if (block.number > lastResetBlock + config.blocksPerDay) {
       totalDeposited = 0;
       totalWithdrawn = 0;
       lastResetBlock = block.number;
     }
-  }
-
-  /***********
-   ** POOLS **
-   ***********/
-
-  uint256 public poolCount = 0;
-  mapping(address => bool) private pools;
-
-  function addPool(address _pool) external payable nonReentrant {
-    require(_pool != address(0));
-    require(!isPool(_pool));
-    require(poolCount < config.maxPools);
-
-    if (!hasRole(POOL_MANAGER_ROLE, msg.sender) && msg.sender != address(this)) {
-      require(config.permissionLessAddPool);
-
-      uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
-
-      IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
-
-      for (uint i = 0; i < roles.length - 1; i++) {
-        mintRewards(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
-          feeAmounts[i]
-        );
-      }
-    }
-
-    pools[_pool] = true;
-    poolCount += 1;
-    emit AddPool(_pool);
-  }
-
-  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
-    require(isPool(_pool));
-    pools[_pool] = false;
-    poolCount -= 1;
-    emit RemovePool(_pool);
-  }
-
-  function isPool(address _pool) public view override returns (bool) {
-    return pools[_pool];
   }
 
   /*****************
@@ -297,10 +239,9 @@ contract StakeTogether is Shares {
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant {
+  ) external nonReentrant whenNotPaused {
     require(validatorsContract.isValidatorOracle(msg.sender));
-    require(poolBalance() >= validatorsContract.validatorSize());
-
+    require(address(this).balance >= validatorsContract.validatorSize());
     validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
       _publicKey,
       withdrawalCredentials,

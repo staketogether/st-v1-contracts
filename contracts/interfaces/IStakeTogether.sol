@@ -5,9 +5,6 @@ pragma solidity ^0.8.18;
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
-    bool enableDeposit;
-    bool enableLock;
-    bool enableWithdrawPool;
     uint256 poolSize;
     uint256 minDepositAmount;
     uint256 minLockDays;
@@ -15,8 +12,17 @@ interface IStakeTogether {
     uint256 depositLimit;
     uint256 withdrawalLimit;
     uint256 blocksPerDay;
-    uint256 maxPools;
-    bool permissionLessAddPool;
+    uint256 maxDelegations;
+    Feature feature;
+  }
+
+  struct Feature {
+    bool AddPool;
+    bool Deposit;
+    bool Lock;
+    bool WithdrawPool;
+    bool WithdrawLiquidity;
+    bool WithdrawValidator;
   }
 
   struct LockedShares {
@@ -26,7 +32,7 @@ interface IStakeTogether {
     uint256 lockDays;
   }
 
-  event AddPool(address account);
+  event AddPool(address account, bool listed);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
@@ -39,9 +45,8 @@ interface IStakeTogether {
     address referral
   );
   event DepositPool(address indexed account, uint256 amount, address pool, address referral);
-  event DepositProtocolLimitReached(address indexed sender, uint256 amount);
+  event DepositLimitReached(address indexed sender, uint256 amount);
   event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
-  event MintPenalty(uint256 amount);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewardsAccounts(address indexed sender, uint amount);
@@ -71,6 +76,6 @@ interface IStakeTogether {
   event UnlockShares(address indexed user, uint256 id, uint256 amount);
   event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
   event WithdrawPool(address indexed account, uint256 amount, address pool);
-  event WithdrawalLimitReached(address indexed sender, uint256 amount);
+  event WithdrawalsLimitReached(address indexed sender, uint256 amount);
   event WithdrawValidator(address indexed account, uint256 amount, address pool);
 }

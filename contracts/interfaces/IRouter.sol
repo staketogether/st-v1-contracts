@@ -4,6 +4,16 @@ pragma solidity ^0.8.18;
 
 /// @custom:security-contact security@staketogether.app
 interface IRouter {
+  struct Config {
+    bool bunkerMode;
+    uint256 maxValidatorsToExit;
+    uint256 minBlocksBeforeExecution;
+    uint256 minReportOracleQuorum;
+    uint256 reportOracleQuorum;
+    uint256 oracleBlackListLimit;
+    uint256 reportBlockFrequency;
+  }
+
   struct Report {
     uint256 blockNumber;
     uint256 epoch;
@@ -35,18 +45,8 @@ interface IRouter {
   event RemoveReportOracle(address indexed oracle);
   event RequestValidatorsExit(bytes[] publicKeys);
   event RewardReportOracle(address indexed oracle, uint256 penalties, bytes32 hash);
-  event SetBunkerMode(bool bunkerMode);
+  event SetConfig(Config config);
   event SetLastConsensusEpoch(uint256 epoch);
-  event SetMaxApr(uint256 maxApr);
-  event SetMaxValidatorsToExit(uint256 maxValidatorsToExit);
-  event SetMinBlockBeforeExecution(uint256 minBlocksBeforeExecution);
-  event SetMinReportOracleQuorum(uint256 minQuorum);
-  event SetReportBlockFrequency(uint256 frequency);
-  event SetReportBlockNumber(uint256 blockNumber);
-  event SetReportEpochFrequency(uint256 epoch);
-  event SetReportEpochNumber(uint256 epochNumber);
-  event SetReportOraclePenalizeLimit(uint256 newLimit);
-  event SetReportOracleQuorum(uint256 quorum);
   event SetStakeTogether(address stakeTogether);
   event SkipNextBlockInterval(uint256 indexed epoch, uint256 indexed blockNumber);
   event SubmitReport(

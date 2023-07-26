@@ -5,13 +5,18 @@ pragma solidity ^0.8.18;
 /// @custom:security-contact security@staketogether.app
 interface ILiquidity {
   struct Config {
-    bool enableLiquidity;
-    bool enableDeposit;
     uint256 depositLimit;
     uint256 withdrawalLimit;
     uint256 withdrawalLiquidityLimit;
     uint256 minDepositAmount;
     uint256 blocksInterval;
+    Feature feature;
+  }
+
+  struct Feature {
+    bool Deposit;
+    bool Withdraw;
+    bool Liquidity;
   }
 
   event BurnShares(address indexed account, uint256 sharesAmount);

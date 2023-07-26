@@ -36,8 +36,6 @@ contract Validators is
   Fees public fees;
   IDepositContract public depositContract;
 
-  bool public enableBorrow = true;
-
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -48,12 +46,13 @@ contract Validators is
     __AccessControl_init();
     __UUPSUpgradeable_init();
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
 
     depositContract = IDepositContract(_depositContract);
     fees = Fees(payable(_fees));
+    totalValidators = 0;
+    validatorSize = 32 ether;
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -160,8 +159,8 @@ contract Validators is
    *****************/
 
   mapping(bytes => bool) public validators;
-  uint256 public totalValidators = 0;
-  uint256 public validatorSize = 32 ether;
+  uint256 public totalValidators;
+  uint256 public validatorSize;
 
   function createValidator(
     bytes calldata _publicKey,

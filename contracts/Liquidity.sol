@@ -52,15 +52,14 @@ contract Liquidity is
     __ERC20Permit_init('ST Liquidity Provider ETH');
     __UUPSUpgradeable_init();
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
 
-    totalWithdrawalsShares = 0;
+    totalShares = 0;
   }
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
-    require(totalWithdrawalsShares == 0);
+    require(totalShares == 0);
     _mintShares(msg.sender, msg.value);
   }
 
@@ -120,8 +119,8 @@ contract Liquidity is
    ** SHARES **
    ************/
 
-  mapping(address => uint256) private withdrawalsShares;
-  uint256 public totalWithdrawalsShares;
+  mapping(address => uint256) private shares;
+  uint256 public totalShares;
   mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view returns (uint256) {
@@ -133,25 +132,16 @@ contract Liquidity is
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return pooledEthByShares(sharesOf(_account));
-  }
-
-  function sharesOf(address _account) public view returns (uint256) {
-    return withdrawalsShares[_account];
+    return pooledEthByShares(shares[_account]);
   }
 
   function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return MathUpgradeable.mulDiv(_ethAmount, totalWithdrawalsShares, totalPooledEther());
+    return MathUpgradeable.mulDiv(_ethAmount, totalShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
     return
-      MathUpgradeable.mulDiv(
-        _sharesAmount,
-        totalPooledEther(),
-        totalWithdrawalsShares,
-        MathUpgradeable.Rounding.Up
-      );
+      MathUpgradeable.mulDiv(_sharesAmount, totalPooledEther(), totalShares, MathUpgradeable.Rounding.Up);
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -169,17 +159,6 @@ contract Liquidity is
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
     uint256 tokensAmount = pooledEthByShares(_sharesAmount);
-    return tokensAmount;
-  }
-
-  function transferSharesFrom(
-    address _from,
-    address _to,
-    uint256 _sharesAmount
-  ) external returns (uint256) {
-    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
-    _spendAllowance(_from, msg.sender, tokensAmount);
-    _transferShares(_from, _to, _sharesAmount);
     return tokensAmount;
   }
 
@@ -215,18 +194,18 @@ contract Liquidity is
   function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0), 'MINT_TO_ZERO_ADDR');
 
-    withdrawalsShares[_to] = withdrawalsShares[_to] + _sharesAmount;
-    totalWithdrawalsShares += _sharesAmount;
+    shares[_to] = shares[_to] + _sharesAmount;
+    totalShares += _sharesAmount;
 
     emit MintShares(_to, _sharesAmount);
   }
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
     require(_account != address(0), 'BURN_FROM_ZERO_ADDR');
-    require(_sharesAmount <= sharesOf(_account), 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= shares[_account], 'BALANCE_EXCEEDED');
 
-    withdrawalsShares[_account] = withdrawalsShares[_account] - _sharesAmount;
-    totalWithdrawalsShares -= _sharesAmount;
+    shares[_account] = shares[_account] - _sharesAmount;
+    totalShares -= _sharesAmount;
 
     emit BurnShares(_account, _sharesAmount);
   }
@@ -241,10 +220,10 @@ contract Liquidity is
     require(_from != address(0), 'TRANSFER_FROM_ZERO_ADDR');
     require(_to != address(0), 'TRANSFER_TO_ZERO_ADDR');
     require(_to != address(this), 'TRANSFER_TO_ST_CONTRACT');
-    require(_sharesAmount <= sharesOf(_from), 'BALANCE_EXCEEDED');
+    require(_sharesAmount <= shares[_from], 'BALANCE_EXCEEDED');
 
-    withdrawalsShares[_from] = withdrawalsShares[_from] - _sharesAmount;
-    withdrawalsShares[_to] = withdrawalsShares[_to] + _sharesAmount;
+    shares[_from] = shares[_from] - _sharesAmount;
+    shares[_to] = shares[_to] + _sharesAmount;
 
     emit TransferShares(_from, _to, _sharesAmount);
   }
@@ -267,7 +246,7 @@ contract Liquidity is
   uint256 public totalLiquidityWithdrawn;
 
   function depositPool() public payable whenNotPaused nonReentrant {
-    require(config.enableDeposit, 'DEPOSIT_DISABLED');
+    require(config.feature.Deposit, 'DEPOSIT_DISABLED');
     require(msg.value > 0, 'ZERO_VALUE');
     require(msg.value >= config.minDepositAmount, 'AMOUNT_BELOW_MIN_DEPOSIT');
 
@@ -295,6 +274,7 @@ contract Liquidity is
   }
 
   function withdrawPool(uint256 _amount) public whenNotPaused nonReentrant {
+    require(config.feature.Withdraw, 'WITHDRAW_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
@@ -303,7 +283,7 @@ contract Liquidity is
 
     _resetLimits();
 
-    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, sharesOf(msg.sender), accountBalance);
+    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], accountBalance);
     _burnShares(msg.sender, sharesToBurn);
     totalWithdrawn += _amount;
 
@@ -315,7 +295,7 @@ contract Liquidity is
     uint256 _amount,
     address _pool
   ) public whenNotPaused nonReentrant onlyStakeTogether {
-    require(config.enableLiquidity, 'LIQUIDITY_DISABLED');
+    require(config.feature.Liquidity, 'LIQUIDITY_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 

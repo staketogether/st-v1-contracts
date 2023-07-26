@@ -44,7 +44,6 @@ contract Withdrawals is
     __ERC20Permit_init('ST Withdrawals ETH');
     __UUPSUpgradeable_init();
 
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
   }
