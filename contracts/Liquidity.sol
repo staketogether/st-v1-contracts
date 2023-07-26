@@ -36,7 +36,7 @@ contract Liquidity is
 
   StakeTogether public stakeTogether;
   Router public router;
-  Fees public feesContract;
+  Fees public fees;
   Config public config;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -273,17 +273,17 @@ contract Liquidity is
 
     _resetLimits();
 
-    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.LiquidityProvideEntry,
       msg.value
     );
 
-    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
           _shares[i]
         );
       }
@@ -319,12 +319,12 @@ contract Liquidity is
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateDynamicFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateDynamicFeePercentage(
       IFees.FeeType.LiquidityProvide,
       _amount
     );
 
-    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
 
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
@@ -332,8 +332,8 @@ contract Liquidity is
           stakeTogether.mintRewards(_pool, _pool, _shares[i]);
         } else {
           stakeTogether.mintRewards(
-            feesContract.getFeeAddress(roles[i]),
-            feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+            fees.getFeeAddress(roles[i]),
+            fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
             _shares[i]
           );
         }
