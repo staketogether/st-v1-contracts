@@ -46,9 +46,9 @@ contract StakeTogether is Shares {
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
-    pools[address(this)] = true;
+    addPool(address(this), false);
     _mintShares(address(this), msg.value);
-    // _mintPoolShares(address(this), address(this), msg.value);
+    _mintPoolShares(address(this), address(this), msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {

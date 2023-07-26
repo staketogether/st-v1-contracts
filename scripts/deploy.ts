@@ -314,8 +314,6 @@ async function deployStakeTogether(
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
-  await stakeTogetherContract.initializeShares({ value: 1n })
-
   function convertToWithdrawalAddress(eth1Address: string): string {
     const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
     const paddedAddress = address.padStart(64, '0')
@@ -345,6 +343,8 @@ async function deployStakeTogether(
   }
 
   await stakeTogetherContract.setConfig(config)
+
+  await stakeTogetherContract.initializeShares({ value: 1n })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
@@ -379,7 +379,7 @@ async function verifyContracts(
   console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy}&&`)
+  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation}`)
 }
 
