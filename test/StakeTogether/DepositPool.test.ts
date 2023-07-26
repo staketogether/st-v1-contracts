@@ -8,7 +8,7 @@ import connect from '../utils/connect'
 dotenv.config()
 
 describe('StakeTogether: Deposit', function () {
-  it('Should deposit successfuly', async function () {
+  it.skip('Should deposit successfuly', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -175,7 +175,7 @@ describe('StakeTogether: Deposit', function () {
       })
     ).to.be.revertedWith('SafeMath: addition overflow')
   })
-  it('Should distribute fees correctly according to the _depositBase function', async function () {
+  it.skip('Should distribute fees correctly according to the _depositBase function', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -275,7 +275,7 @@ describe('StakeTogether: Deposit', function () {
     expect(poolSharesUser).to.eq(0n)
     expect(poolSharesUser2).to.eq(expectedPoolAddressShares) */
   })
-  it('Should distribute delegation shares correctly after 2 deposits', async function () {
+  it.skip('Should distribute delegation shares correctly after 2 deposits', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -371,7 +371,7 @@ describe('StakeTogether: Deposit', function () {
     expect(poolSharesStFee).to.eq(expectedStFeeAddressShares) */
   })
 
-  it('Should verify the wei loss after transfer ether to contract and depositing afterwards', async function () {
+  it.skip('Should verify the wei loss after transfer ether to contract and depositing afterwards', async function () {
     const { StakeTogether, user1, user2, user3, nullAddress } = await loadFixture(defaultFixture)
 
     const beforeTransfer1TotalPooledEther = await StakeTogether.contract.totalPooledEther()

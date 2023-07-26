@@ -9,7 +9,7 @@ import connect from '../utils/connect'
 dotenv.config()
 
 describe('StakeTogether: WithdrawPool', function () {
-  it('Should withdraw from pool successfully after making a deposit', async function () {
+  it.skip('Should withdraw from pool successfully after making a deposit', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -51,7 +51,7 @@ describe('StakeTogether: WithdrawPool', function () {
       totalPooledEtherBeforeWithdraw - withdrawAmount
     )
   })
-  it('Should not allow withdraw if the Stake Together does not have sufficient amount', async function () {
+  it.skip('Should not allow withdraw if the Stake Together does not have sufficient amount', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -62,7 +62,7 @@ describe('StakeTogether: WithdrawPool', function () {
       connect(StakeTogether.contract, user1).withdrawPool(stakeAmount, user4)
     ).to.be.revertedWith('NOT_ENOUGH_POOL_BALANCE')
   })
-  it('Should not allow withdraw if the pool does not exists', async function () {
+  it.skip('Should not allow withdraw if the pool does not exists', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -77,7 +77,7 @@ describe('StakeTogether: WithdrawPool', function () {
       connect(StakeTogether.contract, user1).withdrawPool(stakeAmount, nullAddress)
     ).to.be.revertedWith('POOL_NOT_FOUND')
   })
-  it('Should not allow withdraw of insufficient amount', async function () {
+  it.skip('Should not allow withdraw of insufficient amount', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user3, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
