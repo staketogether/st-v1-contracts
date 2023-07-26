@@ -36,20 +36,20 @@ export async function deploy() {
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(
     owner,
-    withdrawals.proxyAddress,
-    liquidity.proxyAddress,
     airdrop.proxyAddress,
+    fees.proxyAddress,
+    liquidity.proxyAddress,
     validators.proxyAddress,
-    fees.proxyAddress
+    withdrawals.proxyAddress
   )
   const stakeTogether = await deployStakeTogether(
     owner,
-    router.proxyAddress,
-    fees.proxyAddress,
     airdrop.proxyAddress,
-    withdrawals.proxyAddress,
+    fees.proxyAddress,
     liquidity.proxyAddress,
-    validators.proxyAddress
+    router.proxyAddress,
+    validators.proxyAddress,
+    withdrawals.proxyAddress
   )
 
   await fees.feesContract.setStakeTogether(stakeTogether.proxyAddress)
@@ -70,20 +70,20 @@ export async function deploy() {
 
   console.log('\n🔷 All contracts deployed!\n')
   verifyContracts(
-    fees.proxyAddress,
-    fees.implementationAddress,
     airdrop.proxyAddress,
     airdrop.implementationAddress,
+    fees.proxyAddress,
+    fees.implementationAddress,
     liquidity.proxyAddress,
     liquidity.implementationAddress,
-    validators.proxyAddress,
-    validators.implementationAddress,
-    withdrawals.proxyAddress,
-    withdrawals.implementationAddress,
     router.proxyAddress,
     router.implementationAddress,
     stakeTogether.proxyAddress,
-    stakeTogether.implementationAddress
+    stakeTogether.implementationAddress,
+    validators.proxyAddress,
+    validators.implementationAddress,
+    withdrawals.proxyAddress,
+    withdrawals.implementationAddress
   )
 }
 
@@ -242,20 +242,20 @@ async function deployWithdrawals(owner: CustomEthersSigner) {
 
 async function deployRouter(
   owner: CustomEthersSigner,
-  withdrawalsContract: string,
-  liquidityContract: string,
   airdropContract: string,
+  feesContract: string,
+  liquidityContract: string,
   validatorsContract: string,
-  feesContract: string
+  withdrawalsContract: string
 ) {
   const RouterFactory = new Router__factory().connect(owner)
 
   const router = await upgrades.deployProxy(RouterFactory, [
-    withdrawalsContract,
-    liquidityContract,
     airdropContract,
+    feesContract,
+    liquidityContract,
     validatorsContract,
-    feesContract
+    withdrawalsContract
   ])
 
   await router.waitForDeployment()
@@ -287,30 +287,30 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: CustomEthersSigner,
-  routerContract: string,
-  feesContract: string,
   airdropContract: string,
-  withdrawalsContract: string,
+  feesContract: string,
   liquidityContract: string,
-  validatorsContract: string
+  routerContract: string,
+  validatorsContract: string,
+  withdrawalsContract: string
 ) {
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
-    routerContract,
-    feesContract,
     airdropContract,
-    withdrawalsContract,
+    feesContract,
     liquidityContract,
-    validatorsContract
+    routerContract,
+    validatorsContract,
+    withdrawalsContract
   ])
 
   await stakeTogether.waitForDeployment()
   const proxyAddress = await stakeTogether.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`StakeTogether\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`StakeTogether\t Implementation\t\t ${implementationAddress}`)
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
@@ -350,20 +350,20 @@ async function deployStakeTogether(
 }
 
 async function verifyContracts(
-  feesProxy: string,
-  feesImplementation: string,
   airdropProxy: string,
   airdropImplementation: string,
+  feesProxy: string,
+  feesImplementation: string,
   liquidityProxy: string,
   liquidityImplementation: string,
+  routerProxy: string,
+  routerImplementation: string,
+  stakeTogetherProxy: string,
+  stakeTogetherImplementation: string,
   validatorsProxy: string,
   validatorsImplementation: string,
   withdrawalsProxy: string,
-  withdrawalsImplementation: string,
-  routerAddress: string,
-  routerImplementation: string,
-  stakeTogetherProxy: string,
-  stakeTogetherImplementation: string
+  withdrawalsImplementation: string
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
@@ -373,17 +373,13 @@ async function verifyContracts(
   console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${liquidityProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${liquidityImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${validatorsProxy} ${depositAddress} ${feesProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${validatorsProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${validatorsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
-  console.log(
-    `npx hardhat verify --network goerli ${routerAddress} ${withdrawalsProxy} ${liquidityProxy} ${airdropProxy} ${validatorsProxy} ${feesProxy} &&`
-  )
+  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(
-    `npx hardhat verify --network goerli ${stakeTogetherProxy} ${routerAddress} ${airdropProxy} ${withdrawalsProxy} ${liquidityProxy} ${validatorsProxy} &&`
-  )
+  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy}&&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation}`)
 }
 

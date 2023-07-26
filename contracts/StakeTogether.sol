@@ -11,12 +11,12 @@ contract StakeTogether is Shares {
   }
 
   function initialize(
-    address _routerContract,
-    address _feesContract,
     address _airdropContract,
-    address _withdrawalsContract,
+    address _feesContract,
     address _liquidityContract,
-    address _validatorsContract
+    address _routerContract,
+    address _validatorsContract,
+    address _withdrawalsContract
   ) public initializer {
     __ERC20_init('ST Staked Ether', 'sETH');
     __ERC20Burnable_init();
@@ -27,13 +27,14 @@ contract StakeTogether is Shares {
 
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
+    _grantRole(POOL_MANAGER_ROLE, msg.sender);
 
-    routerContract = Router(payable(_routerContract));
-    feesContract = Fees(payable(_feesContract));
     airdropContract = Airdrop(payable(_airdropContract));
-    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+    feesContract = Fees(payable(_feesContract));
     liquidityContract = Liquidity(payable(_liquidityContract));
+    routerContract = Router(payable(_routerContract));
     validatorsContract = Validators(payable(_validatorsContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
 
     beaconBalance = 0;
     liquidityBalance = 0;
@@ -45,9 +46,9 @@ contract StakeTogether is Shares {
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
-    addPool(address(this));
+    pools[address(this)] = true;
     _mintShares(address(this), msg.value);
-    _mintPoolShares(address(this), address(this), msg.value);
+    // _mintPoolShares(address(this), address(this), msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -179,11 +180,7 @@ contract StakeTogether is Shares {
       revert();
     }
 
-    uint256 sharesToBurn = MathUpgradeable.mulDiv(
-      _amount,
-      netSharesOf(msg.sender),
-      balanceOf(msg.sender)
-    );
+    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, netShares(msg.sender), balanceOf(msg.sender));
 
     totalWithdrawn += _amount;
 

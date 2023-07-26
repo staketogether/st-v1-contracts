@@ -32,7 +32,7 @@ interface IStakeTogether {
     uint256 lockDays;
   }
 
-  event AddPool(address account);
+  event AddPool(address account, bool listed);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);

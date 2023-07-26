@@ -48,11 +48,11 @@ contract Router is
   }
 
   function initialize(
-    address _withdrawalsContract,
-    address _liquidityContract,
     address _airdropContract,
+    address _feesContract,
+    address _liquidityContract,
     address _validatorsContract,
-    address _feesContract
+    address _withdrawalsContract
   ) public initializer {
     __Pausable_init();
     __AccessControl_init();
@@ -62,11 +62,11 @@ contract Router is
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
 
-    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
-    liquidityContract = Liquidity(payable(_liquidityContract));
     airdropContract = Airdrop(payable(_airdropContract));
-    validatorsContract = Validators(payable(_validatorsContract));
     feesContract = Fees(payable(_feesContract));
+    liquidityContract = Liquidity(payable(_liquidityContract));
+    validatorsContract = Validators(payable(_validatorsContract));
+    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
 
     reportBlockNumber = 1;
     lastConsensusEpoch = 0;
