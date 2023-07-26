@@ -28,7 +28,6 @@ contract Fees is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public router;
   Liquidity public liquidity;
 
   uint256 public maxFeeIncrease;
@@ -36,6 +35,7 @@ contract Fees is
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
@@ -69,25 +69,14 @@ contract Fees is
     _transferToStakeTogether();
   }
 
-  modifier onlyRouter() {
-    require(msg.sender == address(router), 'ONLY_ROUTER');
-    _;
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0));
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    require(_router != address(0), 'ROUTER_ALREADY_SET');
-    router = Router(payable(_router));
-    emit SetRouter(_router);
-  }
-
   function setLiquidity(address _liquidity) external onlyRole(ADMIN_ROLE) {
-    require(_liquidity != address(0), 'LIQUIDITY_ALREADY_SET');
+    require(_liquidity != address(0));
     liquidity = Liquidity(payable(_liquidity));
     emit SetLiquidity(_liquidity);
   }

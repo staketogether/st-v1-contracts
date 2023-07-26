@@ -29,6 +29,7 @@ contract Airdrop is
   StakeTogether public stakeTogether;
   Router public router;
 
+  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }

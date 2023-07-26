@@ -38,12 +38,12 @@ abstract contract Shares is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
 
-  Router public routerContract;
-  Fees public feesContract;
-  Airdrop public airdropContract;
-  Withdrawals public withdrawalsContract;
-  Liquidity public liquidityContract;
-  Validators public validatorsContract;
+  Router public router;
+  Fees public fees;
+  Airdrop public airdrop;
+  Withdrawals public withdrawals;
+  Liquidity public liquidity;
+  Validators public validators;
 
   bytes public withdrawalCredentials;
   uint256 public beaconBalance;
@@ -51,13 +51,13 @@ abstract contract Shares is
   Config public config;
 
   function setBeaconBalance(uint256 _amount) external {
-    require(msg.sender == address(validatorsContract));
+    require(msg.sender == address(validators));
     beaconBalance = _amount;
     emit SetBeaconBalance(_amount);
   }
 
   function setLiquidityBalance(uint256 _amount) external {
-    require(msg.sender == address(liquidityContract));
+    require(msg.sender == address(liquidity));
     liquidityBalance = _amount;
     emit SetLiquidityBalance(_amount);
   }
@@ -397,12 +397,12 @@ abstract contract Shares is
     require(!pools[_pool]);
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool);
-      uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakePool);
-      IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+      uint256[8] memory feeAmounts = fees.estimateFeeFixed(IFees.FeeType.StakePool);
+      IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
       for (uint i = 0; i < roles.length - 1; i++) {
         _mintRewards(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
           feeAmounts[i]
         );
       }
@@ -428,7 +428,7 @@ abstract contract Shares is
   }
 
   function mintRewards(address _address, address _pool, uint256 _sharesAmount) public payable {
-    require(msg.sender == address(routerContract) || msg.sender == address(liquidityContract));
+    require(msg.sender == address(router) || msg.sender == address(liquidity));
     _mintRewards(_address, _pool, _sharesAmount);
   }
 
@@ -437,14 +437,9 @@ abstract contract Shares is
     uint256 _sharesAmount,
     IFees.FeeRoles _role
   ) external whenNotPaused {
-    require(msg.sender == address(airdropContract));
-    _transferShares(feesContract.getFeeAddress(_role), _account, _sharesAmount);
-    _transferPoolDelegationShares(
-      feesContract.getFeeAddress(_role),
-      _account,
-      address(this),
-      _sharesAmount
-    );
+    require(msg.sender == address(airdrop));
+    _transferShares(fees.getFeeAddress(_role), _account, _sharesAmount);
+    _transferPoolDelegationShares(fees.getFeeAddress(_role), _account, address(this), _sharesAmount);
 
     if (_role == IFees.FeeRoles.Pools) {
       _transferPoolShares(_account, address(this), _account, _sharesAmount);
