@@ -184,19 +184,19 @@ abstract contract Shares is
    *****************/
 
   uint256 public totalLockedShares;
-  mapping(address => mapping(uint256 => LockedShares)) public lockedShares;
-  mapping(address => uint256) public lockedSharesOf;
-  uint256 internal lockSharesId;
+  mapping(address => mapping(uint256 => LockedShares)) public locks;
+  mapping(address => uint256) public lockedShares;
+  uint256 internal lockId;
 
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
     require(config.feature.Lock);
     require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays);
     require(_sharesAmount <= shares[msg.sender]);
 
-    uint256 newId = lockSharesId;
-    lockSharesId += 1;
+    uint256 newId = lockId;
+    lockId += 1;
 
-    lockedShares[msg.sender][newId] = LockedShares({
+    locks[msg.sender][newId] = LockedShares({
       id: newId,
       amount: _sharesAmount,
       unlockTime: block.timestamp + (_lockDays * 1 days),
@@ -204,34 +204,34 @@ abstract contract Shares is
     });
 
     totalLockedShares += _sharesAmount;
-    lockedSharesOf[msg.sender] += _sharesAmount;
+    lockedShares[msg.sender] += _sharesAmount;
 
     emit LockShares(msg.sender, newId, _sharesAmount, _lockDays);
   }
 
   function unlockShares(uint256 _id) external nonReentrant whenNotPaused {
-    LockedShares storage lockedShare = lockedShares[msg.sender][_id];
+    LockedShares storage lockedShare = locks[msg.sender][_id];
 
     require(lockedShare.id != 0);
     require(lockedShare.unlockTime <= block.timestamp);
 
     totalLockedShares -= lockedShare.amount;
-    lockedSharesOf[msg.sender] -= lockedShare.amount;
+    lockedShares[msg.sender] -= lockedShare.amount;
 
-    delete lockedShares[msg.sender][_id];
+    delete locks[msg.sender][_id];
 
     emit UnlockShares(msg.sender, _id, lockedShare.amount);
   }
 
   function netShares(address _account) public view returns (uint256) {
-    return shares[_account] - lockedSharesOf[_account];
+    return shares[_account] - lockedShares[_account];
   }
 
   /*****************
    ** POOLS SHARES **
    *****************/
 
-  mapping(address => uint256) private poolSharesOf;
+  mapping(address => uint256) private poolShares;
   uint256 public totalPoolShares;
   mapping(address => mapping(address => uint256)) private delegationsShares;
   mapping(address => address[]) private delegates;
@@ -353,13 +353,13 @@ abstract contract Shares is
   }
 
   function _incrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
-    poolSharesOf[_pool] += _sharesAmount;
+    poolShares[_pool] += _sharesAmount;
     delegationsShares[_to][_pool] += _sharesAmount;
     totalPoolShares += _sharesAmount;
   }
 
   function _decrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
-    poolSharesOf[_pool] -= _sharesAmount;
+    poolShares[_pool] -= _sharesAmount;
     delegationsShares[_to][_pool] -= _sharesAmount;
     totalPoolShares -= _sharesAmount;
   }
