@@ -252,8 +252,8 @@ abstract contract Shares is
   function _mintPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0));
     require(pools[_pool]);
-    require(delegates[_to].length < config.maxDelegations);
     require(_sharesAmount > 0);
+    require(delegates[_to].length < config.maxDelegations);
 
     _incrementPoolShares(_to, _pool, _sharesAmount);
     _addDelegate(_to, _pool);

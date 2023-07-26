@@ -188,8 +188,6 @@ async function deployLiquidity(owner: CustomEthersSigner) {
 
   const liquidityContract = liquidity as unknown as Liquidity
 
-  await liquidityContract.initializeShares({ value: 1n })
-
   const config = {
     depositLimit: ethers.parseEther('1000'),
     withdrawalLimit: ethers.parseEther('1000'),
@@ -204,6 +202,8 @@ async function deployLiquidity(owner: CustomEthersSigner) {
   }
 
   await liquidityContract.setConfig(config)
+
+  await liquidityContract.initializeShares({ value: 1n })
 
   return { proxyAddress, implementationAddress, liquidityContract }
 }

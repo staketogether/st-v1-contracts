@@ -48,7 +48,7 @@ contract StakeTogether is Shares {
     require(totalShares == 0);
     pools[address(this)] = true;
     _mintShares(address(this), msg.value);
-    // _mintPoolShares(address(this), address(this), msg.value);
+    _mintPoolShares(address(this), address(this), msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
