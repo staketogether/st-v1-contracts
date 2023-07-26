@@ -23,7 +23,7 @@ describe('StakeTogether: Deposit', function () {
 
     const stakeAmount = ethers.parseEther('1')
     const stakeShares = await StakeTogether.contract.sharesByPooledEth(stakeAmount)
-    const STAKE_ENTRY_FEE = 1n
+    const STAKE_ENTRY_FEE = 0n
     const STAKE_ACCOUNTS_ROLE = 0
     const LOCK_ACCOUNTS_ROLE = 1
     const POOL_ROLE = 2
