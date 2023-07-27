@@ -2,7 +2,7 @@ import { ethers, network, upgrades } from 'hardhat'
 
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
-import { Fees, Fees__factory } from '../../typechain'
+import { Fees, Fees__factory, MockStakeTogether, MockStakeTogether__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
 
 export async function feesFixture() {
@@ -33,6 +33,15 @@ export async function feesFixture() {
 
   const feesContract = fees as unknown as Fees
 
+  const MockStakeTogether = new MockStakeTogether__factory().connect(owner)
+  const mockStakeTogether = await upgrades.deployProxy(MockStakeTogether)
+  await mockStakeTogether.waitForDeployment()
+
+  const stProxy = await mockStakeTogether.getAddress()
+  const stImplementation = await getImplementationAddress(network.provider, stProxy)
+
+  const stContract = fees as unknown as MockStakeTogether
+
   const UPGRADER_ROLE = await feesContract.UPGRADER_ROLE()
   const ADMIN_ROLE = await feesContract.ADMIN_ROLE()
 
@@ -50,6 +59,8 @@ export async function feesFixture() {
     nullAddress,
     feesContract,
     feesProxy,
+    stContract,
+    stProxy,
     UPGRADER_ROLE,
     ADMIN_ROLE
   }

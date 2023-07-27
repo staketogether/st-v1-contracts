@@ -3,7 +3,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-import { Fees, FeesV2__factory } from '../../typechain'
+import { Fees, MockFees__factory, MockStakeTogether } from '../../typechain'
 import connect from '../utils/connect'
 import { feesFixture } from './FeesFixture'
 
@@ -12,6 +12,8 @@ dotenv.config()
 describe('Fees', function () {
   let feesContract: Fees
   let feesProxy: string
+  let stContract: MockStakeTogether
+  let stProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -29,6 +31,8 @@ describe('Fees', function () {
     const fixture = await loadFixture(feesFixture)
     feesContract = fixture.feesContract
     feesProxy = fixture.feesProxy
+    stContract = fixture.stContract
+    stProxy = fixture.stProxy
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -68,15 +72,15 @@ describe('Fees', function () {
   it('should upgrade the contract if the user has upgrader role', async function () {
     expect(await feesContract.version()).to.equal(1n)
 
-    const FeesV2Factory = new FeesV2__factory(user1)
+    const MockFees = new MockFees__factory(user1)
 
     // A user without the UPGRADER_ROLE tries to upgrade the contract - should fail
-    await expect(upgrades.upgradeProxy(feesProxy, FeesV2Factory)).to.be.reverted
+    await expect(upgrades.upgradeProxy(feesProxy, MockFees)).to.be.reverted
 
-    const FeesV2FactoryOwner = new FeesV2__factory(owner)
+    const MockFeesOwner = new MockFees__factory(owner)
 
     // The owner (who has the UPGRADER_ROLE) upgrades the contract - should succeed
-    const upgradedFeesContract = await upgrades.upgradeProxy(feesProxy, FeesV2FactoryOwner)
+    const upgradedFeesContract = await upgrades.upgradeProxy(feesProxy, MockFeesOwner)
 
     // Upgrade version
     await upgradedFeesContract.initializeV2()
@@ -323,4 +327,60 @@ describe('Fees', function () {
 
     await expect(connect(feesContract, user1).setMaxFeeIncrease(newMaxFeeIncrease)).to.be.reverted
   })
+
+  it.only('should correctly estimate the fee percentage', async function () {
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+
+    // Define non-zero addresses for the fee roles
+    const feeAddresses = [
+      user1.address,
+      user2.address,
+      user3.address,
+      user4.address,
+      user5.address,
+      user6.address,
+      user7.address,
+      nullAddress
+    ]
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1 // Set this to the appropriate fee type
+    const amount = ethers.parseEther('1')
+
+    // Set the fee for the specified type
+    const feeValue = ethers.parseEther('0.01') // 1%
+    const mathType = 1 // FeeMathType.PERCENTAGE
+    const allocations = new Array(8).fill(ethers.parseEther('0.125'))
+    await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
+
+    // Get and log the set fee
+    const fee = await feesContract.getFee(feeType)
+    // console.log('Set fee: ', fee)
+
+    const [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount)
+
+    // console.log('shares: ', shares)
+    // console.log('amounts: ', amounts)
+
+    // Check if the shares and amounts are correctly calculated
+    for (let i = 0; i < 7; i++) {
+      const expectedShare = 1250000000000000n // 0.00125% of the amount
+      const expectedAmount = 1250000000000000n // 0.00125 Ether
+
+      expect(shares[i].toString()).to.equal(expectedShare.toString())
+      expect(amounts[i].toString()).to.equal(expectedAmount.toString())
+    }
+
+    const expectedShareSender = 991250000000000000n
+    const expectedAmountSender = 991250000000000000n
+
+    expect(shares[7].toString()).to.equal(expectedShareSender.toString())
+    expect(amounts[7].toString()).to.equal(expectedAmountSender.toString())
+  })
+
+  // Todo: add test for no exact numbers with shares loss
+
+  // Todo: add test for 0.04%
 })

@@ -193,41 +193,44 @@ contract Fees is
     uint256 _amount
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
-    return distributeFeePercentage(_feeType, sharesAmount, 0);
+    return distributeFeePercentage(_feeType, sharesAmount);
   }
 
   function distributeFeePercentage(
     FeeType _feeType,
-    uint256 _sharesAmount,
-    uint256 _dynamicFee
+    uint256 _sharesAmount
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    require(_dynamicFee <= fees[_feeType].value + maxFeeIncrease);
     require(fees[_feeType].mathType == FeeMathType.PERCENTAGE);
 
     FeeRoles[8] memory roles = getFeesRoles();
-
+    address[8] memory feeAddresses = getFeeRolesAddresses();
     uint256[8] memory allocations;
 
-    for (uint256 i = 0; i < allocations.length - 1; i++) {
+    for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
+      require(feeAddresses[i] != address(0), 'ZERO_ADDRESS');
+    }
+
+    for (uint256 i = 0; i < allocations.length; i++) {
       allocations[i] = fees[_feeType].allocations[roles[i]];
     }
-    require(_checkAllocationSum(allocations));
 
-    address[8] memory feeAddresses = getFeeRolesAddresses();
+    require(_checkAllocationSum(allocations), 'SUM_NOT_1ETHER');
 
-    for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
-      require(feeAddresses[i] != address(0));
-    }
+    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, fees[_feeType].value, 1 ether);
 
-    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
+    // Create a temporary variable to keep track of the total allocated shares
+    uint256 totalAllocatedShares = 0;
 
+    // Allocate shares for the first 7 roles
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = MathUpgradeable.mulDiv(feeShares, allocations[i], 1 ether);
+      totalAllocatedShares += shares[i]; // Add the allocated shares to the total
     }
 
-    uint256 senderShares = _sharesAmount - feeShares;
-    shares[7] = senderShares;
+    // Allocate the remaining shares to the last role (sender)
+    shares[7] = _sharesAmount - totalAllocatedShares;
 
+    // Calculate the amounts for each role
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
     }
@@ -258,7 +261,7 @@ contract Fees is
     }
 
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
-    return distributeFeePercentage(_feeType, sharesAmount, dynamicFee);
+    return distributeFeePercentage(_feeType, sharesAmount); // Todo: implement dynamic fee
   }
 
   function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {

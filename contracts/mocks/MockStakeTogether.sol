@@ -13,40 +13,27 @@ import '../Liquidity.sol';
 import '../Router.sol';
 import '../StakeTogether.sol';
 
-import '../interfaces/IFees.sol';
+import '../interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract FeesV2 is
+contract MockStakeTogether is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IFees
+  IStakeTogether
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
-  StakeTogether public stakeTogether;
-  Liquidity public liquidity;
-
-  uint256 public version;
-  uint256 public maxFeeIncrease;
-
-  mapping(FeeRoles => address payable) public roleAddresses;
-  mapping(FeeType => Fee) public fees;
-
-  function pause() public onlyRole(ADMIN_ROLE) {
-    _pause();
-  }
-
-  function unpause() public onlyRole(ADMIN_ROLE) {
-    _unpause();
-  }
-
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  function initializeV2() external onlyRole(UPGRADER_ROLE) {
-    version = 2;
+  function sharesByPooledEth(uint256 _amount) public pure returns (uint256) {
+    return _amount;
+  }
+
+  function pooledEthByShares(uint256 _sharesAmount) public pure returns (uint256) {
+    return _sharesAmount;
   }
 }

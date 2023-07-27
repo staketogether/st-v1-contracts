@@ -80,8 +80,8 @@ abstract contract Shares is
     return pooledEthByShares(netShares(_account));
   }
 
-  function sharesByPooledEth(uint256 _ethAmount) public view returns (uint256) {
-    return MathUpgradeable.mulDiv(_ethAmount, totalShares, totalPooledEther());
+  function sharesByPooledEth(uint256 _amount) public view returns (uint256) {
+    return MathUpgradeable.mulDiv(_amount, totalShares, totalPooledEther());
   }
 
   function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
