@@ -1,3 +1,5 @@
+// @deprecated Create fixture per contract
+
 import { CustomEthersSigner, SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'

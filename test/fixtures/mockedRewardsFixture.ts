@@ -1,3 +1,5 @@
+// @deprecated Create fixture per contract
+
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { AbiCoder, ethers } from 'ethers'
 import { multiDiv } from '../utils/multiDiv'
