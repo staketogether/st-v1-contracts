@@ -31,7 +31,7 @@ contract Fees is
   Liquidity public liquidity;
 
   uint256 public version;
-  uint256 public maxFeeIncrease;
+  uint256 public maxDynamicFee;
 
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
@@ -175,9 +175,9 @@ contract Fees is
     return (feeTypes, feeValues, feeMathTypes, allocations);
   }
 
-  function setMaxFeeIncrease(uint256 _maxFeeIncrease) external onlyRole(ADMIN_ROLE) {
-    maxFeeIncrease = _maxFeeIncrease;
-    emit SetMaxFeeIncrease(_maxFeeIncrease);
+  function setMaxDynamicFee(uint256 _maxDynamicFee) external onlyRole(ADMIN_ROLE) {
+    maxDynamicFee = _maxDynamicFee;
+    emit SetMaxDynamicFee(_maxDynamicFee);
   }
 
   function _transferToStakeTogether() private {
@@ -190,15 +190,17 @@ contract Fees is
 
   function estimateFeePercentage(
     FeeType _feeType,
-    uint256 _amount
+    uint256 _amount,
+    bool _dynamicFee
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
-    return distributeFeePercentage(_feeType, sharesAmount);
+    return distributeFeePercentage(_feeType, sharesAmount, _dynamicFee);
   }
 
   function distributeFeePercentage(
     FeeType _feeType,
-    uint256 _sharesAmount
+    uint256 _sharesAmount,
+    bool _dynamicFee
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     require(fees[_feeType].mathType == FeeMathType.PERCENTAGE);
 
@@ -214,9 +216,15 @@ contract Fees is
       allocations[i] = fees[_feeType].allocations[roles[i]];
     }
 
-    require(_checkAllocationSum(allocations), 'SUM_NOT_1ETHER');
+    require(_checkAllocationSum(allocations), 'SUM_NOT_1_ETHER');
 
-    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, fees[_feeType].value, 1 ether);
+    uint256 feeValue = fees[_feeType].value;
+
+    if (_dynamicFee) {
+      feeValue = _calculateDynamicFee(feeValue);
+    }
+
+    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
 
     // Create a temporary variable to keep track of the total allocated shares
     uint256 totalAllocatedShares = 0;
@@ -236,32 +244,6 @@ contract Fees is
     }
 
     return (shares, amounts);
-  }
-
-  function estimateDynamicFeePercentage(
-    FeeType _feeType,
-    uint256 _amount
-  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    uint256 totalPooledEtherStake = stakeTogether.totalPooledEther();
-    uint256 totalPooledEtherLiquidity = liquidity.totalPooledEther();
-    uint256 baseFee = fees[FeeType.LiquidityProvide].value;
-    uint256 dynamicFee;
-
-    if (totalPooledEtherLiquidity == 0) {
-      dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
-    } else {
-      uint256 ratio = MathUpgradeable.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
-
-      if (ratio >= 1 ether) {
-        dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + maxFeeIncrease, 1 ether);
-      } else {
-        uint256 feeIncrease = MathUpgradeable.mulDiv(ratio, maxFeeIncrease, 1 ether);
-        dynamicFee = MathUpgradeable.mulDiv(baseFee, 1 ether + feeIncrease, 1 ether);
-      }
-    }
-
-    uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
-    return distributeFeePercentage(_feeType, sharesAmount); // Todo: implement dynamic fee
   }
 
   function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {
@@ -292,5 +274,26 @@ contract Fees is
       sum += allocations[i];
     }
     return sum == 1 ether;
+  }
+
+  function _calculateDynamicFee(uint256 _baseFee) internal view returns (uint256) {
+    uint256 totalPooledEtherStake = stakeTogether.totalPooledEther();
+    uint256 totalPooledEtherLiquidity = liquidity.totalPooledEther();
+    uint256 _fee;
+
+    if (totalPooledEtherLiquidity == 0) {
+      _fee = MathUpgradeable.mulDiv(_baseFee, 1 ether + maxDynamicFee, 1 ether);
+    } else {
+      uint256 ratio = MathUpgradeable.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
+
+      if (ratio >= 1 ether) {
+        _fee = MathUpgradeable.mulDiv(_baseFee, 1 ether + maxDynamicFee, 1 ether);
+      } else {
+        uint256 feeIncrease = MathUpgradeable.mulDiv(ratio, maxDynamicFee, 1 ether);
+        _fee = MathUpgradeable.mulDiv(_baseFee, 1 ether + feeIncrease, 1 ether);
+      }
+    }
+
+    return _fee;
   }
 }

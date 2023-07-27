@@ -283,7 +283,8 @@ contract Router is
 
     (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.StakeRewards,
-      _report.profitAmount
+      _report.profitAmount,
+      false
     );
 
     if (_report.validatorsToExit.length > 0) {

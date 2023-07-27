@@ -250,7 +250,8 @@ contract Liquidity is
 
     (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.LiquidityProvideEntry,
-      msg.value
+      msg.value,
+      false
     );
 
     IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
@@ -295,9 +296,10 @@ contract Liquidity is
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateDynamicFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.LiquidityProvide,
-      _amount
+      _amount,
+      true
     );
 
     IFees.FeeRoles[8] memory roles = fees.getFeesRoles();

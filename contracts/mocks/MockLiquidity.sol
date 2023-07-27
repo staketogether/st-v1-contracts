@@ -13,10 +13,10 @@ import '../Liquidity.sol';
 import '../Router.sol';
 import '../StakeTogether.sol';
 
-import '../interfaces/IStakeTogether.sol';
+import '../interfaces/ILiquidity.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract MockStakeTogether is
+contract MockLiquidity is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,

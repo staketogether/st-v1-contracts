@@ -31,7 +31,7 @@ contract MockFees is
   Liquidity public liquidity;
 
   uint256 public version;
-  uint256 public maxFeeIncrease;
+  uint256 public maxDynamicFee;
 
   mapping(FeeRoles => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;

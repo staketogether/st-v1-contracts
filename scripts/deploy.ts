@@ -172,7 +172,7 @@ async function deployFees(owner: CustomEthersSigner) {
   ])
 
   // Set the maximum fee increase to 3 ether (300%)
-  await feesContract.setMaxFeeIncrease(ethers.parseEther('3'))
+  await feesContract.setMaxDynamicFee(ethers.parseEther('3'))
 
   for (let i = 0; i < 7; i++) {
     await feesContract.setFeeAddress(i, owner)

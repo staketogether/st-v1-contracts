@@ -44,7 +44,7 @@ interface IFees {
     uint256[] allocations
   );
   event SetLiquidity(address liquidityContract);
-  event SetMaxFeeIncrease(uint256 maxFeeIncrease);
+  event SetMaxDynamicFee(uint256 maxDynamicFee);
   event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
 }
