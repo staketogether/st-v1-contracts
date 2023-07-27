@@ -4,6 +4,7 @@ import dotenv from 'dotenv'
 import { feesFixture } from './FeesFixture'
 
 dotenv.config()
+
 describe('Fees', function () {
   it('should start with no fees', async function () {
     const { feesContract } = await loadFixture(feesFixture)
