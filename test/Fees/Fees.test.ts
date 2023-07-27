@@ -1,5 +1,5 @@
+import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
@@ -12,9 +12,9 @@ dotenv.config()
 describe('Fees', function () {
   let feesContract: Fees
   let feesProxy: string
-  let owner: SignerWithAddress
-  let user1: SignerWithAddress
-  let user2: SignerWithAddress
+  let owner: HardhatEthersSigner
+  let user1: HardhatEthersSigner
+  let user2: HardhatEthersSigner
   let ADMIN_ROLE: string
 
   // Setting up the fixture before each test

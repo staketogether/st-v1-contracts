@@ -1,6 +1,6 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ethers, network, upgrades } from 'hardhat'
 
+import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { Fees, Fees__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
@@ -10,16 +10,16 @@ export async function feesFixture() {
 
   const provider = ethers.provider
 
-  let owner: SignerWithAddress
-  let user1: SignerWithAddress
-  let user2: SignerWithAddress
-  let user3: SignerWithAddress
-  let user4: SignerWithAddress
-  let user5: SignerWithAddress
-  let user6: SignerWithAddress
-  let user7: SignerWithAddress
-  let user8: SignerWithAddress
-  let user9: SignerWithAddress
+  let owner: HardhatEthersSigner
+  let user1: HardhatEthersSigner
+  let user2: HardhatEthersSigner
+  let user3: HardhatEthersSigner
+  let user4: HardhatEthersSigner
+  let user5: HardhatEthersSigner
+  let user6: HardhatEthersSigner
+  let user7: HardhatEthersSigner
+  let user8: HardhatEthersSigner
+  let user9: HardhatEthersSigner
 
   let nullAddress: string = '0x0000000000000000000000000000000000000000'
 
