@@ -11,12 +11,12 @@ contract StakeTogether is Shares {
   }
 
   function initialize(
-    address _airdropContract,
-    address _feesContract,
-    address _liquidityContract,
-    address _routerContract,
-    address _validatorsContract,
-    address _withdrawalsContract
+    address _airdrop,
+    address _fees,
+    address _liquidity,
+    address _router,
+    address _validators,
+    address _withdrawals
   ) public initializer {
     __ERC20_init('ST Staked Ether', 'sETH');
     __ERC20Burnable_init();
@@ -29,12 +29,12 @@ contract StakeTogether is Shares {
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
 
-    airdropContract = Airdrop(payable(_airdropContract));
-    feesContract = Fees(payable(_feesContract));
-    liquidityContract = Liquidity(payable(_liquidityContract));
-    routerContract = Router(payable(_routerContract));
-    validatorsContract = Validators(payable(_validatorsContract));
-    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+    airdrop = Airdrop(payable(_airdrop));
+    fees = Fees(payable(_fees));
+    liquidity = Liquidity(payable(_liquidity));
+    router = Router(payable(_router));
+    validators = Validators(payable(_validators));
+    withdrawals = Withdrawals(payable(_withdrawals));
 
     beaconBalance = 0;
     liquidityBalance = 0;
@@ -80,7 +80,7 @@ contract StakeTogether is Shares {
     }
     if (debitAmount > 0) {
       liquidityBalance -= debitAmount;
-      liquidityContract.supplyLiquidity{ value: debitAmount }();
+      liquidity.supplyLiquidity{ value: debitAmount }();
       emit SupplyLiquidity(debitAmount);
     }
   }
@@ -90,7 +90,7 @@ contract StakeTogether is Shares {
    ************/
 
   function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
-    require(_config.poolSize >= validatorsContract.validatorSize());
+    require(_config.poolSize >= validators.validatorSize());
     config = _config;
     emit SetConfig(_config);
   }
@@ -124,13 +124,13 @@ contract StakeTogether is Shares {
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
-    (uint256[8] memory _shares, ) = feesContract.distributeFeePercentage(
+    (uint256[8] memory _shares, ) = fees.distributeFeePercentage(
       IFees.FeeType.StakeEntry,
       sharesAmount,
       0
     );
 
-    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == IFees.FeeRoles.Sender) {
@@ -140,8 +140,8 @@ contract StakeTogether is Shares {
           _mintRewards(_pool, _pool, _shares[i]);
         } else {
           _mintRewards(
-            feesContract.getFeeAddress(roles[i]),
-            feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+            fees.getFeeAddress(roles[i]),
+            fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
             _shares[i]
           );
         }
@@ -198,10 +198,10 @@ contract StakeTogether is Shares {
 
   function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawLiquidity);
-    require(_amount <= address(liquidityContract).balance);
+    require(_amount <= address(liquidity).balance);
     _withdrawBase(_amount, _pool);
     emit WithdrawLiquidity(msg.sender, _amount, _pool);
-    liquidityContract.withdrawLiquidity(_amount, _pool);
+    liquidity.withdrawLiquidity(_amount, _pool);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
@@ -210,11 +210,11 @@ contract StakeTogether is Shares {
     beaconBalance -= _amount;
     _withdrawBase(_amount, _pool);
     emit WithdrawValidator(msg.sender, _amount, _pool);
-    withdrawalsContract.mint(msg.sender, _amount);
+    withdrawals.mint(msg.sender, _amount);
   }
 
   function refundPool() external payable {
-    require(msg.sender == address(routerContract));
+    require(msg.sender == address(router));
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }
@@ -240,9 +240,9 @@ contract StakeTogether is Shares {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(validatorsContract.isValidatorOracle(msg.sender));
-    require(address(this).balance >= validatorsContract.validatorSize());
-    validatorsContract.createValidator{ value: validatorsContract.validatorSize() }(
+    require(validators.isValidatorOracle(msg.sender));
+    require(address(this).balance >= validators.validatorSize());
+    validators.createValidator{ value: validators.validatorSize() }(
       _publicKey,
       withdrawalCredentials,
       _signature,

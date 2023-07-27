@@ -27,7 +27,7 @@ contract Airdrop is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public routerContract;
+  Router public router;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -54,7 +54,7 @@ contract Airdrop is
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_ROUTER');
+    require(msg.sender == address(router), 'ONLY_ROUTER');
     _;
   }
 
@@ -74,10 +74,10 @@ contract Airdrop is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
-    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
-    routerContract = Router(payable(_routerContract));
-    emit SetRouterContract(_routerContract);
+  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
+    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    router = Router(payable(_router));
+    emit SetRouter(_router);
   }
 
   function _transferToStakeTogether() private {

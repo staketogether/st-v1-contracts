@@ -28,7 +28,7 @@ contract Fees is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Liquidity public liquidityContract;
+  Liquidity public liquidity;
 
   uint256 public maxFeeIncrease;
 
@@ -75,10 +75,10 @@ contract Fees is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setLiquidityContract(address _liquidityContract) external onlyRole(ADMIN_ROLE) {
-    require(_liquidityContract != address(0));
-    liquidityContract = Liquidity(payable(_liquidityContract));
-    emit SetLiquidityContract(_liquidityContract);
+  function setLiquidity(address _liquidity) external onlyRole(ADMIN_ROLE) {
+    require(_liquidity != address(0));
+    liquidity = Liquidity(payable(_liquidity));
+    emit SetLiquidity(_liquidity);
   }
 
   function getFeesRoles() public pure returns (FeeRoles[8] memory) {
@@ -234,7 +234,7 @@ contract Fees is
     uint256 _amount
   ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
     uint256 totalPooledEtherStake = stakeTogether.totalPooledEther();
-    uint256 totalPooledEtherLiquidity = liquidityContract.totalPooledEther();
+    uint256 totalPooledEtherLiquidity = liquidity.totalPooledEther();
     uint256 baseFee = fees[FeeType.LiquidityProvide].value;
     uint256 dynamicFee;
 

@@ -35,11 +35,11 @@ contract Router is
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
 
   StakeTogether public stakeTogether;
-  Fees public feesContract;
-  Withdrawals public withdrawalsContract;
-  Liquidity public liquidityContract;
-  Airdrop public airdropContract;
-  Validators public validatorsContract;
+  Fees public fees;
+  Withdrawals public withdrawals;
+  Liquidity public liquidity;
+  Airdrop public airdrop;
+  Validators public validators;
   Config public config;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -48,11 +48,11 @@ contract Router is
   }
 
   function initialize(
-    address _airdropContract,
-    address _feesContract,
-    address _liquidityContract,
-    address _validatorsContract,
-    address _withdrawalsContract
+    address _airdrop,
+    address _fees,
+    address _liquidity,
+    address _validators,
+    address _withdrawals
   ) public initializer {
     __Pausable_init();
     __AccessControl_init();
@@ -62,11 +62,11 @@ contract Router is
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
 
-    airdropContract = Airdrop(payable(_airdropContract));
-    feesContract = Fees(payable(_feesContract));
-    liquidityContract = Liquidity(payable(_liquidityContract));
-    validatorsContract = Validators(payable(_validatorsContract));
-    withdrawalsContract = Withdrawals(payable(_withdrawalsContract));
+    airdrop = Airdrop(payable(_airdrop));
+    fees = Fees(payable(_fees));
+    liquidity = Liquidity(payable(_liquidity));
+    validators = Validators(payable(_validators));
+    withdrawals = Withdrawals(payable(_withdrawals));
 
     reportBlockNumber = 1;
     lastConsensusEpoch = 0;
@@ -285,7 +285,7 @@ contract Router is
       stakeTogether.setBeaconBalance(newBeaconBalance);
     }
 
-    (uint256[8] memory _shares, uint256[8] memory _amounts) = feesContract.estimateFeePercentage(
+    (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.StakeRewards,
       _report.profitAmount
     );
@@ -296,7 +296,7 @@ contract Router is
 
     if (_report.exitedValidators.length > 0) {
       for (uint256 i = 0; i < _report.exitedValidators.length; i++) {
-        validatorsContract.removeValidator(_report.epoch, _report.exitedValidators[i]);
+        validators.removeValidator(_report.epoch, _report.exitedValidators[i]);
       }
     }
 
@@ -308,20 +308,20 @@ contract Router is
       }
     }
 
-    Fees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    Fees.FeeRoles[8] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
           _shares[i]
         );
-        airdropContract.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);
+        airdrop.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);
       }
     }
 
     if (_report.withdrawAmount > 0) {
-      payable(address(withdrawalsContract)).transfer(_report.withdrawAmount);
+      payable(address(withdrawals)).transfer(_report.withdrawAmount);
     }
 
     if (_report.restWithdrawAmount > 0) {
@@ -384,7 +384,7 @@ contract Router is
       require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');
     }
 
-    require(_report.withdrawAmount <= withdrawalsContract.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
+    require(_report.withdrawAmount <= withdrawals.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
 
     require(stakeTogether.beaconBalance() - _report.lossAmount > 0, 'INVALID_BEACON_BALANCE');
 

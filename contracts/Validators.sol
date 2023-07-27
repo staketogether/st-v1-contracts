@@ -32,8 +32,8 @@ contract Validators is
   bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
   StakeTogether public stakeTogether;
-  Router public routerContract;
-  Fees public feesContract;
+  Router public router;
+  Fees public fees;
   IDepositContract public depositContract;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -41,7 +41,7 @@ contract Validators is
     _disableInitializers();
   }
 
-  function initialize(address _depositContract, address _feesContract) public initializer {
+  function initialize(address _depositContract, address _fees) public initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -50,7 +50,7 @@ contract Validators is
     _grantRole(UPGRADER_ROLE, msg.sender);
 
     depositContract = IDepositContract(_depositContract);
-    feesContract = Fees(payable(_feesContract));
+    fees = Fees(payable(_fees));
 
     totalValidators = 0;
     validatorSize = 32 ether;
@@ -82,14 +82,14 @@ contract Validators is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  function setRouterContract(address _routerContract) external onlyRole(ADMIN_ROLE) {
-    require(_routerContract != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
-    routerContract = Router(payable(_routerContract));
-    emit SetRouterContract(_routerContract);
+  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
+    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    router = Router(payable(_router));
+    emit SetRouter(_router);
   }
 
   modifier onlyRouter() {
-    require(msg.sender == address(routerContract), 'ONLY_DISTRIBUTOR_CONTRACT');
+    require(msg.sender == address(router), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
 
@@ -175,15 +175,15 @@ contract Validators is
     validators[_publicKey] = true;
     totalValidators++;
 
-    uint256[8] memory feeAmounts = feesContract.estimateFeeFixed(IFees.FeeType.StakeValidator);
+    uint256[8] memory feeAmounts = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
-    IFees.FeeRoles[8] memory roles = feesContract.getFeesRoles();
+    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
 
     for (uint i = 0; i < feeAmounts.length - 1; i++) {
       if (feeAmounts[i] > 0) {
         stakeTogether.mintRewards(
-          feesContract.getFeeAddress(roles[i]),
-          feesContract.getFeeAddress(IFees.FeeRoles.StakeTogether),
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
           feeAmounts[i]
         );
       }

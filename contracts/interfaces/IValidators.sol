@@ -17,7 +17,7 @@ interface IValidators {
   event ReceiveEther(address indexed sender, uint amount);
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event RemoveValidatorOracle(address indexed account);
-  event SetRouterContract(address routerContract);
+  event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
   event SetValidatorSize(uint256 newValidatorSize);
 }
