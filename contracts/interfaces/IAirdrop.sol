@@ -32,6 +32,6 @@ interface IAirdrop {
   event FallbackEther(address indexed sender, uint amount);
   event ReceiveEther(address indexed sender, uint amount);
   event SetMaxBatchSize(uint256 maxBatchSize);
-  event SetRouter(address router);
+  event SetRouterContract(address routerContract);
   event SetStakeTogether(address stakeTogether);
 }

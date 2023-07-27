@@ -82,13 +82,13 @@ contract Validators is
   }
 
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    require(_router != address(0), 'ROUTER_ALREADY_SET');
+    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     router = Router(payable(_router));
     emit SetRouter(_router);
   }
 
   modifier onlyRouter() {
-    require(msg.sender == address(router), 'ONLY_ROUTER_CONTRACT');
+    require(msg.sender == address(router), 'ONLY_DISTRIBUTOR_CONTRACT');
     _;
   }
 
