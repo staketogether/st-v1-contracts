@@ -224,7 +224,7 @@ contract Fees is
     // Allocate shares for the first 7 roles
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = MathUpgradeable.mulDiv(feeShares, allocations[i], 1 ether);
-      totalAllocatedShares += shares[i]; // Add the allocated shares to the total
+      totalAllocatedShares += shares[i];
     }
 
     // Allocate the remaining shares to the last role (sender)

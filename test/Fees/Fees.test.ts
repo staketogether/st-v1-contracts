@@ -328,7 +328,7 @@ describe('Fees', function () {
     await expect(connect(feesContract, user1).setMaxFeeIncrease(newMaxFeeIncrease)).to.be.reverted
   })
 
-  it.only('should correctly estimate the fee percentage', async function () {
+  it('should correctly estimate the fee percentage', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
     // Define non-zero addresses for the fee roles
