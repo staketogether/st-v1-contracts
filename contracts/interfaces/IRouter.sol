@@ -19,7 +19,7 @@ interface IRouter {
     uint256 epoch;
     uint256 profitAmount;
     uint256 lossAmount; // Penalty or Slashing
-    bytes32[7] merkleRoots;
+    bytes32 merkleRoot;
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
     uint256 withdrawAmount; // Amount of ETH to send to WETH contract

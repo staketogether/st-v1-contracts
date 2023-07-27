@@ -312,13 +312,14 @@ contract Router is
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          fees.getFeeAddress(roles[i]),
+          address(airdrop),
           fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
           _shares[i]
         );
-        airdrop.addAirdropMerkleRoot(roles[i], _report.epoch, _report.merkleRoots[i]);
       }
     }
+
+    airdrop.addAirdropMerkleRoot(_report.epoch, _report.merkleRoot);
 
     if (_report.withdrawAmount > 0) {
       payable(address(withdrawals)).transfer(_report.withdrawAmount);
@@ -377,7 +378,7 @@ contract Router is
     require(_report.epoch <= lastConsensusEpoch, 'INVALID_EPOCH');
     require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
     require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
-    require(_report.merkleRoots.length == 9, 'INVALID_MERKLE_ROOTS_LENGTH');
+    require(_report.merkleRoot != bytes32(0), 'INVALID_MERKLE_ROOT');
     require(_report.validatorsToExit.length <= config.maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
 
     for (uint256 i = 0; i < _report.validatorsToExit.length; i++) {

@@ -46,9 +46,10 @@ contract StakeTogether is Shares {
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
-    addPool(address(this), false);
+    address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRoles.StakeTogether);
+    addPool(stakeTogetherFee, false);
     _mintShares(address(this), msg.value);
-    _mintPoolShares(address(this), address(this), msg.value);
+    _mintPoolShares(address(this), stakeTogetherFee, msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {

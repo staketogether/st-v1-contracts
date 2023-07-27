@@ -183,6 +183,8 @@ abstract contract Shares is
    ** LOCK SHARES **
    *****************/
 
+  // Todo: put a integration with future anticipation contract
+
   uint256 public totalLockedShares;
   mapping(address => mapping(uint256 => LockedShares)) public locks;
   mapping(address => uint256) public lockedShares;
@@ -432,17 +434,15 @@ abstract contract Shares is
     _mintRewards(_address, _pool, _sharesAmount);
   }
 
-  function claimRewards(
-    address _account,
-    uint256 _sharesAmount,
-    IFees.FeeRoles _role
-  ) external whenNotPaused {
+  function claimRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
     require(msg.sender == address(airdrop));
-    _transferShares(fees.getFeeAddress(_role), _account, _sharesAmount);
-    _transferPoolDelegationShares(fees.getFeeAddress(_role), _account, address(this), _sharesAmount);
+    address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRoles.StakeTogether);
 
-    if (_role == IFees.FeeRoles.Pools) {
-      _transferPoolShares(_account, address(this), _account, _sharesAmount);
+    _transferShares(address(airdrop), _account, _sharesAmount);
+    _transferPoolDelegationShares(stakeTogetherFee, _account, stakeTogetherFee, _sharesAmount);
+
+    if (pools[_account]) {
+      _transferPoolShares(_account, stakeTogetherFee, _account, _sharesAmount);
     }
 
     emit ClaimRewards(_account, _sharesAmount);

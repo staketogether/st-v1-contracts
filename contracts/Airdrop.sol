@@ -88,44 +88,38 @@ contract Airdrop is
    ** AIRDROPS **
    **************/
 
-  mapping(Fees.FeeRoles => mapping(uint256 => bytes32)) public airdropsMerkleRoots;
-  mapping(Fees.FeeRoles => mapping(uint256 => mapping(uint256 => uint256))) private claimedBitMap;
+  mapping(uint256 => bytes32) public airdropsMerkleRoots;
+  mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
   uint256 public maxBatchSize;
 
-  function addAirdropMerkleRoot(
-    Fees.FeeRoles _role,
-    uint256 _epoch,
-    bytes32 merkleRoot
-  ) external onlyRouter {
-    require(airdropsMerkleRoots[_role][_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
-    airdropsMerkleRoots[_role][_epoch] = merkleRoot;
-    emit AddAirdropMerkleRoot(_role, _epoch, merkleRoot);
+  function addAirdropMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyRouter {
+    require(airdropsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
+    airdropsMerkleRoots[_epoch] = merkleRoot;
+    emit AddAirdropMerkleRoot(_epoch, merkleRoot);
   }
 
   function claimAirdrop(
-    Fees.FeeRoles _role,
     uint256 _epoch,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) public nonReentrant whenNotPaused {
-    require(airdropsMerkleRoots[_role][_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
+    require(airdropsMerkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
     require(_account != address(0), 'ZERO_ADDR');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
-    if (isAirdropClaimed(_role, _epoch, _account)) revert('ALREADY_CLAIMED');
+    if (isAirdropClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
 
     bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
-    if (!MerkleProofUpgradeable.verify(merkleProof, airdropsMerkleRoots[_role][_epoch], leaf))
+    if (!MerkleProofUpgradeable.verify(merkleProof, airdropsMerkleRoots[_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
-    _setAirdropClaimed(_role, _epoch, _account);
+    _setAirdropClaimed(_epoch, _account);
 
-    stakeTogether.claimRewards(_account, _sharesAmount, _role);
-    emit ClaimAirdrop(_role, _epoch, _account, _sharesAmount);
+    stakeTogether.claimRewards(_account, _sharesAmount);
+    emit ClaimAirdrop(_epoch, _account, _sharesAmount);
   }
 
   function claimAirdropBatch(
-    Fees.FeeRoles _role,
     uint256[] calldata _epochs,
     address[] calldata _accounts,
     uint256[] calldata _sharesAmounts,
@@ -140,11 +134,11 @@ contract Airdrop is
 
     uint256 totalAmount = 0;
     for (uint256 i = 0; i < length; i++) {
-      claimAirdrop(_role, _epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
+      claimAirdrop(_epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
       totalAmount += _sharesAmounts[i];
     }
 
-    emit ClaimAirdropBatch(msg.sender, _role, length, totalAmount);
+    emit ClaimAirdropBatch(msg.sender, length, totalAmount);
   }
 
   function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
@@ -152,25 +146,21 @@ contract Airdrop is
     emit SetMaxBatchSize(_maxBatchSize);
   }
 
-  function isAirdropClaimed(
-    Fees.FeeRoles _role,
-    uint256 _epoch,
-    address _account
-  ) public view returns (bool) {
-    uint256 index = uint256(keccak256(abi.encodePacked(_role, _epoch, _account)));
+  function isAirdropClaimed(uint256 _epoch, address _account) public view returns (bool) {
+    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
     uint256 claimedWordIndex = index / 256;
     uint256 claimedBitIndex = index % 256;
-    uint256 claimedWord = claimedBitMap[_role][_epoch][claimedWordIndex];
+    uint256 claimedWord = claimedBitMap[_epoch][claimedWordIndex];
     uint256 mask = (1 << claimedBitIndex);
     return claimedWord & mask == mask;
   }
 
-  function _setAirdropClaimed(Fees.FeeRoles _role, uint256 _epoch, address _account) private {
-    uint256 index = uint256(keccak256(abi.encodePacked(_role, _epoch, _account)));
+  function _setAirdropClaimed(uint256 _epoch, address _account) private {
+    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
     uint256 claimedWordIndex = index / 256;
     uint256 claimedBitIndex = index % 256;
-    claimedBitMap[_role][_epoch][claimedWordIndex] =
-      claimedBitMap[_role][_epoch][claimedWordIndex] |
+    claimedBitMap[_epoch][claimedWordIndex] =
+      claimedBitMap[_epoch][claimedWordIndex] |
       (1 << claimedBitIndex);
   }
 }
