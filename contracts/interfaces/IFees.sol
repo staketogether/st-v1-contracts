@@ -38,9 +38,13 @@ interface IFees {
   event FallbackEther(address indexed sender, uint256 amount);
   event ReceiveEther(address indexed sender, uint256 amount);
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
-  event SetFeeAllocation(FeeType indexed feeType, FeeRoles indexed role, uint256 allocation);
-  event SetFeeValue(FeeType indexed feeType, uint256 amount);
-  event SetLiquidity(address liquidity);
+  event SetFee(
+    FeeType indexed feeType,
+    uint256 value,
+    FeeMathType indexed mathType,
+    uint256[] allocations
+  );
+  event SetLiquidity(address liquidityContract);
   event SetMaxFeeIncrease(uint256 maxFeeIncrease);
   event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
