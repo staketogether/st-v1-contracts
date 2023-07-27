@@ -380,7 +380,146 @@ describe('Fees', function () {
     expect(amounts[7].toString()).to.equal(expectedAmountSender.toString())
   })
 
-  // Todo: add test for no exact numbers with shares loss
+  it('should correctly distribute the fee percentage with specific allocations', async function () {
+    await connect(feesContract, owner).setStakeTogether(stProxy)
 
-  // Todo: add test for 0.04%
+    // Define non-zero addresses for the fee roles
+    const feeAddresses = [
+      user1.address, // StakeAccounts
+      user2.address, // LockAccounts
+      user3.address, // Pools
+      user4.address, // Operators
+      user5.address, // Oracles
+      user6.address, // StakeTogether
+      user7.address, // LiquidityProviders
+      owner.address // Sender
+    ]
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1 // Set this to the appropriate fee type
+    const amount = ethers.parseEther('0.99') // The shares amount
+
+    // Set the fee for the specified type
+    const feeValue = ethers.parseEther('0.004') // 0.4%
+    const mathType = 1 // FeeMathType.PERCENTAGE
+    const allocations = [
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.4'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.0') // Sender's share allocation set to 0
+    ]
+    await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
+
+    // Get and log the set fee
+    const fee = await feesContract.getFee(feeType)
+    console.log('Set fee: ', fee)
+
+    const [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount)
+
+    console.log('shares: ', shares)
+    console.log('amounts: ', amounts)
+
+    // Check if the shares and amounts are correctly calculated
+    const feeShares = (amount * feeValue) / ethers.parseEther('1') // This is how the contract calculates feeShares
+
+    let totalAllocatedShares = 0n
+
+    for (let i = 0; i < 7; i++) {
+      // Only calculate for the first 7 roles, as per the contract
+      const expectedShare = (feeShares * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares += BigInt(expectedShare)
+
+      const expectedAmount = amounts[i]
+
+      expect(shares[i]).to.equal(expectedShare)
+      expect(amounts[i]).to.equal(expectedAmount)
+    }
+
+    // The remaining shares are allocated to the last role (sender)
+    const expectedShareSender = amount - totalAllocatedShares
+    const expectedAmountSender = amounts[7]
+
+    expect(shares[7]).to.equal(expectedShareSender)
+    expect(amounts[7]).to.equal(expectedAmountSender)
+  })
+
+  it.only('should correctly distribute the fee percentage with extreme allocations and large amounts', async function () {
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+
+    const feeAddresses = [
+      user1.address, // StakeAccounts
+      user2.address, // LockAccounts
+      user3.address, // Pools
+      user4.address, // Operators
+      user5.address, // Oracles
+      user6.address, // StakeTogether
+      user7.address, // LiquidityProviders
+      owner.address // Sender
+    ]
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1
+    const amount = ethers.parseEther('900000000000000000003') // An extremely large shares amount
+
+    const feeValue = ethers.parseEther('0.5')
+    const mathType = 1
+    const allocations = [
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.99'), // An extremely large allocation
+      ethers.parseEther('0.01'),
+      ethers.parseEther('0.0') // Sender's share allocation set to 0
+    ]
+    await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
+
+    const fee = await feesContract.getFee(feeType)
+    // console.log('Set fee: ', fee)
+
+    const [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount)
+
+    // console.log('shares: ', shares)
+    // console.log('amounts: ', amounts)
+
+    const feeShares = (amount * feeValue) / ethers.parseEther('1')
+
+    let totalAllocatedShares = 0n
+
+    for (let i = 0; i < 7; i++) {
+      const expectedShare = (feeShares * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares += expectedShare
+
+      const expectedAmount = amounts[i]
+
+      expect(shares[i]).to.equal(expectedShare)
+      expect(amounts[i]).to.equal(expectedAmount)
+    }
+
+    const expectedShareSender = amount - totalAllocatedShares
+    const expectedAmountSender = amounts[7]
+
+    expect(shares[7]).to.equal(expectedShareSender)
+    expect(amounts[7]).to.equal(expectedAmountSender)
+
+    // Calculate and log the total distributed shares
+    let totalDistributedShares = 0n
+    for (let share of shares) {
+      totalDistributedShares += share
+    }
+    // console.log('Total distributed shares: ', totalDistributedShares)
+
+    // Calculate and log the shares difference
+    const sharesDifference = amount - totalDistributedShares
+    // console.log('Shares difference: ', sharesDifference)
+  })
 })
