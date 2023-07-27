@@ -29,13 +29,13 @@ export async function feesFixture() {
   const fees = await upgrades.deployProxy(FeesFactory)
   await fees.waitForDeployment()
 
-  const proxyAddress = await fees.getAddress()
-  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  console.log(`Fees\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Fees\t\t Implementation\t\t ${implementationAddress}`)
+  const feesProxy = await fees.getAddress()
+  const feesImplementation = await getImplementationAddress(network.provider, feesProxy)
 
   const feesContract = fees as unknown as Fees
+
+  const UPGRADER_ROLE = await feesContract.UPGRADER_ROLE()
+  const ADMIN_ROLE = await feesContract.ADMIN_ROLE()
 
   return {
     provider,
@@ -45,6 +45,8 @@ export async function feesFixture() {
     user3,
     user4,
     nullAddress,
-    feesContract
+    feesContract,
+    UPGRADER_ROLE,
+    ADMIN_ROLE
   }
 }

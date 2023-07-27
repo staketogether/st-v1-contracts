@@ -30,6 +30,7 @@ contract Fees is
   StakeTogether public stakeTogether;
   Liquidity public liquidity;
 
+  uint256 public version;
   uint256 public maxFeeIncrease;
 
   mapping(FeeRoles => address payable) public roleAddresses;
@@ -47,6 +48,8 @@ contract Fees is
 
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
+
+    version = 1;
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
