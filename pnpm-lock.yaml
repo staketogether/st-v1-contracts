@@ -12,8 +12,11 @@ dependencies:
     specifier: ^4.9.2
     version: 4.9.2
   '@openzeppelin/hardhat-upgrades':
-    specifier: ^2.0.1
-    version: 2.0.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0)
+    specifier: ^2.0.2
+    version: 2.0.2(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0)
+  '@openzeppelin/merkle-tree':
+    specifier: ^1.0.5
+    version: 1.0.5
   '@openzeppelin/upgrades-core':
     specifier: ^1.27.3
     version: 1.27.3
@@ -1074,8 +1077,8 @@ packages:
       - encoding
     dev: false
 
-  /@openzeppelin/hardhat-upgrades@2.0.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0):
-    resolution: {integrity: sha512-8yreWaXKyQ+A6w9D1URCCojt2o10DEox2kZkVIpacpF1inauAvc0sLKLJnqPmbYqrid7m6sRZmH9QByJH2H2nQ==}
+  /@openzeppelin/hardhat-upgrades@2.0.2(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0):
+    resolution: {integrity: sha512-L1Wo6YEABvBoLrB3ivtoHU2/4jrhjR6eDGRlhzQIVIfVkD1F67MuazLq1UEL2Y+h1mzbAKOooJ0gWuf5OjAXRA==}
     hasBin: true
     peerDependencies:
       '@nomicfoundation/hardhat-ethers': ^3.0.0
@@ -1100,6 +1103,13 @@ packages:
     transitivePeerDependencies:
       - encoding
       - supports-color
+    dev: false
+
+  /@openzeppelin/merkle-tree@1.0.5:
+    resolution: {integrity: sha512-JkwG2ysdHeIphrScNxYagPy6jZeNONgDRyqU6lbFgE8HKCZFSkcP8r6AjZs+3HZk4uRNV0kNBBzuWhKQ3YV7Kw==}
+    dependencies:
+      '@ethersproject/abi': 5.7.0
+      ethereum-cryptography: 1.2.0
     dev: false
 
   /@openzeppelin/platform-deploy-client@0.9.0(debug@4.3.4):
