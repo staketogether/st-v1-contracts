@@ -29,6 +29,10 @@ contract MockStakeTogether is
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
+  receive() external payable nonReentrant {
+    emit ReceiveEther(msg.sender, msg.value);
+  }
+
   function sharesByPooledEth(uint256 _amount) public pure returns (uint256) {
     return _amount;
   }

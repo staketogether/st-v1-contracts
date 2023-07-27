@@ -713,7 +713,7 @@ describe('Fees', function () {
 
     await connect(feesContract, owner).setMaxDynamicFee(ethers.parseEther('0'))
 
-    // Scenario 0: 0 ether in StakeTogether and 0 ether in Liquidity
+    // Scenario 0: 0 ether in StakeTogether and 0 ether in Liquidity with zero fee
     let [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, true)
 
     console.log('shares: ', shares)
@@ -751,5 +751,17 @@ describe('Fees', function () {
     console.log('Shares difference: ', sharesDifference)
 
     expect(sharesDifference).to.equal(0n) // Expect that the difference in shares is 0
+
+    await connect(feesContract, owner).setMaxDynamicFee(ethers.parseEther('1'))
+
+    /** LIBRA MECHANISM */
+
+    // Scenario 1: 0 ether in StakeTogether and 0 ether in Liquidity
+
+    // Scenario 2: 0 ether in StakeTogether and 100 ether in Liquidity
+
+    // Scenario 3: 100 ether in StakeTogether and 100 ether in Liquidity
+
+    // Scenario 4: 100 ether in Stake Together and 0 ether in Liquidity
   })
 })
