@@ -113,50 +113,60 @@ contract Fees is
     return addresses;
   }
 
-  function setFeeValue(
+  function setFee(
     FeeType _feeType,
-    uint256 _fee,
-    FeeMathType _mathType
+    uint256 _value,
+    FeeMathType _mathType,
+    uint256[] memory _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    if (_mathType == FeeMathType.PERCENTAGE) {
-      require(_fee <= 1 ether);
-    }
-    fees[_feeType].value = _fee;
+    require(_allocations.length == 8);
+    fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
-    emit SetFeeValue(_feeType, _fee);
+    for (uint i = 0; i < _allocations.length; i++) {
+      fees[_feeType].allocations[FeeRoles(i)] = _allocations[i];
+    }
+    emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  function getFee(FeeType _feeType) public view returns (uint256, FeeMathType) {
-    return (fees[_feeType].value, fees[_feeType].mathType);
+  function getFee(
+    FeeType _feeType
+  ) public view returns (FeeType, uint256, FeeMathType, uint256[8] memory) {
+    uint256[8] memory allocations;
+    for (uint i = 0; i < 8; i++) {
+      allocations[i] = fees[_feeType].allocations[FeeRoles(i)];
+    }
+    return (_feeType, fees[_feeType].value, fees[_feeType].mathType, allocations);
   }
 
-  function setFeeAllocation(
-    FeeType _feeType,
-    FeeRoles _role,
-    uint256 _allocation
-  ) external onlyRole(ADMIN_ROLE) {
-    uint256 feeAmount = fees[_feeType].value;
-    uint256 currentTotal = 0;
-    uint256 allocationAmount;
+  function getFees()
+    public
+    view
+    returns (
+      FeeType[] memory feeTypes,
+      uint256[] memory feeValues,
+      FeeMathType[] memory feeMathTypes,
+      uint256[8][] memory allocations
+    )
+  {
+    uint256 feeCount = 6;
 
-    for (uint i = 0; i < 7; i++) {
-      currentTotal += fees[_feeType].allocations[FeeRoles(i)];
+    feeTypes = new FeeType[](feeCount);
+    feeValues = new uint256[](feeCount);
+    feeMathTypes = new FeeMathType[](feeCount);
+    allocations = new uint256[8][](feeCount);
+
+    for (uint256 i = 0; i < feeCount; i++) {
+      (FeeType feeType, uint256 feeValue, FeeMathType feeMathType, uint256[8] memory allocation) = getFee(
+        FeeType(i)
+      );
+
+      feeTypes[i] = feeType;
+      feeValues[i] = feeValue;
+      feeMathTypes[i] = feeMathType;
+      allocations[i] = allocation;
     }
 
-    if (fees[_feeType].mathType == FeeMathType.PERCENTAGE) {
-      allocationAmount = _allocation;
-      require(allocationAmount + currentTotal <= 1 ether);
-    } else {
-      allocationAmount = MathUpgradeable.mulDiv(feeAmount, _allocation, 1 ether);
-      require(allocationAmount + currentTotal <= feeAmount);
-    }
-
-    fees[_feeType].allocations[_role] = _allocation;
-    emit SetFeeAllocation(_feeType, _role, _allocation);
-  }
-
-  function getFeeAllocation(FeeType _feeType, FeeRoles _role) public view returns (uint256) {
-    return fees[_feeType].allocations[_role];
+    return (feeTypes, feeValues, feeMathTypes, allocations);
   }
 
   function setMaxFeeIncrease(uint256 _maxFeeIncrease) external onlyRole(ADMIN_ROLE) {
@@ -193,7 +203,7 @@ contract Fees is
     uint256[8] memory allocations;
 
     for (uint256 i = 0; i < allocations.length - 1; i++) {
-      allocations[i] = getFeeAllocation(_feeType, roles[i]);
+      allocations[i] = fees[_feeType].allocations[roles[i]];
     }
     require(_checkAllocationSum(allocations));
 
@@ -206,7 +216,7 @@ contract Fees is
     uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, _dynamicFee, 1 ether);
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
-      shares[i] = MathUpgradeable.mulDiv(feeShares, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      shares[i] = MathUpgradeable.mulDiv(feeShares, allocations[i], 1 ether);
     }
 
     uint256 senderShares = _sharesAmount - feeShares;
@@ -246,8 +256,7 @@ contract Fees is
   }
 
   function estimateFeeFixed(FeeType _feeType) public view returns (uint256[8] memory amounts) {
-    (uint256 feeAmount, FeeMathType mathType) = getFee(_feeType);
-    require(mathType == FeeMathType.FIXED);
+    require(fees[_feeType].mathType == FeeMathType.FIXED);
 
     address[8] memory feeAddresses = getFeeRolesAddresses();
     for (uint256 i = 0; i < feeAddresses.length; i++) {
@@ -255,9 +264,14 @@ contract Fees is
     }
 
     FeeRoles[8] memory roles = getFeesRoles();
+    uint256[8] memory allocations;
 
     for (uint256 i = 0; i < roles.length; i++) {
-      amounts[i] = MathUpgradeable.mulDiv(feeAmount, getFeeAllocation(_feeType, roles[i]), 1 ether);
+      allocations[i] = fees[_feeType].allocations[roles[i]];
+    }
+
+    for (uint256 i = 0; i < roles.length; i++) {
+      amounts[i] = MathUpgradeable.mulDiv(fees[_feeType].value, allocations[i], 1 ether);
     }
 
     return amounts;
