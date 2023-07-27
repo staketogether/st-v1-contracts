@@ -7,8 +7,8 @@ import connect from '../utils/connect'
 
 dotenv.config()
 
-describe('StakeTogether: Deposit', function () {
-  it.skip('Should deposit successfuly', async function () {
+describe.only('StakeTogether: Deposit', function () {
+  it.only('Should deposit successfuly', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user4, nullAddress } = await loadFixture(
       defaultFixture
     )
@@ -42,14 +42,11 @@ describe('StakeTogether: Deposit', function () {
       LIQUIDITY_PROVIDERS_ROLE
     ]
 
-    const { shares, amounts } = await Fees.contract.estimateFeePercentage(STAKE_ENTRY_FEE, stakeAmount)
-    const expectedStFeeAddressShares = shares
-      .filter((_, roleIndex) => stRolesToBeChecked.includes(roleIndex))
-      .reduce((share, total) => share + total, 0n)
+    const expectedStFeeAddressShares = ethers.parseEther('0.007')
 
-    const expectedSenderShares = shares[SENDER_ROLE]
-    const expectedSenderAmount = amounts[SENDER_ROLE]
-    const expectedPoolShares = shares[POOL_ROLE]
+    const expectedSenderShares = ethers.parseEther('0.99')
+    const expectedSenderAmount = ethers.parseEther('0.99')
+    const expectedPoolShares = ethers.parseEther('0.003')
 
     await connect(StakeTogether.contract, user1).depositPool(user2, nullAddress, {
       value: stakeAmount

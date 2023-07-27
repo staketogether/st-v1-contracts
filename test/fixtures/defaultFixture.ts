@@ -67,6 +67,25 @@ export async function defaultFixture() {
     Withdrawals.proxyAddress
   )
 
+  await Fees.contract.setStakeTogether(StakeTogether.proxyAddress)
+  await Fees.contract.setLiquidity(Liquidity.proxyAddress)
+
+  await Airdrop.contract.setStakeTogether(StakeTogether.proxyAddress)
+  await Airdrop.contract.setRouter(Router.proxyAddress)
+
+  await Liquidity.contract.setStakeTogether(StakeTogether.proxyAddress)
+  await Liquidity.contract.setRouter(Router.proxyAddress)
+
+  await Validators.contract.setStakeTogether(StakeTogether.proxyAddress)
+  await Validators.contract.setRouter(Router.proxyAddress)
+
+  await Withdrawals.contract.setStakeTogether(StakeTogether.proxyAddress)
+
+  await Router.contract.setStakeTogether(StakeTogether.proxyAddress)
+
+  await StakeTogether.contract.addPool(user2.address, true)
+  await StakeTogether.contract.addPool(user3.address, true)
+
   return {
     provider,
     owner,
@@ -104,60 +123,83 @@ async function deployFees(owner: CustomEthersSigner) {
   const feesContract = fees as unknown as Fees
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await feesContract.setFeeValue(0, ethers.parseEther('0.003'), 1)
+  await feesContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
+    0n,
+    ethers.parseEther('0.2'),
+    ethers.parseEther('0.4'),
+    0n,
+    0n,
+    ethers.parseEther('0.4'),
+    0n,
+    0n
+  ])
 
   // Set the StakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await feesContract.setFeeValue(1, ethers.parseEther('0.09'), 1)
+  await feesContract.setFee(1n, ethers.parseEther('0.09'), 1n, [
+    0n,
+    0n,
+    ethers.parseEther('0.33'),
+    ethers.parseEther('0.33'),
+    0n,
+    ethers.parseEther('0.34'),
+    0n,
+    0n
+  ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await feesContract.setFeeValue(2, ethers.parseEther('1'), 0)
+  await feesContract.setFee(2n, ethers.parseEther('1'), 0n, [
+    0n,
+    ethers.parseEther('0.2'),
+    0n,
+    0n,
+    ethers.parseEther('0.6'),
+    ethers.parseEther('0.2'),
+    0n,
+    0n
+  ])
 
   // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
-  await feesContract.setFeeValue(3, ethers.parseEther('0.01'), 0)
+  await feesContract.setFee(3n, ethers.parseEther('0.01'), 0n, [
+    0n,
+    0n,
+    0n,
+    0n,
+    ethers.parseEther('1'),
+    0n,
+    0n,
+    0n
+  ])
 
   // Set the LiquidityProvideEntry fee to 0.003 ether and make it a percentage-based fee
-  await feesContract.setFeeValue(4, ethers.parseEther('0.003'), 1)
+  await feesContract.setFee(4n, ethers.parseEther('0.003'), 1n, [
+    0n,
+    0n,
+    0n,
+    0n,
+    0n,
+    ethers.parseEther('0.5'),
+    ethers.parseEther('0.5'),
+    0n
+  ])
 
   // Set the LiquidityProvide fee to 0.001 ether and make it a percentage-based fee
-  await feesContract.setFeeValue(5, ethers.parseEther('0.001'), 1)
+  await feesContract.setFee(5, ethers.parseEther('0.001'), 1, [
+    0n,
+    ethers.parseEther('0.1'),
+    ethers.parseEther('0.1'),
+    0n,
+    0n,
+    ethers.parseEther('0.1'),
+    ethers.parseEther('0.7'),
+    0n
+  ])
 
   // Set the maximum fee increase to 3 ether (300%)
   await feesContract.setMaxFeeIncrease(ethers.parseEther('3'))
 
-  // Todo: Change these addresses to the actual fee recipient addresses
   for (let i = 0; i < 7; i++) {
     await feesContract.setFeeAddress(i, owner)
   }
-
-  // Set fee allocations: Make sure these allocations add up to 1 ether (100%) for each fee type
-
-  // StakeEntry
-  await feesContract.setFeeAllocation(0, 1, ethers.parseEther('0.2'))
-  await feesContract.setFeeAllocation(0, 2, ethers.parseEther('0.4'))
-  await feesContract.setFeeAllocation(0, 5, ethers.parseEther('0.4'))
-
-  // StakeRewards
-  await feesContract.setFeeAllocation(1, 2, ethers.parseEther('0.33'))
-  await feesContract.setFeeAllocation(1, 3, ethers.parseEther('0.33'))
-  await feesContract.setFeeAllocation(1, 5, ethers.parseEther('0.34'))
-
-  // StakePool
-  await feesContract.setFeeAllocation(2, 1, ethers.parseEther('0.2'))
-  await feesContract.setFeeAllocation(2, 5, ethers.parseEther('0.6'))
-  await feesContract.setFeeAllocation(2, 6, ethers.parseEther('0.02'))
-
-  // StakeValidator
-  await feesContract.setFeeAllocation(3, 3, ethers.parseEther('1'))
-
-  // LiquidityProvideEntry
-  await feesContract.setFeeAllocation(4, 1, ethers.parseEther('0.5'))
-  await feesContract.setFeeAllocation(4, 5, ethers.parseEther('0.5'))
-
-  // LiquidityProvide
-  await feesContract.setFeeAllocation(5, 1, ethers.parseEther('0.1'))
-  await feesContract.setFeeAllocation(5, 2, ethers.parseEther('0.1'))
-  await feesContract.setFeeAllocation(5, 5, ethers.parseEther('0.1'))
-  await feesContract.setFeeAllocation(5, 6, ethers.parseEther('0.7'))
 
   return { proxyAddress, implementationAddress, contract: feesContract }
 }
