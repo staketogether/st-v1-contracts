@@ -25,7 +25,7 @@ interface ILiquidity {
   event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount);
   event MintShares(address indexed to, uint256 sharesAmount);
   event SetConfig(Config config);
-  event SetRouter(address routerContract);
+  event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
   event SupplyLiquidity(address indexed user, uint256 amount);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);

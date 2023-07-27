@@ -1,4 +1,4 @@
-lockfileVersion: '6.1'
+lockfileVersion: '6.0'
 
 settings:
   autoInstallPeers: true
@@ -8,15 +8,12 @@ dependencies:
   '@nomicfoundation/hardhat-ethers':
     specifier: ^3.0.4
     version: 3.0.4(ethers@6.6.5)(hardhat@2.17.0)
-  '@openzeppelin/contracts':
-    specifier: 4.9.2
-    version: 4.9.2
   '@openzeppelin/contracts-upgradeable':
     specifier: ^4.9.2
     version: 4.9.2
   '@openzeppelin/hardhat-upgrades':
-    specifier: ^2.0.1
-    version: 2.0.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0)
+    specifier: ^2.0.2
+    version: 2.0.2(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0)
   '@openzeppelin/merkle-tree':
     specifier: ^1.0.5
     version: 1.0.5
@@ -1067,10 +1064,6 @@ packages:
     resolution: {integrity: sha512-siviV3PZV/fHfPaoIC51rf1Jb6iElkYWnNYZ0leO23/ukXuvOyoC/ahy8jqiV7g+++9Nuo3n/rk5ajSN/+d/Sg==}
     dev: false
 
-  /@openzeppelin/contracts@4.9.2:
-    resolution: {integrity: sha512-mO+y6JaqXjWeMh9glYVzVu8HYPGknAAnWyxTRhGeckOruyXQMNnlcW6w/Dx9ftLeIQk6N+ZJFuVmTwF7lEIFrg==}
-    dev: false
-
   /@openzeppelin/defender-base-client@1.47.0(debug@4.3.4):
     resolution: {integrity: sha512-y9dDm+gX0MHHEn17W7f7oO3X083JAVMk3YcuXHavSE7kjiCLoFOaZ23joYqoHeaccL10nGt7KOOzZ0sh9iJHTQ==}
     dependencies:
@@ -1084,8 +1077,8 @@ packages:
       - encoding
     dev: false
 
-  /@openzeppelin/hardhat-upgrades@2.0.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0):
-    resolution: {integrity: sha512-8yreWaXKyQ+A6w9D1URCCojt2o10DEox2kZkVIpacpF1inauAvc0sLKLJnqPmbYqrid7m6sRZmH9QByJH2H2nQ==}
+  /@openzeppelin/hardhat-upgrades@2.0.2(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.0.4)(ethers@6.6.5)(hardhat@2.17.0):
+    resolution: {integrity: sha512-L1Wo6YEABvBoLrB3ivtoHU2/4jrhjR6eDGRlhzQIVIfVkD1F67MuazLq1UEL2Y+h1mzbAKOooJ0gWuf5OjAXRA==}
     hasBin: true
     peerDependencies:
       '@nomicfoundation/hardhat-ethers': ^3.0.0

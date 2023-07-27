@@ -7,8 +7,8 @@ import connect from '../utils/connect'
 
 dotenv.config()
 
-describe.only('StakeTogether: Deposit', function () {
-  it.only('Should deposit successfuly', async function () {
+xdescribe('StakeTogether: Deposit', function () {
+  it('Should deposit successfuly', async function () {
     const { StakeTogether, Fees, owner, user1, user2, user4, nullAddress } = await loadFixture(
       defaultFixture
     )

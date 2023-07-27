@@ -51,6 +51,7 @@ contract Validators is
 
     depositContract = IDepositContract(_depositContract);
     fees = Fees(payable(_fees));
+
     totalValidators = 0;
     validatorSize = 32 ether;
   }

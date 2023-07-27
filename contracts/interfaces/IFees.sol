@@ -46,6 +46,6 @@ interface IFees {
   );
   event SetLiquidity(address liquidityContract);
   event SetMaxFeeIncrease(uint256 maxFeeIncrease);
-  event SetRouter(address routerContract);
+  event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
 }
