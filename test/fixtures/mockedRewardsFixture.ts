@@ -3,7 +3,6 @@
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { AbiCoder, ethers } from 'ethers'
 import { multiDiv } from '../utils/multiDiv'
-import { stObtainPools } from '../utils/stObtainPools'
 import { defaultFixture } from './defaultFixture'
 
 export async function mockedRewardsFixture() {
@@ -60,11 +59,7 @@ export async function mockedRewardsFixture() {
   // TODO: Obtain pools addresses
   const stakedAddresses = [user1.address, user2.address]
   const lockedAddresses = [user3.address]
-  const poolsAddresses: string[] = await stObtainPools(
-    StakeTogether.contract,
-    StakeTogether.implementationAddress,
-    provider
-  )
+  const poolsAddresses: string[] = [] // Todo: fix pools
   const operatorsAddresses = [user4.address]
   const oraclesAddresses = [user5.address]
   const stakeTogetherAddresses = [owner.address]
