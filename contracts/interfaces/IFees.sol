@@ -35,7 +35,6 @@ interface IFees {
     mapping(FeeRoles => uint256) allocations;
   }
 
-  event FallbackEther(address indexed sender, uint256 amount);
   event ReceiveEther(address indexed sender, uint256 amount);
   event SetFeeAddress(FeeRoles indexed role, address indexed account);
   event SetFee(

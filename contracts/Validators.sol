@@ -71,11 +71,6 @@ contract Validators is
     _transferToStakeTogether();
   }
 
-  fallback() external payable nonReentrant {
-    emit FallbackEther(msg.sender, msg.value);
-    _transferToStakeTogether();
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));

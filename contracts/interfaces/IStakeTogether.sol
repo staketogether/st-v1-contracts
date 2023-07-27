@@ -49,9 +49,8 @@ interface IStakeTogether {
   event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
-  event MintRewardsAccounts(address indexed sender, uint amount);
-  event MintRewardsAccountsFallback(address indexed sender, uint amount);
   event MintShares(address indexed to, uint256 sharesAmount);
+  event ReceiveEther(address indexed sender, uint amount);
   event RefundPool(address indexed sender, uint256 amount);
   event RemovePool(address account);
   event SetBeaconBalance(uint256 amount);

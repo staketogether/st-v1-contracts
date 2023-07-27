@@ -67,11 +67,6 @@ contract Fees is
     _transferToStakeTogether();
   }
 
-  fallback() external payable nonReentrant {
-    emit FallbackEther(msg.sender, msg.value);
-    _transferToStakeTogether();
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0));
     stakeTogether = StakeTogether(payable(_stakeTogether));

@@ -38,7 +38,6 @@ interface IRouter {
   event ConsensusApprove(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
   event ConsensusNotReached(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
   event ExecuteReport(address indexed oracle, bytes32 hash, Report report);
-  event FallbackEther(address indexed sender, uint amount);
   event InvalidateConsensus(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
   event PenalizeReportOracle(address indexed oracle, uint256 penalties, bytes32 hash, bool blacklisted);
   event ReceiveEther(address indexed sender, uint amount);

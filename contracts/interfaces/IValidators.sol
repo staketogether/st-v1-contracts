@@ -13,7 +13,6 @@ interface IValidators {
     bytes signature,
     bytes32 depositDataRoot
   );
-  event FallbackEther(address indexed sender, uint amount);
   event ReceiveEther(address indexed sender, uint amount);
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event RemoveValidatorOracle(address indexed account);

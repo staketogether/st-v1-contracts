@@ -87,10 +87,6 @@ contract Router is
     emit ReceiveEther(msg.sender, msg.value);
   }
 
-  fallback() external payable {
-    emit FallbackEther(msg.sender, msg.value);
-  }
-
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));

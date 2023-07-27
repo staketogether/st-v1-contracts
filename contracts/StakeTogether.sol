@@ -63,13 +63,8 @@ contract StakeTogether is Shares {
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   receive() external payable nonReentrant {
+    emit ReceiveEther(msg.sender, msg.value);
     _supplyLiquidity(msg.value);
-    emit MintRewardsAccounts(msg.sender, msg.value - liquidityBalance);
-  }
-
-  fallback() external payable nonReentrant {
-    _supplyLiquidity(msg.value);
-    emit MintRewardsAccountsFallback(msg.sender, msg.value - liquidityBalance);
   }
 
   function _supplyLiquidity(uint256 _amount) internal {

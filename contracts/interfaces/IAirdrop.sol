@@ -17,7 +17,6 @@ interface IAirdrop {
   event ClaimAirdropBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
   event ClaimRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
   event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
-  event FallbackEther(address indexed sender, uint amount);
   event ReceiveEther(address indexed sender, uint amount);
   event SetMaxBatchSize(uint256 maxBatchSize);
   event SetRouter(address router);

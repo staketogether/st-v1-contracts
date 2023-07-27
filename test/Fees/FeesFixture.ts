@@ -46,6 +46,7 @@ export async function feesFixture() {
     user4,
     nullAddress,
     feesContract,
+    feesProxy,
     UPGRADER_ROLE,
     ADMIN_ROLE
   }
