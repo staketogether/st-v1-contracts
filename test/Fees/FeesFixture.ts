@@ -19,11 +19,10 @@ export async function feesFixture() {
   let user6: HardhatEthersSigner
   let user7: HardhatEthersSigner
   let user8: HardhatEthersSigner
-  let user9: HardhatEthersSigner
 
   let nullAddress: string = '0x0000000000000000000000000000000000000000'
 
-  ;[owner, user1, user2, user3, user4, user5, user6, user7, user8, user9] = await ethers.getSigners()
+  ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
 
   const FeesFactory = new Fees__factory().connect(owner)
   const fees = await upgrades.deployProxy(FeesFactory)
@@ -44,6 +43,10 @@ export async function feesFixture() {
     user2,
     user3,
     user4,
+    user5,
+    user6,
+    user7,
+    user8,
     nullAddress,
     feesContract,
     feesProxy,

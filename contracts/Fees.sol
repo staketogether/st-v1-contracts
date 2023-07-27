@@ -115,14 +115,21 @@ contract Fees is
     FeeType _feeType,
     uint256 _value,
     FeeMathType _mathType,
-    uint256[] memory _allocations
+    uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
     require(_allocations.length == 8);
+
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
-    for (uint i = 0; i < _allocations.length; i++) {
-      fees[_feeType].allocations[FeeRoles(i)] = _allocations[i];
+
+    uint256 sum = 0;
+    for (uint256 i = 0; i < _allocations.length; i++) {
+      uint256 allocation = _allocations[i];
+      fees[_feeType].allocations[FeeRoles(i)] = allocation;
+      sum += allocation;
     }
+
+    require(sum == 1 ether);
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
@@ -133,6 +140,7 @@ contract Fees is
     for (uint i = 0; i < 8; i++) {
       allocations[i] = fees[_feeType].allocations[FeeRoles(i)];
     }
+
     return (_feeType, fees[_feeType].value, fees[_feeType].mathType, allocations);
   }
 
