@@ -3,7 +3,7 @@
   "license": "BUSL-1.1",
   "dependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",
-    "@openzeppelin/contracts-upgradeable": "^4.9.2",
+    "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "@openzeppelin/hardhat-upgrades": "^2.0.2",
     "@openzeppelin/upgrades-core": "^1.27.3",
     "@openzeppelin/merkle-tree": "^1.0.5",

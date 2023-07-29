@@ -7,34 +7,35 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 
-import '../Liquidity.sol';
-import '../Router.sol';
 import '../StakeTogether.sol';
-
-import '../interfaces/IFees.sol';
+import '../interfaces/IWithdrawals.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract MockFees is
+contract MockWithdrawals is
   Initializable,
+  ERC20Upgradeable,
+  ERC20BurnableUpgradeable,
   PausableUpgradeable,
   AccessControlUpgradeable,
+  ERC20PermitUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IFees
+  IWithdrawals
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  Liquidity public liquidity;
-
   uint256 public version;
-  uint256 public maxDynamicFee;
 
-  mapping(FeeRoles => address payable) public roleAddresses;
-  mapping(FeeType => Fee) public fees;
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
 
   function initializeV2() external onlyRole(UPGRADER_ROLE) {
     version = 2;

@@ -1,4 +1,4 @@
-import { CustomEthersSigner } from '@nomiclabs/hardhat-ethers/signers'
+import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
@@ -87,7 +87,7 @@ export async function deploy() {
   )
 }
 
-async function deployFees(owner: CustomEthersSigner) {
+async function deployFees(owner: HardhatEthersSigner) {
   const FeesFactory = new Fees__factory().connect(owner)
   const fees = await upgrades.deployProxy(FeesFactory)
   await fees.waitForDeployment()
@@ -181,7 +181,7 @@ async function deployFees(owner: CustomEthersSigner) {
   return { proxyAddress, implementationAddress, feesContract }
 }
 
-async function deployAirdrop(owner: CustomEthersSigner) {
+async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)
   const airdrop = await upgrades.deployProxy(AirdropFactory)
   await airdrop.waitForDeployment()
@@ -198,7 +198,7 @@ async function deployAirdrop(owner: CustomEthersSigner) {
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
-async function deployLiquidity(owner: CustomEthersSigner) {
+async function deployLiquidity(owner: HardhatEthersSigner) {
   const LiquidityFactory = new Liquidity__factory().connect(owner)
 
   const liquidity = await upgrades.deployProxy(LiquidityFactory)
@@ -231,7 +231,7 @@ async function deployLiquidity(owner: CustomEthersSigner) {
   return { proxyAddress, implementationAddress, liquidityContract }
 }
 
-async function deployValidators(owner: CustomEthersSigner, depositAddress: string, feesAddress: string) {
+async function deployValidators(owner: HardhatEthersSigner, depositAddress: string, feesAddress: string) {
   const ValidatorsFactory = new Validators__factory().connect(owner)
 
   const validators = await upgrades.deployProxy(ValidatorsFactory, [depositAddress, feesAddress])
@@ -247,7 +247,7 @@ async function deployValidators(owner: CustomEthersSigner, depositAddress: strin
   return { proxyAddress, implementationAddress, validatorsContract }
 }
 
-async function deployWithdrawals(owner: CustomEthersSigner) {
+async function deployWithdrawals(owner: HardhatEthersSigner) {
   const WithdrawalsFactory = new Withdrawals__factory().connect(owner)
 
   const withdrawals = await upgrades.deployProxy(WithdrawalsFactory)
@@ -264,7 +264,7 @@ async function deployWithdrawals(owner: CustomEthersSigner) {
 }
 
 async function deployRouter(
-  owner: CustomEthersSigner,
+  owner: HardhatEthersSigner,
   airdropContract: string,
   feesContract: string,
   liquidityContract: string,
@@ -309,7 +309,7 @@ async function deployRouter(
 }
 
 async function deployStakeTogether(
-  owner: CustomEthersSigner,
+  owner: HardhatEthersSigner,
   airdropContract: string,
   feesContract: string,
   liquidityContract: string,
