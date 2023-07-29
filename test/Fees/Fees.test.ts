@@ -635,7 +635,7 @@ describe('Fees', function () {
     // console.log('Shares difference: ', sharesDifference)
   })
 
-  it.only('should correctly estimate dynamic fee percentage', async function () {
+  it('should correctly estimate dynamic fee percentage', async function () {
     // Setting the StakeTogether
     await connect(feesContract, owner).setStakeTogether(stProxy)
     await connect(feesContract, owner).setLiquidity(liquidityProxy)
@@ -706,9 +706,7 @@ describe('Fees', function () {
 
     /** LIBRA MECHANISM */
 
-    // Scenario 1: 0 ether in StakeTogether and 0 ether in Liquidity
-
-    // Scenario 2: 0 ether in StakeTogether and 100 ether in Liquidity
+    // Scenario 1: 0 ether in StakeTogether and 100 ether in Liquidity
 
     await owner.sendTransaction({ to: liquidityProxy, value: ethers.parseEther('100') })
 
@@ -735,7 +733,7 @@ describe('Fees', function () {
     expect(shares2[7]).to.equal(expectedShareSender2)
     expect(amounts2[7]).to.equal(expectedAmountSender2)
 
-    // Scenario 3: 100 ether in StakeTogether and 100 ether in Liquidity
+    // Scenario 2: 100 ether in StakeTogether and 100 ether in Liquidity
 
     await owner.sendTransaction({ to: stProxy, value: ethers.parseEther('100') })
 
@@ -761,7 +759,105 @@ describe('Fees', function () {
 
     expect(shares3[7]).to.equal(expectedShareSender3)
     expect(amounts3[7]).to.equal(expectedAmountSender3)
+  })
 
-    // Scenario 4: 100 ether in Stake Together and 0 ether in Liquidity
+  it('should correctly estimate dynamic fee percentage libra 100-0', async function () {
+    // Setting the StakeTogether
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+    await connect(feesContract, owner).setLiquidity(liquidityProxy)
+
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1
+    const amount = ethers.parseEther('1')
+    const feeValue = ethers.parseEther('0.1')
+
+    const mathType = 1
+    const allocations = [
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.5'), // An extremely large allocation
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0') // Sender's share allocation set to 0
+    ]
+    await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
+
+    await connect(feesContract, owner).setMaxDynamicFee(ethers.parseEther('0'))
+
+    // Scenario 0: 0 ether in StakeTogether and 0 ether in Liquidity with zero fee
+    let [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, true)
+
+    // console.log('shares: ', shares)
+    // console.log('amounts: ', amounts)
+
+    const feeShares = (amount * feeValue) / ethers.parseEther('1')
+
+    let totalAllocatedShares = 0n
+
+    for (let i = 0; i < 7; i++) {
+      const expectedShare = (feeShares * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares += expectedShare
+
+      const expectedAmount = amounts[i]
+
+      expect(shares[i]).to.equal(expectedShare)
+      expect(amounts[i]).to.equal(expectedAmount)
+    }
+
+    const expectedShareSender = amount - totalAllocatedShares
+    const expectedAmountSender = amounts[7]
+
+    expect(shares[7]).to.equal(expectedShareSender)
+    expect(amounts[7]).to.equal(expectedAmountSender)
+
+    // Calculate and log the total distributed shares
+    let totalDistributedShares = 0n
+    for (let share of shares) {
+      totalDistributedShares += share
+    }
+    // console.log('Total distributed shares: ', totalDistributedShares)
+
+    // Calculate and log the shares difference
+    const sharesDifference = amount - totalDistributedShares
+    // console.log('Shares difference: ', sharesDifference)
+
+    expect(sharesDifference).to.equal(0n) // Expect that the difference in shares is 0
+
+    await connect(feesContract, owner).setMaxDynamicFee(ethers.parseEther('1'))
+
+    /** LIBRA MECHANISM */
+
+    let [shares3, amounts3] = await feesContract.estimateFeePercentage(feeType, amount, true)
+
+    // console.log('shares: ', shares3)
+    // console.log('amounts: ', amounts3)
+
+    // The fee should now be double the base fee as per your dynamic fee calculation function
+    let dynamicFee3 = feeValue * 2n // Calculating expected dynamicFee manually
+
+    let totalAllocatedShares3 = 0n
+
+    for (let i = 0; i < 7; i++) {
+      const expectedShare3 = (dynamicFee3 * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares3 += expectedShare3
+
+      const expectedAmount3 = amounts3[i]
+
+      expect(shares3[i]).to.equal(expectedShare3)
+      expect(amounts3[i]).to.equal(expectedAmount3)
+    }
+
+    const expectedShareSender3 = amount - totalAllocatedShares3
+    const expectedAmountSender3 = amounts3[7]
+
+    expect(shares3[7]).to.equal(expectedShareSender3)
+    expect(amounts3[7]).to.equal(expectedAmountSender3)
+
+    // Scenario 3: 100 ether in Stake Together and 0 ether in Liquidity
   })
 })
