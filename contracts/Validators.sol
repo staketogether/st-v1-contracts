@@ -36,6 +36,13 @@ contract Validators is
   Fees public fees;
   IDepositContract public depositContract;
 
+  address[] public validatorOracles;
+  uint256 public currentOracleIndex;
+
+  mapping(bytes => bool) public validators;
+  uint256 public totalValidators;
+  uint256 public validatorSize;
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -96,9 +103,6 @@ contract Validators is
    ** VALIDATOR ORACLES **
    ***********************/
 
-  address[] public validatorOracles;
-  uint256 public currentOracleIndex;
-
   modifier onlyValidatorOracle() {
     require(hasRole(ORACLE_VALIDATOR_ROLE, msg.sender), 'MISSING_ORACLE_VALIDATOR_ROLE');
     require(msg.sender == validatorOracles[currentOracleIndex], 'NOT_CURRENT_VALIDATOR_ORACLE');
@@ -153,10 +157,6 @@ contract Validators is
   /*****************
    ** VALIDATORS **
    *****************/
-
-  mapping(bytes => bool) public validators;
-  uint256 public totalValidators;
-  uint256 public validatorSize;
 
   function createValidator(
     bytes calldata _publicKey,

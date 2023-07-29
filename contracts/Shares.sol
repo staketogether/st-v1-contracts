@@ -50,6 +50,27 @@ abstract contract Shares is
   uint256 public liquidityBalance;
   Config public config;
 
+  mapping(address => uint256) public shares;
+  uint256 public totalShares;
+  mapping(address => mapping(address => uint256)) private allowances;
+
+  uint256 public totalLockedShares;
+  mapping(address => mapping(uint256 => LockedShares)) public locks;
+  mapping(address => uint256) public lockedShares;
+  uint256 internal lockId;
+
+  mapping(address => uint256) private poolShares;
+  uint256 public totalPoolShares;
+  mapping(address => mapping(address => uint256)) private delegationsShares;
+  mapping(address => address[]) private delegates;
+  mapping(address => mapping(address => bool)) private isDelegate;
+
+  mapping(address => bool) internal pools;
+
+  uint256 public lastResetBlock;
+  uint256 public totalDeposited;
+  uint256 public totalWithdrawn;
+
   function setBeaconBalance(uint256 _amount) external {
     require(msg.sender == address(validators));
     beaconBalance = _amount;
@@ -65,10 +86,6 @@ abstract contract Shares is
   /************
    ** SHARES **
    ************/
-
-  mapping(address => uint256) public shares;
-  uint256 public totalShares;
-  mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view virtual returns (uint256);
 
@@ -185,11 +202,6 @@ abstract contract Shares is
 
   // Todo: put a integration with future anticipation contract
 
-  uint256 public totalLockedShares;
-  mapping(address => mapping(uint256 => LockedShares)) public locks;
-  mapping(address => uint256) public lockedShares;
-  uint256 internal lockId;
-
   function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
     require(config.feature.Lock);
     require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays);
@@ -232,12 +244,6 @@ abstract contract Shares is
   /*****************
    ** POOLS SHARES **
    *****************/
-
-  mapping(address => uint256) private poolShares;
-  uint256 public totalPoolShares;
-  mapping(address => mapping(address => uint256)) private delegationsShares;
-  mapping(address => address[]) private delegates;
-  mapping(address => mapping(address => bool)) private isDelegate;
 
   function delegationSharesOf(address _account, address _pool) public view returns (uint256) {
     return delegationsShares[_account][_pool];
@@ -391,8 +397,6 @@ abstract contract Shares is
   /***********
    ** POOLS **
    ***********/
-
-  mapping(address => bool) internal pools;
 
   function addPool(address _pool, bool _listed) public payable nonReentrant {
     require(_pool != address(0));

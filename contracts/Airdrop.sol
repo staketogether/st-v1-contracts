@@ -29,6 +29,10 @@ contract Airdrop is
   StakeTogether public stakeTogether;
   Router public router;
 
+  mapping(uint256 => bytes32) public airdropsMerkleRoots;
+  mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
+  uint256 public maxBatchSize;
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -82,10 +86,6 @@ contract Airdrop is
   /**************
    ** AIRDROPS **
    **************/
-
-  mapping(uint256 => bytes32) public airdropsMerkleRoots;
-  mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
-  uint256 public maxBatchSize;
 
   function addAirdropMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyRouter {
     require(airdropsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');

@@ -101,10 +101,6 @@ contract StakeTogether is Shares {
    ** STAKE **
    *****************/
 
-  uint256 public lastResetBlock;
-  uint256 public totalDeposited;
-  uint256 public totalWithdrawn;
-
   function _depositBase(address _to, address _pool) internal {
     require(config.feature.Deposit);
     require(_to != address(0));

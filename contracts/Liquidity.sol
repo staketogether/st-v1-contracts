@@ -39,6 +39,15 @@ contract Liquidity is
   Fees public fees;
   Config public config;
 
+  mapping(address => uint256) private shares;
+  uint256 public totalShares;
+  mapping(address => mapping(address => uint256)) private allowances;
+
+  uint256 public lastResetBlock;
+  uint256 public totalDeposited;
+  uint256 public totalWithdrawn;
+  uint256 public totalLiquidityWithdrawn;
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -114,10 +123,6 @@ contract Liquidity is
   /************
    ** SHARES **
    ************/
-
-  mapping(address => uint256) private shares;
-  uint256 public totalShares;
-  mapping(address => mapping(address => uint256)) private allowances;
 
   function totalPooledEther() public view returns (uint256) {
     return address(this).balance + stakeTogether.liquidityBalance();
@@ -235,11 +240,6 @@ contract Liquidity is
   /***************
    ** LIQUIDITY **
    ***************/
-
-  uint256 public lastResetBlock;
-  uint256 public totalDeposited;
-  uint256 public totalWithdrawn;
-  uint256 public totalLiquidityWithdrawn;
 
   function depositPool() public payable whenNotPaused nonReentrant {
     require(config.feature.Deposit, 'DEPOSIT_DISABLED');

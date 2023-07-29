@@ -42,6 +42,23 @@ contract Router is
   Validators public validators;
   Config public config;
 
+  uint256 public totalReportOracles;
+  mapping(address => bool) private reportOracles;
+  mapping(address => uint256) public reportOraclesBlacklist;
+
+  mapping(uint256 => mapping(bytes32 => address[])) public oracleReports;
+  mapping(uint256 => mapping(bytes32 => uint256)) public oracleReportsVotes;
+  mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
+  mapping(uint256 => bytes32[]) public reportHistoric;
+  mapping(uint256 => bytes32) public consensusReport;
+  mapping(uint256 => bool) public consensusInvalidatedReport;
+
+  uint256 public reportBlockNumber;
+  uint256 public lastConsensusEpoch;
+  uint256 public lastExecutedConsensusEpoch;
+
+  mapping(bytes32 => uint256) public reportExecutionBlock;
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -118,10 +135,6 @@ contract Router is
     );
     _;
   }
-
-  uint256 public totalReportOracles;
-  mapping(address => bool) private reportOracles;
-  mapping(address => uint256) public reportOraclesBlacklist;
 
   function isReportOracle(address _oracle) public view returns (bool) {
     return reportOracles[_oracle] && reportOraclesBlacklist[_oracle] < config.oracleBlackListLimit;
@@ -212,19 +225,6 @@ contract Router is
   /************
    ** REPORT **
    ************/
-
-  mapping(uint256 => mapping(bytes32 => address[])) public oracleReports;
-  mapping(uint256 => mapping(bytes32 => uint256)) public oracleReportsVotes;
-  mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
-  mapping(uint256 => bytes32[]) public reportHistoric;
-  mapping(uint256 => bytes32) public consensusReport;
-  mapping(uint256 => bool) public consensusInvalidatedReport;
-
-  uint256 public reportBlockNumber;
-  uint256 public lastConsensusEpoch;
-  uint256 public lastExecutedConsensusEpoch;
-
-  mapping(bytes32 => uint256) public reportExecutionBlock;
 
   function submitReport(
     uint256 _epoch,
