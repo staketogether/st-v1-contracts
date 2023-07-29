@@ -1,15 +1,10 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ethers, network, upgrades } from 'hardhat'
-import {
-  MockStakeTogether,
-  MockStakeTogether__factory,
-  Withdrawals,
-  Withdrawals__factory
-} from '../../typechain'
+import { Airdrop, Airdrop__factory, MockStakeTogether, MockStakeTogether__factory } from '../../typechain'
 import { checkVariables } from '../utils/env'
 
-export async function withdrawalsFixture() {
+export async function airdropFixture() {
   checkVariables()
 
   const provider = ethers.provider
@@ -28,14 +23,13 @@ export async function withdrawalsFixture() {
 
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
 
-  const WithdrawalsFactory = new Withdrawals__factory().connect(owner)
+  const AirdropFactory = new Airdrop__factory().connect(owner)
+  const airdrop = await upgrades.deployProxy(AirdropFactory)
+  await airdrop.waitForDeployment()
+  const airdropProxy = await airdrop.getAddress()
+  const airdropImplementation = await getImplementationAddress(network.provider, airdropProxy)
 
-  const withdrawals = await upgrades.deployProxy(WithdrawalsFactory)
-  await withdrawals.waitForDeployment()
-  const withdrawalsProxy = await withdrawals.getAddress()
-  const withdrawalsImplementation = await getImplementationAddress(network.provider, withdrawalsProxy)
-
-  const withdrawalsContract = withdrawals as unknown as Withdrawals
+  const airdropContract = airdrop as unknown as Airdrop
 
   const MockStakeTogether = new MockStakeTogether__factory().connect(owner)
   const mockStakeTogether = await upgrades.deployProxy(MockStakeTogether)
@@ -46,8 +40,8 @@ export async function withdrawalsFixture() {
 
   const stContract = mockStakeTogether as unknown as MockStakeTogether
 
-  const UPGRADER_ROLE = await withdrawalsContract.UPGRADER_ROLE()
-  const ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
+  const UPGRADER_ROLE = await airdropContract.UPGRADER_ROLE()
+  const ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
 
   return {
     provider,
@@ -61,8 +55,8 @@ export async function withdrawalsFixture() {
     user7,
     user8,
     nullAddress,
-    withdrawalsContract,
-    withdrawalsProxy,
+    airdropContract,
+    airdropProxy,
     stContract,
     stProxy,
     UPGRADER_ROLE,

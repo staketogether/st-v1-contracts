@@ -7,34 +7,32 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol';
 
-import '../Liquidity.sol';
 import '../Router.sol';
 import '../StakeTogether.sol';
 
-import '../interfaces/IFees.sol';
+import '../interfaces/IAirdrop.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract MockFees is
+contract MockAirdrop is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IFees
+  IAirdrop
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   uint256 public version;
 
   StakeTogether public stakeTogether;
-  Liquidity public liquidity;
+  Router public router;
 
-  uint256 public maxDynamicFee;
-
-  mapping(FeeRoles => address payable) public roleAddresses;
-  mapping(FeeType => Fee) public fees;
+  mapping(uint256 => bytes32) public airdropsMerkleRoots;
+  mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
+  uint256 public maxBatchSize;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
