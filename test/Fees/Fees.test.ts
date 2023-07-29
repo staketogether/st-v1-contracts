@@ -584,24 +584,20 @@ describe('Fees', function () {
     const feeValue = ethers.parseEther('0.5')
     const mathType = 1
     const allocations = [
-      ethers.parseEther('0.2'), // A large allocation
+      ethers.parseEther('0.2'),
       ethers.parseEther('0.2'),
       ethers.parseEther('0.2'),
       ethers.parseEther('0.2'),
       ethers.parseEther('0.1'),
       ethers.parseEther('0.1'),
       ethers.parseEther('0.0'),
-      ethers.parseEther('0.0') // Sender's share allocation set to 0
+      ethers.parseEther('0.0')
     ]
     await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
 
     const fee = await feesContract.getFee(feeType)
-    // console.log('Set fee: ', fee)
 
     const [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, false)
-
-    // console.log('shares: ', shares)
-    // console.log('amounts: ', amounts)
 
     const feeShares = (amount * feeValue) / ethers.parseEther('1')
 
@@ -628,11 +624,9 @@ describe('Fees', function () {
     for (let share of shares) {
       totalDistributedShares += share
     }
-    // console.log('Total distributed shares: ', totalDistributedShares)
 
     // Calculate and log the shares difference
     const sharesDifference = amount - totalDistributedShares
-    // console.log('Shares difference: ', sharesDifference)
   })
 
   it('should correctly estimate dynamic fee percentage', async function () {
@@ -666,9 +660,6 @@ describe('Fees', function () {
     // Scenario 0: 0 ether in StakeTogether and 0 ether in Liquidity with zero fee
     let [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, true)
 
-    // console.log('shares: ', shares)
-    // console.log('amounts: ', amounts)
-
     const feeShares = (amount * feeValue) / ethers.parseEther('1')
 
     let totalAllocatedShares = 0n
@@ -694,11 +685,11 @@ describe('Fees', function () {
     for (let share of shares) {
       totalDistributedShares += share
     }
-    console.log('Total distributed shares: ', totalDistributedShares)
+    // console.log('Total distributed shares: ', totalDistributedShares)
 
     // Calculate and log the shares difference
     const sharesDifference = amount - totalDistributedShares
-    console.log('Shares difference: ', sharesDifference)
+    // console.log('Shares difference: ', sharesDifference)
 
     expect(sharesDifference).to.equal(0n) // Expect that the difference in shares is 0
 
@@ -712,7 +703,6 @@ describe('Fees', function () {
 
     let [shares2, amounts2] = await feesContract.estimateFeePercentage(feeType, amount, true)
 
-    // Check that the fee is the base fee
     let baseFee2 = feeValue
 
     let totalAllocatedShares2 = 0n
@@ -781,19 +771,15 @@ describe('Fees', function () {
       ethers.parseEther('0.1'),
       ethers.parseEther('0.1'),
       ethers.parseEther('0.1'),
-      ethers.parseEther('0.5'), // An extremely large allocation
+      ethers.parseEther('0.5'),
       ethers.parseEther('0.0'),
-      ethers.parseEther('0.0') // Sender's share allocation set to 0
+      ethers.parseEther('0.0')
     ]
     await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
 
     await connect(feesContract, owner).setMaxDynamicFee(ethers.parseEther('0'))
 
-    // Scenario 0: 0 ether in StakeTogether and 0 ether in Liquidity with zero fee
     let [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, true)
-
-    // console.log('shares: ', shares)
-    // console.log('amounts: ', amounts)
 
     const feeShares = (amount * feeValue) / ethers.parseEther('1')
 
@@ -815,29 +801,19 @@ describe('Fees', function () {
     expect(shares[7]).to.equal(expectedShareSender)
     expect(amounts[7]).to.equal(expectedAmountSender)
 
-    // Calculate and log the total distributed shares
     let totalDistributedShares = 0n
     for (let share of shares) {
       totalDistributedShares += share
     }
-    // console.log('Total distributed shares: ', totalDistributedShares)
 
-    // Calculate and log the shares difference
     const sharesDifference = amount - totalDistributedShares
-    // console.log('Shares difference: ', sharesDifference)
 
-    expect(sharesDifference).to.equal(0n) // Expect that the difference in shares is 0
+    expect(sharesDifference).to.equal(0n)
 
     await connect(feesContract, owner).setMaxDynamicFee(ethers.parseEther('1'))
 
-    /** LIBRA MECHANISM */
-
     let [shares3, amounts3] = await feesContract.estimateFeePercentage(feeType, amount, true)
 
-    // console.log('shares: ', shares3)
-    // console.log('amounts: ', amounts3)
-
-    // The fee should now be double the base fee as per your dynamic fee calculation function
     let dynamicFee3 = feeValue * 2n // Calculating expected dynamicFee manually
 
     let totalAllocatedShares3 = 0n
@@ -857,7 +833,141 @@ describe('Fees', function () {
 
     expect(shares3[7]).to.equal(expectedShareSender3)
     expect(amounts3[7]).to.equal(expectedAmountSender3)
+  })
 
-    // Scenario 3: 100 ether in Stake Together and 0 ether in Liquidity
+  it('should revert if fee is not of type percentage', async function () {
+    // Setting the StakeTogether
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+    await connect(feesContract, owner).setLiquidity(liquidityProxy)
+
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1
+    const amount = ethers.parseEther('1')
+    const feeValue = ethers.parseEther('0.1')
+
+    // Set the mathType to a value different from percentage (assuming 0 is not percentage)
+    const allocations = [
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.5'),
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0')
+    ]
+
+    await connect(feesContract, owner).setFee(feeType, feeValue, 0, allocations) // 0 is not 'percentage'
+
+    // Call distributeFee() and expect it to revert
+    await expect(feesContract.estimateFeePercentage(feeType, amount, true)).to.be.reverted
+  })
+
+  it('should revert if any fee address is zero address', async function () {
+    // Setting the StakeTogether
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+    await connect(feesContract, owner).setLiquidity(liquidityProxy)
+
+    const feeType = 1
+    const amount = ethers.parseEther('1')
+    const feeValue = ethers.parseEther('0.1')
+
+    // Set the mathType to percentage and allocations
+    const allocations = [
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.1'),
+      ethers.parseEther('0.5'),
+      ethers.parseEther('0.0'),
+      ethers.parseEther('0.0')
+    ]
+
+    await connect(feesContract, owner).setFee(feeType, feeValue, 1, allocations) // 1 is 'percentage'
+
+    // Set one of the fee addresses to the zero address
+    await connect(feesContract, owner).setFeeAddress(0, nullAddress)
+
+    // Call distributeFee() and expect it to revert
+    await expect(feesContract.distributeFee(feeType, amount, true)).to.be.revertedWith('ZERO_ADDRESS')
+  })
+
+  it('should return correct shares and amounts when fee type is FIXED', async function () {
+    // Setting the StakeTogether
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+    await connect(feesContract, owner).setLiquidity(liquidityProxy)
+
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1
+    const feeValue = ethers.parseEther('1') // 1 ether for simplicity
+
+    const mathType = 0 // FIXED
+    const allocations = [
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.250'),
+      ethers.parseEther('0')
+    ]
+
+    await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations) // Set fee as FIXED
+
+    // Call estimateFeeFixed() and expect it to be successful
+    let [shares, amounts] = await feesContract.estimateFeeFixed(feeType)
+
+    console.log('shares: ', shares)
+    console.log('amounts: ', amounts)
+
+    let totalAllocatedShares = 0n
+    for (let i = 0; i < 7; i++) {
+      const expectedShare = (feeValue * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares += expectedShare
+      expect(shares[i]).to.equal(expectedShare)
+      expect(amounts[i]).to.equal(amounts[i]) // Because amounts[i] should equal to expectedAmount in the mock contract
+    }
+
+    const expectedShareSender = feeValue - totalAllocatedShares
+    expect(shares[7]).to.equal(expectedShareSender)
+    expect(amounts[7]).to.equal(amounts[7]) // Because amounts[7] should equal to expectedAmount in the mock contract
+  })
+
+  it('should revert if fee type is not FIXED', async function () {
+    // Setting the StakeTogether
+    await connect(feesContract, owner).setStakeTogether(stProxy)
+    await connect(feesContract, owner).setLiquidity(liquidityProxy)
+
+    for (let i = 0; i < feeAddresses.length; i++) {
+      await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
+    }
+
+    const feeType = 1
+    const feeValue = ethers.parseEther('1') // 1 ether for simplicity
+
+    const mathType = 1 // PERCENTAGE
+    const allocations = [
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125'),
+      ethers.parseEther('0.125')
+    ]
+
+    await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations) // Set fee as PERCENTAGE
+
+    // Call estimateFeeFixed() and expect it to revert
+    await expect(feesContract.estimateFeeFixed(feeType)).to.be.reverted
   })
 })

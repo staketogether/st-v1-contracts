@@ -120,11 +120,7 @@ contract StakeTogether is Shares {
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
-    (uint256[8] memory _shares, ) = fees.distributeFeePercentage(
-      IFees.FeeType.StakeEntry,
-      sharesAmount,
-      false
-    );
+    (uint256[8] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
 
     IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
