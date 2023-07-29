@@ -25,6 +25,7 @@ contract Airdrop is
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  uint256 public version;
 
   StakeTogether public stakeTogether;
   Router public router;
@@ -45,6 +46,8 @@ contract Airdrop is
 
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
+
+    version = 1;
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {

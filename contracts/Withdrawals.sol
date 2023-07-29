@@ -28,9 +28,9 @@ contract Withdrawals is
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  uint256 public version;
 
   StakeTogether public stakeTogether;
-  uint256 public version;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {

@@ -9,7 +9,7 @@ import { withdrawalsFixture } from './WithdrawalsFixture'
 
 dotenv.config()
 
-describe.only('Withdrawals', function () {
+describe('Withdrawals', function () {
   let withdrawalsContract: Withdrawals
   let withdrawalsProxy: string
   let stContract: MockStakeTogether

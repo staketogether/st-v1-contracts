@@ -29,6 +29,8 @@ contract StakeTogether is Shares {
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
 
+    version = 1;
+
     airdrop = Airdrop(payable(_airdrop));
     fees = Fees(payable(_fees));
     liquidity = Liquidity(payable(_liquidity));

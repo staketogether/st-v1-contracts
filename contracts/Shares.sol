@@ -37,6 +37,7 @@ abstract contract Shares is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
+  uint256 public version;
 
   Router public router;
   Fees public fees;

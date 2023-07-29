@@ -925,8 +925,8 @@ describe('Fees', function () {
     // Call estimateFeeFixed() and expect it to be successful
     let [shares, amounts] = await feesContract.estimateFeeFixed(feeType)
 
-    console.log('shares: ', shares)
-    console.log('amounts: ', amounts)
+    // console.log('shares: ', shares)
+    // console.log('amounts: ', amounts)
 
     let totalAllocatedShares = 0n
     for (let i = 0; i < 7; i++) {

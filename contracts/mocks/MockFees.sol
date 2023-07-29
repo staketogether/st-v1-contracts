@@ -26,11 +26,11 @@ contract MockFees is
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
+  uint256 public version;
 
   StakeTogether public stakeTogether;
   Liquidity public liquidity;
 
-  uint256 public version;
   uint256 public maxDynamicFee;
 
   mapping(FeeRoles => address payable) public roleAddresses;

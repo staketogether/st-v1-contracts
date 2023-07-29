@@ -30,6 +30,7 @@ contract Validators is
   bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
   bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
+  uint256 public version;
 
   StakeTogether public stakeTogether;
   Router public router;
@@ -55,6 +56,8 @@ contract Validators is
 
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
+
+    version = 1;
 
     depositContract = IDepositContract(_depositContract);
     fees = Fees(payable(_fees));
