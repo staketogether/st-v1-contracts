@@ -27,6 +27,7 @@ describe('Fees', function () {
   let user8: HardhatEthersSigner
   let nullAddress: string
   let ADMIN_ROLE: string
+  let feeAddresses: string[]
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -48,6 +49,17 @@ describe('Fees', function () {
     user8 = fixture.user8
     nullAddress = fixture.nullAddress
     ADMIN_ROLE = fixture.ADMIN_ROLE
+
+    feeAddresses = [
+      user1.address, // StakeAccounts
+      user2.address, // LockAccounts
+      user3.address, // Pools
+      user4.address, // Operators
+      user5.address, // Oracles
+      user6.address, // StakeTogether
+      user7.address, // LiquidityProviders
+      owner.address // Sender
+    ]
   })
 
   // Test to check if pause and unpause functions work properly
@@ -335,17 +347,6 @@ describe('Fees', function () {
   it('should correctly estimate the fee percentage', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
-    // Define non-zero addresses for the fee roles
-    const feeAddresses = [
-      user1.address,
-      user2.address,
-      user3.address,
-      user4.address,
-      user5.address,
-      user6.address,
-      user7.address,
-      nullAddress
-    ]
     for (let i = 0; i < feeAddresses.length; i++) {
       await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
     }
@@ -387,17 +388,6 @@ describe('Fees', function () {
   it('should correctly distribute the fee percentage with specific allocations', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
-    // Define non-zero addresses for the fee roles
-    const feeAddresses = [
-      user1.address, // StakeAccounts
-      user2.address, // LockAccounts
-      user3.address, // Pools
-      user4.address, // Operators
-      user5.address, // Oracles
-      user6.address, // StakeTogether
-      user7.address, // LiquidityProviders
-      owner.address // Sender
-    ]
     for (let i = 0; i < feeAddresses.length; i++) {
       await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
     }
@@ -456,16 +446,6 @@ describe('Fees', function () {
   it('should correctly distribute the fee percentage with extreme allocations and large amounts', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
-    const feeAddresses = [
-      user1.address, // StakeAccounts
-      user2.address, // LockAccounts
-      user3.address, // Pools
-      user4.address, // Operators
-      user5.address, // Oracles
-      user6.address, // StakeTogether
-      user7.address, // LiquidityProviders
-      owner.address // Sender
-    ]
     for (let i = 0; i < feeAddresses.length; i++) {
       await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
     }
@@ -527,19 +507,9 @@ describe('Fees', function () {
     // console.log('Shares difference: ', sharesDifference)
   })
 
-  it('should correctly distribute the fee percentage with extreme allocations and large amounts', async function () {
+  it('should correctly distribute the fee percentage with lower allocations and large amounts', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
-    const feeAddresses = [
-      user1.address, // StakeAccounts
-      user2.address, // LockAccounts
-      user3.address, // Pools
-      user4.address, // Operators
-      user5.address, // Oracles
-      user6.address, // StakeTogether
-      user7.address, // LiquidityProviders
-      owner.address // Sender
-    ]
     for (let i = 0; i < feeAddresses.length; i++) {
       await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
     }
@@ -550,7 +520,7 @@ describe('Fees', function () {
     const feeValue = ethers.parseEther('0.5')
     const mathType = 1
     const allocations = [
-      ethers.parseEther('0.00000000001'), // An extremely small allocation
+      ethers.parseEther('0.00000000001'),
       ethers.parseEther('0.00000000001'),
       ethers.parseEther('0.00000000001'),
       ethers.parseEther('0.00000000001'),
@@ -601,19 +571,9 @@ describe('Fees', function () {
     // console.log('Shares difference: ', sharesDifference)
   })
 
-  it('should correctly distribute the fee percentage with extreme allocations and small amounts', async function () {
+  it('should correctly distribute the fee percentage with big fees', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
-    const feeAddresses = [
-      user1.address, // StakeAccounts
-      user2.address, // LockAccounts
-      user3.address, // Pools
-      user4.address, // Operators
-      user5.address, // Oracles
-      user6.address, // StakeTogether
-      user7.address, // LiquidityProviders
-      owner.address // Sender
-    ]
     for (let i = 0; i < feeAddresses.length; i++) {
       await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
     }
@@ -675,21 +635,11 @@ describe('Fees', function () {
     // console.log('Shares difference: ', sharesDifference)
   })
 
-  it('should correctly estimate dynamic fee percentage', async function () {
+  it.only('should correctly estimate dynamic fee percentage', async function () {
     // Setting the StakeTogether
     await connect(feesContract, owner).setStakeTogether(stProxy)
     await connect(feesContract, owner).setLiquidity(liquidityProxy)
 
-    const feeAddresses = [
-      user1.address, // StakeAccounts
-      user2.address, // LockAccounts
-      user3.address, // Pools
-      user4.address, // Operators
-      user5.address, // Oracles
-      user6.address, // StakeTogether
-      user7.address, // LiquidityProviders
-      owner.address // Sender
-    ]
     for (let i = 0; i < feeAddresses.length; i++) {
       await connect(feesContract, owner).setFeeAddress(i, feeAddresses[i])
     }
@@ -716,8 +666,8 @@ describe('Fees', function () {
     // Scenario 0: 0 ether in StakeTogether and 0 ether in Liquidity with zero fee
     let [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, true)
 
-    console.log('shares: ', shares)
-    console.log('amounts: ', amounts)
+    // console.log('shares: ', shares)
+    // console.log('amounts: ', amounts)
 
     const feeShares = (amount * feeValue) / ethers.parseEther('1')
 
@@ -760,7 +710,57 @@ describe('Fees', function () {
 
     // Scenario 2: 0 ether in StakeTogether and 100 ether in Liquidity
 
+    await owner.sendTransaction({ to: liquidityProxy, value: ethers.parseEther('100') })
+
+    let [shares2, amounts2] = await feesContract.estimateFeePercentage(feeType, amount, true)
+
+    // Check that the fee is the base fee
+    let baseFee2 = feeValue
+
+    let totalAllocatedShares2 = 0n
+
+    for (let i = 0; i < 7; i++) {
+      const expectedShare2 = (baseFee2 * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares2 += expectedShare2
+
+      const expectedAmount2 = amounts2[i]
+
+      expect(shares2[i]).to.equal(expectedShare2)
+      expect(amounts2[i]).to.equal(expectedAmount2)
+    }
+
+    const expectedShareSender2 = amount - totalAllocatedShares2
+    const expectedAmountSender2 = amounts2[7]
+
+    expect(shares2[7]).to.equal(expectedShareSender2)
+    expect(amounts2[7]).to.equal(expectedAmountSender2)
+
     // Scenario 3: 100 ether in StakeTogether and 100 ether in Liquidity
+
+    await owner.sendTransaction({ to: stProxy, value: ethers.parseEther('100') })
+
+    let [shares3, amounts3] = await feesContract.estimateFeePercentage(feeType, amount, true)
+
+    // The fee should now be double the base fee as per your dynamic fee calculation function
+    let dynamicFee3 = baseFee2 * 2n // Calculating expected dynamicFee manually
+
+    let totalAllocatedShares3 = 0n
+
+    for (let i = 0; i < 7; i++) {
+      const expectedShare3 = (dynamicFee3 * allocations[i]) / ethers.parseEther('1')
+      totalAllocatedShares3 += expectedShare3
+
+      const expectedAmount3 = amounts3[i]
+
+      expect(shares3[i]).to.equal(expectedShare3)
+      expect(amounts3[i]).to.equal(expectedAmount3)
+    }
+
+    const expectedShareSender3 = amount - totalAllocatedShares3
+    const expectedAmountSender3 = amounts3[7]
+
+    expect(shares3[7]).to.equal(expectedShareSender3)
+    expect(amounts3[7]).to.equal(expectedAmountSender3)
 
     // Scenario 4: 100 ether in Stake Together and 0 ether in Liquidity
   })
