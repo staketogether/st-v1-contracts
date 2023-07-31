@@ -404,8 +404,8 @@ abstract contract Shares is
     require(!pools[_pool]);
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool);
-      (uint256[5] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakePool);
-      IFees.FeeRole[5] memory roles = fees.getFeesRoles();
+      (uint256[4] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakePool);
+      IFees.FeeRole[4] memory roles = fees.getFeesRoles();
       for (uint i = 0; i < roles.length - 1; i++) {
         _mintRewards(
           fees.getFeeAddress(roles[i]),

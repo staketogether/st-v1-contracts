@@ -52,10 +52,9 @@ describe.only('Fees', function () {
 
     feeAddresses = [
       user1.address, // Airdrop
-      user2.address, // Pool
-      user3.address, // Operator
-      user4.address, // StakeTogether
-      owner.address // Sender
+      user2.address, // Operator
+      user3.address, // StakeTogether
+      user4.address // Sender
     ]
   })
 
@@ -159,10 +158,9 @@ describe.only('Fees', function () {
 
     // Check if the returned roles match the expected values
     expect(roles[0]).to.equal(0) // FeeRole.Airdrop
-    expect(roles[1]).to.equal(1) // FeeRole.Pool
-    expect(roles[2]).to.equal(2) // FeeRole.Operator
-    expect(roles[3]).to.equal(3) // FeeRole.StakeTogether
-    expect(roles[4]).to.equal(4) // FeeRole.Sender
+    expect(roles[1]).to.equal(1) // FeeRole.Operator
+    expect(roles[2]).to.equal(2) // FeeRole.StakeTogether
+    expect(roles[3]).to.equal(3) // FeeRole.Sender
   })
 
   it('should correctly set the Fee Address', async function () {
@@ -190,10 +188,9 @@ describe.only('Fees', function () {
   it('should correctly get the Fee Addresses for all roles', async function () {
     // Set Fee Addresses for different roles
     await connect(feesContract, owner).setFeeAddress(0, user1.address) // FeeRole.Airdrop
-    await connect(feesContract, owner).setFeeAddress(1, user2.address) // FeeRole.Pool
-    await connect(feesContract, owner).setFeeAddress(2, user3.address) // FeeRole.Operator
-    await connect(feesContract, owner).setFeeAddress(3, user4.address) // FeeRole.StakeTogether
-    await connect(feesContract, owner).setFeeAddress(4, user5.address) // FeeRole.Sender
+    await connect(feesContract, owner).setFeeAddress(1, user2.address) // FeeRole.Operator
+    await connect(feesContract, owner).setFeeAddress(2, user3.address) // FeeRole.StakeTogether
+    await connect(feesContract, owner).setFeeAddress(3, user4.address) // FeeRole.Sender
 
     // Get Fee Addresses for all roles
     const addresses = await feesContract.getFeeRolesAddresses()
@@ -203,10 +200,9 @@ describe.only('Fees', function () {
     expect(addresses[1]).to.equal(user2.address)
     expect(addresses[2]).to.equal(user3.address)
     expect(addresses[3]).to.equal(user4.address)
-    expect(addresses[4]).to.equal(user5.address)
   })
 
-  it('should revert if allocations array length is not 8', async function () {
+  it('should revert if allocations array length is not 4', async function () {
     const feeType = 0 // Fee.StakeEntry
     const value = ethers.parseEther('0.01')
     const mathType = 1 // FeeMath.PERCENTAGE
@@ -220,7 +216,7 @@ describe.only('Fees', function () {
     const feeType = 0 // Fee.StakeEntry
     const value = ethers.parseEther('0.01')
     const mathType = 1 // FeeMath.PERCENTAGE
-    const allocations = new Array(8).fill(ethers.parseEther('0.1'))
+    const allocations = new Array(4).fill(ethers.parseEther('0.2'))
 
     await expect(connect(feesContract, owner).setFee(feeType, value, mathType, allocations)).to.be
       .reverted
@@ -230,7 +226,7 @@ describe.only('Fees', function () {
     const feeType = 0 // Fee.StakeEntry
     const value = ethers.parseEther('0.01')
     const mathType = 1 // FeeMath.PERCENTAGE
-    const allocations = new Array(5).fill(ethers.parseEther('0.2'))
+    const allocations = new Array(4).fill(ethers.parseEther('0.25'))
 
     await connect(feesContract, owner).setFee(feeType, value, mathType, allocations)
 
@@ -259,7 +255,7 @@ describe.only('Fees', function () {
     const feeType = 0 // Fee.StakeEntry
     const value = ethers.parseEther('0.01') // This will be the fixed fee
     const mathType = 0 // FeeMath.FIXED
-    const allocations = new Array(5).fill(ethers.parseEther('0.2')) // The allocations still need to sum to 1 ether
+    const allocations = new Array(4).fill(ethers.parseEther('0.25')) // The allocations still need to sum to 1 ether
 
     await connect(feesContract, owner).setFee(feeType, value, mathType, allocations)
 
@@ -281,7 +277,7 @@ describe.only('Fees', function () {
     const percentageValue = ethers.parseEther('0.02') // This will be the percentage fee
     const fixedMathType = 0 // FeeMath.FIXED
     const percentageMathType = 1 // FeeMath.PERCENTAGE
-    const allocations = new Array(5).fill(ethers.parseEther('0.2'))
+    const allocations = new Array(4).fill(ethers.parseEther('0.25'))
 
     for (let i = 0; i < feeCount; i++) {
       if (i % 2 === 0) {
@@ -332,7 +328,7 @@ describe.only('Fees', function () {
     await expect(connect(feesContract, user1).setMaxDynamicFee(maxDynamicFee)).to.be.reverted
   })
 
-  it.only('should correctly estimate the fee percentage', async function () {
+  it('should correctly estimate the fee percentage', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
     for (let i = 0; i < feeAddresses.length; i++) {
@@ -345,7 +341,7 @@ describe.only('Fees', function () {
     // Set the fee for the specified type
     const feeValue = ethers.parseEther('0.01') // 1%
     const mathType = 1 // FeeMath.PERCENTAGE
-    const allocations = new Array(5).fill(ethers.parseEther('0.2'))
+    const allocations = new Array(4).fill(ethers.parseEther('0.25'))
     await connect(feesContract, owner).setFee(feeType, feeValue, mathType, allocations)
 
     // Get and log the set fee
@@ -358,19 +354,19 @@ describe.only('Fees', function () {
     // console.log('amounts: ', amounts)
 
     // Check if the shares and amounts are correctly calculated
-    for (let i = 0; i < 4; i++) {
-      const expectedShare = 2000000000000000n // 0.002% of the amount
-      const expectedAmount = 2000000000000000n // 0.002 Ether
+    for (let i = 0; i < 3; i++) {
+      const expectedShare = 2500000000000000n // 0.002% of the amount
+      const expectedAmount = 2500000000000000n // 0.002 Ether
 
       expect(shares[i].toString()).to.equal(expectedShare.toString())
       expect(amounts[i].toString()).to.equal(expectedAmount.toString())
     }
 
-    const expectedShareSender = 992000000000000000n
-    const expectedAmountSender = 992000000000000000n
+    const expectedShareSender = 992500000000000000n
+    const expectedAmountSender = 992500000000000000n
 
-    expect(shares[4].toString()).to.equal(expectedShareSender.toString())
-    expect(amounts[4].toString()).to.equal(expectedAmountSender.toString())
+    expect(shares[3].toString()).to.equal(expectedShareSender.toString())
+    expect(amounts[3].toString()).to.equal(expectedAmountSender.toString())
   })
 
   // it('should correctly distribute the fee percentage with specific allocations', async function () {

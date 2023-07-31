@@ -79,14 +79,8 @@ contract Fees is
     emit SetLiquidity(_liquidity);
   }
 
-  function getFeesRoles() public pure returns (FeeRole[5] memory) {
-    FeeRole[5] memory roles = [
-      FeeRole.Airdrop,
-      FeeRole.Pool,
-      FeeRole.Operator,
-      FeeRole.StakeTogether,
-      FeeRole.Sender
-    ];
+  function getFeesRoles() public pure returns (FeeRole[4] memory) {
+    FeeRole[4] memory roles = [FeeRole.Airdrop, FeeRole.Operator, FeeRole.StakeTogether, FeeRole.Sender];
     return roles;
   }
 
@@ -99,9 +93,9 @@ contract Fees is
     return roleAddresses[_role];
   }
 
-  function getFeeRolesAddresses() public view returns (address[5] memory) {
-    FeeRole[5] memory roles = getFeesRoles();
-    address[5] memory addresses;
+  function getFeeRolesAddresses() public view returns (address[4] memory) {
+    FeeRole[4] memory roles = getFeesRoles();
+    address[4] memory addresses;
     for (uint256 i = 0; i < roles.length; i++) {
       addresses[i] = getFeeAddress(roles[i]);
     }
@@ -114,7 +108,7 @@ contract Fees is
     FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    require(_allocations.length == 5);
+    require(_allocations.length == 4);
 
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
@@ -130,8 +124,8 @@ contract Fees is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  function getFee(FeeType _feeType) public view returns (FeeType, uint256, FeeMath, uint256[5] memory) {
-    uint256[5] memory allocations;
+  function getFee(FeeType _feeType) public view returns (FeeType, uint256, FeeMath, uint256[4] memory) {
+    uint256[4] memory allocations;
     for (uint i = 0; i < allocations.length; i++) {
       allocations[i] = fees[_feeType].allocations[FeeRole(i)];
     }
@@ -146,7 +140,7 @@ contract Fees is
       FeeType[] memory feeTypes,
       uint256[] memory feeValues,
       FeeMath[] memory feeMathTypes,
-      uint256[5][] memory allocations
+      uint256[4][] memory allocations
     )
   {
     uint256 feeCount = 6;
@@ -154,10 +148,10 @@ contract Fees is
     feeTypes = new FeeType[](feeCount);
     feeValues = new uint256[](feeCount);
     feeMathTypes = new FeeMath[](feeCount);
-    allocations = new uint256[5][](feeCount);
+    allocations = new uint256[4][](feeCount);
 
     for (uint256 i = 0; i < feeCount; i++) {
-      (FeeType feeType, uint256 feeValue, FeeMath feeMathType, uint256[5] memory allocation) = getFee(
+      (FeeType feeType, uint256 feeValue, FeeMath feeMathType, uint256[4] memory allocation) = getFee(
         FeeType(i)
       );
 
@@ -187,10 +181,10 @@ contract Fees is
     FeeType _feeType,
     uint256 _sharesAmount,
     bool _dynamicFee
-  ) public view returns (uint256[5] memory shares, uint256[5] memory amounts) {
-    FeeRole[5] memory roles = getFeesRoles();
-    address[5] memory feeAddresses = getFeeRolesAddresses();
-    uint256[5] memory allocations;
+  ) public view returns (uint256[4] memory shares, uint256[4] memory amounts) {
+    FeeRole[4] memory roles = getFeesRoles();
+    address[4] memory feeAddresses = getFeeRolesAddresses();
+    uint256[4] memory allocations;
 
     for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
       require(feeAddresses[i] != address(0), 'ZERO_ADDRESS');
@@ -218,7 +212,7 @@ contract Fees is
     }
 
     // Allocate the remaining shares to the last role
-    shares[4] = _sharesAmount - totalAllocatedShares;
+    shares[3] = _sharesAmount - totalAllocatedShares;
 
     // Calculate the amounts for each role
     for (uint256 i = 0; i < roles.length; i++) {
@@ -232,7 +226,7 @@ contract Fees is
     FeeType _feeType,
     uint256 _amount,
     bool _dynamicFee
-  ) public view returns (uint256[5] memory shares, uint256[5] memory amounts) {
+  ) public view returns (uint256[4] memory shares, uint256[4] memory amounts) {
     require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
     return distributeFee(_feeType, sharesAmount, _dynamicFee);
@@ -240,7 +234,7 @@ contract Fees is
 
   function estimateFeeFixed(
     FeeType _feeType
-  ) public view returns (uint256[5] memory shares, uint256[5] memory amounts) {
+  ) public view returns (uint256[4] memory shares, uint256[4] memory amounts) {
     require(fees[_feeType].mathType == FeeMath.FIXED);
     return distributeFee(_feeType, fees[_feeType].value, false);
   }

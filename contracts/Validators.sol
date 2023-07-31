@@ -173,9 +173,9 @@ contract Validators is
     validators[_publicKey] = true;
     totalValidators++;
 
-    (uint256[5] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
+    (uint256[4] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
-    IFees.FeeRole[5] memory roles = fees.getFeesRoles();
+    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
 
     for (uint i = 0; i < _shares.length - 1; i++) {
       if (_shares[i] > 0) {

@@ -53,7 +53,7 @@ interface IStakeTogether {
     address indexed to,
     address indexed pool,
     uint256 amount,
-    uint256[5] shares,
+    uint256[4] shares,
     DepositType depositType,
     address referral
   );

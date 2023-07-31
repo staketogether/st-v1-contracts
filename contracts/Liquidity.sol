@@ -251,13 +251,13 @@ contract Liquidity is
 
     _resetLimits();
 
-    (uint256[5] memory _shares, uint256[5] memory _amounts) = fees.estimateFeePercentage(
+    (uint256[4] memory _shares, uint256[4] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.LiquidityProvideEntry,
       msg.value,
       false
     );
 
-    IFees.FeeRole[5] memory roles = fees.getFeesRoles();
+    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
@@ -293,41 +293,34 @@ contract Liquidity is
     emit WithdrawPool(msg.sender, _amount);
   }
 
-  function withdrawLiquidity(
-    uint256 _amount,
-    address _pool
-  ) public whenNotPaused nonReentrant onlyStakeTogether {
+  function withdrawLiquidity(uint256 _amount) public whenNotPaused nonReentrant onlyStakeTogether {
     require(config.feature.Liquidity, 'LIQUIDITY_DISABLED');
     require(_amount > 0, 'ZERO_AMOUNT');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
 
-    (uint256[5] memory _shares, uint256[5] memory _amounts) = fees.estimateFeePercentage(
+    (uint256[4] memory _shares, uint256[4] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.LiquidityProvide,
       _amount,
       true
     );
 
-    IFees.FeeRole[5] memory roles = fees.getFeesRoles();
+    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
 
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
-        if (roles[i] == IFees.FeeRole.Pool) {
-          stakeTogether.mintRewards(_pool, _pool, _shares[i], IFees.FeeType.LiquidityProvide, roles[i]);
-        } else {
-          stakeTogether.mintRewards(
-            fees.getFeeAddress(roles[i]),
-            fees.getFeeAddress(IFees.FeeRole.StakeTogether),
-            _shares[i],
-            IFees.FeeType.LiquidityProvide,
-            roles[i]
-          );
-        }
+        stakeTogether.mintRewards(
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          _shares[i],
+          IFees.FeeType.LiquidityProvide,
+          roles[i]
+        );
       }
     }
 
-    stakeTogether.setLiquidityBalance(stakeTogether.liquidityBalance() + _amounts[4]);
-    payable(msg.sender).transfer(_amounts[4]);
-    totalLiquidityWithdrawn += _amounts[4];
+    stakeTogether.setLiquidityBalance(stakeTogether.liquidityBalance() + _amounts[3]);
+    payable(msg.sender).transfer(_amounts[3]);
+    totalLiquidityWithdrawn += _amounts[3];
 
     emit WithdrawLiquidity(msg.sender, _amount);
   }

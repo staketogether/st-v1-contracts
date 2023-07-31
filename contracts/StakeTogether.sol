@@ -118,16 +118,14 @@ contract StakeTogether is Shares {
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
-    (uint256[5] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
+    (uint256[4] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
 
-    IFees.FeeRole[5] memory roles = fees.getFeesRoles();
+    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == IFees.FeeRole.Sender) {
           _mintShares(_to, _shares[i]);
           _mintPoolShares(_to, _pool, _shares[i]);
-        } else if (roles[i] == IFees.FeeRole.Pool) {
-          _mintRewards(_pool, _pool, _shares[i], IFees.FeeType.StakeEntry, roles[i]);
         } else {
           _mintRewards(
             fees.getFeeAddress(roles[i]),
@@ -149,13 +147,13 @@ contract StakeTogether is Shares {
     _depositBase(msg.sender, _pool, DepositType.Pool, _referral);
   }
 
-  // function depositDonationPool(
-  //   address _to,
-  //   address _pool,
-  //   address _referral
-  // ) external payable nonReentrant whenNotPaused {
-  //   _depositBase(_to, _pool, DepositType.DonationPool, _referral);
-  // }
+  function depositDonationPool(
+    address _to,
+    address _pool,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
+    _depositBase(_to, _pool, DepositType.DonationPool, _referral);
+  }
 
   function _withdrawBase(uint256 _amount, address _pool, WithdrawType _withdrawType) internal {
     require(_amount > 0);
@@ -191,7 +189,7 @@ contract StakeTogether is Shares {
     require(config.feature.WithdrawLiquidity);
     require(_amount <= address(liquidity).balance);
     _withdrawBase(_amount, _pool, WithdrawType.Liquidity);
-    liquidity.withdrawLiquidity(_amount, _pool);
+    liquidity.withdrawLiquidity(_amount);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {

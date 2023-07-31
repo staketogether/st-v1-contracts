@@ -20,7 +20,6 @@ interface IFees {
 
   enum FeeRole {
     Airdrop,
-    Pool, // Only used on StakeEntry
     Operator,
     StakeTogether,
     Sender
