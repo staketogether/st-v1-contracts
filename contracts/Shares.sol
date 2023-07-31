@@ -454,11 +454,13 @@ abstract contract Shares is
   }
 
   function claimRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
-    require(msg.sender == address(airdrop));
+    address airdropFee = fees.getFeeAddress(IFees.FeeRole.Airdrop);
     address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRole.StakeTogether);
 
-    _transferShares(address(airdrop), _account, _sharesAmount);
-    _transferPoolDelegationShares(stakeTogetherFee, _account, stakeTogetherFee, _sharesAmount);
+    require(msg.sender == airdropFee);
+
+    _transferShares(airdropFee, _account, _sharesAmount);
+    _transferPoolDelegationShares(airdropFee, _account, stakeTogetherFee, _sharesAmount);
 
     if (pools[_account]) {
       _transferPoolShares(_account, stakeTogetherFee, _account, _sharesAmount);

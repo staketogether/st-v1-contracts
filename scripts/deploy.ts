@@ -55,6 +55,12 @@ export async function deploy() {
   await fees.feesContract.setStakeTogether(stakeTogether.proxyAddress)
   await fees.feesContract.setLiquidity(liquidity.proxyAddress)
 
+  await fees.feesContract.setFeeAddress(0, airdrop.proxyAddress)
+  await fees.feesContract.setFeeAddress(1, owner)
+  await fees.feesContract.setFeeAddress(2, owner)
+  await fees.feesContract.setFeeAddress(3, owner)
+  await fees.feesContract.setFeeAddress(4, owner)
+
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
   await airdrop.airdropContract.setRouter(router.proxyAddress)
 
@@ -68,7 +74,8 @@ export async function deploy() {
 
   await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 
-  console.log('\n🔷 All contracts deployed!\n')
+  console.log('\n🔷 All ST V2 Contracts Deployed!\n')
+
   verifyContracts(
     airdrop.proxyAddress,
     airdrop.implementationAddress,
@@ -101,82 +108,54 @@ async function deployFees(owner: HardhatEthersSigner) {
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
   await feesContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
-    0n,
     ethers.parseEther('0.2'),
     ethers.parseEther('0.4'),
     0n,
-    0n,
     ethers.parseEther('0.4'),
-    0n,
     0n
   ])
 
   // Set the StakeRewards fee to 0.09 ether and make it a percentage-based fee
   await feesContract.setFee(1n, ethers.parseEther('0.09'), 1n, [
-    0n,
-    0n,
     ethers.parseEther('0.33'),
+    0,
     ethers.parseEther('0.33'),
-    0n,
     ethers.parseEther('0.34'),
-    0n,
     0n
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
   await feesContract.setFee(2n, ethers.parseEther('1'), 0n, [
-    0n,
-    ethers.parseEther('0.2'),
+    ethers.parseEther('0.4'),
     0n,
     0n,
     ethers.parseEther('0.6'),
-    ethers.parseEther('0.2'),
-    0n,
     0n
   ])
 
   // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
-  await feesContract.setFee(3n, ethers.parseEther('0.01'), 0n, [
-    0n,
-    0n,
-    0n,
-    0n,
-    ethers.parseEther('1'),
-    0n,
-    0n,
-    0n
-  ])
+  await feesContract.setFee(3n, ethers.parseEther('0.01'), 0n, [0n, 0n, 0n, ethers.parseEther('1'), 0n])
 
   // Set the LiquidityProvideEntry fee to 0.003 ether and make it a percentage-based fee
   await feesContract.setFee(4n, ethers.parseEther('0.003'), 1n, [
-    0n,
-    0n,
-    0n,
-    0n,
-    0n,
     ethers.parseEther('0.5'),
+    0n,
+    0n,
     ethers.parseEther('0.5'),
     0n
   ])
 
   // Set the LiquidityProvide fee to 0.001 ether and make it a percentage-based fee
   await feesContract.setFee(5, ethers.parseEther('0.001'), 1, [
-    0n,
-    ethers.parseEther('0.1'),
-    ethers.parseEther('0.1'),
+    ethers.parseEther('0.8'),
     0n,
     0n,
-    ethers.parseEther('0.1'),
-    ethers.parseEther('0.7'),
+    ethers.parseEther('0.2'),
     0n
   ])
 
   // Set the maximum fee increase to 3 ether (300%)
   await feesContract.setMaxDynamicFee(ethers.parseEther('3'))
-
-  for (let i = 0; i < 7; i++) {
-    await feesContract.setFeeAddress(i, owner)
-  }
 
   return { proxyAddress, implementationAddress, feesContract }
 }
