@@ -149,13 +149,13 @@ contract StakeTogether is Shares {
     _depositBase(msg.sender, _pool, DepositType.Pool, _referral);
   }
 
-  function depositDonationPool(
-    address _to,
-    address _pool,
-    address _referral
-  ) external payable nonReentrant whenNotPaused {
-    _depositBase(_to, _pool, DepositType.DonationPool, _referral);
-  }
+  // function depositDonationPool(
+  //   address _to,
+  //   address _pool,
+  //   address _referral
+  // ) external payable nonReentrant whenNotPaused {
+  //   _depositBase(_to, _pool, DepositType.DonationPool, _referral);
+  // }
 
   function _withdrawBase(uint256 _amount, address _pool, WithdrawType _withdrawType) internal {
     require(_amount > 0);
