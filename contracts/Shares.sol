@@ -404,13 +404,15 @@ abstract contract Shares is
     require(!pools[_pool]);
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool);
-      (uint256[8] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakePool);
-      IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
+      (uint256[5] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakePool);
+      IFees.FeeRole[5] memory roles = fees.getFeesRoles();
       for (uint i = 0; i < roles.length - 1; i++) {
         _mintRewards(
           fees.getFeeAddress(roles[i]),
-          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
-          _shares[i]
+          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          _shares[i],
+          IFees.FeeType.StakePool,
+          roles[i]
         );
       }
     }
@@ -428,20 +430,32 @@ abstract contract Shares is
    ** REWARDS **
    *****************/
 
-  function _mintRewards(address _address, address _pool, uint256 _sharesAmount) internal {
+  function _mintRewards(
+    address _address,
+    address _pool,
+    uint256 _sharesAmount,
+    IFees.FeeType _feeType,
+    IFees.FeeRole _feeRole
+  ) internal {
     _mintShares(_address, _sharesAmount);
     _mintPoolShares(_address, _pool, _sharesAmount);
-    emit MintRewards(_address, _pool, _sharesAmount);
+    emit MintRewards(_address, _pool, _sharesAmount, _feeType, _feeRole);
   }
 
-  function mintRewards(address _address, address _pool, uint256 _sharesAmount) public payable {
+  function mintRewards(
+    address _address,
+    address _pool,
+    uint256 _sharesAmount,
+    IFees.FeeType _feeType,
+    IFees.FeeRole _feeRole
+  ) public payable {
     require(msg.sender == address(router) || msg.sender == address(liquidity));
-    _mintRewards(_address, _pool, _sharesAmount);
+    _mintRewards(_address, _pool, _sharesAmount, _feeType, _feeRole);
   }
 
   function claimRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
     require(msg.sender == address(airdrop));
-    address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRoles.StakeTogether);
+    address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRole.StakeTogether);
 
     _transferShares(address(airdrop), _account, _sharesAmount);
     _transferPoolDelegationShares(stakeTogetherFee, _account, stakeTogetherFee, _sharesAmount);

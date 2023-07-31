@@ -33,7 +33,7 @@ contract MockFees is
 
   uint256 public maxDynamicFee;
 
-  mapping(FeeRoles => address payable) public roleAddresses;
+  mapping(FeeRole => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
 
   /// @custom:oz-upgrades-unsafe-allow constructor

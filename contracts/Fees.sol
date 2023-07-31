@@ -33,7 +33,7 @@ contract Fees is
 
   uint256 public maxDynamicFee;
 
-  mapping(FeeRoles => address payable) public roleAddresses;
+  mapping(FeeRole => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -79,32 +79,29 @@ contract Fees is
     emit SetLiquidity(_liquidity);
   }
 
-  function getFeesRoles() public pure returns (FeeRoles[8] memory) {
-    FeeRoles[8] memory roles = [
-      FeeRoles.StakeAccounts,
-      FeeRoles.LockAccounts,
-      FeeRoles.Pools,
-      FeeRoles.Operators,
-      FeeRoles.Oracles,
-      FeeRoles.StakeTogether,
-      FeeRoles.LiquidityProviders,
-      FeeRoles.Sender
+  function getFeesRoles() public pure returns (FeeRole[5] memory) {
+    FeeRole[5] memory roles = [
+      FeeRole.Airdrop,
+      FeeRole.Pool,
+      FeeRole.Operator,
+      FeeRole.StakeTogether,
+      FeeRole.Sender
     ];
     return roles;
   }
 
-  function setFeeAddress(FeeRoles _role, address payable _address) external onlyRole(ADMIN_ROLE) {
+  function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     roleAddresses[_role] = _address;
     emit SetFeeAddress(_role, _address);
   }
 
-  function getFeeAddress(FeeRoles _role) public view returns (address) {
+  function getFeeAddress(FeeRole _role) public view returns (address) {
     return roleAddresses[_role];
   }
 
-  function getFeeRolesAddresses() public view returns (address[8] memory) {
-    FeeRoles[8] memory roles = getFeesRoles();
-    address[8] memory addresses;
+  function getFeeRolesAddresses() public view returns (address[5] memory) {
+    FeeRole[5] memory roles = getFeesRoles();
+    address[5] memory addresses;
     for (uint256 i = 0; i < roles.length; i++) {
       addresses[i] = getFeeAddress(roles[i]);
     }
@@ -114,10 +111,10 @@ contract Fees is
   function setFee(
     FeeType _feeType,
     uint256 _value,
-    FeeMathType _mathType,
+    FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    require(_allocations.length == 8);
+    require(_allocations.length == 5);
 
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
@@ -125,7 +122,7 @@ contract Fees is
     uint256 sum = 0;
     for (uint256 i = 0; i < _allocations.length; i++) {
       uint256 allocation = _allocations[i];
-      fees[_feeType].allocations[FeeRoles(i)] = allocation;
+      fees[_feeType].allocations[FeeRole(i)] = allocation;
       sum += allocation;
     }
 
@@ -133,12 +130,10 @@ contract Fees is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  function getFee(
-    FeeType _feeType
-  ) public view returns (FeeType, uint256, FeeMathType, uint256[8] memory) {
-    uint256[8] memory allocations;
-    for (uint i = 0; i < 8; i++) {
-      allocations[i] = fees[_feeType].allocations[FeeRoles(i)];
+  function getFee(FeeType _feeType) public view returns (FeeType, uint256, FeeMath, uint256[5] memory) {
+    uint256[5] memory allocations;
+    for (uint i = 0; i < allocations.length; i++) {
+      allocations[i] = fees[_feeType].allocations[FeeRole(i)];
     }
 
     return (_feeType, fees[_feeType].value, fees[_feeType].mathType, allocations);
@@ -150,19 +145,19 @@ contract Fees is
     returns (
       FeeType[] memory feeTypes,
       uint256[] memory feeValues,
-      FeeMathType[] memory feeMathTypes,
-      uint256[8][] memory allocations
+      FeeMath[] memory feeMathTypes,
+      uint256[5][] memory allocations
     )
   {
     uint256 feeCount = 6;
 
     feeTypes = new FeeType[](feeCount);
     feeValues = new uint256[](feeCount);
-    feeMathTypes = new FeeMathType[](feeCount);
-    allocations = new uint256[8][](feeCount);
+    feeMathTypes = new FeeMath[](feeCount);
+    allocations = new uint256[5][](feeCount);
 
     for (uint256 i = 0; i < feeCount; i++) {
-      (FeeType feeType, uint256 feeValue, FeeMathType feeMathType, uint256[8] memory allocation) = getFee(
+      (FeeType feeType, uint256 feeValue, FeeMath feeMathType, uint256[5] memory allocation) = getFee(
         FeeType(i)
       );
 
@@ -192,10 +187,10 @@ contract Fees is
     FeeType _feeType,
     uint256 _sharesAmount,
     bool _dynamicFee
-  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    FeeRoles[8] memory roles = getFeesRoles();
-    address[8] memory feeAddresses = getFeeRolesAddresses();
-    uint256[8] memory allocations;
+  ) public view returns (uint256[5] memory shares, uint256[5] memory amounts) {
+    FeeRole[5] memory roles = getFeesRoles();
+    address[5] memory feeAddresses = getFeeRolesAddresses();
+    uint256[5] memory allocations;
 
     for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
       require(feeAddresses[i] != address(0), 'ZERO_ADDRESS');
@@ -207,7 +202,7 @@ contract Fees is
 
     uint256 feeValue = fees[_feeType].value;
 
-    if (_dynamicFee && fees[_feeType].mathType == FeeMathType.PERCENTAGE) {
+    if (_dynamicFee && fees[_feeType].mathType == FeeMath.PERCENTAGE) {
       feeValue = _calculateDynamicFee(feeValue);
     }
 
@@ -216,14 +211,14 @@ contract Fees is
     // Create a temporary variable to keep track of the total allocated shares
     uint256 totalAllocatedShares = 0;
 
-    // Allocate shares for the first 7 roles
+    // Allocate shares for the first 4 roles
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = MathUpgradeable.mulDiv(feeShares, allocations[i], 1 ether);
       totalAllocatedShares += shares[i];
     }
 
     // Allocate the remaining shares to the last role
-    shares[7] = _sharesAmount - totalAllocatedShares;
+    shares[4] = _sharesAmount - totalAllocatedShares;
 
     // Calculate the amounts for each role
     for (uint256 i = 0; i < roles.length; i++) {
@@ -237,16 +232,16 @@ contract Fees is
     FeeType _feeType,
     uint256 _amount,
     bool _dynamicFee
-  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    require(fees[_feeType].mathType == FeeMathType.PERCENTAGE);
+  ) public view returns (uint256[5] memory shares, uint256[5] memory amounts) {
+    require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
     return distributeFee(_feeType, sharesAmount, _dynamicFee);
   }
 
   function estimateFeeFixed(
     FeeType _feeType
-  ) public view returns (uint256[8] memory shares, uint256[8] memory amounts) {
-    require(fees[_feeType].mathType == FeeMathType.FIXED);
+  ) public view returns (uint256[5] memory shares, uint256[5] memory amounts) {
+    require(fees[_feeType].mathType == FeeMath.FIXED);
     return distributeFee(_feeType, fees[_feeType].value, false);
   }
 

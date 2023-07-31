@@ -173,16 +173,18 @@ contract Validators is
     validators[_publicKey] = true;
     totalValidators++;
 
-    (uint256[8] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
+    (uint256[5] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
-    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
+    IFees.FeeRole[5] memory roles = fees.getFeesRoles();
 
     for (uint i = 0; i < _shares.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards(
           fees.getFeeAddress(roles[i]),
-          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
-          _shares[i]
+          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          _shares[i],
+          IFees.FeeType.StakeValidator,
+          roles[i]
         );
       }
     }

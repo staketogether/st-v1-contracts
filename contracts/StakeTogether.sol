@@ -48,7 +48,7 @@ contract StakeTogether is Shares {
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
-    address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRoles.StakeTogether);
+    address stakeTogetherFee = fees.getFeeAddress(IFees.FeeRole.StakeTogether);
     addPool(stakeTogetherFee, false);
     _mintShares(address(this), msg.value);
     _mintPoolShares(address(this), stakeTogetherFee, msg.value);
@@ -103,7 +103,7 @@ contract StakeTogether is Shares {
    ** STAKE **
    *****************/
 
-  function _depositBase(address _to, address _pool) internal {
+  function _depositBase(address _to, address _pool, DepositType _depositType, address referral) internal {
     require(config.feature.Deposit);
     require(_to != address(0));
     require(pools[_pool]);
@@ -118,21 +118,23 @@ contract StakeTogether is Shares {
 
     uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
 
-    (uint256[8] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
+    (uint256[5] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
 
-    IFees.FeeRoles[8] memory roles = fees.getFeesRoles();
+    IFees.FeeRole[5] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
-        if (roles[i] == IFees.FeeRoles.Sender) {
+        if (roles[i] == IFees.FeeRole.Sender) {
           _mintShares(_to, _shares[i]);
           _mintPoolShares(_to, _pool, _shares[i]);
-        } else if (roles[i] == IFees.FeeRoles.Pools) {
-          _mintRewards(_pool, _pool, _shares[i]);
+        } else if (roles[i] == IFees.FeeRole.Pool) {
+          _mintRewards(_pool, _pool, _shares[i], IFees.FeeType.StakeEntry, roles[i]);
         } else {
           _mintRewards(
             fees.getFeeAddress(roles[i]),
-            fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
-            _shares[i]
+            fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+            _shares[i],
+            IFees.FeeType.StakeEntry,
+            roles[i]
           );
         }
       }
@@ -140,12 +142,11 @@ contract StakeTogether is Shares {
 
     totalDeposited += msg.value;
     _supplyLiquidity(msg.value);
-    emit DepositBase(_to, _pool, msg.value, _shares);
+    emit DepositBase(_to, _pool, msg.value, _shares, _depositType, referral);
   }
 
   function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
-    _depositBase(msg.sender, _pool);
-    emit DepositPool(msg.sender, msg.value, _pool, _referral);
+    _depositBase(msg.sender, _pool, DepositType.Pool, _referral);
   }
 
   function depositDonationPool(
@@ -153,11 +154,10 @@ contract StakeTogether is Shares {
     address _pool,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    _depositBase(_to, _pool);
-    emit DepositDonationPool(msg.sender, _to, msg.value, _pool, _referral);
+    _depositBase(_to, _pool, DepositType.DonationPool, _referral);
   }
 
-  function _withdrawBase(uint256 _amount, address _pool) internal {
+  function _withdrawBase(uint256 _amount, address _pool, WithdrawType _withdrawType) internal {
     require(_amount > 0);
     require(_amount <= balanceOf(msg.sender));
     require(pools[_pool]);
@@ -176,21 +176,21 @@ contract StakeTogether is Shares {
 
     _burnShares(msg.sender, sharesToBurn);
     _burnPoolShares(msg.sender, _pool, sharesToBurn);
+
+    emit WithdrawBase(msg.sender, _pool, _amount, sharesToBurn, _withdrawType);
   }
 
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool);
     require(_amount <= address(this).balance);
-    _withdrawBase(_amount, _pool);
-    emit WithdrawPool(msg.sender, _amount, _pool);
+    _withdrawBase(_amount, _pool, WithdrawType.Pool);
     payable(msg.sender).transfer(_amount);
   }
 
   function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawLiquidity);
     require(_amount <= address(liquidity).balance);
-    _withdrawBase(_amount, _pool);
-    emit WithdrawLiquidity(msg.sender, _amount, _pool);
+    _withdrawBase(_amount, _pool, WithdrawType.Liquidity);
     liquidity.withdrawLiquidity(_amount, _pool);
   }
 
@@ -198,8 +198,7 @@ contract StakeTogether is Shares {
     require(config.feature.WithdrawValidator);
     require(_amount <= beaconBalance);
     beaconBalance -= _amount;
-    _withdrawBase(_amount, _pool);
-    emit WithdrawValidator(msg.sender, _amount, _pool);
+    _withdrawBase(_amount, _pool, WithdrawType.Validator);
     withdrawals.mint(msg.sender, _amount);
   }
 

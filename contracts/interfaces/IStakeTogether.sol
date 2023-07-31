@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
+import './IFees.sol';
+
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
@@ -32,23 +34,39 @@ interface IStakeTogether {
     uint256 lockDays;
   }
 
+  enum DepositType {
+    DonationPool,
+    Pool
+  }
+
+  enum WithdrawType {
+    Pool,
+    Liquidity,
+    Validator
+  }
+
   event AddPool(address account, bool listed);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
-  event DepositBase(address indexed to, address indexed pool, uint256 amount, uint256[8] shares);
-  event DepositDonationPool(
-    address indexed donor,
-    address indexed account,
+  event DepositBase(
+    address indexed to,
+    address indexed pool,
     uint256 amount,
-    address pool,
+    uint256[5] shares,
+    DepositType depositType,
     address referral
   );
-  event DepositPool(address indexed account, uint256 amount, address pool, address referral);
   event DepositLimitReached(address indexed sender, uint256 amount);
   event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
-  event MintRewards(address indexed to, address indexed pool, uint256 sharesAmount);
+  event MintRewards(
+    address indexed to,
+    address indexed pool,
+    uint256 sharesAmount,
+    IFees.FeeType feeType,
+    IFees.FeeRole feeRole
+  );
   event MintShares(address indexed to, uint256 sharesAmount);
   event ReceiveEther(address indexed sender, uint amount);
   event RefundPool(address indexed sender, uint256 amount);
@@ -73,8 +91,12 @@ interface IStakeTogether {
   );
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event UnlockShares(address indexed user, uint256 id, uint256 amount);
-  event WithdrawLiquidity(address indexed account, uint256 amount, address pool);
-  event WithdrawPool(address indexed account, uint256 amount, address pool);
+  event WithdrawBase(
+    address indexed account,
+    address pool,
+    uint256 amount,
+    uint256 shares,
+    WithdrawType withdrawType
+  );
   event WithdrawalsLimitReached(address indexed sender, uint256 amount);
-  event WithdrawValidator(address indexed account, uint256 amount, address pool);
 }

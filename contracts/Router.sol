@@ -284,7 +284,7 @@ contract Router is
       stakeTogether.setBeaconBalance(newBeaconBalance);
     }
 
-    (uint256[8] memory _shares, uint256[8] memory _amounts) = fees.estimateFeePercentage(
+    (uint256[5] memory _shares, uint256[5] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.StakeRewards,
       _report.profitAmount,
       false
@@ -308,13 +308,15 @@ contract Router is
       }
     }
 
-    Fees.FeeRoles[8] memory roles = fees.getFeesRoles();
+    Fees.FeeRole[5] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          address(airdrop),
-          fees.getFeeAddress(IFees.FeeRoles.StakeTogether),
-          _shares[i]
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          _shares[i],
+          IFees.FeeType.StakeRewards,
+          roles[i]
         );
       }
     }
