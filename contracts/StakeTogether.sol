@@ -52,7 +52,6 @@ contract StakeTogether is Shares {
     addPool(stakeTogetherFee, false);
     _mintShares(address(this), msg.value);
     _mintPoolShares(address(this), stakeTogetherFee, msg.value);
-    emit InitializeShares(msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
