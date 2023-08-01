@@ -58,6 +58,7 @@ interface IStakeTogether {
     address referral
   );
   event DepositLimitReached(address indexed sender, uint256 amount);
+  event InitializeShares(uint256 sharesAmount);
   event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewards(
