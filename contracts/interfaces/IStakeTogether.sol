@@ -45,7 +45,7 @@ interface IStakeTogether {
     Validator
   }
 
-  event AddPool(address account, bool listed);
+  event AddPool(address pool, bool listed);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
@@ -70,7 +70,7 @@ interface IStakeTogether {
   event MintShares(address indexed to, uint256 sharesAmount);
   event ReceiveEther(address indexed sender, uint amount);
   event RefundPool(address indexed sender, uint256 amount);
-  event RemovePool(address account);
+  event RemovePool(address pool);
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);
   event SetLiquidityBalance(uint256 amount);
