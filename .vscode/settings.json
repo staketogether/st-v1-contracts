@@ -1,6 +1,4 @@
 {
-  "editor.cursorBlinking": "blink",
-  "editor.cursorStyle": "line",
   "editor.tabSize": 2,
   "editor.wordWrap": "wordWrapColumn",
   "editor.wordWrapColumn": 106,
@@ -8,31 +6,5 @@
   "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.tsdk": "node_modules/typescript/lib",
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[typescript]": {
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": true,
-      "source.organizeImports": true
-    }
-  },
-  "[typescriptreact]": {
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": true,
-      "source.organizeImports": true
-    }
-  },
-  "javascript.preferences.importModuleSpecifier": "relative",
-  "typescript.tsserver.watchOptions": {
-    "watchFile": "useFsEvents"
-  },
-  "editor.accessibilitySupport": "off",
-  "[solidity]": {
-    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
-  },
-  "cSpell.enableFiletypes": ["solidity"],
-  "slither.solcPath": "",
-  "slither.hiddenDetectors": ["naming-convention"]
+  "editor.formatOnSave": true
 }
