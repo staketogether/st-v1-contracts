@@ -308,17 +308,17 @@ abstract contract Shares is
   function _transferDelegationShares(
     address _from,
     address _to,
-    uint256 _sharesToTransfer
+    uint256 _sharesAmount
   ) internal whenNotPaused {
     require(_from != address(0));
     require(_to != address(0));
-    require(_sharesToTransfer <= netShares(_from));
+    require(_sharesAmount <= netShares(_from));
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address pool = delegates[_from][i];
       uint256 delegationSharesToTransfer = MathUpgradeable.mulDiv(
         delegationSharesOf(_from, pool),
-        _sharesToTransfer,
+        _sharesAmount,
         netShares(_from)
       );
 
@@ -336,7 +336,7 @@ abstract contract Shares is
         isDelegate[_from][pool] = false;
       }
 
-      emit TransferDelegationShares(_from, _to, _sharesToTransfer);
+      emit TransferDelegationShares(_from, _to, _sharesAmount);
     }
   }
 

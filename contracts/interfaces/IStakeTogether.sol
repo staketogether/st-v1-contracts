@@ -84,9 +84,9 @@ interface IStakeTogether {
     uint256 sharesAmount
   );
   event TransferPoolShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
+    address indexed account,
+    address indexed fromPool,
+    address indexed toPool,
     uint256 sharesAmount
   );
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
