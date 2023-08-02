@@ -17,11 +17,11 @@ contract StakeTogether is Shares {
     address _validators,
     address _withdrawals
   ) public initializer {
-    __ERC20_init('ST Staked Ether', 'sETH');
+    __ERC20_init('Stake Together Pool', 'stpETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('ST Staked Ether');
+    __ERC20Permit_init('Stake Together Pool');
     __UUPSUpgradeable_init();
 
     _grantRole(ADMIN_ROLE, msg.sender);

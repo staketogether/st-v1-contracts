@@ -38,11 +38,11 @@ contract Withdrawals is
   }
 
   function initialize() public initializer {
-    __ERC20_init('ST Withdrawals ETH', 'wETH');
+    __ERC20_init('Stake Together Withdraw', 'stwETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('ST Withdrawals ETH');
+    __ERC20Permit_init('Stake Together Withdraw');
     __UUPSUpgradeable_init();
 
     _grantRole(ADMIN_ROLE, msg.sender);

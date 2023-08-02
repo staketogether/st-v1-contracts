@@ -55,11 +55,11 @@ contract Liquidity is
   }
 
   function initialize() public initializer {
-    __ERC20_init('ST Liquidity Provider ETH', 'lpETH');
+    __ERC20_init('Stake Together Liquidity', 'stlETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('ST Liquidity Provider ETH');
+    __ERC20Permit_init('Stake Together Liquidity');
     __UUPSUpgradeable_init();
 
     _grantRole(ADMIN_ROLE, msg.sender);
