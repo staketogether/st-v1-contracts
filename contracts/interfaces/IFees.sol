@@ -35,7 +35,7 @@ interface IFees {
   event SetFeeAddress(FeeRole indexed role, address indexed account);
   event SetFee(FeeType indexed feeType, uint256 value, FeeMath indexed mathType, uint256[] allocations);
   event SetLiquidity(address liquidityContract);
-  event SetMaxDynamicFee(uint256 maxDynamicFee);
+  event SetMaxDynamicFee(uint256 value);
   event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
 }
