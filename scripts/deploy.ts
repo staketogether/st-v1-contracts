@@ -50,7 +50,6 @@ export async function deploy() {
 
   const stakeTogether = await deployStakeTogether(
     owner,
-    airdrop.proxyAddress,
     fees.proxyAddress,
     liquidity.proxyAddress,
     router.proxyAddress,
@@ -284,7 +283,6 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
-  airdropContract: string,
   feesContract: string,
   liquidityContract: string,
   routerContract: string,
@@ -294,7 +292,6 @@ async function deployStakeTogether(
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
-    airdropContract,
     feesContract,
     liquidityContract,
     routerContract,
