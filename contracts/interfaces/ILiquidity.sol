@@ -21,6 +21,7 @@ interface ILiquidity {
 
   event BurnShares(address indexed account, uint256 sharesAmount);
   event DepositPool(address indexed user, uint256 amount);
+    event Init(uint256 amount);
   event MintRewardsWithdrawalLenders(address indexed sender, uint amount);
   event MintRewardsWithdrawalLendersFallback(address indexed sender, uint amount);
   event MintShares(address indexed to, uint256 sharesAmount);

@@ -11,7 +11,6 @@ contract StakeTogether is Shares {
   }
 
   function initialize(
-    address _airdrop,
     address _fees,
     address _liquidity,
     address _router,
@@ -31,10 +30,9 @@ contract StakeTogether is Shares {
 
     version = 1;
 
-    airdrop = Airdrop(payable(_airdrop));
     fees = Fees(payable(_fees));
     liquidity = Liquidity(payable(_liquidity));
-    router = Router(payable(_router));
+    router = _router;
     validators = Validators(payable(_validators));
     withdrawals = Withdrawals(payable(_withdrawals));
 
@@ -42,8 +40,8 @@ contract StakeTogether is Shares {
     liquidityBalance = 0;
     totalShares = 0;
     totalLockedShares = 0;
-    lockId = 1;
     totalPoolShares = 0;
+    lockId = 1;
   }
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
@@ -52,6 +50,7 @@ contract StakeTogether is Shares {
     addPool(stakeTogetherFee, false);
     _mintShares(address(this), msg.value);
     _mintPoolShares(address(this), stakeTogetherFee, msg.value);
+    emit Init(msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
@@ -201,7 +200,7 @@ contract StakeTogether is Shares {
   }
 
   function refundPool() external payable {
-    require(msg.sender == address(router));
+    require(msg.sender == router);
     beaconBalance -= msg.value;
     emit RefundPool(msg.sender, msg.value);
   }

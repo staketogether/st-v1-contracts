@@ -12,10 +12,8 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import './Airdrop.sol';
 import './Fees.sol';
 import './Liquidity.sol';
-import './Router.sol';
 import './Validators.sol';
 import './Withdrawals.sol';
 
@@ -39,9 +37,8 @@ abstract contract Shares is
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
   uint256 public version;
 
-  Router public router;
+  address public router;
   Fees public fees;
-  Airdrop public airdrop;
   Withdrawals public withdrawals;
   Liquidity public liquidity;
   Validators public validators;
@@ -449,7 +446,7 @@ abstract contract Shares is
     IFees.FeeType _feeType,
     IFees.FeeRole _feeRole
   ) public payable {
-    require(msg.sender == address(router) || msg.sender == address(liquidity));
+    require(msg.sender == router || msg.sender == address(liquidity));
     _mintRewards(_address, _pool, _sharesAmount, _feeType, _feeRole);
   }
 

@@ -73,6 +73,7 @@ contract Liquidity is
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     require(totalShares == 0);
     _mintShares(msg.sender, msg.value);
+    emit Init(msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {

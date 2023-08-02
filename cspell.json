@@ -9,6 +9,7 @@
     "keccak",
     "LETH",
     "Merkle",
+    "nomicfoundation",
     "Pausable",
     "Reentrancy",
     "struct",
