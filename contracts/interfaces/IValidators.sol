@@ -11,10 +11,11 @@ interface IValidators {
     bytes publicKey,
     bytes withdrawalCredentials,
     bytes signature,
-    bytes32 depositDataRoot
+    bytes32 depositDataRoot,
+    uint256 receivedAmount
   );
   event ReceiveEther(address indexed sender, uint amount);
-  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
+  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey, uint256 receivedAmount);
   event RemoveValidatorOracle(address indexed account);
   event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);

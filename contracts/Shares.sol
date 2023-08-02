@@ -407,6 +407,7 @@ abstract contract Shares is
         _mintRewards(
           fees.getFeeAddress(roles[i]),
           fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          msg.value,
           _shares[i],
           IFees.FeeType.StakePool,
           roles[i]
@@ -414,7 +415,7 @@ abstract contract Shares is
       }
     }
     pools[_pool] = true;
-    emit AddPool(_pool, _listed);
+    emit AddPool(_pool, _listed, msg.value);
   }
 
   function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
@@ -430,13 +431,14 @@ abstract contract Shares is
   function _mintRewards(
     address _address,
     address _pool,
+    uint256 _amount,
     uint256 _sharesAmount,
     IFees.FeeType _feeType,
     IFees.FeeRole _feeRole
   ) internal {
     _mintShares(_address, _sharesAmount);
     _mintPoolShares(_address, _pool, _sharesAmount);
-    emit MintRewards(_address, _pool, _sharesAmount, _feeType, _feeRole);
+    emit MintRewards(_address, _pool, _amount, _sharesAmount, _feeType, _feeRole);
   }
 
   function mintRewards(
@@ -447,7 +449,7 @@ abstract contract Shares is
     IFees.FeeRole _feeRole
   ) public payable {
     require(msg.sender == router || msg.sender == address(liquidity));
-    _mintRewards(_address, _pool, _sharesAmount, _feeType, _feeRole);
+    _mintRewards(_address, _pool, msg.value, _sharesAmount, _feeType, _feeRole);
   }
 
   function claimRewards(address _account, uint256 _sharesAmount) external whenNotPaused {

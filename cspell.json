@@ -13,6 +13,7 @@
     "Pausable",
     "Reentrancy",
     "struct",
+    "typechain",
     "UPGRADER",
     "UUPS",
     "WLETH"

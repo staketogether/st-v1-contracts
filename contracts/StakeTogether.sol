@@ -129,6 +129,7 @@ contract StakeTogether is Shares {
           _mintRewards(
             fees.getFeeAddress(roles[i]),
             fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+            0,
             _shares[i],
             IFees.FeeType.StakeEntry,
             roles[i]

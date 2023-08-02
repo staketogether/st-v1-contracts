@@ -200,7 +200,8 @@ contract Validators is
       _publicKey,
       _withdrawalCredentials,
       _signature,
-      _depositDataRoot
+      _depositDataRoot,
+      msg.value
     );
 
     depositContract.deposit{ value: validatorSize }(
@@ -220,7 +221,7 @@ contract Validators is
     validators[_publicKey] = false;
     totalValidators--;
 
-    emit RemoveValidator(msg.sender, _epoch, _publicKey);
+    emit RemoveValidator(msg.sender, _epoch, _publicKey, msg.value);
   }
 
   function setValidatorSize(uint256 _newSize) external onlyRole(ADMIN_ROLE) {

@@ -45,7 +45,7 @@ interface IStakeTogether {
     Validator
   }
 
-  event AddPool(address pool, bool listed);
+  event AddPool(address pool, bool listed, uint256 amount);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
@@ -64,6 +64,7 @@ interface IStakeTogether {
   event MintRewards(
     address indexed to,
     address indexed pool,
+    uint256 amount,
     uint256 sharesAmount,
     IFees.FeeType feeType,
     IFees.FeeRole feeRole
