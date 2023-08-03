@@ -194,7 +194,8 @@ contract Router is
   }
 
   function _updateReportOracleQuorum() internal {
-    uint256 newQuorum = (totalReportOracles * 8) / 10;
+    uint256 newQuorum = MathUpgradeable.mulDiv(totalReportOracles, 3, 5);
+
     config.reportOracleQuorum = newQuorum < config.minReportOracleQuorum
       ? config.minReportOracleQuorum
       : newQuorum;

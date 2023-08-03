@@ -115,7 +115,7 @@ contract StakeTogether is Shares {
       revert();
     }
 
-    uint256 sharesAmount = (msg.value * totalShares) / (totalPooledEther() - msg.value);
+    uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
 
     (uint256[4] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
 
