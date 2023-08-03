@@ -54,7 +54,7 @@ contract Liquidity is
     _disableInitializers();
   }
 
-  function initialize() public initializer {
+  function initialize(address _fees) public initializer {
     __ERC20_init('Stake Together Liquidity', 'stlETH');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -66,6 +66,8 @@ contract Liquidity is
     _grantRole(UPGRADER_ROLE, msg.sender);
 
     version = 1;
+
+    fees = Fees(payable(_fees));
 
     totalShares = 0;
   }
@@ -104,15 +106,15 @@ contract Liquidity is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  modifier onlyStakeTogether() {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
-    _;
-  }
-
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     router = Router(payable(_router));
     emit SetRouter(_router);
+  }
+
+  modifier onlyStakeTogether() {
+    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
+    _;
   }
 
   /************
@@ -252,7 +254,7 @@ contract Liquidity is
 
     _resetLimits();
 
-    (uint256[4] memory _shares, uint256[4] memory _amounts) = fees.estimateFeePercentage(
+    (uint256[4] memory _shares, uint256[4] memory _amounts) = fees.distributeFee(
       IFees.FeeType.LiquidityProvideEntry,
       msg.value,
       false

@@ -31,7 +31,7 @@ export async function deploy() {
 
   const fees = await deployFees(owner)
   const airdrop = await deployAirdrop(owner)
-  const liquidity = await deployLiquidity(owner)
+  const liquidity = await deployLiquidity(owner, fees.proxyAddress)
   const validators = await deployValidators(owner, depositAddress, fees.proxyAddress)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(
@@ -133,7 +133,7 @@ async function deployFees(owner: HardhatEthersSigner) {
   await feesContract.setFee(3n, ethers.parseEther('0.01'), 0n, [0n, 0n, ethers.parseEther('1'), 0n])
 
   // Set the LiquidityProvideEntry fee to 0.003 ether and make it a percentage-based fee
-  await feesContract.setFee(4n, ethers.parseEther('0.003'), 1n, [
+  await feesContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
     ethers.parseEther('0.5'),
     0n,
     ethers.parseEther('0.5'),
@@ -171,10 +171,10 @@ async function deployAirdrop(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
-async function deployLiquidity(owner: HardhatEthersSigner) {
+async function deployLiquidity(owner: HardhatEthersSigner, feesAddress: string) {
   const LiquidityFactory = new Liquidity__factory().connect(owner)
 
-  const liquidity = await upgrades.deployProxy(LiquidityFactory)
+  const liquidity = await upgrades.deployProxy(LiquidityFactory, [feesAddress])
   await liquidity.waitForDeployment()
   const proxyAddress = await liquidity.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
