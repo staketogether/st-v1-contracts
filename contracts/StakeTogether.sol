@@ -239,7 +239,7 @@ contract StakeTogether is Shares {
     }
 
     require(totalDelegationsShares == shares[_account], 'INVALID_TOTAL_SHARES');
-    require(_delegations.length <= config.maxDelegations, 'TO_MANY_DELEGATIONS');
+    require(_delegations.length <= config.maxDelegations, 'TOO_MANY_DELEGATIONS');
   }
 
   /***********************
