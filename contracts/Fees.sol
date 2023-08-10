@@ -182,19 +182,15 @@ contract Fees is
 
     uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
 
-    // Create a temporary variable to keep track of the total allocated shares
     uint256 totalAllocatedShares = 0;
 
-    // Allocate shares for the first 4 roles
     for (uint256 i = 0; i < roles.length - 1; i++) {
       shares[i] = MathUpgradeable.mulDiv(feeShares, allocations[i], 1 ether);
       totalAllocatedShares += shares[i];
     }
 
-    // Allocate the remaining shares to the last role
     shares[3] = _sharesAmount - totalAllocatedShares;
 
-    // Calculate the amounts for each role
     for (uint256 i = 0; i < roles.length; i++) {
       amounts[i] = stakeTogether.pooledEthByShares(shares[i]);
     }
