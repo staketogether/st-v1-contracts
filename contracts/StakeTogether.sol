@@ -298,10 +298,6 @@ contract StakeTogether is
       revert();
     }
 
-    if (_depositType == DepositType.DonationPool) {
-      _validateDelegations(_to, _delegations);
-    }
-
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
 
     (uint256[4] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount);
@@ -317,6 +313,9 @@ contract StakeTogether is
       }
     }
 
+    if (_depositType == DepositType.DonationPool) {
+      _validateDelegations(_to, _delegations);
+    }
     totalDeposited += msg.value;
     emit DepositBase(_to, _delegations, msg.value, _shares, _depositType, referral);
   }
@@ -351,14 +350,11 @@ contract StakeTogether is
       revert();
     }
 
-    _validateDelegations(msg.sender, _delegations);
-
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
-
-    totalWithdrawn += _amount;
-
     _burnShares(msg.sender, sharesToBurn);
 
+    _validateDelegations(msg.sender, _delegations);
+    totalWithdrawn += _amount;
     emit WithdrawBase(msg.sender, _delegations, _amount, sharesToBurn, _withdrawType);
   }
 
