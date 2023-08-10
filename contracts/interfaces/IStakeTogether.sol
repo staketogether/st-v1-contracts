@@ -20,12 +20,11 @@ interface IStakeTogether {
   struct Feature {
     bool AddPool;
     bool Deposit;
-    bool Lock;
     bool WithdrawPool;
     bool WithdrawValidator;
   }
 
-  struct Delegations {
+  struct Delegation {
     address pool;
     uint256 shares;
   }
@@ -54,7 +53,7 @@ interface IStakeTogether {
   );
   event DepositBase(
     address indexed to,
-    Delegations[] delegations,
+    Delegation[] delegations,
     uint256 amount,
     uint256[4] shares,
     DepositType depositType,
@@ -82,10 +81,10 @@ interface IStakeTogether {
   event SetValidatorSize(uint256 newValidatorSize);
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event UpdateDelegations(address indexed account, Delegations[] delegations);
+  event UpdateDelegations(address indexed account, Delegation[] delegations);
   event WithdrawBase(
     address indexed account,
-    Delegations[] delegations,
+    Delegation[] delegations,
     uint256 amount,
     uint256 shares,
     WithdrawType withdrawType

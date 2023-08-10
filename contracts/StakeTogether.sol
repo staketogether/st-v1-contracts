@@ -76,7 +76,7 @@ contract StakeTogether is Shares {
 
   function _depositBase(
     address _to,
-    Delegations[] memory _delegations,
+    Delegation[] memory _delegations,
     DepositType _depositType,
     address referral
   ) internal {
@@ -115,7 +115,7 @@ contract StakeTogether is Shares {
   }
 
   function depositPool(
-    Delegations[] memory _delegations,
+    Delegation[] memory _delegations,
     address _referral
   ) external payable nonReentrant whenNotPaused {
     _depositBase(msg.sender, _delegations, DepositType.Pool, _referral);
@@ -125,13 +125,13 @@ contract StakeTogether is Shares {
     address _to,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    Delegations[] memory delegations;
+    Delegation[] memory delegations;
     _depositBase(_to, delegations, DepositType.DonationPool, _referral);
   }
 
   function _withdrawBase(
     uint256 _amount,
-    Delegations[] memory _delegations,
+    Delegation[] memory _delegations,
     WithdrawType _withdrawType
   ) internal {
     require(_amount > 0, 'ZERO_AMOUNT');
@@ -157,7 +157,7 @@ contract StakeTogether is Shares {
 
   function withdrawPool(
     uint256 _amount,
-    Delegations[] memory _delegations
+    Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'WITHDRAW_DISABLED');
     require(_amount <= address(this).balance, 'INSUFFICIENT_POOL_BALANCE');
@@ -167,7 +167,7 @@ contract StakeTogether is Shares {
 
   function withdrawValidator(
     uint256 _amount,
-    Delegations[] memory _delegations
+    Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'WITHDRAW_DISABLED');
     require(_amount <= beaconBalance, 'INSUFFICIENT_BEACON_BALANCE');
@@ -225,12 +225,12 @@ contract StakeTogether is Shares {
     emit RemovePool(_pool);
   }
 
-  function updateDelegations(Delegations[] memory _delegations) external {
+  function updateDelegations(Delegation[] memory _delegations) external {
     _validateDelegations(msg.sender, _delegations);
     emit UpdateDelegations(msg.sender, _delegations);
   }
 
-  function _validateDelegations(address _account, Delegations[] memory _delegations) internal view {
+  function _validateDelegations(address _account, Delegation[] memory _delegations) internal view {
     uint256 totalDelegationsShares = 0;
 
     for (uint i = 0; i < _delegations.length; i++) {
