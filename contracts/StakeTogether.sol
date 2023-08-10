@@ -12,7 +12,6 @@ contract StakeTogether is Shares {
 
   function initialize(
     address _fees,
-    address _liquidity,
     address _router,
     address _validators,
     address _withdrawals
@@ -31,17 +30,14 @@ contract StakeTogether is Shares {
     version = 1;
 
     fees = Fees(payable(_fees));
-    liquidity = Liquidity(payable(_liquidity));
     router = _router;
     validators = Validators(payable(_validators));
     withdrawals = Withdrawals(payable(_withdrawals));
 
     beaconBalance = 0;
-    liquidityBalance = 0;
+
     totalShares = 0;
-    totalLockedShares = 0;
     totalPoolShares = 0;
-    lockId = 1;
   }
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
@@ -65,21 +61,6 @@ contract StakeTogether is Shares {
 
   receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
-    _supplyLiquidity(msg.value);
-  }
-
-  function _supplyLiquidity(uint256 _amount) internal {
-    uint256 debitAmount = 0;
-    if (liquidityBalance >= _amount) {
-      debitAmount = _amount;
-    } else {
-      debitAmount = liquidityBalance;
-    }
-    if (debitAmount > 0) {
-      liquidityBalance -= debitAmount;
-      liquidity.supplyLiquidity{ value: debitAmount }();
-      emit SupplyLiquidity(debitAmount);
-    }
   }
 
   /************
@@ -117,7 +98,7 @@ contract StakeTogether is Shares {
 
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalPooledEther() - msg.value);
 
-    (uint256[4] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount, false);
+    (uint256[4] memory _shares, ) = fees.distributeFee(IFees.FeeType.StakeEntry, sharesAmount);
 
     IFees.FeeRole[4] memory roles = fees.getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
@@ -139,7 +120,6 @@ contract StakeTogether is Shares {
     }
 
     totalDeposited += msg.value;
-    _supplyLiquidity(msg.value);
     emit DepositBase(_to, _pool, msg.value, _shares, _depositType, referral);
   }
 
@@ -168,7 +148,7 @@ contract StakeTogether is Shares {
       revert();
     }
 
-    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, netShares(msg.sender), balanceOf(msg.sender));
+    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
 
     totalWithdrawn += _amount;
 
@@ -183,13 +163,6 @@ contract StakeTogether is Shares {
     require(_amount <= address(this).balance);
     _withdrawBase(_amount, _pool, WithdrawType.Pool);
     payable(msg.sender).transfer(_amount);
-  }
-
-  function withdrawLiquidity(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.feature.WithdrawLiquidity);
-    require(_amount <= address(liquidity).balance);
-    _withdrawBase(_amount, _pool, WithdrawType.Liquidity);
-    liquidity.withdrawLiquidity(_amount);
   }
 
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
@@ -207,7 +180,7 @@ contract StakeTogether is Shares {
   }
 
   function totalPooledEther() public view override returns (uint256) {
-    return address(this).balance + beaconBalance - liquidityBalance;
+    return address(this).balance + beaconBalance;
   }
 
   function _resetLimits() private {

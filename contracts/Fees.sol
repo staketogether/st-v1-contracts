@@ -9,7 +9,6 @@ import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import './Liquidity.sol';
 import './Router.sol';
 import './StakeTogether.sol';
 
@@ -29,9 +28,6 @@ contract Fees is
   uint256 public version;
 
   StakeTogether public stakeTogether;
-  Liquidity public liquidity;
-
-  uint256 public maxDynamicFee;
 
   mapping(FeeRole => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;
@@ -71,12 +67,6 @@ contract Fees is
     require(_stakeTogether != address(0));
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
-  }
-
-  function setLiquidity(address _liquidity) external onlyRole(ADMIN_ROLE) {
-    require(_liquidity != address(0));
-    liquidity = Liquidity(payable(_liquidity));
-    emit SetLiquidity(_liquidity);
   }
 
   function getFeesRoles() public pure returns (FeeRole[4] memory) {
@@ -143,7 +133,7 @@ contract Fees is
       uint256[4][] memory allocations
     )
   {
-    uint256 feeCount = 6;
+    uint256 feeCount = 4;
 
     feeTypes = new FeeType[](feeCount);
     feeValues = new uint256[](feeCount);
@@ -164,11 +154,6 @@ contract Fees is
     return (feeTypes, feeValues, feeMathTypes, allocations);
   }
 
-  function setMaxDynamicFee(uint256 _maxDynamicFee) external onlyRole(ADMIN_ROLE) {
-    maxDynamicFee = _maxDynamicFee;
-    emit SetMaxDynamicFee(_maxDynamicFee);
-  }
-
   function _transferToStakeTogether() private {
     payable(stakeTogether).transfer(address(this).balance);
   }
@@ -179,8 +164,7 @@ contract Fees is
 
   function distributeFee(
     FeeType _feeType,
-    uint256 _sharesAmount,
-    bool _dynamicFee
+    uint256 _sharesAmount
   ) public view returns (uint256[4] memory shares, uint256[4] memory amounts) {
     FeeRole[4] memory roles = getFeesRoles();
     address[4] memory feeAddresses = getFeeRolesAddresses();
@@ -195,10 +179,6 @@ contract Fees is
     }
 
     uint256 feeValue = fees[_feeType].value;
-
-    if (_dynamicFee && fees[_feeType].mathType == FeeMath.PERCENTAGE) {
-      feeValue = _calculateDynamicFee(feeValue);
-    }
 
     uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
 
@@ -224,39 +204,17 @@ contract Fees is
 
   function estimateFeePercentage(
     FeeType _feeType,
-    uint256 _amount,
-    bool _dynamicFee
+    uint256 _amount
   ) public view returns (uint256[4] memory shares, uint256[4] memory amounts) {
     require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
     uint256 sharesAmount = stakeTogether.sharesByPooledEth(_amount);
-    return distributeFee(_feeType, sharesAmount, _dynamicFee);
+    return distributeFee(_feeType, sharesAmount);
   }
 
   function estimateFeeFixed(
     FeeType _feeType
   ) public view returns (uint256[4] memory shares, uint256[4] memory amounts) {
     require(fees[_feeType].mathType == FeeMath.FIXED);
-    return distributeFee(_feeType, fees[_feeType].value, false);
-  }
-
-  function _calculateDynamicFee(uint256 _baseFee) internal view returns (uint256) {
-    uint256 totalPooledEtherStake = stakeTogether.totalPooledEther();
-    uint256 totalPooledEtherLiquidity = liquidity.totalPooledEther();
-    uint256 _fee;
-
-    if (totalPooledEtherLiquidity == 0) {
-      _fee = MathUpgradeable.mulDiv(_baseFee, 1 ether + maxDynamicFee, 1 ether);
-    } else {
-      uint256 ratio = MathUpgradeable.mulDiv(totalPooledEtherStake, 1 ether, totalPooledEtherLiquidity);
-
-      if (ratio >= 1 ether) {
-        _fee = MathUpgradeable.mulDiv(_baseFee, 1 ether + maxDynamicFee, 1 ether);
-      } else {
-        uint256 feeIncrease = MathUpgradeable.mulDiv(ratio, maxDynamicFee, 1 ether);
-        _fee = MathUpgradeable.mulDiv(_baseFee, 1 ether + feeIncrease, 1 ether);
-      }
-    }
-
-    return _fee;
+    return distributeFee(_feeType, fees[_feeType].value);
   }
 }

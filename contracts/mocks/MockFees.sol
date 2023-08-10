@@ -9,7 +9,6 @@ import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import '../Liquidity.sol';
 import '../Router.sol';
 import '../StakeTogether.sol';
 
@@ -29,9 +28,6 @@ contract MockFees is
   uint256 public version;
 
   StakeTogether public stakeTogether;
-  Liquidity public liquidity;
-
-  uint256 public maxDynamicFee;
 
   mapping(FeeRole => address payable) public roleAddresses;
   mapping(FeeType => Fee) public fees;

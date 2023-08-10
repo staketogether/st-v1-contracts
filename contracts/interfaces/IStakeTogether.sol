@@ -9,8 +9,6 @@ interface IStakeTogether {
   struct Config {
     uint256 poolSize;
     uint256 minDepositAmount;
-    uint256 minLockDays;
-    uint256 maxLockDays;
     uint256 depositLimit;
     uint256 withdrawalLimit;
     uint256 blocksPerDay;
@@ -23,15 +21,7 @@ interface IStakeTogether {
     bool Deposit;
     bool Lock;
     bool WithdrawPool;
-    bool WithdrawLiquidity;
     bool WithdrawValidator;
-  }
-
-  struct LockedShares {
-    uint256 id;
-    uint256 amount;
-    uint256 unlockTime;
-    uint256 lockDays;
   }
 
   enum DepositType {
@@ -41,7 +31,6 @@ interface IStakeTogether {
 
   enum WithdrawType {
     Pool,
-    Liquidity,
     Validator
   }
 
@@ -59,7 +48,6 @@ interface IStakeTogether {
   );
   event DepositLimitReached(address indexed sender, uint256 amount);
   event Init(uint256 amount);
-  event LockShares(address indexed user, uint256 id, uint256 amount, uint256 lockDays);
   event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewards(
     address indexed to,
@@ -75,9 +63,7 @@ interface IStakeTogether {
   event RemovePool(address pool);
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);
-  event SetLiquidityBalance(uint256 amount);
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
-  event SupplyLiquidity(uint256 amount);
   event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferPoolDelegationShares(
     address indexed from,
@@ -92,7 +78,6 @@ interface IStakeTogether {
     uint256 sharesAmount
   );
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event UnlockShares(address indexed user, uint256 id, uint256 amount);
   event WithdrawBase(
     address indexed account,
     address pool,

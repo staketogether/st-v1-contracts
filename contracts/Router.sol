@@ -11,7 +11,6 @@ import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
 import './Airdrop.sol';
 import './Fees.sol';
-import './Liquidity.sol';
 import './StakeTogether.sol';
 import './Validators.sol';
 import './Withdrawals.sol';
@@ -38,7 +37,6 @@ contract Router is
   StakeTogether public stakeTogether;
   Fees public fees;
   Withdrawals public withdrawals;
-  Liquidity public liquidity;
   Airdrop public airdrop;
   Validators public validators;
   Config public config;
@@ -68,7 +66,6 @@ contract Router is
   function initialize(
     address _airdrop,
     address _fees,
-    address _liquidity,
     address _validators,
     address _withdrawals
   ) public initializer {
@@ -84,7 +81,6 @@ contract Router is
 
     airdrop = Airdrop(payable(_airdrop));
     fees = Fees(payable(_fees));
-    liquidity = Liquidity(payable(_liquidity));
     validators = Validators(payable(_validators));
     withdrawals = Withdrawals(payable(_withdrawals));
 
@@ -287,8 +283,7 @@ contract Router is
 
     (uint256[4] memory _shares, uint256[4] memory _amounts) = fees.estimateFeePercentage(
       IFees.FeeType.StakeRewards,
-      _report.profitAmount,
-      false
+      _report.profitAmount
     );
 
     if (_report.validatorsToExit.length > 0) {

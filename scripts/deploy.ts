@@ -8,8 +8,6 @@ import {
   Airdrop__factory,
   Fees,
   Fees__factory,
-  Liquidity,
-  Liquidity__factory,
   Router,
   Router__factory,
   StakeTogether,
@@ -31,14 +29,12 @@ export async function deploy() {
 
   const fees = await deployFees(owner)
   const airdrop = await deployAirdrop(owner)
-  const liquidity = await deployLiquidity(owner, fees.proxyAddress)
   const validators = await deployValidators(owner, depositAddress, fees.proxyAddress)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(
     owner,
     airdrop.proxyAddress,
     fees.proxyAddress,
-    liquidity.proxyAddress,
     validators.proxyAddress,
     withdrawals.proxyAddress
   )
@@ -51,20 +47,15 @@ export async function deploy() {
   const stakeTogether = await deployStakeTogether(
     owner,
     fees.proxyAddress,
-    liquidity.proxyAddress,
     router.proxyAddress,
     validators.proxyAddress,
     withdrawals.proxyAddress
   )
 
   await fees.feesContract.setStakeTogether(stakeTogether.proxyAddress)
-  await fees.feesContract.setLiquidity(liquidity.proxyAddress)
 
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
   await airdrop.airdropContract.setRouter(router.proxyAddress)
-
-  await liquidity.liquidityContract.setStakeTogether(stakeTogether.proxyAddress)
-  await liquidity.liquidityContract.setRouter(router.proxyAddress)
 
   await validators.validatorsContract.setStakeTogether(stakeTogether.proxyAddress)
   await validators.validatorsContract.setRouter(router.proxyAddress)
@@ -80,8 +71,6 @@ export async function deploy() {
     airdrop.implementationAddress,
     fees.proxyAddress,
     fees.implementationAddress,
-    liquidity.proxyAddress,
-    liquidity.implementationAddress,
     router.proxyAddress,
     router.implementationAddress,
     stakeTogether.proxyAddress,
@@ -132,25 +121,6 @@ async function deployFees(owner: HardhatEthersSigner) {
   // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
   await feesContract.setFee(3n, ethers.parseEther('0.01'), 0n, [0n, 0n, ethers.parseEther('1'), 0n])
 
-  // Set the LiquidityProvideEntry fee to 0.003 ether and make it a percentage-based fee
-  await feesContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
-    ethers.parseEther('0.5'),
-    0n,
-    ethers.parseEther('0.5'),
-    0n
-  ])
-
-  // Set the LiquidityProvide fee to 0.001 ether and make it a percentage-based fee
-  await feesContract.setFee(5, ethers.parseEther('0.001'), 1, [
-    ethers.parseEther('0.8'),
-    0n,
-    ethers.parseEther('0.2'),
-    0n
-  ])
-
-  // Set the maximum fee increase to 3 ether (300%)
-  await feesContract.setMaxDynamicFee(ethers.parseEther('3'))
-
   return { proxyAddress, implementationAddress, feesContract }
 }
 
@@ -169,39 +139,6 @@ async function deployAirdrop(owner: HardhatEthersSigner) {
   await airdropContract.setMaxBatchSize(100)
 
   return { proxyAddress, implementationAddress, airdropContract }
-}
-
-async function deployLiquidity(owner: HardhatEthersSigner, feesAddress: string) {
-  const LiquidityFactory = new Liquidity__factory().connect(owner)
-
-  const liquidity = await upgrades.deployProxy(LiquidityFactory, [feesAddress])
-  await liquidity.waitForDeployment()
-  const proxyAddress = await liquidity.getAddress()
-  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  console.log(`Liquidity\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Liquidity\t Implementation\t\t ${implementationAddress}`)
-
-  const liquidityContract = liquidity as unknown as Liquidity
-
-  const config = {
-    depositLimit: ethers.parseEther('1000'),
-    withdrawalLimit: ethers.parseEther('1000'),
-    withdrawalLiquidityLimit: ethers.parseEther('1000'),
-    minDepositAmount: ethers.parseEther('0.001'),
-    blocksInterval: 6500,
-    feature: {
-      Deposit: true,
-      Withdraw: true,
-      Liquidity: true
-    }
-  }
-
-  await liquidityContract.setConfig(config)
-
-  await liquidityContract.initializeShares({ value: 1n })
-
-  return { proxyAddress, implementationAddress, liquidityContract }
 }
 
 async function deployValidators(owner: HardhatEthersSigner, depositAddress: string, feesAddress: string) {
@@ -240,7 +177,6 @@ async function deployRouter(
   owner: HardhatEthersSigner,
   airdropContract: string,
   feesContract: string,
-  liquidityContract: string,
   validatorsContract: string,
   withdrawalsContract: string
 ) {
@@ -249,7 +185,6 @@ async function deployRouter(
   const router = await upgrades.deployProxy(RouterFactory, [
     airdropContract,
     feesContract,
-    liquidityContract,
     validatorsContract,
     withdrawalsContract
   ])
@@ -284,7 +219,6 @@ async function deployRouter(
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
   feesContract: string,
-  liquidityContract: string,
   routerContract: string,
   validatorsContract: string,
   withdrawalsContract: string
@@ -293,7 +227,6 @@ async function deployStakeTogether(
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     feesContract,
-    liquidityContract,
     routerContract,
     validatorsContract,
     withdrawalsContract
@@ -331,7 +264,6 @@ async function deployStakeTogether(
       Deposit: true,
       Lock: true,
       WithdrawPool: true,
-      WithdrawLiquidity: true,
       WithdrawValidator: true
     }
   }
@@ -348,8 +280,6 @@ async function verifyContracts(
   airdropImplementation: string,
   feesProxy: string,
   feesImplementation: string,
-  liquidityProxy: string,
-  liquidityImplementation: string,
   routerProxy: string,
   routerImplementation: string,
   stakeTogetherProxy: string,
@@ -365,8 +295,6 @@ async function verifyContracts(
   console.log(`npx hardhat verify --network goerli ${feesImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${liquidityProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${liquidityImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${validatorsProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${validatorsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)

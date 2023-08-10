@@ -13,7 +13,6 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
 import './Fees.sol';
-import './Liquidity.sol';
 import './Validators.sol';
 import './Withdrawals.sol';
 
@@ -35,27 +34,21 @@ abstract contract Shares is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
+
   uint256 public version;
 
   address public router;
   Fees public fees;
   Withdrawals public withdrawals;
-  Liquidity public liquidity;
   Validators public validators;
 
   bytes public withdrawalCredentials;
   uint256 public beaconBalance;
-  uint256 public liquidityBalance;
   Config public config;
 
   mapping(address => uint256) public shares;
   uint256 public totalShares;
   mapping(address => mapping(address => uint256)) private allowances;
-
-  uint256 public totalLockedShares;
-  mapping(address => mapping(uint256 => LockedShares)) public locks;
-  mapping(address => uint256) public lockedShares;
-  uint256 internal lockId;
 
   mapping(address => uint256) private poolShares;
   uint256 public totalPoolShares;
@@ -75,12 +68,6 @@ abstract contract Shares is
     emit SetBeaconBalance(_amount);
   }
 
-  function setLiquidityBalance(uint256 _amount) external {
-    require(msg.sender == address(liquidity));
-    liquidityBalance = _amount;
-    emit SetLiquidityBalance(_amount);
-  }
-
   /************
    ** SHARES **
    ************/
@@ -92,7 +79,7 @@ abstract contract Shares is
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return pooledEthByShares(netShares(_account));
+    return pooledEthByShares(shares[_account]);
   }
 
   function sharesByPooledEth(uint256 _amount) public view returns (uint256) {
@@ -162,7 +149,7 @@ abstract contract Shares is
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
     require(_account != address(0));
-    require(_sharesAmount <= netShares(_account));
+    require(_sharesAmount <= shares[_account]);
 
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
@@ -180,7 +167,7 @@ abstract contract Shares is
   function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0));
     require(_to != address(0));
-    require(_sharesAmount <= netShares(_from));
+    require(_sharesAmount <= shares[_from]);
     shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
@@ -192,51 +179,6 @@ abstract contract Shares is
       require(currentAllowance >= _amount);
       _approve(_account, _spender, currentAllowance - _amount);
     }
-  }
-
-  /*****************
-   ** LOCK SHARES **
-   *****************/
-
-  // Todo: put a integration with future anticipation contract
-
-  function lockShares(uint256 _sharesAmount, uint256 _lockDays) external nonReentrant whenNotPaused {
-    require(config.feature.Lock);
-    require(_lockDays >= config.minLockDays && _lockDays <= config.maxLockDays);
-    require(_sharesAmount <= shares[msg.sender]);
-
-    uint256 newId = lockId;
-    lockId += 1;
-
-    locks[msg.sender][newId] = LockedShares({
-      id: newId,
-      amount: _sharesAmount,
-      unlockTime: block.timestamp + (_lockDays * 1 days),
-      lockDays: _lockDays
-    });
-
-    totalLockedShares += _sharesAmount;
-    lockedShares[msg.sender] += _sharesAmount;
-
-    emit LockShares(msg.sender, newId, _sharesAmount, _lockDays);
-  }
-
-  function unlockShares(uint256 _id) external nonReentrant whenNotPaused {
-    LockedShares storage lockedShare = locks[msg.sender][_id];
-
-    require(lockedShare.id != 0);
-    require(lockedShare.unlockTime <= block.timestamp);
-
-    totalLockedShares -= lockedShare.amount;
-    lockedShares[msg.sender] -= lockedShare.amount;
-
-    delete locks[msg.sender][_id];
-
-    emit UnlockShares(msg.sender, _id, lockedShare.amount);
-  }
-
-  function netShares(address _account) public view returns (uint256) {
-    return shares[_account] - lockedShares[_account];
   }
 
   /*****************
@@ -309,14 +251,14 @@ abstract contract Shares is
   ) internal whenNotPaused {
     require(_from != address(0));
     require(_to != address(0));
-    require(_sharesAmount <= netShares(_from));
+    require(_sharesAmount <= shares[_from]);
 
     for (uint256 i = 0; i < delegates[_from].length; i++) {
       address pool = delegates[_from][i];
       uint256 delegationSharesToTransfer = MathUpgradeable.mulDiv(
         delegationSharesOf(_from, pool),
         _sharesAmount,
-        netShares(_from)
+        shares[_from]
       );
 
       delegationsShares[_from][pool] -= delegationSharesToTransfer;
@@ -448,7 +390,7 @@ abstract contract Shares is
     IFees.FeeType _feeType,
     IFees.FeeRole _feeRole
   ) public payable {
-    require(msg.sender == router || msg.sender == address(liquidity));
+    require(msg.sender == router);
     _mintRewards(_address, _pool, msg.value, _sharesAmount, _feeType, _feeRole);
   }
 

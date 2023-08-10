@@ -3,7 +3,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-import { Fees, MockFees__factory, MockLiquidity, MockStakeTogether } from '../../typechain'
+import { Fees, MockFees__factory, MockStakeTogether } from '../../typechain'
 import connect from '../utils/connect'
 import { feesFixture } from './FeesFixture'
 
@@ -14,8 +14,6 @@ describe.only('Fees', function () {
   let feesProxy: string
   let stContract: MockStakeTogether
   let stProxy: string
-  let liquidityContract: MockLiquidity
-  let liquidityProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -36,8 +34,6 @@ describe.only('Fees', function () {
     feesProxy = fixture.feesProxy
     stContract = fixture.stContract
     stProxy = fixture.stProxy
-    liquidityContract = fixture.liquidityContract
-    liquidityProxy = fixture.liquidityProxy
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -137,20 +133,6 @@ describe.only('Fees', function () {
     await expect(tx)
       .to.emit(feesContract, 'ReceiveEther')
       .withArgs(user2.address, ethers.parseEther('1.0'))
-  })
-
-  it('should correctly set the Liquidity address', async function () {
-    // User1 tries to set the Liquidity address to zero address - should fail
-    await expect(connect(feesContract, owner).setLiquidity(nullAddress)).to.be.reverted
-
-    // User1 tries to set the Liquidity address to their own address - should fail
-    await expect(connect(feesContract, user1).setLiquidity(user1.address)).to.be.reverted
-
-    // Owner sets the Liquidity address - should succeed
-    await connect(feesContract, owner).setLiquidity(user2.address)
-
-    // Verify that the Liquidity address was correctly set
-    expect(await feesContract.liquidity()).to.equal(user2.address)
   })
 
   it('should return the correct roles from getFeesRoles', async function () {
@@ -272,7 +254,7 @@ describe.only('Fees', function () {
 
   it('should correctly get all the fees', async function () {
     // We will set up 6 different fees for testing
-    const feeCount = 6
+    const feeCount = 4
     const fixedValue = ethers.parseEther('0.01') // This will be the fixed fee
     const percentageValue = ethers.parseEther('0.02') // This will be the percentage fee
     const fixedMathType = 0 // FeeMath.FIXED
@@ -311,23 +293,6 @@ describe.only('Fees', function () {
     }
   })
 
-  it('should set the dynamic fee increase correctly if the user has admin role', async function () {
-    const maxDynamicFee = ethers.parseEther('0.1')
-
-    await connect(feesContract, owner).setMaxDynamicFee(maxDynamicFee)
-
-    expect(await feesContract.maxDynamicFee()).to.equal(maxDynamicFee)
-    await expect(connect(feesContract, owner).setMaxDynamicFee(maxDynamicFee))
-      .to.emit(feesContract, 'SetMaxDynamicFee')
-      .withArgs(maxDynamicFee)
-  })
-
-  it('should not set the max fee increase if the user does not have admin role', async function () {
-    const maxDynamicFee = ethers.parseEther('0.1')
-
-    await expect(connect(feesContract, user1).setMaxDynamicFee(maxDynamicFee)).to.be.reverted
-  })
-
   it('should correctly estimate the fee percentage', async function () {
     await connect(feesContract, owner).setStakeTogether(stProxy)
 
@@ -348,7 +313,7 @@ describe.only('Fees', function () {
     const fee = await feesContract.getFee(feeType)
     // console.log('Set fee: ', fee)
 
-    const [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount, false)
+    const [shares, amounts] = await feesContract.estimateFeePercentage(feeType, amount)
 
     // console.log('shares: ', shares)
     // console.log('amounts: ', amounts)
