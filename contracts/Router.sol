@@ -301,7 +301,6 @@ contract Router is
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
           fees.getFeeAddress(roles[i]),
-          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
           _shares[i],
           IFees.FeeType.StakeRewards,
           roles[i]

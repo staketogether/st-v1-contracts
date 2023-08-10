@@ -25,6 +25,11 @@ interface IStakeTogether {
     bool WithdrawValidator;
   }
 
+  struct Delegations {
+    address pool;
+    uint256 shares;
+  }
+
   enum DepositType {
     DonationPool,
     Pool
@@ -37,7 +42,6 @@ interface IStakeTogether {
 
   event AddPool(address pool, bool listed, uint256 amount);
   event AddValidatorOracle(address indexed account);
-  event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
   event CreateValidator(
@@ -50,7 +54,7 @@ interface IStakeTogether {
   );
   event DepositBase(
     address indexed to,
-    address indexed pool,
+    Delegations[] delegations,
     uint256 amount,
     uint256[4] shares,
     DepositType depositType,
@@ -58,10 +62,8 @@ interface IStakeTogether {
   );
   event DepositLimitReached(address indexed sender, uint256 amount);
   event Init(uint256 amount);
-  event MintPoolShares(address indexed to, address indexed pool, uint256 sharesAmount);
   event MintRewards(
     address indexed to,
-    address indexed pool,
     uint256 amount,
     uint256 sharesAmount,
     IFees.FeeType feeType,
@@ -79,23 +81,11 @@ interface IStakeTogether {
   event SetStakeTogether(address stakeTogether);
   event SetValidatorSize(uint256 newValidatorSize);
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
-  event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
-  event TransferPoolDelegationShares(
-    address indexed from,
-    address indexed to,
-    address indexed pool,
-    uint256 sharesAmount
-  );
-  event TransferPoolShares(
-    address indexed account,
-    address indexed fromPool,
-    address indexed toPool,
-    uint256 sharesAmount
-  );
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
+  event UpdateDelegations(address indexed account, Delegations[] delegations);
   event WithdrawBase(
     address indexed account,
-    address pool,
+    Delegations[] delegations,
     uint256 amount,
     uint256 shares,
     WithdrawType withdrawType
