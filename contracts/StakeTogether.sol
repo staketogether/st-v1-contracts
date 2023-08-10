@@ -13,8 +13,9 @@ contract StakeTogether is Shares {
   function initialize(
     address _fees,
     address _router,
-    address _validators,
-    address _withdrawals
+    address _withdrawals,
+    address _deposit,
+    bytes memory _withdrawalCredentials
   ) public initializer {
     __ERC20_init('Stake Together Pool', 'stpETH');
     __ERC20Burnable_init();
@@ -31,8 +32,9 @@ contract StakeTogether is Shares {
 
     fees = Fees(payable(_fees));
     router = _router;
-    validators = Validators(payable(_validators));
     withdrawals = Withdrawals(payable(_withdrawals));
+    deposit = IDepositContract(_deposit);
+    withdrawalCredentials = _withdrawalCredentials;
 
     beaconBalance = 0;
 
@@ -68,15 +70,9 @@ contract StakeTogether is Shares {
    ************/
 
   function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
-    require(_config.poolSize >= validators.validatorSize());
+    require(_config.poolSize >= config.validatorSize);
     config = _config;
     emit SetConfig(_config);
-  }
-
-  function setWithdrawalsCredentials(bytes memory _withdrawalCredentials) external onlyRole(ADMIN_ROLE) {
-    require(withdrawalCredentials.length == 0);
-    withdrawalCredentials = _withdrawalCredentials;
-    emit SetWithdrawalsCredentials(_withdrawalCredentials);
   }
 
   /*****************
@@ -191,22 +187,117 @@ contract StakeTogether is Shares {
     }
   }
 
+  /***********************
+   ** VALIDATOR ORACLES **
+   ***********************/
+
+  function addValidatorOracle(address _oracleAddress) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
+    _grantRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
+    validatorOracles.push(_oracleAddress);
+    emit AddValidatorOracle(_oracleAddress);
+  }
+
+  function removeValidatorOracle(
+    address _oracleAddress
+  ) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
+    _revokeRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
+    for (uint256 i = 0; i < validatorOracles.length; i++) {
+      if (validatorOracles[i] == _oracleAddress) {
+        validatorOracles[i] = validatorOracles[validatorOracles.length - 1];
+        validatorOracles.pop();
+        break;
+      }
+    }
+    emit RemoveValidatorOracle(_oracleAddress);
+  }
+
+  function forceNextValidatorOracle() external onlyRole(ORACLE_VALIDATOR_SENTINEL_ROLE) {
+    require(
+      hasRole(ORACLE_VALIDATOR_SENTINEL_ROLE, msg.sender) ||
+        hasRole(ORACLE_VALIDATOR_MANAGER_ROLE, msg.sender)
+    );
+    require(validatorOracles.length > 0);
+    _nextValidatorOracle();
+  }
+
+  function isValidatorOracle(address _oracleAddress) public view returns (bool) {
+    return
+      hasRole(ORACLE_VALIDATOR_ROLE, _oracleAddress) &&
+      validatorOracles[currentOracleIndex] == _oracleAddress;
+  }
+
+  function _nextValidatorOracle() internal {
+    require(validatorOracles.length > 1);
+    currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
+  }
+
   /*****************
    ** VALIDATORS **
    *****************/
+
+  function setBeaconBalance(uint256 _amount) external {
+    require(msg.sender == address(router));
+    beaconBalance = _amount;
+    emit SetBeaconBalance(_amount);
+  }
 
   function createValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(validators.isValidatorOracle(msg.sender));
-    require(address(this).balance >= validators.validatorSize());
-    validators.createValidator{ value: validators.validatorSize() }(
+    require(isValidatorOracle(msg.sender));
+    require(address(this).balance >= config.validatorSize);
+    require(!validators[_publicKey]);
+
+    validators[_publicKey] = true;
+    totalValidators++;
+
+    (uint256[4] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
+
+    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
+
+    for (uint i = 0; i < _shares.length - 1; i++) {
+      if (_shares[i] > 0) {
+        _mintRewards(
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          0,
+          _shares[i],
+          IFees.FeeType.StakeValidator,
+          roles[i]
+        );
+      }
+    }
+
+    beaconBalance += validatorSize;
+
+    _nextValidatorOracle();
+
+    deposit.deposit{ value: validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
+
+    emit CreateValidator(
+      msg.sender,
+      validatorSize,
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+  }
+
+  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
+    require(msg.sender == address(router));
+    require(validators[_publicKey]);
+
+    validators[_publicKey] = false;
+    totalValidators--;
+
+    emit RemoveValidator(msg.sender, _epoch, _publicKey, msg.value);
   }
 }

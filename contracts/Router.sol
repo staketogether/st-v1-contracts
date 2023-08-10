@@ -12,7 +12,6 @@ import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 import './Airdrop.sol';
 import './Fees.sol';
 import './StakeTogether.sol';
-import './Validators.sol';
 import './Withdrawals.sol';
 
 import './interfaces/IFees.sol';
@@ -38,7 +37,6 @@ contract Router is
   Fees public fees;
   Withdrawals public withdrawals;
   Airdrop public airdrop;
-  Validators public validators;
   Config public config;
 
   uint256 public totalReportOracles;
@@ -63,12 +61,7 @@ contract Router is
     _disableInitializers();
   }
 
-  function initialize(
-    address _airdrop,
-    address _fees,
-    address _validators,
-    address _withdrawals
-  ) public initializer {
+  function initialize(address _airdrop, address _fees, address _withdrawals) public initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -81,7 +74,6 @@ contract Router is
 
     airdrop = Airdrop(payable(_airdrop));
     fees = Fees(payable(_fees));
-    validators = Validators(payable(_validators));
     withdrawals = Withdrawals(payable(_withdrawals));
 
     reportBlockNumber = 1;
@@ -292,7 +284,7 @@ contract Router is
 
     if (_report.exitedValidators.length > 0) {
       for (uint256 i = 0; i < _report.exitedValidators.length; i++) {
-        validators.removeValidator(_report.epoch, _report.exitedValidators[i]);
+        stakeTogether.removeValidator(_report.epoch, _report.exitedValidators[i]);
       }
     }
 

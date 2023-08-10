@@ -7,12 +7,13 @@ import './IFees.sol';
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
-    uint256 poolSize;
-    uint256 minDepositAmount;
-    uint256 depositLimit;
-    uint256 withdrawalLimit;
     uint256 blocksPerDay;
+    uint256 depositLimit;
     uint256 maxDelegations;
+    uint256 minDepositAmount;
+    uint256 poolSize;
+    uint256 validatorSize;
+    uint256 withdrawalLimit;
     Feature feature;
   }
 
@@ -35,9 +36,18 @@ interface IStakeTogether {
   }
 
   event AddPool(address pool, bool listed, uint256 amount);
+  event AddValidatorOracle(address indexed account);
   event BurnPoolShares(address indexed from, address indexed pool, uint256 sharesAmount);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
+  event CreateValidator(
+    address indexed creator,
+    uint256 indexed amount,
+    bytes publicKey,
+    bytes withdrawalCredentials,
+    bytes signature,
+    bytes32 depositDataRoot
+  );
   event DepositBase(
     address indexed to,
     address indexed pool,
@@ -61,8 +71,13 @@ interface IStakeTogether {
   event ReceiveEther(address indexed sender, uint amount);
   event RefundPool(address indexed sender, uint256 amount);
   event RemovePool(address pool);
+  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey, uint256 receivedAmount);
+  event RemoveValidatorOracle(address indexed account);
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);
+  event SetRouter(address router);
+  event SetStakeTogether(address stakeTogether);
+  event SetValidatorSize(uint256 newValidatorSize);
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
   event TransferDelegationShares(address indexed from, address indexed to, uint256 sharesAmount);
   event TransferPoolDelegationShares(

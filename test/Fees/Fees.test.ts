@@ -9,7 +9,7 @@ import { feesFixture } from './FeesFixture'
 
 dotenv.config()
 
-describe.only('Fees', function () {
+describe('Fees', function () {
   let feesContract: Fees
   let feesProxy: string
   let stContract: MockStakeTogether

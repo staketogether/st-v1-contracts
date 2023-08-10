@@ -13,11 +13,11 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
 import './Fees.sol';
-import './Validators.sol';
 import './Withdrawals.sol';
 
 import './interfaces/IFees.sol';
 import './interfaces/IStakeTogether.sol';
+import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
 abstract contract Shares is
@@ -34,13 +34,16 @@ abstract contract Shares is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
+  bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
+  bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
+  bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
 
   uint256 public version;
 
   address public router;
   Fees public fees;
   Withdrawals public withdrawals;
-  Validators public validators;
+  IDepositContract public deposit;
 
   bytes public withdrawalCredentials;
   uint256 public beaconBalance;
@@ -62,11 +65,12 @@ abstract contract Shares is
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  function setBeaconBalance(uint256 _amount) external {
-    require(msg.sender == address(validators));
-    beaconBalance = _amount;
-    emit SetBeaconBalance(_amount);
-  }
+  address[] public validatorOracles;
+  uint256 public currentOracleIndex;
+
+  mapping(bytes => bool) public validators;
+  uint256 public totalValidators;
+  uint256 public validatorSize;
 
   /************
    ** SHARES **
@@ -178,6 +182,33 @@ abstract contract Shares is
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount);
       _approve(_account, _spender, currentAllowance - _amount);
+    }
+  }
+
+  function _distributeShares(
+    IFees.FeeType _feeType,
+    uint256 sharesAmount,
+    address _to,
+    address _pool
+  ) internal {
+    (uint256[4] memory _shares, ) = fees.distributeFee(_feeType, sharesAmount);
+    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
+    for (uint i = 0; i < _shares.length - 1; i++) {
+      if (_shares[i] > 0) {
+        if (roles[i] == IFees.FeeRole.Sender && _to != address(0)) {
+          _mintShares(_to, _shares[i]);
+          _mintPoolShares(_to, _pool, _shares[i]);
+        } else {
+          _mintRewards(
+            fees.getFeeAddress(roles[i]),
+            fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+            0,
+            _shares[i],
+            _feeType,
+            roles[i]
+          );
+        }
+      }
     }
   }
 
