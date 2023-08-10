@@ -135,7 +135,7 @@ contract StakeTogether is Shares {
     require(_amount > 0);
     require(_amount <= balanceOf(msg.sender));
     require(pools[_pool]);
-    require(delegationSharesOf(msg.sender, _pool) > 0);
+    require(delegationShares[msg.sender][_pool] > 0);
 
     _resetLimits();
 
@@ -185,6 +185,38 @@ contract StakeTogether is Shares {
       totalWithdrawn = 0;
       lastResetBlock = block.number;
     }
+  }
+
+  /***********
+   ** POOLS **
+   ***********/
+
+  function addPool(address _pool, bool _listed) public payable nonReentrant {
+    require(_pool != address(0));
+    require(!pools[_pool]);
+    if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
+      require(config.feature.AddPool);
+      (uint256[4] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakePool);
+      IFees.FeeRole[4] memory roles = fees.getFeesRoles();
+      for (uint i = 0; i < roles.length - 1; i++) {
+        _mintRewards(
+          fees.getFeeAddress(roles[i]),
+          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
+          msg.value,
+          _shares[i],
+          IFees.FeeType.StakePool,
+          roles[i]
+        );
+      }
+    }
+    pools[_pool] = true;
+    emit AddPool(_pool, _listed, msg.value);
+  }
+
+  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
+    require(pools[_pool]);
+    pools[_pool] = false;
+    emit RemovePool(_pool);
   }
 
   /***********************
@@ -250,9 +282,6 @@ contract StakeTogether is Shares {
     require(address(this).balance >= config.validatorSize);
     require(!validators[_publicKey]);
 
-    validators[_publicKey] = true;
-    totalValidators++;
-
     (uint256[4] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakeValidator);
 
     IFees.FeeRole[4] memory roles = fees.getFeesRoles();
@@ -271,6 +300,8 @@ contract StakeTogether is Shares {
     }
 
     beaconBalance += validatorSize;
+    validators[_publicKey] = true;
+    totalValidators++;
 
     _nextValidatorOracle();
 

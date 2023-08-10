@@ -53,17 +53,17 @@ abstract contract Shares is
   uint256 public totalShares;
   mapping(address => mapping(address => uint256)) private allowances;
 
-  mapping(address => uint256) private poolShares;
+  mapping(address => uint256) public poolShares;
   uint256 public totalPoolShares;
-  mapping(address => mapping(address => uint256)) private delegationsShares;
-  mapping(address => address[]) private delegates;
-  mapping(address => mapping(address => bool)) private isDelegate;
-
-  mapping(address => bool) internal pools;
+  mapping(address => mapping(address => uint256)) public delegationShares;
+  mapping(address => address[]) public delegates;
+  mapping(address => mapping(address => bool)) public isDelegate;
 
   uint256 public lastResetBlock;
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
+
+  mapping(address => bool) internal pools;
 
   address[] public validatorOracles;
   uint256 public currentOracleIndex;
@@ -185,39 +185,12 @@ abstract contract Shares is
     }
   }
 
-  function _distributeShares(
-    IFees.FeeType _feeType,
-    uint256 sharesAmount,
-    address _to,
-    address _pool
-  ) internal {
-    (uint256[4] memory _shares, ) = fees.distributeFee(_feeType, sharesAmount);
-    IFees.FeeRole[4] memory roles = fees.getFeesRoles();
-    for (uint i = 0; i < _shares.length - 1; i++) {
-      if (_shares[i] > 0) {
-        if (roles[i] == IFees.FeeRole.Sender && _to != address(0)) {
-          _mintShares(_to, _shares[i]);
-          _mintPoolShares(_to, _pool, _shares[i]);
-        } else {
-          _mintRewards(
-            fees.getFeeAddress(roles[i]),
-            fees.getFeeAddress(IFees.FeeRole.StakeTogether),
-            0,
-            _shares[i],
-            _feeType,
-            roles[i]
-          );
-        }
-      }
-    }
-  }
-
   /*****************
    ** POOLS SHARES **
    *****************/
 
   function delegationSharesOf(address _account, address _pool) public view returns (uint256) {
-    return delegationsShares[_account][_pool];
+    return delegationShares[_account][_pool];
   }
 
   function transferPoolShares(
@@ -243,12 +216,12 @@ abstract contract Shares is
   function _burnPoolShares(address _to, address _pool, uint256 _sharesAmount) internal whenNotPaused {
     require(_to != address(0));
     require(pools[_pool]);
-    require(delegationsShares[_to][_pool] >= _sharesAmount);
+    require(delegationShares[_to][_pool] >= _sharesAmount);
     require(_sharesAmount > 0);
 
     _decrementPoolShares(_to, _pool, _sharesAmount);
 
-    if (delegationsShares[_to][_pool] == 0) {
+    if (delegationShares[_to][_pool] == 0) {
       _removeDelegate(_to, _pool);
     }
 
@@ -264,7 +237,7 @@ abstract contract Shares is
     require(_account != address(0));
     require(_fromPool != address(0));
     require(pools[_toPool]);
-    require(_sharesAmount <= delegationsShares[_account][_fromPool]);
+    require(_sharesAmount <= delegationSharesOf(_account, _fromPool));
 
     _decrementPoolShares(_account, _fromPool, _sharesAmount);
     _removeDelegate(_account, _fromPool);
@@ -292,7 +265,7 @@ abstract contract Shares is
         shares[_from]
       );
 
-      delegationsShares[_from][pool] -= delegationSharesToTransfer;
+      delegationShares[_from][pool] -= delegationSharesToTransfer;
 
       if (!isDelegate[_to][pool]) {
         require(delegates[_to].length < config.maxDelegations);
@@ -300,7 +273,7 @@ abstract contract Shares is
         isDelegate[_to][pool] = true;
       }
 
-      delegationsShares[_to][pool] += delegationSharesToTransfer;
+      delegationShares[_to][pool] += delegationSharesToTransfer;
 
       if (delegationSharesOf(_from, pool) == 0) {
         isDelegate[_from][pool] = false;
@@ -320,7 +293,7 @@ abstract contract Shares is
     require(_to != address(0));
     require(pools[_pool]);
     require(_sharesAmount > 0);
-    require(_sharesAmount <= delegationsShares[_from][_pool]);
+    require(_sharesAmount <= delegationSharesOf(_from, _pool));
 
     _decrementPoolShares(_from, _pool, _sharesAmount);
     _removeDelegate(_from, _pool);
@@ -333,13 +306,13 @@ abstract contract Shares is
 
   function _incrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
     poolShares[_pool] += _sharesAmount;
-    delegationsShares[_to][_pool] += _sharesAmount;
+    delegationShares[_to][_pool] += _sharesAmount;
     totalPoolShares += _sharesAmount;
   }
 
   function _decrementPoolShares(address _to, address _pool, uint256 _sharesAmount) internal {
     poolShares[_pool] -= _sharesAmount;
-    delegationsShares[_to][_pool] -= _sharesAmount;
+    delegationShares[_to][_pool] -= _sharesAmount;
     totalPoolShares -= _sharesAmount;
   }
 
@@ -352,7 +325,7 @@ abstract contract Shares is
   }
 
   function _removeDelegate(address _to, address _pool) internal {
-    if (delegationsShares[_to][_pool] == 0) {
+    if (delegationSharesOf(_to, _pool) == 0) {
       isDelegate[_to][_pool] = false;
 
       for (uint i = 0; i < delegates[_to].length; i++) {
@@ -363,38 +336,6 @@ abstract contract Shares is
         }
       }
     }
-  }
-
-  /***********
-   ** POOLS **
-   ***********/
-
-  function addPool(address _pool, bool _listed) public payable nonReentrant {
-    require(_pool != address(0));
-    require(!pools[_pool]);
-    if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-      require(config.feature.AddPool);
-      (uint256[4] memory _shares, ) = fees.estimateFeeFixed(IFees.FeeType.StakePool);
-      IFees.FeeRole[4] memory roles = fees.getFeesRoles();
-      for (uint i = 0; i < roles.length - 1; i++) {
-        _mintRewards(
-          fees.getFeeAddress(roles[i]),
-          fees.getFeeAddress(IFees.FeeRole.StakeTogether),
-          msg.value,
-          _shares[i],
-          IFees.FeeType.StakePool,
-          roles[i]
-        );
-      }
-    }
-    pools[_pool] = true;
-    emit AddPool(_pool, _listed, msg.value);
-  }
-
-  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
-    require(pools[_pool]);
-    pools[_pool] = false;
-    emit RemovePool(_pool);
   }
 
   /*****************
