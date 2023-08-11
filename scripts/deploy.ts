@@ -236,7 +236,7 @@ async function deployStakeTogether(
     0n,
   ]);
 
-  await stakeTogetherContract.initializeShares({ value: 1n });
+  await owner.sendTransaction({ to: proxyAddress, value: 1n });
 
   return { proxyAddress, implementationAddress, stakeTogetherContract };
 }

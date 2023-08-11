@@ -98,10 +98,8 @@ contract StakeTogether is
     beaconBalance = 0;
 
     totalShares = 0;
-  }
 
-  function initializeShares() external payable onlyRole(ADMIN_ROLE) {
-    _mintShares(address(this), msg.value);
+    _mintShares(address(this), 1);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {
