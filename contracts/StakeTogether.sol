@@ -102,7 +102,6 @@ contract StakeTogether is
 
   function initializeShares() external payable onlyRole(ADMIN_ROLE) {
     _mintShares(address(this), msg.value);
-    emit Init(msg.value);
   }
 
   function pause() public onlyRole(ADMIN_ROLE) {

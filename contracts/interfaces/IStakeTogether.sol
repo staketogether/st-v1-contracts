@@ -83,7 +83,6 @@ interface IStakeTogether {
     address referral
   );
   event DepositLimitReached(address indexed sender, uint256 amount);
-  event Init(uint256 amount);
   event MintRewards(
     address indexed to,
     uint256 amount,
