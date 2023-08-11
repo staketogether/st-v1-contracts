@@ -9,9 +9,9 @@ interface IRouter {
     uint256 maxValidatorsToExit;
     uint256 minBlocksBeforeExecution;
     uint256 minReportOracleQuorum;
-    uint256 reportOracleQuorum;
     uint256 oracleBlackListLimit;
     uint256 reportBlockFrequency;
+    uint256 reportOracleQuorum;
   }
 
   struct Report {

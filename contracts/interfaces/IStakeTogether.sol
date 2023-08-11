@@ -15,6 +15,11 @@ interface IStakeTogether {
     Feature feature;
   }
 
+  struct Delegation {
+    address pool;
+    uint256 shares;
+  }
+
   struct Feature {
     bool AddPool;
     bool Deposit;
@@ -22,9 +27,10 @@ interface IStakeTogether {
     bool WithdrawValidator;
   }
 
-  struct Delegation {
-    address pool;
-    uint256 shares;
+  struct Fee {
+    uint256 value;
+    FeeMath mathType;
+    mapping(FeeRole => uint256) allocations;
   }
 
   enum DepositType {
@@ -56,14 +62,6 @@ interface IStakeTogether {
     Sender
   }
 
-  struct Fee {
-    uint256 value;
-    FeeMath mathType;
-    mapping(FeeRole => uint256) allocations;
-  }
-
-  event SetFeeAddress(FeeRole indexed role, address indexed account);
-  event SetFee(FeeType indexed feeType, uint256 value, FeeMath mathType, uint256[] allocations);
   event AddPool(address pool, bool listed, uint256 amount);
   event AddValidatorOracle(address indexed account);
   event BurnShares(address indexed account, uint256 sharesAmount);
@@ -76,7 +74,6 @@ interface IStakeTogether {
     bytes signature,
     bytes32 depositDataRoot
   );
-
   event DepositBase(
     address indexed to,
     Delegation[] delegations,
@@ -85,7 +82,6 @@ interface IStakeTogether {
     DepositType depositType,
     address referral
   );
-
   event DepositLimitReached(address indexed sender, uint256 amount);
   event Init(uint256 amount);
   event MintRewards(
@@ -103,6 +99,8 @@ interface IStakeTogether {
   event RemoveValidatorOracle(address indexed account);
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);
+  event SetFee(FeeType indexed feeType, uint256 value, FeeMath mathType, uint256[] allocations);
+  event SetFeeAddress(FeeRole indexed role, address indexed account);
   event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
   event SetValidatorSize(uint256 newValidatorSize);
