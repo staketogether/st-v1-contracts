@@ -6,8 +6,6 @@ import { checkVariables } from "../test/utils/env";
 import {
   Airdrop,
   Airdrop__factory,
-  Fees,
-  Fees__factory,
   Router,
   Router__factory,
   StakeTogether,
@@ -25,29 +23,27 @@ export async function deploy() {
 
   const [owner] = await ethers.getSigners();
 
-  const fees = await deployFees(owner);
   const airdrop = await deployAirdrop(owner);
   const withdrawals = await deployWithdrawals(owner);
   const router = await deployRouter(
     owner,
     airdrop.proxyAddress,
-    fees.proxyAddress,
     withdrawals.proxyAddress,
   );
 
-  await fees.feesContract.setFeeAddress(0, airdrop.proxyAddress);
-  await fees.feesContract.setFeeAddress(1, owner);
-  await fees.feesContract.setFeeAddress(2, owner);
-  await fees.feesContract.setFeeAddress(3, owner);
-
   const stakeTogether = await deployStakeTogether(
     owner,
-    fees.proxyAddress,
     router.proxyAddress,
     withdrawals.proxyAddress,
   );
 
-  await fees.feesContract.setStakeTogether(stakeTogether.proxyAddress);
+  await stakeTogether.stakeTogetherContract.setFeeAddress(
+    0,
+    airdrop.proxyAddress,
+  );
+  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner);
+  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner);
+  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner);
 
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress);
   await airdrop.airdropContract.setRouter(router.proxyAddress);
@@ -63,8 +59,6 @@ export async function deploy() {
   verifyContracts(
     airdrop.proxyAddress,
     airdrop.implementationAddress,
-    fees.proxyAddress,
-    fees.implementationAddress,
     router.proxyAddress,
     router.implementationAddress,
     stakeTogether.proxyAddress,
@@ -72,56 +66,6 @@ export async function deploy() {
     withdrawals.proxyAddress,
     withdrawals.implementationAddress,
   );
-}
-
-async function deployFees(owner: HardhatEthersSigner) {
-  const FeesFactory = new Fees__factory().connect(owner);
-  const fees = await upgrades.deployProxy(FeesFactory);
-  await fees.waitForDeployment();
-  const proxyAddress = await fees.getAddress();
-  const implementationAddress = await getImplementationAddress(
-    network.provider,
-    proxyAddress,
-  );
-
-  console.log(`Fees\t\t Proxy\t\t\t ${proxyAddress}`);
-  console.log(`Fees\t\t Implementation\t\t ${implementationAddress}`);
-
-  const feesContract = fees as unknown as Fees;
-
-  // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await feesContract.setFee(0n, ethers.parseEther("0.003"), 1n, [
-    ethers.parseEther("0.6"),
-    0n,
-    ethers.parseEther("0.4"),
-    0n,
-  ]);
-
-  // Set the StakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await feesContract.setFee(1n, ethers.parseEther("0.09"), 1n, [
-    ethers.parseEther("0.33"),
-    ethers.parseEther("0.33"),
-    ethers.parseEther("0.34"),
-    0n,
-  ]);
-
-  // Set the StakePool fee to 1 ether and make it a fixed fee
-  await feesContract.setFee(2n, ethers.parseEther("1"), 0n, [
-    ethers.parseEther("0.4"),
-    0n,
-    ethers.parseEther("0.6"),
-    0n,
-  ]);
-
-  // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
-  await feesContract.setFee(3n, ethers.parseEther("0.01"), 0n, [
-    0n,
-    0n,
-    ethers.parseEther("1"),
-    0n,
-  ]);
-
-  return { proxyAddress, implementationAddress, feesContract };
 }
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
@@ -166,14 +110,12 @@ async function deployWithdrawals(owner: HardhatEthersSigner) {
 async function deployRouter(
   owner: HardhatEthersSigner,
   airdropContract: string,
-  feesContract: string,
   withdrawalsContract: string,
 ) {
   const RouterFactory = new Router__factory().connect(owner);
 
   const router = await upgrades.deployProxy(RouterFactory, [
     airdropContract,
-    feesContract,
     withdrawalsContract,
   ]);
 
@@ -209,7 +151,6 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
-  feesContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -227,7 +168,6 @@ async function deployStakeTogether(
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner);
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
-    feesContract,
     routerContract,
     withdrawalsContract,
     depositAddress,
@@ -264,6 +204,38 @@ async function deployStakeTogether(
 
   await stakeTogetherContract.setConfig(config);
 
+  // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
+  await stakeTogetherContract.setFee(0n, ethers.parseEther("0.003"), 1n, [
+    ethers.parseEther("0.6"),
+    0n,
+    ethers.parseEther("0.4"),
+    0n,
+  ]);
+
+  // Set the StakeRewards fee to 0.09 ether and make it a percentage-based fee
+  await stakeTogetherContract.setFee(1n, ethers.parseEther("0.09"), 1n, [
+    ethers.parseEther("0.33"),
+    ethers.parseEther("0.33"),
+    ethers.parseEther("0.34"),
+    0n,
+  ]);
+
+  // Set the StakePool fee to 1 ether and make it a fixed fee
+  await stakeTogetherContract.setFee(2n, ethers.parseEther("1"), 0n, [
+    ethers.parseEther("0.4"),
+    0n,
+    ethers.parseEther("0.6"),
+    0n,
+  ]);
+
+  // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
+  await stakeTogetherContract.setFee(3n, ethers.parseEther("0.01"), 0n, [
+    0n,
+    0n,
+    ethers.parseEther("1"),
+    0n,
+  ]);
+
   await stakeTogetherContract.initializeShares({ value: 1n });
 
   return { proxyAddress, implementationAddress, stakeTogetherContract };
@@ -272,8 +244,6 @@ async function deployStakeTogether(
 async function verifyContracts(
   airdropProxy: string,
   airdropImplementation: string,
-  feesProxy: string,
-  feesImplementation: string,
   routerProxy: string,
   routerImplementation: string,
   stakeTogetherProxy: string,
@@ -283,8 +253,6 @@ async function verifyContracts(
 ) {
   console.log("\nRUN COMMAND TO VERIFY ON ETHERSCAN\n");
 
-  console.log(`npx hardhat verify --network goerli ${feesProxy} &&`);
-  console.log(`npx hardhat verify --network goerli ${feesImplementation} &&`);
   console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`);
   console.log(
     `npx hardhat verify --network goerli ${airdropImplementation} &&`,

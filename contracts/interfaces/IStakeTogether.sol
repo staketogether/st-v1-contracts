@@ -63,8 +63,7 @@ interface IStakeTogether {
   }
 
   event SetFeeAddress(FeeRole indexed role, address indexed account);
-  event SetFee(FeeType indexed feeType, uint256 value, FeeMath indexed mathType, uint256[] allocations);
-
+  event SetFee(FeeType indexed feeType, uint256 value, FeeMath mathType, uint256[] allocations);
   event AddPool(address pool, bool listed, uint256 amount);
   event AddValidatorOracle(address indexed account);
   event BurnShares(address indexed account, uint256 sharesAmount);

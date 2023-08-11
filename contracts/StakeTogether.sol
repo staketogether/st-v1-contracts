@@ -63,7 +63,7 @@ contract StakeTogether is
   uint256 public totalValidators;
   uint256 public validatorSize;
 
-  mapping(FeeRole => address payable) public roleAddresses;
+  mapping(FeeRole => address payable) public feesRole;
   mapping(FeeType => Fee) public fees;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -124,7 +124,7 @@ contract StakeTogether is
    ************/
 
   function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
-    require(_config.poolSize >= config.validatorSize, 'PSS');
+    require(_config.poolSize >= config.validatorSize, 'IS');
     config = _config;
     emit SetConfig(_config);
   }
@@ -183,7 +183,7 @@ contract StakeTogether is
 
   function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
-    require(currentAllowance >= _subtractedValue, 'ATL');
+    require(currentAllowance >= _subtractedValue, 'IA');
     _approve(msg.sender, _spender, currentAllowance - _subtractedValue);
     return true;
   }
@@ -207,7 +207,7 @@ contract StakeTogether is
 
   function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
     require(_account != address(0), 'ZA');
-    require(_sharesAmount <= shares[_account], 'BAH');
+    require(_sharesAmount <= shares[_account], 'IS');
 
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
@@ -224,7 +224,7 @@ contract StakeTogether is
   function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
     require(_from != address(0), 'ZA');
     require(_to != address(0), 'ZA');
-    require(_sharesAmount <= shares[_from], 'TAH');
+    require(_sharesAmount <= shares[_from], 'IS');
     shares[_from] = shares[_from] - _sharesAmount;
     shares[_to] = shares[_to] + _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
@@ -233,14 +233,14 @@ contract StakeTogether is
   function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
-      require(currentAllowance >= _amount, 'ATL');
+      require(currentAllowance >= _amount, 'IA');
       _approve(_account, _spender, currentAllowance - _amount);
     }
   }
 
-  /*****************
+  /*************
    ** REWARDS **
-   *****************/
+   *************/
 
   function _mintRewards(
     address _address,
@@ -270,9 +270,9 @@ contract StakeTogether is
     emit ClaimRewards(_account, _sharesAmount);
   }
 
-  /*****************
+  /***********
    ** STAKE **
-   *****************/
+   ***********/
 
   function _depositBase(
     address _to,
@@ -282,7 +282,7 @@ contract StakeTogether is
   ) internal {
     require(config.feature.Deposit, 'FD');
     require(_to != address(0), 'ZA');
-    require(msg.value >= config.minDepositAmount, 'MDA');
+    require(msg.value >= config.minDepositAmount, 'MD');
 
     _resetLimits();
 
@@ -356,7 +356,7 @@ contract StakeTogether is
     Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD');
-    require(_amount <= address(this).balance, 'IPB');
+    require(_amount <= address(this).balance, 'IB');
     _withdrawBase(_amount, _delegations, WithdrawType.Pool);
     payable(msg.sender).transfer(_amount);
   }
@@ -366,7 +366,7 @@ contract StakeTogether is
     Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD');
-    require(_amount <= beaconBalance, 'IBB');
+    require(_amount <= beaconBalance, 'IB');
     beaconBalance -= _amount;
     _withdrawBase(_amount, _delegations, WithdrawType.Validator);
     withdrawals.mint(msg.sender, _amount);
@@ -406,7 +406,7 @@ contract StakeTogether is
   }
 
   function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
-    require(pools[_pool], 'PNF');
+    require(pools[_pool], 'NF');
     pools[_pool] = false;
     emit RemovePool(_pool);
   }
@@ -420,12 +420,12 @@ contract StakeTogether is
     uint256 totalDelegationsShares = 0;
 
     for (uint i = 0; i < _delegations.length; i++) {
-      require(pools[_delegations[i].pool], 'PNF');
+      require(pools[_delegations[i].pool], 'NF');
       totalDelegationsShares += _delegations[i].shares;
     }
 
-    require(totalDelegationsShares == shares[_account], 'ITS');
-    require(_delegations.length <= config.maxDelegations, 'TMD');
+    require(totalDelegationsShares == shares[_account], 'IS');
+    require(_delegations.length <= config.maxDelegations, 'MD');
   }
 
   /***********************
@@ -458,7 +458,7 @@ contract StakeTogether is
         hasRole(ORACLE_VALIDATOR_MANAGER_ROLE, msg.sender),
       'NA'
     );
-    require(validatorOracles.length > 0, 'NVO');
+    require(validatorOracles.length > 0, 'NV');
     _nextValidatorOracle();
   }
 
@@ -469,13 +469,13 @@ contract StakeTogether is
   }
 
   function _nextValidatorOracle() internal {
-    require(validatorOracles.length > 1, 'NVO');
+    require(validatorOracles.length > 1, 'NV');
     currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
   }
 
-  /*****************
+  /****************
    ** VALIDATORS **
-   *****************/
+   ****************/
 
   function setBeaconBalance(uint256 _amount) external {
     require(msg.sender == address(router), 'OR');
@@ -488,9 +488,9 @@ contract StakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OVO');
-    require(address(this).balance >= config.validatorSize, 'IPB');
-    require(!validators[_publicKey], 'VAC');
+    require(isValidatorOracle(msg.sender), 'OV');
+    require(address(this).balance >= config.validatorSize, 'NB');
+    require(!validators[_publicKey], 'VE');
 
     (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
 
@@ -536,7 +536,7 @@ contract StakeTogether is
   }
 
   /*****************
-   ** VALIDATORS **
+   **    FEES     **
    *****************/
 
   function getFeesRoles() public pure returns (FeeRole[4] memory) {
@@ -545,12 +545,12 @@ contract StakeTogether is
   }
 
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
-    roleAddresses[_role] = _address;
+    feesRole[_role] = _address;
     emit SetFeeAddress(_role, _address);
   }
 
   function getFeeAddress(FeeRole _role) public view returns (address) {
-    return roleAddresses[_role];
+    return feesRole[_role];
   }
 
   function setFee(
@@ -559,25 +559,25 @@ contract StakeTogether is
     FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    require(_allocations.length == 4);
+    require(_allocations.length == 4, 'IL');
+
+    uint256 sum = 0;
+    for (uint256 i = 0; i < _allocations.length; i++) {
+      fees[_feeType].allocations[FeeRole(i)] = _allocations[i];
+      sum += _allocations[i];
+    }
+
+    require(sum == 1 ether, 'SI');
 
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
 
-    uint256 sum = 0;
-    for (uint256 i = 0; i < _allocations.length; i++) {
-      uint256 allocation = _allocations[i];
-      fees[_feeType].allocations[FeeRole(i)] = allocation;
-      sum += allocation;
-    }
-
-    require(sum == 1 ether);
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  /*************
-   * ESTIMATES *
-   *************/
+  /*******************
+   ** ESTIMATE FEES **
+   *******************/
 
   function estimateFee(
     FeeType _feeType,
@@ -590,24 +590,17 @@ contract StakeTogether is
       feeAddresses[i] = getFeeAddress(roles[i]);
     }
 
-    uint256[4] memory allocations;
-
     for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
       require(feeAddresses[i] != address(0), 'ZA');
     }
 
-    for (uint256 i = 0; i < allocations.length; i++) {
-      allocations[i] = fees[_feeType].allocations[roles[i]];
-    }
-
     uint256 feeValue = fees[_feeType].value;
-
     uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
-
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
-      _shares[i] = MathUpgradeable.mulDiv(feeShares, allocations[i], 1 ether);
+      uint256 allocation = fees[_feeType].allocations[roles[i]];
+      _shares[i] = MathUpgradeable.mulDiv(feeShares, allocation, 1 ether);
       totalAllocatedShares += _shares[i];
     }
 
