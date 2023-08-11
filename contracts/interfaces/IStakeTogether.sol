@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
-import './IFees.sol';
-
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   struct Config {
@@ -39,6 +37,34 @@ interface IStakeTogether {
     Validator
   }
 
+  enum FeeType {
+    StakeEntry,
+    StakeRewards,
+    StakePool,
+    StakeValidator
+  }
+
+  enum FeeMath {
+    FIXED,
+    PERCENTAGE
+  }
+
+  enum FeeRole {
+    Airdrop,
+    Operator,
+    StakeTogether,
+    Sender
+  }
+
+  struct Fee {
+    uint256 value;
+    FeeMath mathType;
+    mapping(FeeRole => uint256) allocations;
+  }
+
+  event SetFeeAddress(FeeRole indexed role, address indexed account);
+  event SetFee(FeeType indexed feeType, uint256 value, FeeMath indexed mathType, uint256[] allocations);
+
   event AddPool(address pool, bool listed, uint256 amount);
   event AddValidatorOracle(address indexed account);
   event BurnShares(address indexed account, uint256 sharesAmount);
@@ -65,8 +91,8 @@ interface IStakeTogether {
     address indexed to,
     uint256 amount,
     uint256 sharesAmount,
-    IFees.FeeType feeType,
-    IFees.FeeRole feeRole
+    FeeType feeType,
+    FeeRole feeRole
   );
   event MintShares(address indexed to, uint256 sharesAmount);
   event ReceiveEther(address indexed sender, uint amount);

@@ -10,11 +10,10 @@ import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
 import './Airdrop.sol';
-import './Fees.sol';
 import './StakeTogether.sol';
 import './Withdrawals.sol';
 
-import './interfaces/IFees.sol';
+import './interfaces/IStakeTogether.sol';
 import './interfaces/IRouter.sol';
 
 /// @custom:security-contact security@staketogether.app
@@ -34,7 +33,6 @@ contract Router is
   uint256 public version;
 
   StakeTogether public stakeTogether;
-  Fees public fees;
   Withdrawals public withdrawals;
   Airdrop public airdrop;
   Config public config;
@@ -61,7 +59,7 @@ contract Router is
     _disableInitializers();
   }
 
-  function initialize(address _airdrop, address _fees, address _withdrawals) public initializer {
+  function initialize(address _airdrop, address _withdrawals) public initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -73,7 +71,6 @@ contract Router is
     version = 1;
 
     airdrop = Airdrop(payable(_airdrop));
-    fees = Fees(payable(_fees));
     withdrawals = Withdrawals(payable(_withdrawals));
 
     reportBlockNumber = 1;
@@ -273,8 +270,8 @@ contract Router is
       stakeTogether.setBeaconBalance(newBeaconBalance);
     }
 
-    (uint256[4] memory _shares, uint256[4] memory _amounts) = fees.estimateFeePercentage(
-      IFees.FeeType.StakeRewards,
+    (uint256[4] memory _shares, uint256[4] memory _amounts) = stakeTogether.estimateFeePercentage(
+      IStakeTogether.FeeType.StakeRewards,
       _report.profitAmount
     );
 
@@ -296,13 +293,13 @@ contract Router is
       }
     }
 
-    Fees.FeeRole[4] memory roles = fees.getFeesRoles();
+    StakeTogether.FeeRole[4] memory roles = stakeTogether.getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
         stakeTogether.mintRewards{ value: _amounts[i] }(
-          fees.getFeeAddress(roles[i]),
+          stakeTogether.getFeeAddress(roles[i]),
           _shares[i],
-          IFees.FeeType.StakeRewards,
+          IStakeTogether.FeeType.StakeRewards,
           roles[i]
         );
       }
