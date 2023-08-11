@@ -76,6 +76,7 @@ interface IStakeTogether {
     bytes signature,
     bytes32 depositDataRoot
   );
+
   event DepositBase(
     address indexed to,
     Delegation[] delegations,
@@ -84,6 +85,7 @@ interface IStakeTogether {
     DepositType depositType,
     address referral
   );
+
   event DepositLimitReached(address indexed sender, uint256 amount);
   event Init(uint256 amount);
   event MintRewards(

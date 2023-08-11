@@ -54,17 +54,17 @@ contract StakeTogether is
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  mapping(address => bool) internal pools;
+  mapping(address => bool) private pools;
 
-  address[] public validatorOracles;
+  address[] private validatorOracles;
   uint256 public currentOracleIndex;
 
-  mapping(bytes => bool) public validators;
-  uint256 public totalValidators;
+  mapping(bytes => bool) private validators;
+  uint256 private totalValidators;
   uint256 public validatorSize;
 
-  mapping(FeeRole => address payable) public feesRole;
-  mapping(FeeType => Fee) public fees;
+  mapping(FeeRole => address payable) private feesRole;
+  mapping(FeeType => Fee) private fees;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -157,14 +157,12 @@ contract StakeTogether is
   function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
-
     return true;
   }
 
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
-    uint256 tokensAmount = pooledEthByShares(_sharesAmount);
-    return tokensAmount;
+    return pooledEthByShares(_sharesAmount);
   }
 
   function allowance(address _account, address _spender) public view override returns (uint256) {
@@ -191,27 +189,22 @@ contract StakeTogether is
   function _approve(address _account, address _spender, uint256 _amount) internal override {
     require(_account != address(0), 'ZA');
     require(_spender != address(0), 'ZA');
-
     allowances[_account][_spender] = _amount;
     emit Approval(_account, _spender, _amount);
   }
 
-  function _mintShares(address _to, uint256 _sharesAmount) internal whenNotPaused {
+  function _mintShares(address _to, uint256 _sharesAmount) private whenNotPaused {
     require(_to != address(0), 'ZA');
-
     shares[_to] = shares[_to] + _sharesAmount;
     totalShares += _sharesAmount;
-
     emit MintShares(_to, _sharesAmount);
   }
 
-  function _burnShares(address _account, uint256 _sharesAmount) internal whenNotPaused {
+  function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     require(_account != address(0), 'ZA');
     require(_sharesAmount <= shares[_account], 'IS');
-
     shares[_account] = shares[_account] - _sharesAmount;
     totalShares -= _sharesAmount;
-
     emit BurnShares(_account, _sharesAmount);
   }
 
@@ -221,7 +214,7 @@ contract StakeTogether is
     emit Transfer(_from, _to, _amount);
   }
 
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) internal whenNotPaused {
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
     require(_from != address(0), 'ZA');
     require(_to != address(0), 'ZA');
     require(_sharesAmount <= shares[_from], 'IS');
@@ -248,7 +241,7 @@ contract StakeTogether is
     uint256 _sharesAmount,
     FeeType _feeType,
     FeeRole _feeRole
-  ) internal {
+  ) private {
     _mintShares(_address, _sharesAmount);
     emit MintRewards(_address, _amount, _sharesAmount, _feeType, _feeRole);
   }
@@ -279,7 +272,7 @@ contract StakeTogether is
     Delegation[] memory _delegations,
     DepositType _depositType,
     address referral
-  ) internal {
+  ) private {
     require(config.feature.Deposit, 'FD');
     require(_to != address(0), 'ZA');
     require(msg.value >= config.minDepositAmount, 'MD');
@@ -309,6 +302,7 @@ contract StakeTogether is
     if (_depositType == DepositType.DonationPool) {
       _validateDelegations(_to, _delegations);
     }
+
     totalDeposited += msg.value;
     emit DepositBase(_to, _delegations, msg.value, _shares, _depositType, referral);
   }
@@ -332,7 +326,7 @@ contract StakeTogether is
     uint256 _amount,
     Delegation[] memory _delegations,
     WithdrawType _withdrawType
-  ) internal {
+  ) private {
     require(_amount > 0, 'ZA');
     require(_amount <= balanceOf(msg.sender), 'IB');
 
@@ -416,14 +410,12 @@ contract StakeTogether is
     emit UpdateDelegations(msg.sender, _delegations);
   }
 
-  function _validateDelegations(address _account, Delegation[] memory _delegations) internal view {
+  function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
     uint256 totalDelegationsShares = 0;
-
     for (uint i = 0; i < _delegations.length; i++) {
       require(pools[_delegations[i].pool], 'NF');
       totalDelegationsShares += _delegations[i].shares;
     }
-
     require(totalDelegationsShares == shares[_account], 'IS');
     require(_delegations.length <= config.maxDelegations, 'MD');
   }
@@ -468,7 +460,7 @@ contract StakeTogether is
       validatorOracles[currentOracleIndex] == _oracleAddress;
   }
 
-  function _nextValidatorOracle() internal {
+  function _nextValidatorOracle() private {
     require(validatorOracles.length > 1, 'NV');
     currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
   }
@@ -528,21 +520,14 @@ contract StakeTogether is
   function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
     require(msg.sender == address(router), 'OR');
     require(validators[_publicKey], 'OV');
-
     validators[_publicKey] = false;
     totalValidators--;
-
     emit RemoveValidator(msg.sender, _epoch, _publicKey, msg.value);
   }
 
   /*****************
    **    FEES     **
    *****************/
-
-  function getFeesRoles() public pure returns (FeeRole[4] memory) {
-    FeeRole[4] memory roles = [FeeRole.Airdrop, FeeRole.Operator, FeeRole.StakeTogether, FeeRole.Sender];
-    return roles;
-  }
 
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     feesRole[_role] = _address;
@@ -551,6 +536,11 @@ contract StakeTogether is
 
   function getFeeAddress(FeeRole _role) public view returns (address) {
     return feesRole[_role];
+  }
+
+  function getFeesRoles() public pure returns (FeeRole[4] memory) {
+    FeeRole[4] memory roles = [FeeRole.Airdrop, FeeRole.Operator, FeeRole.StakeTogether, FeeRole.Sender];
+    return roles;
   }
 
   function setFee(
