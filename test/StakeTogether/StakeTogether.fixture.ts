@@ -1,65 +1,23 @@
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { getImplementationAddress } from "@openzeppelin/upgrades-core";
-import * as dotenv from "dotenv";
 import { ethers, network, upgrades } from "hardhat";
-import { checkVariables } from "../test/utils/env";
 import {
   Airdrop,
   Airdrop__factory,
+  MockStakeTogether,
+  MockStakeTogether__factory,
   Router,
   Router__factory,
   StakeTogether,
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from "../typechain";
-
-dotenv.config();
+} from "../../typechain";
+import { checkVariables } from "../utils/env";
 
 const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS);
 
-export async function deploy() {
-  checkVariables();
-
-  const [owner] = await ethers.getSigners();
-
-  // DEPLOY
-
-  const airdrop = await deployAirdrop(owner);
-  const withdrawals = await deployWithdrawals(owner);
-  const router = await deployRouter(
-    owner,
-    airdrop.proxyAddress,
-    withdrawals.proxyAddress,
-  );
-
-  const stakeTogether = await deployStakeTogether(
-    owner,
-    router.proxyAddress,
-    withdrawals.proxyAddress,
-  );
-
-  // CONFIG
-
-  await configContracts(owner, airdrop, stakeTogether, withdrawals, router);
-
-  // LOG
-
-  console.log("\n🔷 All ST V2 Contracts Deployed!\n");
-
-  verifyContracts(
-    airdrop.proxyAddress,
-    airdrop.implementationAddress,
-    router.proxyAddress,
-    router.implementationAddress,
-    stakeTogether.proxyAddress,
-    stakeTogether.implementationAddress,
-    withdrawals.proxyAddress,
-    withdrawals.implementationAddress,
-  );
-}
-
-export async function deployAirdrop(owner: HardhatEthersSigner) {
+async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner);
   const airdrop = await upgrades.deployProxy(AirdropFactory);
   await airdrop.waitForDeployment();
@@ -69,8 +27,8 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
     proxyAddress,
   );
 
-  console.log(`Airdrop\t\t Proxy\t\t\t ${proxyAddress}`);
-  console.log(`Airdrop\t\t Implementation\t\t ${implementationAddress}`);
+  // console.log(`Airdrop\t\t Proxy\t\t\t ${proxyAddress}`);
+  // console.log(`Airdrop\t\t Implementation\t\t ${implementationAddress}`);
 
   const airdropContract = airdrop as unknown as Airdrop;
 
@@ -79,7 +37,7 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, airdropContract };
 }
 
-export async function deployWithdrawals(owner: HardhatEthersSigner) {
+async function deployWithdrawals(owner: HardhatEthersSigner) {
   const WithdrawalsFactory = new Withdrawals__factory().connect(owner);
 
   const withdrawals = await upgrades.deployProxy(WithdrawalsFactory);
@@ -90,15 +48,15 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
     proxyAddress,
   );
 
-  console.log(`Withdrawals\t Proxy\t\t\t ${proxyAddress}`);
-  console.log(`Withdrawals\t Implementation\t\t ${implementationAddress}`);
+  // console.log(`Withdrawals\t Proxy\t\t\t ${proxyAddress}`);
+  // console.log(`Withdrawals\t Implementation\t\t ${implementationAddress}`);
 
   const withdrawalsContract = withdrawals as unknown as Withdrawals;
 
   return { proxyAddress, implementationAddress, withdrawalsContract };
 }
 
-export async function deployRouter(
+async function deployRouter(
   owner: HardhatEthersSigner,
   airdropContract: string,
   withdrawalsContract: string,
@@ -117,8 +75,8 @@ export async function deployRouter(
     proxyAddress,
   );
 
-  console.log(`Router\t\t Proxy\t\t\t ${proxyAddress}`);
-  console.log(`Router\t\t Implementation\t\t ${implementationAddress}`);
+  // console.log(`Router\t\t Proxy\t\t\t ${proxyAddress}`);
+  // console.log(`Router\t\t Implementation\t\t ${implementationAddress}`);
 
   // Create the configuration
   const config = {
@@ -140,7 +98,7 @@ export async function deployRouter(
   return { proxyAddress, implementationAddress, routerContract };
 }
 
-export async function deployStakeTogether(
+async function deployStakeTogether(
   owner: HardhatEthersSigner,
   routerContract: string,
   withdrawalsContract: string,
@@ -170,8 +128,8 @@ export async function deployStakeTogether(
     proxyAddress,
   );
 
-  console.log(`StakeTogether\t Proxy\t\t\t ${proxyAddress}`);
-  console.log(`StakeTogether\t Implementation\t\t ${implementationAddress}`);
+  // console.log(`StakeTogether\t Proxy\t\t\t ${proxyAddress}`);
+  // console.log(`StakeTogether\t Implementation\t\t ${implementationAddress}`);
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether;
 
@@ -271,35 +229,82 @@ export async function configContracts(
   await router.routerContract.setStakeTogether(stakeTogether.proxyAddress);
 }
 
-async function verifyContracts(
-  airdropProxy: string,
-  airdropImplementation: string,
-  routerProxy: string,
-  routerImplementation: string,
-  stakeTogetherProxy: string,
-  stakeTogetherImplementation: string,
-  withdrawalsProxy: string,
-  withdrawalsImplementation: string,
-) {
-  console.log("\nRUN COMMAND TO VERIFY ON ETHERSCAN\n");
+export async function stakeTogetherFixture() {
+  checkVariables();
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`);
-  console.log(
-    `npx hardhat verify --network goerli ${airdropImplementation} &&`,
+  const provider = ethers.provider;
+
+  let owner: HardhatEthersSigner;
+  let user1: HardhatEthersSigner;
+  let user2: HardhatEthersSigner;
+  let user3: HardhatEthersSigner;
+  let user4: HardhatEthersSigner;
+  let user5: HardhatEthersSigner;
+  let user6: HardhatEthersSigner;
+  let user7: HardhatEthersSigner;
+  let user8: HardhatEthersSigner;
+
+  let nullAddress: string = "0x0000000000000000000000000000000000000000";
+
+  [owner, user1, user2, user3, user4, user5, user6, user7, user8] =
+    await ethers.getSigners();
+
+  // DEPLOY
+
+  const airdrop = await deployAirdrop(owner);
+  const withdrawals = await deployWithdrawals(owner);
+  const router = await deployRouter(
+    owner,
+    airdrop.proxyAddress,
+    withdrawals.proxyAddress,
   );
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`);
-  console.log(
-    `npx hardhat verify --network goerli ${withdrawalsImplementation} &&`,
+
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    router.proxyAddress,
+    withdrawals.proxyAddress,
   );
-  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`);
-  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`);
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`);
-  console.log(
-    `npx hardhat verify --network goerli ${stakeTogetherImplementation}`,
+
+  // CONFIG
+
+  await configContracts(owner, airdrop, stakeTogether, withdrawals, router);
+
+  // UPGRADE
+
+  const MockStakeTogether = new MockStakeTogether__factory().connect(owner);
+  const mockStakeTogether = await upgrades.deployProxy(MockStakeTogether);
+  await mockStakeTogether.waitForDeployment();
+
+  const mockStakeTogetherProxy = await mockStakeTogether.getAddress();
+  const mockStakeTogetherImplementation = await getImplementationAddress(
+    network.provider,
+    mockStakeTogetherProxy,
   );
+
+  const mockStakeTogetherContract =
+    mockStakeTogether as unknown as MockStakeTogether;
+
+  const UPGRADER_ROLE =
+    await stakeTogether.stakeTogetherContract.UPGRADER_ROLE();
+  const ADMIN_ROLE = await stakeTogether.stakeTogetherContract.ADMIN_ROLE();
+
+  return {
+    provider,
+    owner,
+    user1,
+    user2,
+    user3,
+    user4,
+    user5,
+    user6,
+    user7,
+    user8,
+    nullAddress,
+    stakeTogether: stakeTogether.stakeTogetherContract,
+    stakeTogetherProxy: stakeTogether.proxyAddress,
+    mockStakeTogether: mockStakeTogetherContract,
+    mockStakeTogetherProxy: mockStakeTogetherProxy,
+    UPGRADER_ROLE,
+    ADMIN_ROLE,
+  };
 }
-
-deploy().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});

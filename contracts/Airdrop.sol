@@ -60,11 +60,6 @@ contract Airdrop is
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  modifier onlyRouter() {
-    require(msg.sender == address(router), 'ONLY_ROUTER');
-    _;
-  }
-
   receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
     _transferToStakeTogether();
@@ -90,7 +85,8 @@ contract Airdrop is
    ** AIRDROPS **
    **************/
 
-  function addAirdropMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external onlyRouter {
+  function addAirdropMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external {
+    require(msg.sender == address(router), 'ONLY_ROUTER');
     require(airdropsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
     airdropsMerkleRoots[_epoch] = merkleRoot;
     emit AddAirdropMerkleRoot(_epoch, merkleRoot);

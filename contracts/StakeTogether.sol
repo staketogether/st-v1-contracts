@@ -296,9 +296,7 @@ contract StakeTogether is
       }
     }
 
-    if (_depositType == DepositType.DonationPool) {
-      _validateDelegations(_to, _delegations);
-    }
+    _validateDelegations(_to, _delegations);
 
     totalDeposited += msg.value;
     emit DepositBase(_to, _delegations, msg.value, _shares, _depositType, referral);
@@ -408,12 +406,12 @@ contract StakeTogether is
   }
 
   function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
-    uint256 totalDelegationsShares = 0;
+    uint256 delegationShares = 0;
     for (uint i = 0; i < _delegations.length; i++) {
       require(pools[_delegations[i].pool], 'NF');
-      totalDelegationsShares += _delegations[i].shares;
+      delegationShares += _delegations[i].shares;
     }
-    require(totalDelegationsShares == shares[_account], 'IS');
+    require(delegationShares == shares[_account], 'IS');
     require(_delegations.length <= config.maxDelegations, 'MD');
   }
 

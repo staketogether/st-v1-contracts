@@ -1,5 +1,8 @@
-import { ethers } from 'ethers'
-
-export function formatAddressToWithdrawalCredentials(address: string): string {
-  return '0x010000000000000000000000' + ethers.getAddress(address).slice(2).toLowerCase()
+export function formatWithdrawal(eth1Address: string): string {
+  const address = eth1Address.startsWith("0x")
+    ? eth1Address.slice(2)
+    : eth1Address;
+  const paddedAddress = address.padStart(64, "0");
+  const withdrawalAddress = "0x01" + paddedAddress;
+  return withdrawalAddress;
 }

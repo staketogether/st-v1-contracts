@@ -7,64 +7,52 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
+import '../Airdrop.sol';
+import '../StakeTogether.sol';
 import '../Withdrawals.sol';
 
 import '../interfaces/IStakeTogether.sol';
-import '../interfaces/IDepositContract.sol';
+import '../interfaces/IRouter.sol';
 
 /// @custom:security-contact security@staketogether.app
-contract MockStakeTogether is
+contract MockRouter is
   Initializable,
-  ERC20Upgradeable,
-  ERC20BurnableUpgradeable,
   PausableUpgradeable,
   AccessControlUpgradeable,
-  ERC20PermitUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IStakeTogether
+  IRouter
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
-
+  bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
+  bytes32 public constant ORACLE_REPORT_SENTINEL_ROLE = keccak256('ORACLE_REPORT_SENTINEL_ROLE');
+  bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
   uint256 public version;
 
-  address public router;
+  StakeTogether public stakeTogether;
   Withdrawals public withdrawals;
-  IDepositContract public deposit;
-
-  bytes public withdrawalCredentials;
-  uint256 public beaconBalance;
+  Airdrop public airdrop;
   Config public config;
 
-  mapping(address => uint256) public shares;
-  uint256 public totalShares;
-  mapping(address => mapping(address => uint256)) private allowances;
+  uint256 public totalReportOracles;
+  mapping(address => bool) private reportOracles;
+  mapping(address => uint256) public reportOraclesBlacklist;
 
-  uint256 public lastResetBlock;
-  uint256 public totalDeposited;
-  uint256 public totalWithdrawn;
+  mapping(uint256 => mapping(bytes32 => address[])) public oracleReports;
+  mapping(uint256 => mapping(bytes32 => uint256)) public oracleReportsVotes;
+  mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
+  mapping(uint256 => bytes32[]) public reportHistoric;
+  mapping(uint256 => bytes32) public consensusReport;
+  mapping(uint256 => bool) public consensusInvalidatedReport;
 
-  mapping(address => bool) private pools;
+  uint256 public reportBlockNumber;
+  uint256 public lastConsensusEpoch;
+  uint256 public lastExecutedConsensusEpoch;
 
-  address[] private validatorOracles;
-  uint256 public currentOracleIndex;
-
-  mapping(bytes => bool) private validators;
-  uint256 private totalValidators;
-  uint256 public validatorSize;
-
-  mapping(FeeRole => address payable) private feesRole;
-  mapping(FeeType => Fee) private fees;
+  mapping(bytes32 => uint256) public reportExecutionBlock;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {

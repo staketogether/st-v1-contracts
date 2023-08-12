@@ -2,22 +2,22 @@ import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import dotenv from "dotenv";
-import { upgrades } from "hardhat";
+import { ethers, upgrades } from "hardhat";
 import {
-  Airdrop,
-  MockAirdrop__factory,
   MockStakeTogether,
+  MockStakeTogether__factory,
+  StakeTogether,
 } from "../../typechain";
 import connect from "../utils/connect";
-import { airdropFixture } from "./Airdrop.fixture";
+import { stakeTogetherFixture } from "./StakeTogether.fixture";
 
 dotenv.config();
 
-describe("Airdrop", function () {
-  let airdrop: Airdrop;
-  let airdropProxy: string;
-  let stakeTogether: MockStakeTogether;
+describe("Stake Together", function () {
+  let stakeTogether: StakeTogether;
   let stakeTogetherProxy: string;
+  let mockStakeTogether: MockStakeTogether;
+  let mockStakeTogetherProxy: string;
   let owner: HardhatEthersSigner;
   let user1: HardhatEthersSigner;
   let user2: HardhatEthersSigner;
@@ -32,11 +32,11 @@ describe("Airdrop", function () {
 
   // Setting up the fixture before each test
   beforeEach(async function () {
-    const fixture = await loadFixture(airdropFixture);
-    airdrop = fixture.airdrop;
-    airdropProxy = fixture.airdropProxy;
+    const fixture = await loadFixture(stakeTogetherFixture);
     stakeTogether = fixture.stakeTogether;
     stakeTogetherProxy = fixture.stakeTogetherProxy;
+    mockStakeTogether = fixture.mockStakeTogether;
+    mockStakeTogetherProxy = fixture.mockStakeTogetherProxy;
     owner = fixture.owner;
     user1 = fixture.user1;
     user2 = fixture.user2;
@@ -54,63 +54,65 @@ describe("Airdrop", function () {
     // Test to check if pause and unpause functions work properly
     it("should pause and unpause the contract if the user has admin role", async function () {
       // Check if the contract is not paused at the beginning
-      expect(await airdrop.paused()).to.equal(false);
+      expect(await stakeTogether.paused()).to.equal(false);
 
       // User without admin role tries to pause the contract - should fail
-      await expect(connect(airdrop, user1).pause()).to.reverted;
+      await expect(connect(stakeTogether, user1).pause()).to.reverted;
 
       // The owner pauses the contract
-      await connect(airdrop, owner).pause();
+      await connect(stakeTogether, owner).pause();
 
       // Check if the contract is paused
-      expect(await airdrop.paused()).to.equal(true);
+      expect(await stakeTogether.paused()).to.equal(true);
 
       // User without admin role tries to unpause the contract - should fail
-      await expect(connect(airdrop, user1).unpause()).to.reverted;
+      await expect(connect(stakeTogether, user1).unpause()).to.reverted;
 
       // The owner unpauses the contract
-      await connect(airdrop, owner).unpause();
+      await connect(stakeTogether, owner).unpause();
       // Check if the contract is not paused
-      expect(await airdrop.paused()).to.equal(false);
+      expect(await stakeTogether.paused()).to.equal(false);
     });
 
     it("should upgrade the contract if the user has upgrader role", async function () {
-      expect(await airdrop.version()).to.equal(1n);
+      expect(await stakeTogether.version()).to.equal(1n);
 
-      const MockAirdrop = new MockAirdrop__factory(user1);
+      const MockStakeTogether = new MockStakeTogether__factory(user1);
 
       // A user without the UPGRADER_ROLE tries to upgrade the contract - should fail
-      await expect(upgrades.upgradeProxy(airdropProxy, MockAirdrop)).to.be
-        .reverted;
+      await expect(upgrades.upgradeProxy(stakeTogetherProxy, MockStakeTogether))
+        .to.be.reverted;
 
-      const MockAirdropOwner = new MockAirdrop__factory(owner);
+      const MockWithdrawalsOwner = new MockStakeTogether__factory(owner);
 
       // The owner (who has the UPGRADER_ROLE) upgrades the contract - should succeed
-      const upgradedContract = await upgrades.upgradeProxy(
-        airdropProxy,
-        MockAirdropOwner,
+      const upgradedFeesContract = await upgrades.upgradeProxy(
+        stakeTogetherProxy,
+        MockWithdrawalsOwner,
       );
 
       // Upgrade version
-      await upgradedContract.initializeV2();
+      await upgradedFeesContract.initializeV2();
 
-      expect(await upgradedContract.version()).to.equal(2n);
+      expect(await upgradedFeesContract.version()).to.equal(2n);
     });
   });
 
-  it("should correctly set the StakeTogether address", async function () {
-    // User1 tries to set the StakeTogether address to zero address - should fail
-    await expect(connect(airdrop, owner).setStakeTogether(nullAddress)).to.be
-      .reverted;
+  it("should correctly receive Ether", async function () {
+    const initBalance = await ethers.provider.getBalance(stakeTogetherProxy);
 
-    // User1 tries to set the StakeTogether address to their own address - should fail
-    await expect(connect(airdrop, user1).setStakeTogether(user1.address)).to.be
-      .reverted;
+    const tx = await user1.sendTransaction({
+      to: stakeTogetherProxy,
+      value: ethers.parseEther("1.0"),
+    });
 
-    // Owner sets the StakeTogether address - should succeed
-    await connect(airdrop, owner).setStakeTogether(user1.address);
+    await tx.wait();
 
-    // Verify that the StakeTogether address was correctly set
-    expect(await airdrop.stakeTogether()).to.equal(user1.address);
+    const finalBalance = await ethers.provider.getBalance(stakeTogetherProxy);
+    expect(finalBalance).to.equal(initBalance + ethers.parseEther("1.0"));
+
+    await expect(tx)
+      .to.emit(stakeTogether, "ReceiveEther")
+      .withArgs(user1.address, ethers.parseEther("1.0"));
   });
 });
