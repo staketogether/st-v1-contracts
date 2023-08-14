@@ -231,6 +231,28 @@ describe('Stake Together', function () {
       expect(_referral).to.equal(referral)
     })
 
+    it('should fail if deposit amount is less than minDepositAmount', async function () {
+      const user1DepositAmount = ethers.parseEther('0.0005')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await expect(
+        stakeTogether.connect(user1).depositPool([], referral, { value: user1DepositAmount }),
+      ).to.be.revertedWith('MD')
+    })
+
+    it('should fail if deposit amount is less than minDepositAmount', async function () {
+      const user1DepositAmount = ethers.parseEther('0.0005')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await expect(
+        stakeTogether.connect(user1).depositPool([], referral, { value: user1DepositAmount }),
+      ).to.be.revertedWith('MD')
+    })
+
     it('should revert due to wrong shares value (without fee)', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
