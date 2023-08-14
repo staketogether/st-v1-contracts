@@ -268,45 +268,6 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('DLR')
     })
 
-    it('should correctly handle deposit and fail if daily deposit limit is reached', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const user2DepositAmount = ethers.parseEther('901')
-      const user3DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      const referral = user4.address
-      const blocksPerDay = 7200n
-
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
-
-      const tx1 = await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
-      await tx1.wait()
-
-      let eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
-      let logs = await stakeTogether.queryFilter(eventFilter)
-
-      let event = logs[0]
-      const [_to1, _value1, _referral1] = event.args
-      expect(_to1).to.equal(user1.address)
-      expect(_value1).to.equal(user1DepositAmount)
-      expect(_referral1).to.equal(referral)
-
-      const fee2 = (user2DepositAmount * 3n) / 1000n
-      const user2Shares = user2DepositAmount - fee2
-      const user2Delegations = [{ pool: poolAddress, shares: user2Shares }]
-
-      await expect(
-        stakeTogether
-          .connect(user2)
-          .depositPool(user2Delegations, referral, { value: user2DepositAmount }),
-      ).to.be.revertedWith('DLR')
-    })
-
     it('should correctly handle deposit and reset deposit limit after a day', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const user2DepositAmount = ethers.parseEther('901')
@@ -376,17 +337,6 @@ describe('Stake Together', function () {
       expect(_to3).to.equal(user3.address)
       expect(_value3).to.equal(user3DepositAmount)
       expect(_referral3).to.equal(referral)
-    })
-
-    it('should fail if deposit amount is less than minDepositAmount', async function () {
-      const user1DepositAmount = ethers.parseEther('0.0005')
-      const poolAddress = user3.address
-      const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      await expect(
-        stakeTogether.connect(user1).depositPool([], referral, { value: user1DepositAmount }),
-      ).to.be.revertedWith('MD')
     })
 
     it('should fail if deposit amount is less than minDepositAmount', async function () {
