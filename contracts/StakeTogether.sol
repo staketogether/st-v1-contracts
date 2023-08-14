@@ -135,15 +135,15 @@ contract StakeTogether is
   }
 
   function balanceOf(address _account) public view override returns (uint256) {
-    return pooledEthByShares(shares[_account]);
+    return weiByShares(shares[_account]);
   }
 
-  function sharesByPooledEth(uint256 _amount) public view returns (uint256) {
-    return MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
-  }
-
-  function pooledEthByShares(uint256 _sharesAmount) public view returns (uint256) {
+  function weiByShares(uint256 _sharesAmount) public view returns (uint256) {
     return MathUpgradeable.mulDiv(_sharesAmount, totalSupply(), totalShares, MathUpgradeable.Rounding.Up);
+  }
+
+  function sharesByWei(uint256 _amount) public view returns (uint256) {
+    return MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
   }
 
   function transfer(address _to, uint256 _amount) public override returns (bool) {
@@ -159,7 +159,7 @@ contract StakeTogether is
 
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
-    return pooledEthByShares(_sharesAmount);
+    return weiByShares(_sharesAmount);
   }
 
   function allowance(address _account, address _spender) public view override returns (uint256) {
@@ -206,7 +206,7 @@ contract StakeTogether is
   }
 
   function _transfer(address _from, address _to, uint256 _amount) internal override whenNotPaused {
-    uint256 _sharesToTransfer = sharesByPooledEth(_amount);
+    uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
   }
@@ -266,8 +266,8 @@ contract StakeTogether is
 
   function _depositBase(
     address _to,
-    Delegation[] memory _delegations,
     DepositType _depositType,
+    Delegation[] memory _delegations,
     address referral
   ) private {
     require(config.feature.Deposit, 'FD');
@@ -296,17 +296,16 @@ contract StakeTogether is
       }
     }
 
-    _validateDelegations(_to, _delegations);
-
+    _updateDelegations(_to, _delegations);
     totalDeposited += msg.value;
-    emit DepositBase(_to, _delegations, msg.value, _shares, _depositType, referral);
+    emit DepositBase(_to, msg.value, _shares, _depositType, referral);
   }
 
   function depositPool(
     Delegation[] memory _delegations,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    _depositBase(msg.sender, _delegations, DepositType.Pool, _referral);
+    _depositBase(msg.sender, DepositType.Pool, _delegations, _referral);
   }
 
   function depositDonationPool(
@@ -314,13 +313,13 @@ contract StakeTogether is
     address _referral
   ) external payable nonReentrant whenNotPaused {
     Delegation[] memory delegations;
-    _depositBase(_to, delegations, DepositType.DonationPool, _referral);
+    _depositBase(_to, DepositType.DonationPool, delegations, _referral);
   }
 
   function _withdrawBase(
     uint256 _amount,
-    Delegation[] memory _delegations,
-    WithdrawType _withdrawType
+    WithdrawType _withdrawType,
+    Delegation[] memory _delegations
   ) private {
     require(_amount > 0, 'ZA');
     require(_amount <= balanceOf(msg.sender), 'IB');
@@ -335,9 +334,9 @@ contract StakeTogether is
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
 
-    _validateDelegations(msg.sender, _delegations);
+    _updateDelegations(msg.sender, _delegations);
     totalWithdrawn += _amount;
-    emit WithdrawBase(msg.sender, _delegations, _amount, sharesToBurn, _withdrawType);
+    emit WithdrawBase(msg.sender, _amount, sharesToBurn, _withdrawType);
   }
 
   function withdrawPool(
@@ -346,7 +345,7 @@ contract StakeTogether is
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD');
     require(_amount <= address(this).balance, 'IB');
-    _withdrawBase(_amount, _delegations, WithdrawType.Pool);
+    _withdrawBase(_amount, WithdrawType.Pool, _delegations);
     payable(msg.sender).transfer(_amount);
   }
 
@@ -357,7 +356,7 @@ contract StakeTogether is
     require(config.feature.WithdrawValidator, 'FD');
     require(_amount <= beaconBalance, 'IB');
     beaconBalance -= _amount;
-    _withdrawBase(_amount, _delegations, WithdrawType.Validator);
+    _withdrawBase(_amount, WithdrawType.Validator, _delegations);
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -401,8 +400,12 @@ contract StakeTogether is
   }
 
   function updateDelegations(Delegation[] memory _delegations) external {
-    _validateDelegations(msg.sender, _delegations);
-    emit UpdateDelegations(msg.sender, _delegations);
+    _updateDelegations(msg.sender, _delegations);
+  }
+
+  function _updateDelegations(address _account, Delegation[] memory _delegations) private {
+    _validateDelegations(_account, _delegations);
+    emit UpdateDelegations(_account, _delegations);
   }
 
   function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
@@ -592,7 +595,7 @@ contract StakeTogether is
     _shares[3] = _sharesAmount - totalAllocatedShares;
 
     for (uint256 i = 0; i < roles.length; i++) {
-      _amounts[i] = pooledEthByShares(_shares[i]);
+      _amounts[i] = weiByShares(_shares[i]);
     }
 
     return (_shares, _amounts);
@@ -603,7 +606,7 @@ contract StakeTogether is
     uint256 _amount
   ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
     require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
-    uint256 sharesAmount = sharesByPooledEth(_amount);
+    uint256 sharesAmount = sharesByWei(_amount);
     return estimateFee(_feeType, sharesAmount);
   }
 
