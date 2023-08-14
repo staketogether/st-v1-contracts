@@ -283,7 +283,7 @@ contract StakeTogether is
 
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
 
-    (uint256[4] memory _shares, ) = estimateFee(FeeType.StakeEntry, sharesAmount);
+    (uint256[4] memory _shares, ) = _estimateFee(FeeType.StakeEntry, sharesAmount);
 
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
@@ -567,10 +567,10 @@ contract StakeTogether is
    ** ESTIMATE FEES **
    *******************/
 
-  function estimateFee(
+  function _estimateFee(
     FeeType _feeType,
     uint256 _sharesAmount
-  ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
+  ) private view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
     FeeRole[4] memory roles = getFeesRoles();
     address[4] memory feeAddresses;
 
@@ -607,13 +607,13 @@ contract StakeTogether is
   ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
     require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
     uint256 sharesAmount = sharesByWei(_amount);
-    return estimateFee(_feeType, sharesAmount);
+    return _estimateFee(_feeType, sharesAmount);
   }
 
   function estimateFeeFixed(
     FeeType _feeType
   ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
     require(fees[_feeType].mathType == FeeMath.FIXED);
-    return estimateFee(_feeType, fees[_feeType].value);
+    return _estimateFee(_feeType, fees[_feeType].value);
   }
 }
