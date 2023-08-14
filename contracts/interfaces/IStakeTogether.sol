@@ -33,11 +33,6 @@ interface IStakeTogether {
     mapping(FeeRole => uint256) allocations;
   }
 
-  enum DepositType {
-    DonationPool,
-    Pool
-  }
-
   enum WithdrawType {
     Pool,
     Validator
@@ -74,14 +69,8 @@ interface IStakeTogether {
     bytes signature,
     bytes32 depositDataRoot
   );
-  event DepositBase(
-    address indexed to,
-    uint256 amount,
-    uint256[4] shares,
-    DepositType depositType,
-    address referral
-  );
   event DepositLimitReached(address indexed sender, uint256 amount);
+  event DepositPool(address indexed to, uint256 amount, address referral);
   event MintRewards(
     address indexed to,
     uint256 amount,

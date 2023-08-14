@@ -264,20 +264,17 @@ contract StakeTogether is
    ** STAKE **
    ***********/
 
-  function _depositBase(
-    address _to,
-    DepositType _depositType,
+  function depositPool(
     Delegation[] memory _delegations,
     address referral
-  ) private {
+  ) external payable nonReentrant whenNotPaused {
     require(config.feature.Deposit, 'FD');
-    require(_to != address(0), 'ZA');
     require(msg.value >= config.minDepositAmount, 'MD');
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
-      emit DepositLimitReached(_to, msg.value);
+      emit DepositLimitReached(msg.sender, msg.value);
       revert();
     }
 
@@ -289,31 +286,16 @@ contract StakeTogether is
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == FeeRole.Sender) {
-          _mintShares(_to, _shares[i]);
+          _mintShares(msg.sender, _shares[i]);
         } else {
           _mintRewards(getFeeAddress(roles[i]), 0, _shares[i], FeeType.StakeEntry, roles[i]);
         }
       }
     }
 
-    _updateDelegations(_to, _delegations);
     totalDeposited += msg.value;
-    emit DepositBase(_to, msg.value, _shares, _depositType, referral);
-  }
-
-  function depositPool(
-    Delegation[] memory _delegations,
-    address _referral
-  ) external payable nonReentrant whenNotPaused {
-    _depositBase(msg.sender, DepositType.Pool, _delegations, _referral);
-  }
-
-  function depositDonationPool(
-    address _to,
-    address _referral
-  ) external payable nonReentrant whenNotPaused {
-    Delegation[] memory delegations;
-    _depositBase(_to, DepositType.DonationPool, delegations, _referral);
+    emit DepositPool(msg.sender, msg.value, referral);
+    _updateDelegations(msg.sender, _delegations);
   }
 
   function _withdrawBase(
@@ -334,9 +316,9 @@ contract StakeTogether is
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
 
-    _updateDelegations(msg.sender, _delegations);
     totalWithdrawn += _amount;
     emit WithdrawBase(msg.sender, _amount, sharesToBurn, _withdrawType);
+    _updateDelegations(msg.sender, _delegations);
   }
 
   function withdrawPool(

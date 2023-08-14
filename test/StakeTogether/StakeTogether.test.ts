@@ -198,6 +198,7 @@ describe('Stake Together', function () {
     it('should correctly handle deposit', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
+      const referral = user4.address
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       const fee = (user1DepositAmount * 3n) / 1000n
@@ -207,7 +208,7 @@ describe('Stake Together', function () {
 
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
       await tx1.wait()
 
       let eventFilter = stakeTogether.filters.UpdateDelegations(user1.address)
@@ -215,9 +216,19 @@ describe('Stake Together', function () {
 
       let event = logs[0]
       const [emittedAddress1, emittedDelegations1] = event.args
+
       expect(emittedAddress1).to.equal(user1.address)
       expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
       expect(emittedDelegations1[0].shares).to.equal(user1Delegations[0].shares)
+
+      eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
+      logs = await stakeTogether.queryFilter(eventFilter)
+
+      event = logs[0]
+      const [_to, _value, _referral] = event.args
+      expect(_to).to.equal(user1.address)
+      expect(_value).to.equal(user1DepositAmount)
+      expect(_referral).to.equal(referral)
     })
 
     it('should revert due to wrong shares value (without fee)', async function () {
@@ -265,17 +276,6 @@ describe('Stake Together', function () {
           .connect(user1)
           .depositPool(user1Delegations, user3, { value: ethers.parseEther('100') }),
       ).to.be.revertedWith('FD')
-    })
-
-    it('should revert if deposit address is zero', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const nonExistentPoolAddress = nullAddress
-
-      await expect(
-        stakeTogether
-          .connect(user1)
-          .depositDonationPool(nonExistentPoolAddress, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('ZA')
     })
 
     it('should fail when trying to delegate to a non-existent pool', async function () {
