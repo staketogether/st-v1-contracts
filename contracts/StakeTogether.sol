@@ -409,13 +409,14 @@ contract StakeTogether is
   }
 
   function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
+    require(_delegations.length <= config.maxDelegations, 'MD');
     uint256 delegationShares = 0;
     for (uint i = 0; i < _delegations.length; i++) {
       require(pools[_delegations[i].pool], 'NF');
+      require(_delegations[i].shares > 0, 'ZS');
       delegationShares += _delegations[i].shares;
     }
     require(delegationShares == shares[_account], 'IS');
-    require(_delegations.length <= config.maxDelegations, 'MD');
   }
 
   /***********************

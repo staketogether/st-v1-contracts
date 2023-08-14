@@ -177,7 +177,7 @@ describe('Stake Together', function () {
   })
 
   describe('Shares and Wei Conversion', function () {
-    it("should correctly calculate total supply as the sum of the contract's balance and beaconBalance", async function () {
+    it('should correctly calculate balance and beaconBalance', async function () {
       const initialContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
 
       const initialBeaconBalance = await stakeTogether.beaconBalance()
@@ -296,6 +296,60 @@ describe('Stake Together', function () {
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
       ).to.be.revertedWith('IS')
+    })
+
+    it('should fail when the number of delegations is greater than maxDelegations', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const maxDelegations = 64
+      const user1Delegations = Array(maxDelegations + 1).fill({ pool: poolAddress, shares: 1 })
+
+      await expect(
+        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
+      ).to.be.revertedWith('MD')
+    })
+
+    it('should fail when a delegation has zero shares', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const user1Delegations = [{ pool: poolAddress, shares: 0 }]
+
+      await expect(
+        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
+      ).to.be.revertedWith('ZS')
+    })
+
+    it('should correctly transfer delegations to another pool', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress1 = user3.address
+      const poolAddress2 = user4.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress1, true)
+      await stakeTogether.connect(owner).addPool(poolAddress2, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress1, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
+
+      const updatedDelegations = [{ pool: poolAddress2, shares: user1Shares }]
+      await stakeTogether.connect(user1).updateDelegations(updatedDelegations)
+
+      const user1Filter = stakeTogether.filters.UpdateDelegations(user1.address)
+
+      const user1Logs = await stakeTogether.queryFilter(user1Filter)
+
+      expect(user1Logs.length).to.equal(2)
+
+      expect(user1Logs[1].args[1][0][0]).to.equal(poolAddress2)
     })
   })
 })
