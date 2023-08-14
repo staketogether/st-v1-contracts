@@ -275,7 +275,7 @@ contract StakeTogether is
 
     if (msg.value + totalDeposited > config.depositLimit) {
       emit DepositLimitReached(msg.sender, msg.value);
-      revert();
+      revert('DLR');
     }
 
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
