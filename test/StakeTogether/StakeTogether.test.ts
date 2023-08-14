@@ -176,7 +176,7 @@ describe('Stake Together', function () {
     })
   })
 
-  describe('Shares and Wei Conversion', function () {
+  describe('Deposit', function () {
     it('should correctly calculate balance and beaconBalance', async function () {
       const initialContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
 
@@ -234,41 +234,48 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('IS')
     })
 
-    it('should correctly distribute the fee among roles and mint shares accordingly', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+    it('should revert if deposit feature is disabled', async function () {
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.001'),
+        depositLimit: ethers.parseEther('1000'),
+        withdrawalLimit: ethers.parseEther('1000'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: true,
+          Deposit: false,
+          WithdrawPool: true,
+          WithdrawValidator: true,
+        },
+      }
 
+      await connect(stakeTogether, owner).setConfig(config)
+
+      const user1DepositAmount = ethers.parseEther('100')
+      const nonExistentPoolAddress = nullAddress
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: nonExistentPoolAddress, shares: user1Shares }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
+      await expect(
+        stakeTogether
+          .connect(user1)
+          .depositPool(user1Delegations, user3, { value: ethers.parseEther('100') }),
+      ).to.be.revertedWith('FD')
+    })
 
-      const totalShares = await stakeTogether.totalShares()
-      expect(totalShares).to.equal(user1DepositAmount + 1n)
+    it('should revert if deposit address is zero', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const nonExistentPoolAddress = nullAddress
 
-      const airdropAddress = await stakeTogether.getFeeAddress(0)
-      const stakeTogetherAddress = await stakeTogether.getFeeAddress(2)
-
-      const airdropFilter = stakeTogether.filters.MintShares(airdropAddress)
-      const stakeTogetherFilter = stakeTogether.filters.MintShares(stakeTogetherAddress)
-      const user1Filter = stakeTogether.filters.MintShares(user1.address)
-
-      const airdropLogs = await stakeTogether.queryFilter(airdropFilter)
-      const stakeTogetherLogs = await stakeTogether.queryFilter(stakeTogetherFilter)
-      const user1Logs = await stakeTogether.queryFilter(user1Filter)
-
-      expect(airdropLogs.length).to.equal(1)
-      expect(stakeTogetherLogs.length).to.equal(1)
-      expect(user1Logs.length).to.equal(1)
-
-      expect(airdropLogs[0].args[1]).to.equal((fee * 60n) / 100n)
-      expect(stakeTogetherLogs[0].args[1]).to.equal((fee * 40n) / 100n)
-      expect(user1Logs[0].args[1]).to.equal(user1Shares)
+      await expect(
+        stakeTogether
+          .connect(user1)
+          .depositDonationPool(nonExistentPoolAddress, user3, { value: user1DepositAmount }),
+      ).to.be.revertedWith('ZA')
     })
 
     it('should fail when trying to delegate to a non-existent pool', async function () {
@@ -350,6 +357,45 @@ describe('Stake Together', function () {
       expect(user1Logs.length).to.equal(2)
 
       expect(user1Logs[1].args[1][0][0]).to.equal(poolAddress2)
+    })
+  })
+
+  describe('Fees', function () {
+    it('should correctly distribute the fee among roles and mint shares accordingly', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
+
+      const totalShares = await stakeTogether.totalShares()
+      expect(totalShares).to.equal(user1DepositAmount + 1n)
+
+      const airdropAddress = await stakeTogether.getFeeAddress(0)
+      const stakeTogetherAddress = await stakeTogether.getFeeAddress(2)
+
+      const airdropFilter = stakeTogether.filters.MintShares(airdropAddress)
+      const stakeTogetherFilter = stakeTogether.filters.MintShares(stakeTogetherAddress)
+      const user1Filter = stakeTogether.filters.MintShares(user1.address)
+
+      const airdropLogs = await stakeTogether.queryFilter(airdropFilter)
+      const stakeTogetherLogs = await stakeTogether.queryFilter(stakeTogetherFilter)
+      const user1Logs = await stakeTogether.queryFilter(user1Filter)
+
+      expect(airdropLogs.length).to.equal(1)
+      expect(stakeTogetherLogs.length).to.equal(1)
+      expect(user1Logs.length).to.equal(1)
+
+      expect(airdropLogs[0].args[1]).to.equal((fee * 60n) / 100n)
+      expect(stakeTogetherLogs[0].args[1]).to.equal((fee * 40n) / 100n)
+      expect(user1Logs[0].args[1]).to.equal(user1Shares)
     })
   })
 })
