@@ -199,7 +199,7 @@ contract StakeTogether is
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     require(_account != address(0), 'ZA');
     require(_sharesAmount <= shares[_account], 'IS');
-    shares[_account] = shares[_account] - _sharesAmount;
+    shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
   }
@@ -214,8 +214,8 @@ contract StakeTogether is
     require(_from != address(0), 'ZA');
     require(_to != address(0), 'ZA');
     require(_sharesAmount <= shares[_from], 'IS');
-    shares[_from] = shares[_from] - _sharesAmount;
-    shares[_to] = shares[_to] + _sharesAmount;
+    shares[_from] -= _sharesAmount;
+    shares[_to] += _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
