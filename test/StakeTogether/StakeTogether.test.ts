@@ -593,5 +593,87 @@ describe('Stake Together', function () {
     })
   })
 
-  describe('Withdrawals', function () {})
+  describe('Withdrawals', function () {
+    it('should correctly handle deposit and withdraw from pool', async function () {
+      // Deposit
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      let expectedBalanceAfterDeposit = await stakeTogether.balanceOf(user1.address)
+      expect(expectedBalanceAfterDeposit).to.equal(user1DepositAmount - fee)
+
+      // Withdraw
+      const withdrawAmount = ethers.parseEther('40')
+      const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
+
+      user1Delegations[0].shares -= sharesForWithdrawAmount
+
+      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations)
+
+      let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
+      expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
+
+      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined, undefined)
+      let logs = await stakeTogether.queryFilter(eventFilter)
+      let event = logs[0]
+      const [_from, _value, _shares, _withdrawType] = event.args
+
+      expect(_from).to.equal(user1.address)
+      expect(_value).to.equal(withdrawAmount)
+      expect(_shares).to.equal(sharesForWithdrawAmount)
+      expect(_withdrawType).to.equal(0)
+    })
+
+    it('should correctly handle withdraw from pool with fractional values (round up)', async function () {
+      // Deposit
+      const user1DepositAmount = ethers.parseEther('100') / 3n
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+
+      const user1Shares = 1n + user1DepositAmount - fee // In this case we have to round up
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      let expectedBalanceAfterDeposit = await stakeTogether.balanceOf(user1.address)
+      expect(expectedBalanceAfterDeposit).to.equal(user1DepositAmount - fee + 1n) // round up
+
+      // Withdraw
+      const withdrawAmount = ethers.parseEther('40') / 3n
+      const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
+
+      user1Delegations[0].shares -= sharesForWithdrawAmount
+
+      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations)
+
+      let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
+      expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount + 1n)
+
+      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined, undefined)
+      let logs = await stakeTogether.queryFilter(eventFilter)
+      let event = logs[0]
+      const [_from, _value, _shares, _withdrawType] = event.args
+
+      expect(_from).to.equal(user1.address)
+      expect(_value).to.equal(withdrawAmount)
+      expect(_shares).to.equal(sharesForWithdrawAmount)
+      expect(_withdrawType).to.equal(0)
+    })
+  })
 })
