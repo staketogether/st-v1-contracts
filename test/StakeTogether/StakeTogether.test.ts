@@ -801,6 +801,63 @@ describe('Stake Together', function () {
         'IAB',
       )
     })
+
+    it('should revert when trying to withdraw from the pool disabled', async function () {
+      // Setting the WithdrawPool feature to false
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
+        minWithdrawAmount: ethers.parseEther('0.0001'),
+        depositLimit: ethers.parseEther('1000'),
+        withdrawalLimit: ethers.parseEther('1000'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: true,
+          Deposit: true,
+          WithdrawPool: false,
+          WithdrawValidator: false,
+        },
+      }
+
+      // Set config by owner
+      await connect(stakeTogether, owner).setConfig(config)
+
+      // Attempt to withdraw
+      const withdrawAmount = ethers.parseEther('1')
+
+      // Expect a revert with the specific error message 'FD'
+      await expect(stakeTogether.connect(user1).withdrawPool(withdrawAmount, [])).to.be.revertedWith('FD')
+    })
+
+    it('should revert when trying to withdraw from the validator disabled', async function () {
+      // Setting the WithdrawPool feature to false
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
+        minWithdrawAmount: ethers.parseEther('0.0001'),
+        depositLimit: ethers.parseEther('1000'),
+        withdrawalLimit: ethers.parseEther('1000'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: true,
+          Deposit: true,
+          WithdrawPool: false,
+          WithdrawValidator: false,
+        },
+      }
+
+      // Set config by owner
+      await connect(stakeTogether, owner).setConfig(config)
+      const withdrawAmount = ethers.parseEther('1')
+
+      await expect(stakeTogether.connect(user1).withdrawValidator(withdrawAmount, [])).to.be.revertedWith(
+        'FD',
+      )
+    })
   })
 
   describe('Fees', function () {
