@@ -334,7 +334,7 @@ contract StakeTogether is
     _burnShares(msg.sender, sharesToBurn);
 
     totalWithdrawn += _amount;
-    emit WithdrawBase(msg.sender, _amount, sharesToBurn, _withdrawType);
+    emit WithdrawBase(msg.sender, _amount, _withdrawType);
     _updateDelegations(msg.sender, _delegations);
   }
 

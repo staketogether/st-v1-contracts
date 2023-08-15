@@ -623,14 +623,13 @@ describe('Stake Together', function () {
       let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
       expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
 
-      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined, undefined)
+      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
       let event = logs[0]
-      const [_from, _value, _shares, _withdrawType] = event.args
+      const [_from, _value, _withdrawType] = event.args
 
       expect(_from).to.equal(user1.address)
       expect(_value).to.equal(withdrawAmount)
-      expect(_shares).to.equal(sharesForWithdrawAmount)
       expect(_withdrawType).to.equal(0)
     })
 
@@ -665,14 +664,13 @@ describe('Stake Together', function () {
       let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
       expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount + 1n)
 
-      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined, undefined)
+      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
       let event = logs[0]
-      const [_from, _value, _shares, _withdrawType] = event.args
+      const [_from, _value, _withdrawType] = event.args
 
       expect(_from).to.equal(user1.address)
       expect(_value).to.equal(withdrawAmount)
-      expect(_shares).to.equal(sharesForWithdrawAmount)
       expect(_withdrawType).to.equal(0)
     })
   })

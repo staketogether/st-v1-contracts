@@ -99,6 +99,6 @@ interface IStakeTogether {
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event UpdateDelegations(address indexed account, Delegation[] delegations);
-  event WithdrawBase(address indexed account, uint256 amount, uint256 shares, WithdrawType withdrawType);
+  event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType);
   event WithdrawalsLimitReached(address indexed sender, uint256 amount);
 }
