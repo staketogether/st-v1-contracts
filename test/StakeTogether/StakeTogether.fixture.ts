@@ -120,6 +120,7 @@ async function deployStakeTogether(
     validatorSize: ethers.parseEther('32'),
     poolSize: ethers.parseEther('32'),
     minDepositAmount: ethers.parseEther('0.001'),
+    minWithdrawAmount: ethers.parseEther('0.00001'),
     depositLimit: ethers.parseEther('1000'),
     withdrawalLimit: ethers.parseEther('1000'),
     blocksPerDay: 7200n,

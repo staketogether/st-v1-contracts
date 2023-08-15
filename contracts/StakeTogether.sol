@@ -322,6 +322,7 @@ contract StakeTogether is
   ) private {
     require(_amount > 0, 'ZA');
     require(_amount <= balanceOf(msg.sender), 'IB');
+    require(_amount >= config.minWithdrawAmount, 'MW');
 
     _resetLimits();
 

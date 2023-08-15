@@ -9,6 +9,7 @@ interface IStakeTogether {
     uint256 depositLimit;
     uint256 maxDelegations;
     uint256 minDepositAmount;
+    uint256 minWithdrawAmount;
     uint256 poolSize;
     uint256 validatorSize;
     uint256 withdrawalLimit;
