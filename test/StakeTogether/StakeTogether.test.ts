@@ -229,6 +229,57 @@ describe('Stake Together', function () {
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
       expect(_referral).to.equal(referral)
+
+      const expectedBalance = await stakeTogether.weiByShares(user1Shares)
+      const actualBalance = await stakeTogether.balanceOf(user1.address)
+      expect(actualBalance).to.equal(expectedBalance)
+
+      const calculatedShares = await stakeTogether.sharesByWei(user1DepositAmount - fee)
+      expect(calculatedShares).to.equal(user1Shares)
+    })
+
+    it('should correctly handle deposit with fractional values (round up)', async function () {
+      const user1DepositAmount = ethers.parseEther('10') / 3n
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+
+      const user1Shares = 1n + user1DepositAmount - fee // In this case we have to round up
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await tx1.wait()
+
+      let eventFilter = stakeTogether.filters.UpdateDelegations(user1.address)
+      let logs = await stakeTogether.queryFilter(eventFilter)
+
+      let event = logs[0]
+      const [emittedAddress1, emittedDelegations1] = event.args
+      expect(emittedAddress1).to.equal(user1.address)
+      expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
+      expect(emittedDelegations1[0].shares).to.equal(user1Delegations[0].shares)
+
+      eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
+      logs = await stakeTogether.queryFilter(eventFilter)
+
+      event = logs[0]
+      const [_to, _value, _referral] = event.args
+      expect(_to).to.equal(user1.address)
+      expect(_value).to.equal(user1DepositAmount)
+      expect(_referral).to.equal(referral)
+
+      const expectedBalance = await stakeTogether.weiByShares(user1Shares)
+      const actualBalance = await stakeTogether.balanceOf(user1.address)
+      expect(actualBalance).to.equal(expectedBalance)
+
+      const calculatedShares = await stakeTogether.sharesByWei(user1DepositAmount - fee)
+      expect(calculatedShares).to.equal(user1Shares - 1n)
+      // PS: Shares by wei it's a pure function and have no round up
     })
 
     it('should correctly handle deposit and fail if daily deposit limit is reached', async function () {
