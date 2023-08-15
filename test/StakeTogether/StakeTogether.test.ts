@@ -90,40 +90,130 @@ describe('Stake Together', function () {
     })
   })
 
-  it('should correctly receive Ether', async function () {
-    const initBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+  describe('Rewards', () => {
+    it('should correctly receive Ether', async function () {
+      const initBalance = await ethers.provider.getBalance(stakeTogetherProxy)
 
-    const tx = await user1.sendTransaction({
-      to: stakeTogetherProxy,
-      value: ethers.parseEther('1.0'),
+      const tx = await user1.sendTransaction({
+        to: stakeTogetherProxy,
+        value: ethers.parseEther('1.0'),
+      })
+
+      await tx.wait()
+
+      const finalBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'ReceiveEther')
+        .withArgs(user1.address, ethers.parseEther('1.0'))
     })
 
-    await tx.wait()
+    it('should correctly calculate balance and beaconBalance', async function () {
+      const initialContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
 
-    const finalBalance = await ethers.provider.getBalance(stakeTogetherProxy)
-    expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
+      const initialBeaconBalance = await stakeTogether.beaconBalance()
 
-    await expect(tx)
-      .to.emit(stakeTogether, 'ReceiveEther')
-      .withArgs(user1.address, ethers.parseEther('1.0'))
-  })
+      const depositAmount = ethers.parseEther('1.0')
+      await user1.sendTransaction({
+        to: stakeTogetherProxy,
+        value: depositAmount,
+      })
 
-  it('should correctly calculate balance and beaconBalance', async function () {
-    const initialContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      const expectedTotalSupply = initialContractBalance + depositAmount + initialBeaconBalance
 
-    const initialBeaconBalance = await stakeTogether.beaconBalance()
+      const totalSupply = await stakeTogether.totalSupply()
 
-    const depositAmount = ethers.parseEther('1.0')
-    await user1.sendTransaction({
-      to: stakeTogetherProxy,
-      value: depositAmount,
+      expect(totalSupply).to.equal(expectedTotalSupply)
     })
 
-    const expectedTotalSupply = initialContractBalance + depositAmount + initialBeaconBalance
+    it('should distribute profit equally among three depositors', async function () {
+      const depositAmount = ethers.parseEther('1')
+      const poolAddress = user3.address // Example pool address
 
-    const totalSupply = await stakeTogether.totalSupply()
+      // Adding the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
 
-    expect(totalSupply).to.equal(expectedTotalSupply)
+      // Three users depositing 1 Ether each
+      const users = [user1, user2, user3]
+      let totalFees = 0n
+      const userBalancesBefore = []
+      for (const user of users) {
+        const fee = (depositAmount * 3n) / 1000n
+        totalFees += fee
+        const shares = depositAmount - fee
+        userBalancesBefore.push(shares)
+        const delegations = [{ pool: poolAddress, shares: shares }]
+        await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
+      }
+
+      const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(prevContractBalance).to.equal(ethers.parseEther('3') + 1n) // contract init with 1n
+
+      // Sending 1 Ether profit to the contract
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('1') })
+
+      // Simulating how the profit should be distributed
+      const totalProfit = ethers.parseEther('1') - totalFees / 3n
+      const profitPerUserBase = totalProfit / BigInt(users.length)
+      const hasRemainder = totalProfit % BigInt(users.length) > 0n
+      const profitPerUser = hasRemainder ? profitPerUserBase + 1n : profitPerUserBase
+
+      // Checking the balance of each user
+      for (let i = 0; i < users.length; i++) {
+        const expectedBalance = userBalancesBefore[i] + profitPerUser
+        const actualBalance = await stakeTogether.balanceOf(users[i].address)
+        expect(actualBalance).to.be.equal(expectedBalance)
+      }
+
+      // Total balance in the contract should be 4 Ether + total fees
+      const totalContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(totalContractBalance).to.equal(ethers.parseEther('4') + 1n) // contract init with 1n
+    })
+
+    it.only('should distribute profit equally among two depositors', async function () {
+      const depositAmount = ethers.parseEther('1')
+      const poolAddress = user3.address // Example pool address
+
+      // Adding the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      // Two users depositing 1 Ether each
+      const users = [user1, user2]
+      let totalFees = 0n
+      const userBalancesBefore = []
+      for (const user of users) {
+        const fee = (depositAmount * 3n) / 1000n
+        totalFees += fee
+        const shares = depositAmount - fee
+        userBalancesBefore.push(shares)
+        const delegations = [{ pool: poolAddress, shares: shares }]
+        await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
+      }
+
+      const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(prevContractBalance).to.equal(ethers.parseEther('2') + 1n) // contract init with 1n
+
+      // Sending 1 Ether profit to the contract
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('1') })
+
+      // Simulating how the profit should be distributed
+      const totalProfit = ethers.parseEther('1') - totalFees / 2n
+      const profitPerUserBase = totalProfit / BigInt(users.length)
+      const hasRemainder = totalProfit % BigInt(users.length) > 0n
+      const profitPerUser = hasRemainder ? profitPerUserBase + 1n : profitPerUserBase
+
+      // Checking the balance of each user
+      for (let i = 0; i < users.length; i++) {
+        const expectedBalance = userBalancesBefore[i] + profitPerUser
+        const actualBalance = await stakeTogether.balanceOf(users[i].address)
+        expect(actualBalance).to.be.equal(expectedBalance)
+      }
+
+      // Total balance in the contract should be 3 Ether + total fees
+      const totalContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(totalContractBalance).to.equal(ethers.parseEther('3') + 1n) // contract init with 1n
+    })
   })
 
   describe('Set Configuration', function () {
