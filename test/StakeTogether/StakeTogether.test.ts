@@ -108,6 +108,24 @@ describe('Stake Together', function () {
       .withArgs(user1.address, ethers.parseEther('1.0'))
   })
 
+  it('should correctly calculate balance and beaconBalance', async function () {
+    const initialContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+
+    const initialBeaconBalance = await stakeTogether.beaconBalance()
+
+    const depositAmount = ethers.parseEther('1.0')
+    await user1.sendTransaction({
+      to: stakeTogetherProxy,
+      value: depositAmount,
+    })
+
+    const expectedTotalSupply = initialContractBalance + depositAmount + initialBeaconBalance
+
+    const totalSupply = await stakeTogether.totalSupply()
+
+    expect(totalSupply).to.equal(expectedTotalSupply)
+  })
+
   describe('Set Configuration', function () {
     it('should allow owner to set configuration', async function () {
       const config = {
@@ -177,25 +195,7 @@ describe('Stake Together', function () {
   })
 
   describe('Deposit', function () {
-    it('should correctly calculate balance and beaconBalance', async function () {
-      const initialContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
-
-      const initialBeaconBalance = await stakeTogether.beaconBalance()
-
-      const depositAmount = ethers.parseEther('1.0')
-      await user1.sendTransaction({
-        to: stakeTogetherProxy,
-        value: depositAmount,
-      })
-
-      const expectedTotalSupply = initialContractBalance + depositAmount + initialBeaconBalance
-
-      const totalSupply = await stakeTogether.totalSupply()
-
-      expect(totalSupply).to.equal(expectedTotalSupply)
-    })
-
-    it('should correctly handle deposit', async function () {
+    it('should correctly handle deposit and update delegations for Pool type', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
@@ -221,17 +221,49 @@ describe('Stake Together', function () {
       expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
       expect(emittedDelegations1[0].shares).to.equal(user1Delegations[0].shares)
 
-      eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
+      eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
 
       event = logs[0]
-      const [_to, _value, _referral] = event.args
+      const [_to, _value, _type, _referral] = event.args
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
+      expect(_type).to.equal(1)
       expect(_referral).to.equal(referral)
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
       const actualBalance = await stakeTogether.balanceOf(user1.address)
+      expect(actualBalance).to.equal(expectedBalance)
+
+      const calculatedShares = await stakeTogether.sharesByWei(user1DepositAmount - fee)
+      expect(calculatedShares).to.equal(user1Shares)
+    })
+
+    it('should correctly handle deposit donation', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const toAddress = user2.address
+      const referral = user4.address
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const tx = await stakeTogether
+        .connect(user1)
+        .depositDonation(toAddress, referral, { value: user1DepositAmount })
+      await tx.wait()
+
+      let eventFilter = stakeTogether.filters.DepositBase(toAddress, undefined, undefined, undefined)
+      let logs = await stakeTogether.queryFilter(eventFilter)
+
+      let event = logs[0]
+      const [_to, _value, _type, _referral] = event.args
+      expect(_to).to.equal(toAddress)
+      expect(_value).to.equal(user1DepositAmount)
+      expect(_type).to.equal(0)
+      expect(_referral).to.equal(referral)
+
+      const expectedBalance = await stakeTogether.weiByShares(user1Shares)
+      const actualBalance = await stakeTogether.balanceOf(toAddress)
       expect(actualBalance).to.equal(expectedBalance)
 
       const calculatedShares = await stakeTogether.sharesByWei(user1DepositAmount - fee)
@@ -264,13 +296,14 @@ describe('Stake Together', function () {
       expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
       expect(emittedDelegations1[0].shares).to.equal(user1Delegations[0].shares)
 
-      eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
+      eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
 
       event = logs[0]
-      const [_to, _value, _referral] = event.args
+      const [_to, _value, _type, _referral] = event.args
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
+      expect(_type).to.equal(1)
       expect(_referral).to.equal(referral)
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
@@ -299,13 +332,14 @@ describe('Stake Together', function () {
         .depositPool(user1Delegations, referral, { value: user1DepositAmount })
       await tx1.wait()
 
-      let eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
+      let eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to1, _value1, _referral1] = event.args
+      const [_to1, _value1, _type1, _referral1] = event.args
       expect(_to1).to.equal(user1.address)
       expect(_value1).to.equal(user1DepositAmount)
+      expect(_type1).to.equal(1)
       expect(_referral1).to.equal(referral)
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
@@ -338,13 +372,14 @@ describe('Stake Together', function () {
         .depositPool(user1Delegations, referral, { value: user1DepositAmount })
       await tx1.wait()
 
-      let eventFilter = stakeTogether.filters.DepositPool(user1.address, undefined, undefined)
+      let eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to1, _value1, _referral1] = event.args
+      const [_to1, _value1, _type1, _referral1] = event.args
       expect(_to1).to.equal(user1.address)
       expect(_value1).to.equal(user1DepositAmount)
+      expect(_type1).to.equal(1)
       expect(_referral1).to.equal(referral)
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
@@ -380,13 +415,14 @@ describe('Stake Together', function () {
         .depositPool(user3Delegations, referral, { value: user3DepositAmount })
       await tx3.wait()
 
-      eventFilter = stakeTogether.filters.DepositPool(user3.address, undefined, undefined)
+      eventFilter = stakeTogether.filters.DepositBase(user3.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
 
       event = logs[0]
-      const [_to3, _value3, _referral3] = event.args
+      const [_to3, _value3, _type3, _referral3] = event.args
       expect(_to3).to.equal(user3.address)
       expect(_value3).to.equal(user3DepositAmount)
+      expect(_type3).to.equal(1)
       expect(_referral3).to.equal(referral)
     })
 
@@ -488,18 +524,6 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('MD')
     })
 
-    it('should fail when a delegation has zero shares', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      const user1Delegations = [{ pool: poolAddress, shares: 0 }]
-
-      await expect(
-        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('ZS')
-    })
-
     it('should correctly transfer delegations to another pool', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress1 = user3.address
@@ -568,4 +592,6 @@ describe('Stake Together', function () {
       expect(user1Logs[0].args[1]).to.equal(user1Shares)
     })
   })
+
+  describe('Withdrawals', function () {})
 })

@@ -264,17 +264,19 @@ contract StakeTogether is
    ** STAKE **
    ***********/
 
-  function depositPool(
+  function _depositBase(
+    address _to,
+    DepositType _depositType,
     Delegation[] memory _delegations,
-    address referral
-  ) external payable nonReentrant whenNotPaused {
+    address _referral
+  ) private {
     require(config.feature.Deposit, 'FD');
     require(msg.value >= config.minDepositAmount, 'MD');
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
-      emit DepositLimitReached(msg.sender, msg.value);
+      emit DepositLimitReached(_to, msg.value);
       revert('DLR');
     }
 
@@ -286,7 +288,7 @@ contract StakeTogether is
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
         if (roles[i] == FeeRole.Sender) {
-          _mintShares(msg.sender, _shares[i]);
+          _mintShares(_to, _shares[i]);
         } else {
           _mintRewards(getFeeAddress(roles[i]), 0, _shares[i], FeeType.StakeEntry, roles[i]);
         }
@@ -294,8 +296,23 @@ contract StakeTogether is
     }
 
     totalDeposited += msg.value;
-    emit DepositPool(msg.sender, msg.value, referral);
-    _updateDelegations(msg.sender, _delegations);
+    emit DepositBase(_to, msg.value, _depositType, _referral);
+
+    if (_depositType == DepositType.Pool) {
+      _updateDelegations(_to, _delegations);
+    }
+  }
+
+  function depositPool(
+    Delegation[] memory _delegations,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
+    _depositBase(msg.sender, DepositType.Pool, _delegations, _referral);
+  }
+
+  function depositDonation(address _to, address _referral) external payable nonReentrant whenNotPaused {
+    Delegation[] memory _delegations;
+    _depositBase(_to, DepositType.Donation, _delegations, _referral);
   }
 
   function _withdrawBase(
@@ -395,7 +412,6 @@ contract StakeTogether is
     uint256 delegationShares = 0;
     for (uint i = 0; i < _delegations.length; i++) {
       require(pools[_delegations[i].pool], 'NF');
-      require(_delegations[i].shares > 0, 'ZS');
       delegationShares += _delegations[i].shares;
     }
     require(delegationShares == shares[_account], 'IS');
