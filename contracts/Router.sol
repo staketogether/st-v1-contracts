@@ -312,7 +312,7 @@ contract Router is
     }
 
     if (_report.restWithdrawAmount > 0) {
-      stakeTogether.refundPool{ value: _report.restWithdrawAmount }();
+      stakeTogether.withdrawRefund{ value: _report.restWithdrawAmount }();
     }
 
     if (_report.routerExtraAmount > 0) {

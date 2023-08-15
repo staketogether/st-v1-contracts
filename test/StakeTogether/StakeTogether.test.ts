@@ -171,7 +171,7 @@ describe('Stake Together', function () {
       expect(totalContractBalance).to.equal(ethers.parseEther('4') + 1n) // contract init with 1n
     })
 
-    it.only('should distribute profit equally among two depositors', async function () {
+    it('should distribute profit equally among two depositors', async function () {
       const depositAmount = ethers.parseEther('1')
       const poolAddress = user3.address // Example pool address
 
@@ -947,6 +947,50 @@ describe('Stake Together', function () {
       await expect(stakeTogether.connect(user1).withdrawValidator(withdrawAmount, [])).to.be.revertedWith(
         'FD',
       )
+    })
+
+    // I Need to create a test on create validator to increase beacon balance
+    it.skip('should correctly handle withdrawal as a validator', async function () {
+      // Deposit
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      // Increase beacon balance
+      const airdropAddress = await stakeTogether.getFeeAddress(0)
+
+      const airdropSigner = ethers.provider.getSigner(airdropAddress)
+
+      await connect(stakeTogether, airdropSigner as unknown as HardhatEthersSigner).setBeaconBalance(
+        ethers.parseEther('50'),
+      )
+
+      // Withdraw as Validator
+      const withdrawAmount = ethers.parseEther('40')
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, user1Delegations)
+
+      // Check the balance after withdraw
+      let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
+      expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
+
+      // Check the WithdrawBase event
+      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined)
+      let logs = await stakeTogether.queryFilter(eventFilter)
+      let event = logs[0]
+      const [_from, _value, _withdrawType] = event.args
+
+      expect(_from).to.equal(user1.address)
+      expect(_value).to.equal(withdrawAmount)
+      expect(_withdrawType).to.equal(1) // Assuming the correct enum value is used
     })
   })
 

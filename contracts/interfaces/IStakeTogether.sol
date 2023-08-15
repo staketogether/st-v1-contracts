@@ -86,7 +86,7 @@ interface IStakeTogether {
   );
   event MintShares(address indexed to, uint256 sharesAmount);
   event ReceiveEther(address indexed sender, uint amount);
-  event RefundPool(address indexed sender, uint256 amount);
+
   event RemovePool(address pool);
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey, uint256 receivedAmount);
   event RemoveValidatorOracle(address indexed account);
@@ -101,5 +101,6 @@ interface IStakeTogether {
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
   event UpdateDelegations(address indexed account, Delegation[] delegations);
   event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType);
+  event WithdrawRefund(address indexed sender, uint256 amount);
   event WithdrawalsLimitReached(address indexed sender, uint256 amount);
 }

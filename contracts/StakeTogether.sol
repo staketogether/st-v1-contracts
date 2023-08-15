@@ -247,12 +247,12 @@ contract StakeTogether is
     uint256 _sharesAmount,
     FeeType _feeType,
     FeeRole _feeRole
-  ) public payable {
+  ) public payable nonReentrant {
     require(msg.sender == router, 'OR');
     _mintRewards(_address, msg.value, _sharesAmount, _feeType, _feeRole);
   }
 
-  function claimRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
+  function claimRewards(address _account, uint256 _sharesAmount) external nonReentrant whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA');
     _transferShares(airdropFee, _account, _sharesAmount);
@@ -343,14 +343,14 @@ contract StakeTogether is
     require(_amount <= beaconBalance, 'IB');
     _withdrawBase(_amount, WithdrawType.Validator);
     _updateDelegations(msg.sender, _delegations);
-    beaconBalance -= _amount;
+    _setBeaconBalance(beaconBalance - _amount);
     withdrawals.mint(msg.sender, _amount);
   }
 
-  function refundPool() external payable {
+  function withdrawRefund() external payable {
     require(msg.sender == router, 'OR');
-    beaconBalance -= msg.value;
-    emit RefundPool(msg.sender, msg.value);
+    _setBeaconBalance(beaconBalance - msg.value);
+    emit WithdrawRefund(msg.sender, msg.value);
   }
 
   function _resetLimits() private {
@@ -458,6 +458,10 @@ contract StakeTogether is
 
   function setBeaconBalance(uint256 _amount) external {
     require(msg.sender == address(router), 'OR');
+    _setBeaconBalance(_amount);
+  }
+
+  function _setBeaconBalance(uint256 _amount) private {
     beaconBalance = _amount;
     emit SetBeaconBalance(_amount);
   }
@@ -481,7 +485,7 @@ contract StakeTogether is
       }
     }
 
-    beaconBalance += config.validatorSize;
+    _setBeaconBalance(beaconBalance + config.validatorSize);
     validators[_publicKey] = true;
     totalValidators++;
 
