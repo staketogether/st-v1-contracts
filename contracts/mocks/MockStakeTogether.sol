@@ -61,7 +61,6 @@ contract MockStakeTogether is
 
   mapping(bytes => bool) private validators;
   uint256 private totalValidators;
-  uint256 public validatorSize;
 
   mapping(FeeRole => address payable) private feesRole;
   mapping(FeeType => Fee) private fees;

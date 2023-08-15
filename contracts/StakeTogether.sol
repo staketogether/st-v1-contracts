@@ -61,7 +61,6 @@ contract StakeTogether is
 
   mapping(bytes => bool) private validators;
   uint256 private totalValidators;
-  uint256 public validatorSize;
 
   mapping(FeeRole => address payable) private feesRole;
   mapping(FeeType => Fee) private fees;
@@ -192,7 +191,7 @@ contract StakeTogether is
 
   function _mintShares(address _to, uint256 _sharesAmount) private whenNotPaused {
     require(_to != address(0), 'ZA');
-    shares[_to] = shares[_to] + _sharesAmount;
+    shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
     emit MintShares(_to, _sharesAmount);
   }
@@ -264,12 +263,7 @@ contract StakeTogether is
    ** STAKE **
    ***********/
 
-  function _depositBase(
-    address _to,
-    DepositType _depositType,
-    Delegation[] memory _delegations,
-    address _referral
-  ) private {
+  function _depositBase(address _to, DepositType _depositType, address _referral) private {
     require(config.feature.Deposit, 'FD');
     require(msg.value >= config.minDepositAmount, 'MD');
 
@@ -297,38 +291,30 @@ contract StakeTogether is
 
     totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _referral);
-
-    if (_depositType == DepositType.Pool) {
-      _updateDelegations(_to, _delegations);
-    }
   }
 
   function depositPool(
     Delegation[] memory _delegations,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    _depositBase(msg.sender, DepositType.Pool, _delegations, _referral);
+    _depositBase(msg.sender, DepositType.Pool, _referral);
+    _updateDelegations(msg.sender, _delegations);
   }
 
   function depositDonation(address _to, address _referral) external payable nonReentrant whenNotPaused {
-    Delegation[] memory _delegations;
-    _depositBase(_to, DepositType.Donation, _delegations, _referral);
+    _depositBase(_to, DepositType.Donation, _referral);
   }
 
-  function _withdrawBase(
-    uint256 _amount,
-    WithdrawType _withdrawType,
-    Delegation[] memory _delegations
-  ) private {
+  function _withdrawBase(uint256 _amount, WithdrawType _withdrawType) private {
     require(_amount > 0, 'ZA');
-    require(_amount <= balanceOf(msg.sender), 'IB');
+    require(_amount <= balanceOf(msg.sender), 'IAB');
     require(_amount >= config.minWithdrawAmount, 'MW');
 
     _resetLimits();
 
     if (_amount + totalWithdrawn > config.withdrawalLimit) {
       emit WithdrawalsLimitReached(msg.sender, _amount);
-      revert();
+      revert('WLR');
     }
 
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
@@ -336,7 +322,6 @@ contract StakeTogether is
 
     totalWithdrawn += _amount;
     emit WithdrawBase(msg.sender, _amount, _withdrawType);
-    _updateDelegations(msg.sender, _delegations);
   }
 
   function withdrawPool(
@@ -345,7 +330,8 @@ contract StakeTogether is
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD');
     require(_amount <= address(this).balance, 'IB');
-    _withdrawBase(_amount, WithdrawType.Pool, _delegations);
+    _withdrawBase(_amount, WithdrawType.Pool);
+    _updateDelegations(msg.sender, _delegations);
     payable(msg.sender).transfer(_amount);
   }
 
@@ -355,8 +341,9 @@ contract StakeTogether is
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD');
     require(_amount <= beaconBalance, 'IB');
+    _withdrawBase(_amount, WithdrawType.Validator);
+    _updateDelegations(msg.sender, _delegations);
     beaconBalance -= _amount;
-    _withdrawBase(_amount, WithdrawType.Validator, _delegations);
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -378,7 +365,7 @@ contract StakeTogether is
    ** POOLS **
    ***********/
 
-  function addPool(address _pool, bool _listed) public payable nonReentrant {
+  function addPool(address _pool, bool _listed) external payable nonReentrant {
     require(_pool != address(0), 'ZA');
     require(!pools[_pool], 'PE');
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
@@ -409,13 +396,15 @@ contract StakeTogether is
   }
 
   function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
-    require(_delegations.length <= config.maxDelegations, 'MD');
-    uint256 delegationShares = 0;
-    for (uint i = 0; i < _delegations.length; i++) {
-      require(pools[_delegations[i].pool], 'NF');
-      delegationShares += _delegations[i].shares;
+    if (shares[_account] > 0) {
+      require(_delegations.length <= config.maxDelegations, 'MD');
+      uint256 delegationShares = 0;
+      for (uint i = 0; i < _delegations.length; i++) {
+        require(pools[_delegations[i].pool], 'PNF');
+        delegationShares += _delegations[i].shares;
+      }
+      require(delegationShares == shares[_account], 'IS');
     }
-    require(delegationShares == shares[_account], 'IS');
   }
 
   /***********************
@@ -492,13 +481,13 @@ contract StakeTogether is
       }
     }
 
-    beaconBalance += validatorSize;
+    beaconBalance += config.validatorSize;
     validators[_publicKey] = true;
     totalValidators++;
 
     _nextValidatorOracle();
 
-    deposit.deposit{ value: validatorSize }(
+    deposit.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,
@@ -507,7 +496,7 @@ contract StakeTogether is
 
     emit CreateValidator(
       msg.sender,
-      validatorSize,
+      config.validatorSize,
       _publicKey,
       withdrawalCredentials,
       _signature,

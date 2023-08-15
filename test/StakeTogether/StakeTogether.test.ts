@@ -498,7 +498,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('NF')
+      ).to.be.revertedWith('PNF')
     })
 
     it('should fail when total delegation shares do not match user shares', async function () {
@@ -637,6 +637,169 @@ describe('Stake Together', function () {
       expect(_from).to.equal(user1.address)
       expect(_value).to.equal(withdrawAmount)
       expect(_withdrawType).to.equal(0)
+    })
+
+    it('should revert when trying to withdraw amount of 0', async function () {
+      // Deposit
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      // Withdraw
+      const withdrawAmount = ethers.parseEther('0') // Attempting to withdraw 0
+
+      // Expect a revert with the specific error message
+      await expect(
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
+      ).to.be.revertedWith('ZA')
+    })
+
+    it('should revert when trying to withdraw an amount greater than the balance', async function () {
+      // Deposit
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      // Withdraw an amount greater than the balance
+      const withdrawAmount = ethers.parseEther('101')
+
+      // Expect a revert with the specific error message
+      await expect(
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
+      ).to.be.revertedWith('IB')
+    })
+
+    it('should revert when trying to withdraw an amount less than the minimum ', async function () {
+      // Deposit
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      const withdrawAmount = ethers.parseEther('0.000001')
+
+      const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
+
+      user1Delegations[0].shares -= sharesForWithdrawAmount + 1n // round up
+
+      await expect(
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
+      ).to.be.revertedWith('MW')
+    })
+
+    it('should revert when trying to withdraw an amount that exceeds the limit', async function () {
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.1'),
+        minWithdrawAmount: ethers.parseEther('0.0001'),
+        depositLimit: ethers.parseEther('10000'),
+        withdrawalLimit: ethers.parseEther('1000'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: true,
+          Deposit: true,
+          WithdrawPool: true,
+          WithdrawValidator: true,
+        },
+      }
+
+      // Set config by owner
+      await stakeTogether.connect(owner).setConfig(config)
+
+      // Deposits
+      const depositAmount = ethers.parseEther('1000')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      // Deposit from user1 and user2
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      const fee = (depositAmount * 3n) / 1000n
+      const user1Shares = depositAmount - fee
+      const user2Shares = depositAmount - fee
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user2Delegations = [{ pool: poolAddress, shares: user2Shares }]
+
+      await stakeTogether.connect(user1).depositPool(user1Delegations, referral, { value: depositAmount })
+      await stakeTogether.connect(user2).depositPool(user2Delegations, referral, { value: depositAmount })
+
+      // Calculate shares for the first withdrawal
+      const withdrawAmount = ethers.parseEther('900')
+      const sharesForWithdrawAmount1 = await stakeTogether.sharesByWei(withdrawAmount)
+
+      const user1Delegations1 = [{ pool: poolAddress, shares: user1Shares - sharesForWithdrawAmount1 }]
+      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations1)
+
+      const withdrawAmount2 = ethers.parseEther('900')
+      const sharesForWithdrawAmount2 = await stakeTogether.sharesByWei(withdrawAmount2)
+
+      const user2Delegations1 = [{ pool: poolAddress, shares: user2Shares - sharesForWithdrawAmount2 }]
+
+      // Expect a revert with the specific error message
+      await expect(
+        stakeTogether.connect(user2).withdrawPool(withdrawAmount, user2Delegations1),
+      ).to.be.revertedWith('WLR')
+
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await stakeTogether.connect(user2).withdrawPool(withdrawAmount, user2Delegations1)
+    })
+
+    it('should revert when trying to withdraw an amount greater than the balance', async function () {
+      // Deposit by user1
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      await stakeTogether
+        .connect(user2)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      const withdrawAmount = ethers.parseEther('150')
+
+      await expect(stakeTogether.connect(user1).withdrawPool(withdrawAmount, [])).to.be.revertedWith(
+        'IAB',
+      )
     })
   })
 
