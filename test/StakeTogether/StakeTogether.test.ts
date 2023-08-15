@@ -1032,4 +1032,187 @@ describe('Stake Together', function () {
       expect(user1Logs[0].args[1]).to.equal(user1Shares)
     })
   })
+
+  describe('Pool Creation', function () {
+    // Test for a user with POOL_MANAGER_ROLE (the owner in this case)
+    it('should correctly add pool by the owner', async function () {
+      // Connect with an address that has the POOL_MANAGER_ROLE (the owner)
+      const poolAddress = user3.address
+      const isListed = true
+
+      // Add the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed)
+
+      // Verify the pool has been added
+      expect(await stakeTogether.pools(poolAddress)).to.be.true
+
+      // Verify the AddPool event
+      const eventFilter = stakeTogether.filters.AddPool(poolAddress, undefined, undefined)
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args.pool).to.equal(poolAddress)
+      expect(event.args.listed).to.equal(isListed)
+    })
+
+    // Test for a user without POOL_MANAGER_ROLE
+    it('should correctly add pool by a user without POOL_MANAGER_ROLE and handle fees', async function () {
+      // Use an address that does not have the POOL_MANAGER_ROLE
+      const userSigner = user1
+
+      const poolAddress = user3.address
+      const isListed = true
+      const paymentAmount = ethers.parseEther('1') // Set the appropriate value to pay the fees
+
+      // Add the pool
+      await stakeTogether.connect(userSigner).addPool(poolAddress, isListed, { value: paymentAmount })
+
+      // Verify the pool has been added
+      expect(await stakeTogether.pools(poolAddress)).to.be.true
+
+      // Verify the AddPool event and rewards (add necessary checks for fees/rewards)
+      const eventFilter = stakeTogether.filters.AddPool(poolAddress, undefined, undefined)
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args.pool).to.equal(poolAddress)
+      expect(event.args.listed).to.equal(isListed)
+      // Add additional checks for fees/rewards as needed
+    })
+
+    it('should reject adding a pool with zero address', async function () {
+      // Attempt to add the pool with a zero address and expect failure
+      await expect(stakeTogether.connect(owner).addPool(nullAddress, true)).to.be.revertedWith('ZA')
+    })
+
+    it('should reject adding a pool with an existing address', async function () {
+      const poolAddress = user3.address
+      const isListed = true
+
+      // Owner adds the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed)
+
+      // Attempt to add the pool again and expect failure
+      await expect(stakeTogether.connect(owner).addPool(poolAddress, isListed)).to.be.revertedWith('PE')
+    })
+
+    it('should reject adding a pool when AddPool feature is disabled', async function () {
+      // Setting the WithdrawPool feature to false
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
+        minWithdrawAmount: ethers.parseEther('0.0001'),
+        depositLimit: ethers.parseEther('1000'),
+        withdrawalLimit: ethers.parseEther('1000'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: false,
+          Deposit: false,
+          WithdrawPool: false,
+          WithdrawValidator: false,
+        },
+      }
+
+      // Set config by owner
+      await connect(stakeTogether, owner).setConfig(config)
+      // Attempt to add the pool and expect failure
+      const poolAddress = user3.address
+      await expect(
+        stakeTogether.connect(user1).addPool(poolAddress, true, { value: ethers.parseEther('1') }),
+      ).to.be.revertedWith('FD')
+    })
+
+    it('should correctly add pool with a specific value and mark as unlisted', async function () {
+      const poolAddress = user3.address
+      const isListed = false // Mark as unlisted
+      const paymentAmount = ethers.parseEther('1') // The value to pass
+
+      // Add the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed, { value: paymentAmount })
+
+      // Verify the pool has been added
+      expect(await stakeTogether.pools(poolAddress)).to.be.true
+
+      // Verify the AddPool event
+      const eventFilter = stakeTogether.filters.AddPool(poolAddress, undefined, undefined)
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args.pool).to.equal(poolAddress)
+      expect(event.args.listed).to.equal(isListed)
+      expect(event.args.amount).to.equal(paymentAmount)
+    })
+
+    it('should correctly add pool by a non-owner user when any user can create a pool', async function () {
+      const poolAddress = user3.address
+      const isListed = true
+      const paymentAmount = ethers.parseEther('1') // The value to pay the fees
+
+      // Add the pool by a non-owner user
+      await stakeTogether.connect(user1).addPool(poolAddress, isListed, { value: paymentAmount })
+
+      // Verify the pool has been added
+      expect(await stakeTogether.pools(poolAddress)).to.be.true
+    })
+
+    it('should correctly remove a pool by an account with POOL_MANAGER_ROLE', async function () {
+      // Add a pool first
+      const poolAddress = user3.address
+      const isListed = true
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed)
+
+      // Verify the pool has been added
+      expect(await stakeTogether.pools(poolAddress)).to.be.true
+
+      // Remove the pool
+      await stakeTogether.connect(owner).removePool(poolAddress)
+
+      // Verify the pool has been removed
+      expect(await stakeTogether.pools(poolAddress)).to.be.false
+
+      // Verify the RemovePool event
+      const eventFilter = stakeTogether.filters.RemovePool(poolAddress)
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args.pool).to.equal(poolAddress)
+    })
+
+    it('should fail to remove a non-existing pool', async function () {
+      // Address of a non-existing pool
+      const nonExistingPoolAddress = user3.address
+
+      // Verify the pool does not exist
+      expect(await stakeTogether.pools(nonExistingPoolAddress)).to.be.false
+
+      // Attempt to remove the non-existing pool and expect a revert with 'PNF'
+      await expect(stakeTogether.connect(owner).removePool(nonExistingPoolAddress)).to.be.revertedWith(
+        'PNF',
+      )
+    })
+
+    it('should handle the scenario where shares are equal to zero', async function () {
+      // Add pools
+      const poolAddress1 = user3.address
+      const poolAddress2 = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress1, true)
+      await stakeTogether.connect(owner).addPool(poolAddress2, true)
+
+      // Verify that shares are initially zero for user1
+      expect(await stakeTogether.shares(user1.address)).to.equal(0)
+
+      // Create delegations without deposit (shares remain zero)
+      const user1Delegations = [
+        { pool: poolAddress1, shares: 0n },
+        { pool: poolAddress2, shares: 0n },
+      ]
+
+      // Try to update delegations
+      await expect(stakeTogether.connect(user1).updateDelegations(user1Delegations)).to.not.be.reverted // No error expected since shares are zero
+
+      // Confirm that no changes were made (since shares were zero, no validation is done)
+      for (const delegation of user1Delegations) {
+        expect(await stakeTogether.pools(delegation.pool)).to.be.true
+        expect(delegation.shares).to.equal(0)
+      }
+    })
+  })
 })

@@ -160,7 +160,7 @@ export async function deployStakeTogether(
     blocksPerDay: 7200n,
     maxDelegations: 64n,
     feature: {
-      AddPool: true,
+      AddPool: false,
       Deposit: true,
       WithdrawPool: true,
       WithdrawValidator: true,

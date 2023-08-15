@@ -54,7 +54,7 @@ contract StakeTogether is
   uint256 public totalDeposited;
   uint256 public totalWithdrawn;
 
-  mapping(address => bool) private pools;
+  mapping(address => bool) public pools;
 
   address[] private validatorOracles;
   uint256 public currentOracleIndex;
@@ -381,7 +381,7 @@ contract StakeTogether is
   }
 
   function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
-    require(pools[_pool], 'NF');
+    require(pools[_pool], 'PNF');
     pools[_pool] = false;
     emit RemovePool(_pool);
   }

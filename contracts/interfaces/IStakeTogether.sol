@@ -63,13 +63,13 @@ interface IStakeTogether {
     Sender
   }
 
-  event AddPool(address pool, bool listed, uint256 amount);
+  event AddPool(address indexed pool, bool listed, uint256 amount);
   event AddValidatorOracle(address indexed account);
   event BurnShares(address indexed account, uint256 sharesAmount);
   event ClaimRewards(address indexed account, uint256 sharesAmount);
   event CreateValidator(
     address indexed creator,
-    uint256 indexed amount,
+    uint256 amount,
     bytes publicKey,
     bytes withdrawalCredentials,
     bytes signature,
@@ -87,15 +87,15 @@ interface IStakeTogether {
   event MintShares(address indexed to, uint256 sharesAmount);
   event ReceiveEther(address indexed sender, uint amount);
 
-  event RemovePool(address pool);
+  event RemovePool(address indexed pool);
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey, uint256 receivedAmount);
   event RemoveValidatorOracle(address indexed account);
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);
   event SetFee(FeeType indexed feeType, uint256 value, FeeMath mathType, uint256[] allocations);
   event SetFeeAddress(FeeRole indexed role, address indexed account);
-  event SetRouter(address router);
-  event SetStakeTogether(address stakeTogether);
+  event SetRouter(address indexed router);
+  event SetStakeTogether(address indexed stakeTogether);
   event SetValidatorSize(uint256 newValidatorSize);
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
   event TransferShares(address indexed from, address indexed to, uint256 sharesAmount);
