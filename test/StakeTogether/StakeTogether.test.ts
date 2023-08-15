@@ -558,45 +558,6 @@ describe('Stake Together', function () {
     })
   })
 
-  describe('Fees', function () {
-    it('should correctly distribute the fee among roles and mint shares accordingly', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
-
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
-
-      const totalShares = await stakeTogether.totalShares()
-      expect(totalShares).to.equal(user1DepositAmount + 1n)
-
-      const airdropAddress = await stakeTogether.getFeeAddress(0)
-      const stakeTogetherAddress = await stakeTogether.getFeeAddress(2)
-
-      const airdropFilter = stakeTogether.filters.MintShares(airdropAddress)
-      const stakeTogetherFilter = stakeTogether.filters.MintShares(stakeTogetherAddress)
-      const user1Filter = stakeTogether.filters.MintShares(user1.address)
-
-      const airdropLogs = await stakeTogether.queryFilter(airdropFilter)
-      const stakeTogetherLogs = await stakeTogether.queryFilter(stakeTogetherFilter)
-      const user1Logs = await stakeTogether.queryFilter(user1Filter)
-
-      expect(airdropLogs.length).to.equal(1)
-      expect(stakeTogetherLogs.length).to.equal(1)
-      expect(user1Logs.length).to.equal(1)
-
-      expect(airdropLogs[0].args[1]).to.equal((fee * 60n) / 100n)
-      expect(stakeTogetherLogs[0].args[1]).to.equal((fee * 40n) / 100n)
-      expect(user1Logs[0].args[1]).to.equal(user1Shares)
-    })
-  })
-
   describe('Withdrawals', function () {
     it('should correctly handle deposit and withdraw from pool', async function () {
       // Deposit
@@ -676,6 +637,45 @@ describe('Stake Together', function () {
       expect(_from).to.equal(user1.address)
       expect(_value).to.equal(withdrawAmount)
       expect(_withdrawType).to.equal(0)
+    })
+  })
+
+  describe('Fees', function () {
+    it('should correctly distribute the fee among roles and mint shares accordingly', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
+
+      const totalShares = await stakeTogether.totalShares()
+      expect(totalShares).to.equal(user1DepositAmount + 1n)
+
+      const airdropAddress = await stakeTogether.getFeeAddress(0)
+      const stakeTogetherAddress = await stakeTogether.getFeeAddress(2)
+
+      const airdropFilter = stakeTogether.filters.MintShares(airdropAddress)
+      const stakeTogetherFilter = stakeTogether.filters.MintShares(stakeTogetherAddress)
+      const user1Filter = stakeTogether.filters.MintShares(user1.address)
+
+      const airdropLogs = await stakeTogether.queryFilter(airdropFilter)
+      const stakeTogetherLogs = await stakeTogether.queryFilter(stakeTogetherFilter)
+      const user1Logs = await stakeTogether.queryFilter(user1Filter)
+
+      expect(airdropLogs.length).to.equal(1)
+      expect(stakeTogetherLogs.length).to.equal(1)
+      expect(user1Logs.length).to.equal(1)
+
+      expect(airdropLogs[0].args[1]).to.equal((fee * 60n) / 100n)
+      expect(stakeTogetherLogs[0].args[1]).to.equal((fee * 40n) / 100n)
+      expect(user1Logs[0].args[1]).to.equal(user1Shares)
     })
   })
 })
