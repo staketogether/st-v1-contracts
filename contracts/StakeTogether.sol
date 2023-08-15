@@ -307,12 +307,10 @@ contract StakeTogether is
     Delegation[] memory _delegations,
     address _referral
   ) external payable nonReentrant whenNotPaused {
-    require(config.feature.Deposit, 'FD');
     _depositBase(msg.sender, DepositType.Pool, _delegations, _referral);
   }
 
   function depositDonation(address _to, address _referral) external payable nonReentrant whenNotPaused {
-    require(config.feature.Deposit, 'FD');
     Delegation[] memory _delegations;
     _depositBase(_to, DepositType.Donation, _delegations, _referral);
   }
