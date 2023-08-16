@@ -32,9 +32,9 @@ contract StakeTogether is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
+  bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE');
+  bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE');
+  bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE');
 
   uint256 public version;
 
@@ -56,7 +56,7 @@ contract StakeTogether is
 
   mapping(address => bool) public pools;
 
-  address[] private validatorOracles;
+  address[] private validatorsOracle;
   uint256 public currentOracleIndex;
 
   mapping(bytes => bool) private validators;
@@ -83,6 +83,7 @@ contract StakeTogether is
     __ERC20Permit_init('Stake Together Pool');
     __UUPSUpgradeable_init();
 
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(UPGRADER_ROLE, msg.sender);
     _grantRole(POOL_MANAGER_ROLE, msg.sender);
@@ -408,48 +409,52 @@ contract StakeTogether is
   }
 
   /***********************
-   ** VALIDATOR ORACLES **
+   ** VALIDATORS ORACLE **
    ***********************/
 
-  function addValidatorOracle(address _oracleAddress) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
-    _grantRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
-    validatorOracles.push(_oracleAddress);
+  function getValidatorsOracle() external view returns (address[] memory) {
+    return validatorsOracle;
+  }
+
+  function addValidatorOracle(address _oracleAddress) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
+    _grantRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
+    validatorsOracle.push(_oracleAddress);
     emit AddValidatorOracle(_oracleAddress);
   }
 
   function removeValidatorOracle(
     address _oracleAddress
-  ) external onlyRole(ORACLE_VALIDATOR_MANAGER_ROLE) {
-    _revokeRole(ORACLE_VALIDATOR_ROLE, _oracleAddress);
-    for (uint256 i = 0; i < validatorOracles.length; i++) {
-      if (validatorOracles[i] == _oracleAddress) {
-        validatorOracles[i] = validatorOracles[validatorOracles.length - 1];
-        validatorOracles.pop();
+  ) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
+    _revokeRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
+    for (uint256 i = 0; i < validatorsOracle.length; i++) {
+      if (validatorsOracle[i] == _oracleAddress) {
+        validatorsOracle[i] = validatorsOracle[validatorsOracle.length - 1];
+        validatorsOracle.pop();
         break;
       }
     }
     emit RemoveValidatorOracle(_oracleAddress);
   }
 
-  function forceNextValidatorOracle() external onlyRole(ORACLE_VALIDATOR_SENTINEL_ROLE) {
+  function isValidatorOracle(address _oracleAddress) public view returns (bool) {
+    return
+      hasRole(VALIDATOR_ORACLE_ROLE, _oracleAddress) &&
+      validatorsOracle[currentOracleIndex] == _oracleAddress;
+  }
+
+  function forceNextValidatorOracle() external onlyRole(VALIDATOR_ORACLE_SENTINEL_ROLE) {
     require(
-      hasRole(ORACLE_VALIDATOR_SENTINEL_ROLE, msg.sender) ||
-        hasRole(ORACLE_VALIDATOR_MANAGER_ROLE, msg.sender),
+      hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) ||
+        hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender),
       'NA'
     );
-    require(validatorOracles.length > 0, 'NV');
+    require(validatorsOracle.length > 0, 'NV');
     _nextValidatorOracle();
   }
 
-  function isValidatorOracle(address _oracleAddress) public view returns (bool) {
-    return
-      hasRole(ORACLE_VALIDATOR_ROLE, _oracleAddress) &&
-      validatorOracles[currentOracleIndex] == _oracleAddress;
-  }
-
   function _nextValidatorOracle() private {
-    require(validatorOracles.length > 1, 'NV');
-    currentOracleIndex = (currentOracleIndex + 1) % validatorOracles.length;
+    require(validatorsOracle.length > 1, 'NV');
+    currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
   }
 
   /****************

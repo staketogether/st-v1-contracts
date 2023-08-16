@@ -255,6 +255,9 @@ export async function stakeTogetherFixture() {
 
   const UPGRADER_ROLE = await stakeTogether.stakeTogetherContract.UPGRADER_ROLE()
   const ADMIN_ROLE = await stakeTogether.stakeTogetherContract.ADMIN_ROLE()
+  const VALIDATOR_ORACLE_ROLE = await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_ROLE()
+  const VALIDATOR_ORACLE_MANAGER_ROLE =
+    await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_MANAGER_ROLE()
 
   return {
     provider,
@@ -274,5 +277,7 @@ export async function stakeTogetherFixture() {
     mockStakeTogetherProxy: mockStakeTogetherProxy,
     UPGRADER_ROLE,
     ADMIN_ROLE,
+    VALIDATOR_ORACLE_ROLE,
+    VALIDATOR_ORACLE_MANAGER_ROLE,
   }
 }

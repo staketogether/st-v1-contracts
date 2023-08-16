@@ -25,6 +25,8 @@ describe('Stake Together', function () {
   let user8: HardhatEthersSigner
   let nullAddress: string
   let ADMIN_ROLE: string
+  let VALIDATOR_ORACLE_MANAGER_ROLE: string
+  let VALIDATOR_ORACLE_ROLE: string
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -44,6 +46,8 @@ describe('Stake Together', function () {
     user8 = fixture.user8
     nullAddress = fixture.nullAddress
     ADMIN_ROLE = fixture.ADMIN_ROLE
+    VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
+    VALIDATOR_ORACLE_ROLE = fixture.VALIDATOR_ORACLE_ROLE
   })
 
   describe('Upgrade', () => {
@@ -1213,6 +1217,44 @@ describe('Stake Together', function () {
         expect(await stakeTogether.pools(delegation.pool)).to.be.true
         expect(delegation.shares).to.equal(0)
       }
+    })
+  })
+
+  describe('VALIDATORS', function () {
+    it('should grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin, add an oracle', async function () {
+      // Verify that admin doesn't have the VALIDATOR_ORACLE_MANAGER_ROLE
+      expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, user6)).to.be.false
+
+      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin (owner) using ADMIN_ROLE
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, user6)
+
+      // Verify that admin now has the VALIDATOR_ORACLE_MANAGER_ROLE
+      expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, user6)).to.be.true
+
+      const newOracleAddress = user3.address
+
+      // Connect with an address that has the VALIDATOR_ORACLE_MANAGER_ROLE (now admin)
+      await connect(stakeTogether, user6).addValidatorOracle(newOracleAddress)
+
+      // Verify that the oracle address has been granted the VALIDATOR_ORACLE_ROLE
+      expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_ROLE, newOracleAddress)).to.be.true
+
+      // Verify that the oracle address has been added
+      const oracles = await stakeTogether.getValidatorsOracle()
+      expect(oracles.includes(newOracleAddress)).to.be.true
+
+      // Verify the AddValidatorOracle event
+      const eventFilter = stakeTogether.filters.AddValidatorOracle(newOracleAddress)
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args.account).to.equal(newOracleAddress)
+    })
+
+    it('should revert if called by an address without VALIDATOR_ORACLE_MANAGER_ROLE', async function () {
+      const newOracleAddress = user3.address
+
+      // Use an address that does not have the VALIDATOR_ORACLE_MANAGER_ROLE
+      await expect(stakeTogether.connect(user1).addValidatorOracle(newOracleAddress)).to.be.reverted
     })
   })
 })

@@ -32,9 +32,9 @@ contract MockStakeTogether is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_ROLE = keccak256('ORACLE_VALIDATOR_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_MANAGER_ROLE = keccak256('ORACLE_VALIDATOR_MANAGER_ROLE');
-  bytes32 public constant ORACLE_VALIDATOR_SENTINEL_ROLE = keccak256('ORACLE_VALIDATOR_SENTINEL_ROLE');
+  bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE');
+  bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE');
+  bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE');
 
   uint256 public version;
 
@@ -56,7 +56,7 @@ contract MockStakeTogether is
 
   mapping(address => bool) private pools;
 
-  address[] private validatorOracles;
+  address[] private validatorsOracle;
   uint256 public currentOracleIndex;
 
   mapping(bytes => bool) private validators;
