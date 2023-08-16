@@ -422,7 +422,7 @@ contract StakeTogether is
   function addValidatorOracle(address _oracleAddress) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
     _grantRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
     validatorsOracle.push(_oracleAddress);
-    validatorsOracleIndices[_oracleAddress] = validatorsOracle.length; // Adicionando o índice + 1
+    validatorsOracleIndices[_oracleAddress] = validatorsOracle.length;
     emit AddValidatorOracle(_oracleAddress);
   }
 
