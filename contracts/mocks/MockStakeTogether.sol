@@ -57,6 +57,7 @@ contract MockStakeTogether is
   mapping(address => bool) private pools;
 
   address[] private validatorsOracle;
+  mapping(address => uint256) public validatorsOracleIndices;
   uint256 public currentOracleIndex;
 
   mapping(bytes => bool) private validators;

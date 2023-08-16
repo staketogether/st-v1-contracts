@@ -57,6 +57,7 @@ contract StakeTogether is
   mapping(address => bool) public pools;
 
   address[] private validatorsOracle;
+  mapping(address => uint256) public validatorsOracleIndices;
   uint256 public currentOracleIndex;
 
   mapping(bytes => bool) private validators;
@@ -96,6 +97,8 @@ contract StakeTogether is
     withdrawalCredentials = _withdrawalCredentials;
 
     beaconBalance = 0;
+
+    currentOracleIndex = 0;
 
     totalShares = 0;
 
@@ -419,20 +422,28 @@ contract StakeTogether is
   function addValidatorOracle(address _oracleAddress) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
     _grantRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
     validatorsOracle.push(_oracleAddress);
+    validatorsOracleIndices[_oracleAddress] = validatorsOracle.length; // Adicionando o índice + 1
     emit AddValidatorOracle(_oracleAddress);
   }
 
   function removeValidatorOracle(
     address _oracleAddress
   ) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    _revokeRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
-    for (uint256 i = 0; i < validatorsOracle.length; i++) {
-      if (validatorsOracle[i] == _oracleAddress) {
-        validatorsOracle[i] = validatorsOracle[validatorsOracle.length - 1];
-        validatorsOracle.pop();
-        break;
-      }
+    require(validatorsOracleIndices[_oracleAddress] > 0, 'NF');
+
+    uint256 index = validatorsOracleIndices[_oracleAddress] - 1;
+
+    if (index < validatorsOracle.length - 1) {
+      address lastAddress = validatorsOracle[validatorsOracle.length - 1];
+      validatorsOracle[index] = lastAddress;
+      validatorsOracleIndices[lastAddress] = index + 1;
     }
+
+    validatorsOracle.pop();
+
+    delete validatorsOracleIndices[_oracleAddress];
+    _revokeRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
+
     emit RemoveValidatorOracle(_oracleAddress);
   }
 
@@ -442,13 +453,12 @@ contract StakeTogether is
       validatorsOracle[currentOracleIndex] == _oracleAddress;
   }
 
-  function forceNextValidatorOracle() external onlyRole(VALIDATOR_ORACLE_SENTINEL_ROLE) {
+  function forceNextValidatorOracle() external {
     require(
       hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) ||
         hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender),
       'NA'
     );
-    require(validatorsOracle.length > 0, 'NV');
     _nextValidatorOracle();
   }
 

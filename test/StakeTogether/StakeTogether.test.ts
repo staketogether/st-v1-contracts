@@ -27,6 +27,7 @@ describe('Stake Together', function () {
   let ADMIN_ROLE: string
   let VALIDATOR_ORACLE_MANAGER_ROLE: string
   let VALIDATOR_ORACLE_ROLE: string
+  let VALIDATOR_ORACLE_SENTINEL_ROLE: string
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -48,6 +49,7 @@ describe('Stake Together', function () {
     ADMIN_ROLE = fixture.ADMIN_ROLE
     VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
     VALIDATOR_ORACLE_ROLE = fixture.VALIDATOR_ORACLE_ROLE
+    VALIDATOR_ORACLE_SENTINEL_ROLE = fixture.VALIDATOR_ORACLE_SENTINEL_ROLE
   })
 
   describe('Upgrade', () => {
@@ -1220,7 +1222,7 @@ describe('Stake Together', function () {
     })
   })
 
-  describe('VALIDATORS', function () {
+  describe('Validators', function () {
     it('should grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin, add an oracle', async function () {
       // Verify that admin doesn't have the VALIDATOR_ORACLE_MANAGER_ROLE
       expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, user6)).to.be.false
@@ -1255,6 +1257,150 @@ describe('Stake Together', function () {
 
       // Use an address that does not have the VALIDATOR_ORACLE_MANAGER_ROLE
       await expect(stakeTogether.connect(user1).addValidatorOracle(newOracleAddress)).to.be.reverted
+    })
+
+    it('should remove an oracle address when called by manager ', async function () {
+      const newOracleAddress1 = user3.address
+      const newOracleAddress2 = user4.address
+
+      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner.address)
+
+      // Add the oracle addresses (ensure they exist first)
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress2)
+
+      // Verify that the oracle addresses have been added
+      let oracles = await stakeTogether.getValidatorsOracle()
+      expect(oracles.includes(newOracleAddress1)).to.be.true
+      expect(oracles.includes(newOracleAddress2)).to.be.true
+
+      // Now, remove the first oracle address
+      await stakeTogether.connect(owner).removeValidatorOracle(newOracleAddress1)
+
+      // Verify that the first oracle address has been removed
+      oracles = await stakeTogether.getValidatorsOracle()
+      expect(oracles.includes(newOracleAddress1)).to.be.false
+
+      // Verify that the second oracle address still exists
+      expect(oracles.includes(newOracleAddress2)).to.be.true
+
+      // Verify that the oracle address has been revoked the VALIDATOR_ORACLE_ROLE
+      expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_ROLE, newOracleAddress1)).to.be.false
+
+      // Verify the RemoveValidatorOracle event
+      const eventFilter = stakeTogether.filters.RemoveValidatorOracle(newOracleAddress1)
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args.account).to.equal(newOracleAddress1)
+    })
+
+    it('should revert if trying to remove a non-existing oracle address', async function () {
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner.address)
+
+      const nonExistingOracleAddress = user5.address
+
+      await expect(
+        stakeTogether.connect(owner).removeValidatorOracle(nonExistingOracleAddress),
+      ).to.be.revertedWith('NF')
+    })
+
+    it('should correctly remove an oracle address that is not the last in the list', async function () {
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner.address)
+
+      const oracleAddress1 = user3.address
+      const oracleAddress2 = user4.address
+      const oracleAddress3 = user5.address
+
+      await stakeTogether.connect(owner).addValidatorOracle(oracleAddress1)
+      await stakeTogether.connect(owner).addValidatorOracle(oracleAddress2)
+      await stakeTogether.connect(owner).addValidatorOracle(oracleAddress3)
+
+      let oracles = await stakeTogether.getValidatorsOracle()
+      expect(oracles).to.deep.equal([oracleAddress1, oracleAddress2, oracleAddress3])
+
+      await stakeTogether.connect(owner).removeValidatorOracle(oracleAddress2)
+
+      oracles = await stakeTogether.getValidatorsOracle()
+
+      expect(oracles).to.deep.equal([oracleAddress1, oracleAddress3])
+    })
+
+    it('should return false if the address is not a validator oracle', async function () {
+      const nonOracleAddress = user4.address
+
+      // Verify that the address is not a validator oracle
+      expect(await stakeTogether.isValidatorOracle(nonOracleAddress)).to.be.false
+    })
+
+    it('should return true if the address is validator oracle', async function () {
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner.address)
+
+      const newOracleAddress1 = user3.address
+
+      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner.address)
+
+      // Add the oracle addresses (ensure they exist first)
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
+
+      // Verify that the address is not a validator oracle
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
+    })
+
+    it('should advance the current oracle index when called by sentinel or manager', async function () {
+      const sentinel = user5
+      const newOracleAddress1 = user3.address
+      const newOracleAddress2 = user4.address
+
+      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+
+      // Grant the VALIDATOR_ORACLE_SENTINEL_ROLE to sentinel
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_SENTINEL_ROLE, sentinel)
+
+      // Add the oracle addresses
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress2)
+
+      // Check the initial current oracle index
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
+
+      // Force the next validator oracle using the sentinel role
+      await stakeTogether.connect(sentinel).forceNextValidatorOracle()
+
+      // Check that the current oracle index has advanced
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress2)).to.be.true
+
+      // Force the next validator oracle using the sentinel role
+      await stakeTogether.connect(owner).forceNextValidatorOracle()
+
+      // Check that the current oracle index has advanced
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
+    })
+
+    it('should revert if called by an address without role ', async function () {
+      const unauthorizedAddress = user1
+
+      // Attempt to force the next validator oracle using an unauthorized address
+      await expect(stakeTogether.connect(unauthorizedAddress).forceNextValidatorOracle()).to.be.reverted
+    })
+
+    it('should revert when trying to advance the current oracle index ', async function () {
+      const sentinel = user5
+      const newOracleAddress1 = user3.address
+
+      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+
+      // Grant the VALIDATOR_ORACLE_SENTINEL_ROLE to sentinel
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_SENTINEL_ROLE, sentinel)
+
+      // Add a single oracle address
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
+
+      // Trying to force the next validator oracle using the sentinel role should revert
+      await expect(stakeTogether.connect(sentinel).forceNextValidatorOracle()).to.be.revertedWith('NV')
     })
   })
 })
