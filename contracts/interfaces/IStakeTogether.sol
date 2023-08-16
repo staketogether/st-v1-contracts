@@ -85,8 +85,8 @@ interface IStakeTogether {
     FeeRole feeRole
   );
   event MintShares(address indexed to, uint256 sharesAmount);
+  event NextValidatorOracle(uint256 index, address indexed account);
   event ReceiveEther(address indexed sender, uint amount);
-
   event RemovePool(address indexed pool);
   event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey, uint256 receivedAmount);
   event RemoveValidatorOracle(address indexed account);

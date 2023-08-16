@@ -443,7 +443,6 @@ contract StakeTogether is
 
     delete validatorsOracleIndices[_oracleAddress];
     _revokeRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
-
     emit RemoveValidatorOracle(_oracleAddress);
   }
 
@@ -463,8 +462,8 @@ contract StakeTogether is
   }
 
   function _nextValidatorOracle() private {
-    require(validatorsOracle.length > 1, 'NV');
     currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
+    emit NextValidatorOracle(currentOracleIndex, validatorsOracle[currentOracleIndex]);
   }
 
   /****************

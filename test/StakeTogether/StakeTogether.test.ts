@@ -1367,16 +1367,22 @@ describe('Stake Together', function () {
       expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
 
       // Force the next validator oracle using the sentinel role
-      await stakeTogether.connect(sentinel).forceNextValidatorOracle()
+      const tx1 = await stakeTogether.connect(sentinel).forceNextValidatorOracle()
 
       // Check that the current oracle index has advanced
       expect(await stakeTogether.isValidatorOracle(newOracleAddress2)).to.be.true
 
+      // Check the NextValidatorOracle event
+      await expect(tx1).to.emit(stakeTogether, 'NextValidatorOracle').withArgs(1, newOracleAddress2)
+
       // Force the next validator oracle using the sentinel role
-      await stakeTogether.connect(owner).forceNextValidatorOracle()
+      const tx2 = await stakeTogether.connect(owner).forceNextValidatorOracle()
 
       // Check that the current oracle index has advanced
       expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
+
+      // Check the NextValidatorOracle event
+      await expect(tx2).to.emit(stakeTogether, 'NextValidatorOracle').withArgs(0, newOracleAddress1)
     })
 
     it('should revert if called by an address without role ', async function () {
@@ -1384,23 +1390,6 @@ describe('Stake Together', function () {
 
       // Attempt to force the next validator oracle using an unauthorized address
       await expect(stakeTogether.connect(unauthorizedAddress).forceNextValidatorOracle()).to.be.reverted
-    })
-
-    it('should revert when trying to advance the current oracle index ', async function () {
-      const sentinel = user5
-      const newOracleAddress1 = user3.address
-
-      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin
-      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
-
-      // Grant the VALIDATOR_ORACLE_SENTINEL_ROLE to sentinel
-      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_SENTINEL_ROLE, sentinel)
-
-      // Add a single oracle address
-      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
-
-      // Trying to force the next validator oracle using the sentinel role should revert
-      await expect(stakeTogether.connect(sentinel).forceNextValidatorOracle()).to.be.revertedWith('NV')
     })
   })
 })
