@@ -40,7 +40,7 @@ contract StakeTogether is
 
   address public router;
   Withdrawals public withdrawals;
-  IDepositContract public deposit;
+  IDepositContract public depositContract;
 
   bytes public withdrawalCredentials;
   uint256 public beaconBalance;
@@ -74,7 +74,7 @@ contract StakeTogether is
   function initialize(
     address _router,
     address _withdrawals,
-    address _deposit,
+    address _depositContract,
     bytes memory _withdrawalCredentials
   ) public initializer {
     __ERC20_init('Stake Together Pool', 'stpETH');
@@ -93,7 +93,7 @@ contract StakeTogether is
 
     router = _router;
     withdrawals = Withdrawals(payable(_withdrawals));
-    deposit = IDepositContract(_deposit);
+    depositContract = IDepositContract(_depositContract);
     withdrawalCredentials = _withdrawalCredentials;
 
     totalShares = 0;
@@ -497,7 +497,7 @@ contract StakeTogether is
 
     _nextValidatorOracle();
 
-    deposit.deposit{ value: config.validatorSize }(
+    depositContract.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,

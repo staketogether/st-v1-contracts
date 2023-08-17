@@ -40,7 +40,7 @@ contract MockStakeTogether is
 
   address public router;
   Withdrawals public withdrawals;
-  IDepositContract public deposit;
+  IDepositContract public depositContract;
 
   bytes public withdrawalCredentials;
   uint256 public beaconBalance;
