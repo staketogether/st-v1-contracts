@@ -1222,7 +1222,7 @@ describe('Stake Together', function () {
     })
   })
 
-  describe('Validators', function () {
+  describe('Validators Oracle', function () {
     it('should grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin, add an oracle', async function () {
       // Verify that admin doesn't have the VALIDATOR_ORACLE_MANAGER_ROLE
       expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, user6)).to.be.false
@@ -1242,8 +1242,7 @@ describe('Stake Together', function () {
       expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_ROLE, newOracleAddress)).to.be.true
 
       // Verify that the oracle address has been added
-      const oracles = await stakeTogether.getValidatorsOracle()
-      expect(oracles.includes(newOracleAddress)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress)).to.be.true
 
       // Verify the AddValidatorOracle event
       const eventFilter = stakeTogether.filters.AddValidatorOracle(newOracleAddress)
@@ -1259,6 +1258,27 @@ describe('Stake Together', function () {
       await expect(stakeTogether.connect(user1).addValidatorOracle(newOracleAddress)).to.be.reverted
     })
 
+    it('should add three oracle validators and they should be present', async function () {
+      const newOracleAddress1 = user3.address
+      const newOracleAddress2 = user4.address
+      const newOracleAddress3 = user5.address
+
+      // Grant the VALIDATOR_ORACLE_MANAGER_ROLE to admin
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner.address)
+
+      // Add the oracle addresses
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress2)
+      await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress3)
+
+      // Verify that the oracle addresses were added
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress2)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress3)).to.be.true
+
+      // Optionally, you can also check the total number of oracle validators if that's something your contract keeps track of
+    })
+
     it('should remove an oracle address when called by manager ', async function () {
       const newOracleAddress1 = user3.address
       const newOracleAddress2 = user4.address
@@ -1270,20 +1290,14 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress1)
       await stakeTogether.connect(owner).addValidatorOracle(newOracleAddress2)
 
-      // Verify that the oracle addresses have been added
-      let oracles = await stakeTogether.getValidatorsOracle()
-      expect(oracles.includes(newOracleAddress1)).to.be.true
-      expect(oracles.includes(newOracleAddress2)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress2)).to.be.true
 
       // Now, remove the first oracle address
       await stakeTogether.connect(owner).removeValidatorOracle(newOracleAddress1)
 
-      // Verify that the first oracle address has been removed
-      oracles = await stakeTogether.getValidatorsOracle()
-      expect(oracles.includes(newOracleAddress1)).to.be.false
-
-      // Verify that the second oracle address still exists
-      expect(oracles.includes(newOracleAddress2)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress1)).to.be.false
+      expect(await stakeTogether.isValidatorOracle(newOracleAddress2)).to.be.true
 
       // Verify that the oracle address has been revoked the VALIDATOR_ORACLE_ROLE
       expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_ROLE, newOracleAddress1)).to.be.false
@@ -1316,14 +1330,17 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addValidatorOracle(oracleAddress2)
       await stakeTogether.connect(owner).addValidatorOracle(oracleAddress3)
 
-      let oracles = await stakeTogether.getValidatorsOracle()
-      expect(oracles).to.deep.equal([oracleAddress1, oracleAddress2, oracleAddress3])
-
       await stakeTogether.connect(owner).removeValidatorOracle(oracleAddress2)
 
-      oracles = await stakeTogether.getValidatorsOracle()
+      expect(await stakeTogether.isValidatorOracle(oracleAddress1)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(oracleAddress2)).to.be.false
+      expect(await stakeTogether.isValidatorOracle(oracleAddress3)).to.be.true
 
-      expect(oracles).to.deep.equal([oracleAddress1, oracleAddress3])
+      await stakeTogether.connect(owner).removeValidatorOracle(oracleAddress3)
+
+      expect(await stakeTogether.isValidatorOracle(oracleAddress1)).to.be.true
+      expect(await stakeTogether.isValidatorOracle(oracleAddress2)).to.be.false
+      expect(await stakeTogether.isValidatorOracle(oracleAddress3)).to.be.false
     })
 
     it('should return false if the address is not a validator oracle', async function () {
@@ -1390,6 +1407,48 @@ describe('Stake Together', function () {
 
       // Attempt to force the next validator oracle using an unauthorized address
       await expect(stakeTogether.connect(unauthorizedAddress).forceNextValidatorOracle()).to.be.reverted
+    })
+  })
+
+  describe('Validators', () => {
+    it('should create a new validator', async function () {
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+
+      const poolSize = ethers.parseEther('32.1')
+      const validatorSize = ethers.parseEther('32')
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
+
+      const tx = await stakeTogether
+        .connect(oracle)
+        .createValidator(publicKey, signature, depositDataRoot)
+
+      const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'CreateValidator')
+        .withArgs(
+          oracle.address,
+          validatorSize,
+          publicKey,
+          withdrawalCredentials,
+          signature,
+          depositDataRoot,
+        )
+
+      const beaconBalance = await stakeTogether.beaconBalance()
+      expect(beaconBalance).to.equal(validatorSize)
+
+      expect(await stakeTogether.validators(publicKey)).to.be.true
+      expect(await stakeTogether.totalValidators()).to.equal(1n)
     })
   })
 })
