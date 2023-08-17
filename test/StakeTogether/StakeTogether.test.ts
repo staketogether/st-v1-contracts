@@ -1601,4 +1601,104 @@ describe('Stake Together', function () {
       await expect(stakeTogether.connect(user1).setBeaconBalance(beaconBalance)).to.be.revertedWith('OR')
     })
   })
+
+  describe('Fees', function () {
+    it('should only allow admin to set fee', async function () {
+      const feeValue = ethers.parseEther('0.05')
+      const allocations = [250000, 250000, 250000, 250000]
+      await expect(stakeTogether.connect(user1).setFee(0, feeValue, 0, allocations)).to.be.reverted
+    })
+
+    it('should require allocations length to be 4', async function () {
+      const feeValue = ethers.parseEther('0.05')
+      const allocations = [250000, 250000, 250000, 250000]
+      await expect(stakeTogether.connect(owner).setFee(1, feeValue, 1, [250000])).to.be.revertedWith('IL')
+    })
+
+    it('should require sum of allocations to be 1 ether', async function () {
+      const feeValue = ethers.parseEther('0.05')
+      const allocations = [250000, 250000, 250000, 250000]
+      await expect(
+        stakeTogether.connect(owner).setFee(2, feeValue, 0, [250000, 250000, 250000, 300000]),
+      ).to.be.revertedWith('SI')
+    })
+
+    it('should successfully set fee for StakeValidator (index 3)', async function () {
+      const feeValue = ethers.parseEther('0.1')
+      const allocations = [
+        ethers.parseEther('0.25'),
+        ethers.parseEther('0.25'),
+        ethers.parseEther('0.25'),
+        ethers.parseEther('0.25'),
+      ]
+
+      const feeType = 3
+
+      const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, 0, allocations)
+
+      await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, 0, allocations)
+
+      const [_sharesFixed, _amountsFixed] = await stakeTogether.estimateFeeFixed(feeType)
+
+      await stakeTogether.connect(owner).setFee(feeType, feeValue, 1, allocations)
+
+      const [_sharesPercentage, _amountsPercentage] = await stakeTogether.estimateFeePercentage(
+        feeType,
+        feeValue,
+      )
+    })
+
+    describe('Revert', function () {
+      beforeEach(async function () {
+        // Configurando as taxas como fornecido
+        await stakeTogether.setFee(0n, ethers.parseEther('0.003'), 1n, [
+          ethers.parseEther('0.6'),
+          0n,
+          ethers.parseEther('0.4'),
+          0n,
+        ])
+        await stakeTogether.setFee(1n, ethers.parseEther('0.09'), 1n, [
+          ethers.parseEther('0.33'),
+          ethers.parseEther('0.33'),
+          ethers.parseEther('0.34'),
+          0n,
+        ])
+        await stakeTogether.setFee(2n, ethers.parseEther('1'), 0n, [
+          ethers.parseEther('0.4'),
+          0n,
+          ethers.parseEther('0.6'),
+          0n,
+        ])
+        await stakeTogether.setFee(3n, ethers.parseEther('0.01'), 0n, [
+          0n,
+          0n,
+          ethers.parseEther('1'),
+          0n,
+        ])
+      })
+
+      it('should revert when calling estimateFeePercentage which is FIXED', async function () {
+        await expect(stakeTogether.estimateFeePercentage(2, ethers.parseEther('0.1'))).to.be.reverted
+      })
+
+      it('should revert when calling estimateFeeFixed which is PERCENTAGE', async function () {
+        await expect(stakeTogether.estimateFeeFixed(1)).to.be.reverted
+      })
+
+      it('should revert if any fee address is zero', async function () {
+        await stakeTogether.setFeeAddress(0, nullAddress)
+
+        await stakeTogether.setFee(0n, ethers.parseEther('0.003'), 1n, [
+          ethers.parseEther('0.6'),
+          0n,
+          ethers.parseEther('0.4'),
+          0n,
+        ])
+
+        await expect(stakeTogether.estimateFeePercentage(0, ethers.parseEther('0.1'))).to.be.revertedWith(
+          'ZA',
+        )
+      })
+    })
+  })
 })
