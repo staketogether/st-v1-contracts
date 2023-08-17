@@ -1115,6 +1115,35 @@ describe('Stake Together', function () {
       expect(await withdrawals.balanceOf(user1.address)).to.equal(withdrawAmount)
     })
 
+    it('should not allow withdrawal greater than beacon balance', async function () {
+      const beaconBalanceBefore = ethers.parseEther('50')
+      await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
+
+      const poolAddress = user3.address
+
+      const depositAmount = ethers.parseEther('100')
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const sharesAmount = await stakeTogether.sharesByWei(depositAmount)
+      const sharesFee = (sharesAmount * 3n) / 1000n
+
+      const delegationShares = sharesAmount - sharesFee
+
+      const delegations = [{ pool: poolAddress, shares: delegationShares }]
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(delegations, poolAddress, { value: depositAmount })
+      await tx1.wait()
+
+      const withdrawAmount = ethers.parseEther('60')
+
+      await expect(
+        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations),
+      ).to.be.revertedWith('IB')
+    })
+
     it('should allow the router to withdraw a refund', async function () {
       const beaconBalance = ethers.parseEther('10')
       await mockRouter.connect(owner).setBeaconBalance(beaconBalance)
@@ -1757,7 +1786,6 @@ describe('Stake Together', function () {
 
     describe('Revert', function () {
       beforeEach(async function () {
-        // Configurando as taxas como fornecido
         await stakeTogether.setFee(0n, ethers.parseEther('0.003'), 1n, [
           ethers.parseEther('0.6'),
           0n,
