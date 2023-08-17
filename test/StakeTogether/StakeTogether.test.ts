@@ -38,6 +38,7 @@ describe('Stake Together', function () {
   let VALIDATOR_ORACLE_MANAGER_ROLE: string
   let VALIDATOR_ORACLE_ROLE: string
   let VALIDATOR_ORACLE_SENTINEL_ROLE: string
+  let initialBalance: bigint
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -48,6 +49,8 @@ describe('Stake Together', function () {
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
     mockRouter = fixture.mockRouter as unknown as MockRouter
     mockRouterProxy = fixture.mockRouterProxy
+    withdrawals = fixture.withdrawals
+    withdrawalsProxy = fixture.withdrawalsProxy
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -62,6 +65,7 @@ describe('Stake Together', function () {
     VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
     VALIDATOR_ORACLE_ROLE = fixture.VALIDATOR_ORACLE_ROLE
     VALIDATOR_ORACLE_SENTINEL_ROLE = fixture.VALIDATOR_ORACLE_SENTINEL_ROLE
+    initialBalance = await ethers.provider.getBalance(stakeTogetherProxy)
   })
 
   describe('Upgrade', () => {
@@ -189,7 +193,7 @@ describe('Stake Together', function () {
       expect(totalContractBalance).to.equal(ethers.parseEther('4') + 1n) // contract init with 1n
     })
 
-    it('should distribute profit equally among two depositors', async function () {
+    it.only('should distribute profit equally among two depositors', async function () {
       const depositAmount = ethers.parseEther('1')
       const poolAddress = user3.address // Example pool address
 
@@ -206,11 +210,12 @@ describe('Stake Together', function () {
         const shares = depositAmount - fee
         userBalancesBefore.push(shares)
         const delegations = [{ pool: poolAddress, shares: shares }]
+        console.log('depositAmount', depositAmount)
         await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
       }
 
       const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
-      expect(prevContractBalance).to.equal(ethers.parseEther('2') + 1n) // contract init with 1n
+      expect(prevContractBalance).to.equal(ethers.parseEther('2') + initialBalance) // contract init with 1n
 
       // Sending 1 Ether profit to the contract
       await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('1') })
@@ -220,6 +225,7 @@ describe('Stake Together', function () {
       const profitPerUserBase = totalProfit / BigInt(users.length)
       const hasRemainder = totalProfit % BigInt(users.length) > 0n
       const profitPerUser = hasRemainder ? profitPerUserBase + 1n : profitPerUserBase
+      // Todo: CHECK PROFIT PER USER 1 ETHER
 
       // Checking the balance of each user
       for (let i = 0; i < users.length; i++) {
@@ -994,26 +1000,36 @@ describe('Stake Together', function () {
       )
     })
 
-    it.only('should correctly handle withdrawal as a validator', async function () {
-      const beaconBalanceBefore = ethers.parseEther('20')
+    it('should correctly handle withdrawal as a validator', async function () {
+      const beaconBalanceBefore = ethers.parseEther('1000000') // Test points base
       await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
 
-      console.log('beaconBalance', await stakeTogether.beaconBalance())
-      console.log('totalShares', await stakeTogether.totalShares())
-      console.log('totalSupply', await stakeTogether.totalSupply())
-      console.log('contract balance', await ethers.provider.getBalance(stakeTogetherProxy))
+      // console.log('beaconBalance', await stakeTogether.beaconBalance())
+      // console.log('totalShares', await stakeTogether.totalShares())
+      // console.log('totalSupply', await stakeTogether.totalSupply())
+      // console.log('contract balance', await ethers.provider.getBalance(stakeTogetherProxy))
 
-      const depositAmount = ethers.parseEther('1')
+      const depositAmount = ethers.parseEther('2')
       const poolAddress = user3.address
       const referral = user4.address
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
-      const fee = (depositAmount * 3n) / 1000n
-      const delegationShares = depositAmount - fee
+      const sharesAmount = await stakeTogether.sharesByWei(depositAmount)
+      const sharesFee = (sharesAmount * 3n) / 1000n
+
+      const feeAmount = await stakeTogether.weiByShares(sharesFee)
+
+      // console.log('sharesAmount', sharesAmount)
+      // console.log('sharesFee', sharesFee)
+
+      const delegationShares = sharesAmount - sharesFee
+
+      // console.log('delegationShares', delegationShares)
+
       const delegations = [{ pool: poolAddress, shares: delegationShares }]
 
-      console.log('depositAmount', depositAmount)
-      console.log('delegations', delegations)
+      // console.log('depositAmount', depositAmount)
+      // console.log('delegations', delegations)
       const tx1 = await stakeTogether
         .connect(user1)
         .depositPool(delegations, referral, { value: depositAmount })
@@ -1042,56 +1058,62 @@ describe('Stake Together', function () {
       eventFilter = stakeTogether.filters.MintShares()
       logs = await stakeTogether.queryFilter(eventFilter)
 
-      console.log('MINT_SHARES', logs[0].args)
+      // console.log('MINT_SHARES', logs[0].args)
 
       eventFilter = stakeTogether.filters.MintRewards()
       logs = await stakeTogether.queryFilter(eventFilter)
 
-      console.log('MINT_REWARDS_1', logs)
+      // console.log('MINT_REWARDS_1', logs)
 
-      // console.log('MINT_REWARDS_1', logs[0].args)
-      // console.log('MINT_REWARDS_2', logs[1].args)
-      // console.log('MINT_REWARDS_3', logs[2].args)
-      // console.log('MINT_REWARDS_4', logs[3].args)
+      let userShares = await stakeTogether.shares(user1)
+      // console.log('userShares', userShares)
 
-      const userShares = await stakeTogether.shares(user1)
-      console.log('userShares', userShares)
+      let userBalance = await stakeTogether.balanceOf(user1)
+      // console.log('userBalance', userBalance)
 
-      const userBalance = await stakeTogether.balanceOf(user1)
-      console.log('userBalance', userBalance)
+      // Withdraw as Validator
+      const withdrawAmount = ethers.parseEther('1')
+      const withdrawShares = await stakeTogether.sharesByWei(withdrawAmount)
+      const delegationShares2 = userShares - withdrawShares
 
-      // expect(actualBalance).to.equal(expectedBalance)
+      const withdrawDelegations = [{ pool: poolAddress, shares: delegationShares2 }]
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, withdrawDelegations)
 
-      // // Withdraw as Validator
-      // const withdrawAmount = ethers.parseEther('10')
-      // const userShares = await stakeTogether.shares(user1)
-      // const withdrawShares = await stakeTogether.sharesByWei(withdrawAmount)
-      // const withdrawDelegations = [{ pool: poolAddress, shares: userShares - withdrawShares }]
-      // await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, withdrawDelegations)
+      userShares = await stakeTogether.shares(user1)
+      // console.log('userShares', userShares)
 
-      // // Check the balance after withdraw
-      // const expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
-      // expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
+      userBalance = await stakeTogether.balanceOf(user1)
+      // console.log('userBalance', userBalance)
 
-      // // Check the WithdrawBase event
-      // const withdrawEventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined)
-      // const withdrawLogs = await stakeTogether.queryFilter(withdrawEventFilter)
-      // const withdrawEvent = withdrawLogs[0]
-      // const [_from, _value, _withdrawType] = withdrawEvent.args
+      // Check the balance after withdraw
+      const expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
+      expect(expectedBalanceAfterWithdraw).to.equal(depositAmount - withdrawAmount - feeAmount + 1n)
 
-      // expect(_from).to.equal(user1.address)
-      // expect(_value).to.equal(withdrawAmount)
-      // expect(_withdrawType).to.equal(1) // Assuming the correct enum value is used
+      // Check the WithdrawBase event
+      const withdrawEventFilter = stakeTogether.filters.WithdrawBase()
+      const withdrawLogs = await stakeTogether.queryFilter(withdrawEventFilter)
 
-      // // Check the DelegationUpdated event
-      // const delegationEventFilter = stakeTogether.filters.UpdateDelegations(user1.address, undefined)
-      // const delegationLogs = await stakeTogether.queryFilter(delegationEventFilter)
-      // const delegationEvent = delegationLogs[0]
-      // const [emittedAddress, emittedDelegations] = delegationEvent.args
+      // console.log('withdrawLogs', withdrawLogs[0])
 
-      // expect(emittedAddress).to.equal(user1.address)
-      // expect(emittedDelegations[0].pool).to.equal(poolAddress)
-      // expect(emittedDelegations[0].shares).to.equal(userShares - withdrawShares)
+      const withdrawEvent = withdrawLogs[0]
+      const [_from, _amount, _withdrawType] = withdrawEvent.args
+
+      expect(withdrawLogs[0].args.account).to.equal(user1.address)
+      expect(withdrawLogs[0].args.amount).to.equal(withdrawAmount)
+      expect(withdrawLogs[0].args.withdrawType).to.equal(1)
+
+      // Check the DelegationUpdated event
+      const delegationEventFilter = stakeTogether.filters.UpdateDelegations()
+      const delegationLogs = await stakeTogether.queryFilter(delegationEventFilter)
+      const delegationEvent = delegationLogs[1]
+      const [emittedAddress, emittedDelegations] = delegationEvent.args
+
+      expect(emittedAddress).to.equal(user1.address)
+      expect(emittedDelegations[0].pool).to.equal(poolAddress)
+      expect(emittedDelegations[0].shares).to.equal(delegationShares2)
+
+      expect(await withdrawals.totalSupply()).to.equal(withdrawAmount)
+      expect(await withdrawals.balanceOf(user1.address)).to.equal(withdrawAmount)
     })
 
     it('should allow the router to withdraw a refund', async function () {

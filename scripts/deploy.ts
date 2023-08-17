@@ -201,7 +201,7 @@ export async function deployStakeTogether(
     0n,
   ])
 
-  await owner.sendTransaction({ to: proxyAddress, value: 1n })
+  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
