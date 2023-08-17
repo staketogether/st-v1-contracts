@@ -23,7 +23,7 @@ interface IRouter {
     ValidatorOracle[] validatorsToExit; // Validators that should exit
     bytes[] exitedValidators; // Validators that already exited
     uint256 withdrawAmount; // Amount of ETH to send to WETH contract
-    uint256 restWithdrawAmount; // Rest withdrawal validator amount
+    uint256 withdrawRefundAmount; // Rest withdrawal validator amount
     uint256 routerExtraAmount; // Extra money on this contract
   }
 

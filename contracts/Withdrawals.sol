@@ -64,7 +64,7 @@ contract Withdrawals is
 
   receive() external payable {
     emit ReceiveEther(msg.sender, msg.value);
-    _refundExtraAmount();
+    _transferExtraAmount();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -104,11 +104,11 @@ contract Withdrawals is
     return address(this).balance >= _amount;
   }
 
-  function _refundExtraAmount() private {
+  function _transferExtraAmount() private {
     uint256 _supply = totalSupply();
     if (address(this).balance > _supply) {
       uint256 extraAmount = address(this).balance - _supply;
-      stakeTogether.withdrawRefund{ value: extraAmount }();
+      payable(address(stakeTogether)).transfer(extraAmount);
     }
   }
 }

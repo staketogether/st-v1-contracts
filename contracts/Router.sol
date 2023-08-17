@@ -306,14 +306,16 @@ contract Router is
       }
     }
 
-    airdrop.addAirdropMerkleRoot(_report.epoch, _report.merkleRoot);
+    if (_report.merkleRoot != bytes32(0)) {
+      airdrop.addAirdropMerkleRoot(_report.epoch, _report.merkleRoot);
+    }
 
     if (_report.withdrawAmount > 0) {
       payable(address(withdrawals)).transfer(_report.withdrawAmount);
     }
 
-    if (_report.restWithdrawAmount > 0) {
-      stakeTogether.withdrawRefund{ value: _report.restWithdrawAmount }();
+    if (_report.withdrawRefundAmount > 0) {
+      stakeTogether.withdrawRefund{ value: _report.withdrawRefundAmount }();
     }
 
     if (_report.routerExtraAmount > 0) {

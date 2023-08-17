@@ -124,4 +124,8 @@ contract MockRouter is
   function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
     stakeTogether.removeValidator(_epoch, _publicKey);
   }
+
+  function withdrawRefund() external payable {
+    stakeTogether.withdrawRefund{ value: msg.value }();
+  }
 }
