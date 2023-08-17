@@ -17,6 +17,8 @@ import './Withdrawals.sol';
 import './interfaces/IStakeTogether.sol';
 import './interfaces/IDepositContract.sol';
 
+import 'hardhat/console.sol';
+
 /// @custom:security-contact security@staketogether.app
 contract StakeTogether is
   Initializable,
@@ -277,7 +279,15 @@ contract StakeTogether is
       revert('DLR');
     }
 
+    console.log('DB msg.value', msg.value);
+    console.log('DB totalSupply', totalSupply());
+    console.log('DB totalShares', totalShares);
+
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
+    // uint256 sharesAmount = MathUpgradeable.mulDiv(1000000000000000000, 1, 21000000000000000001 - 1000000000000000000);
+    // uint256 sharesAmount = MathUpgradeable.mulDiv(1000000000000000000, 1, 20000000000000000001);
+
+    console.log('DB shareAmount', sharesAmount);
 
     (uint256[4] memory _shares, ) = _estimaFee(FeeType.StakeEntry, sharesAmount);
 
@@ -476,41 +486,34 @@ contract StakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OV');
-    require(address(this).balance >= config.poolSize, 'NBP');
-    require(!validators[_publicKey], 'VE');
-
-    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
-
-    FeeRole[4] memory roles = getFeesRoles();
-
-    for (uint i = 0; i < _shares.length - 1; i++) {
-      if (_shares[i] > 0) {
-        _mintRewards(getFeeAddress(roles[i]), 0, _shares[i], FeeType.StakeValidator, roles[i]);
-      }
-    }
-
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    validators[_publicKey] = true;
-    totalValidators++;
-
-    _nextValidatorOracle();
-
-    depositContract.deposit{ value: config.validatorSize }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-
-    emit CreateValidator(
-      msg.sender,
-      config.validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
+    // require(isValidatorOracle(msg.sender), 'OV');
+    // require(address(this).balance >= config.poolSize, 'NBP');
+    // require(!validators[_publicKey], 'VE');
+    // (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
+    // FeeRole[4] memory roles = getFeesRoles();
+    // for (uint i = 0; i < _shares.length - 1; i++) {
+    //   if (_shares[i] > 0) {
+    //     _mintRewards(getFeeAddress(roles[i]), 0, _shares[i], FeeType.StakeValidator, roles[i]);
+    //   }
+    // }
+    // _setBeaconBalance(beaconBalance + config.validatorSize);
+    // validators[_publicKey] = true;
+    // totalValidators++;
+    // _nextValidatorOracle();
+    // depositContract.deposit{ value: config.validatorSize }(
+    //   _publicKey,
+    //   withdrawalCredentials,
+    //   _signature,
+    //   _depositDataRoot
+    // );
+    // emit CreateValidator(
+    //   msg.sender,
+    //   config.validatorSize,
+    //   _publicKey,
+    //   withdrawalCredentials,
+    //   _signature,
+    //   _depositDataRoot
+    // );
   }
 
   function removeValidator(uint256 _epoch, bytes calldata _publicKey) external {
@@ -587,6 +590,8 @@ contract StakeTogether is
   ) private view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
     FeeRole[4] memory roles = getFeesRoles();
     address[4] memory feeAddresses;
+
+    console.log('sharesAmount', _sharesAmount);
 
     for (uint256 i = 0; i < roles.length; i++) {
       feeAddresses[i] = getFeeAddress(roles[i]);

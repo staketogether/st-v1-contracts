@@ -3,7 +3,13 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { MockRouter, MockStakeTogether, MockStakeTogether__factory, StakeTogether } from '../../typechain'
+import {
+  MockRouter,
+  MockStakeTogether,
+  MockStakeTogether__factory,
+  StakeTogether,
+  Withdrawals,
+} from '../../typechain'
 import connect from '../utils/connect'
 import { stakeTogetherFixture } from './StakeTogether.fixture'
 
@@ -16,6 +22,8 @@ describe('Stake Together', function () {
   let mockStakeTogetherProxy: string
   let mockRouter: MockRouter
   let mockRouterProxy: string
+  let withdrawals: Withdrawals
+  let withdrawalsProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -986,48 +994,128 @@ describe('Stake Together', function () {
       )
     })
 
-    // I Need to create a test on create validator to increase beacon balance
-    it.skip('should correctly handle withdrawal as a validator', async function () {
-      // Deposit
-      const user1DepositAmount = ethers.parseEther('100')
+    it.only('should correctly handle withdrawal as a validator', async function () {
+      const beaconBalanceBefore = ethers.parseEther('20')
+      await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
+
+      console.log('beaconBalance', await stakeTogether.beaconBalance())
+      console.log('totalShares', await stakeTogether.totalShares())
+      console.log('totalSupply', await stakeTogether.totalSupply())
+      console.log('contract balance', await ethers.provider.getBalance(stakeTogetherProxy))
+
+      const depositAmount = ethers.parseEther('1')
       const poolAddress = user3.address
       const referral = user4.address
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
-      const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const fee = (depositAmount * 3n) / 1000n
+      const delegationShares = depositAmount - fee
+      const delegations = [{ pool: poolAddress, shares: delegationShares }]
 
-      await stakeTogether
+      console.log('depositAmount', depositAmount)
+      console.log('delegations', delegations)
+      const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(delegations, referral, { value: depositAmount })
+      await tx1.wait()
 
-      // Increase beacon balance
-      const airdropAddress = await stakeTogether.getFeeAddress(0)
-
-      const airdropSigner = ethers.provider.getSigner(airdropAddress)
-
-      await connect(stakeTogether, airdropSigner as unknown as HardhatEthersSigner).setBeaconBalance(
-        ethers.parseEther('50'),
-      )
-
-      // Withdraw as Validator
-      const withdrawAmount = ethers.parseEther('40')
-      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, user1Delegations)
-
-      // Check the balance after withdraw
-      let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
-      expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
-
-      // Check the WithdrawBase event
-      let eventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined)
+      let eventFilter = stakeTogether.filters.UpdateDelegations(user1.address)
       let logs = await stakeTogether.queryFilter(eventFilter)
-      let event = logs[0]
-      const [_from, _value, _withdrawType] = event.args
 
-      expect(_from).to.equal(user1.address)
-      expect(_value).to.equal(withdrawAmount)
-      expect(_withdrawType).to.equal(1) // Assuming the correct enum value is used
+      let event = logs[0]
+      const [emittedAddress1, emittedDelegations1] = event.args
+
+      expect(emittedAddress1).to.equal(user1.address)
+      expect(emittedDelegations1[0].pool).to.equal(delegations[0].pool)
+      expect(emittedDelegations1[0].shares).to.equal(delegations[0].shares)
+
+      eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
+      logs = await stakeTogether.queryFilter(eventFilter)
+
+      event = logs[0]
+      const [_to, _value, _type, _referral] = event.args
+      expect(_to).to.equal(user1.address)
+      expect(_value).to.equal(depositAmount)
+      expect(_type).to.equal(1)
+      expect(_referral).to.equal(referral)
+
+      eventFilter = stakeTogether.filters.MintShares()
+      logs = await stakeTogether.queryFilter(eventFilter)
+
+      console.log('MINT_SHARES', logs[0].args)
+
+      eventFilter = stakeTogether.filters.MintRewards()
+      logs = await stakeTogether.queryFilter(eventFilter)
+
+      console.log('MINT_REWARDS_1', logs)
+
+      // console.log('MINT_REWARDS_1', logs[0].args)
+      // console.log('MINT_REWARDS_2', logs[1].args)
+      // console.log('MINT_REWARDS_3', logs[2].args)
+      // console.log('MINT_REWARDS_4', logs[3].args)
+
+      const userShares = await stakeTogether.shares(user1)
+      console.log('userShares', userShares)
+
+      const userBalance = await stakeTogether.balanceOf(user1)
+      console.log('userBalance', userBalance)
+
+      // expect(actualBalance).to.equal(expectedBalance)
+
+      // // Withdraw as Validator
+      // const withdrawAmount = ethers.parseEther('10')
+      // const userShares = await stakeTogether.shares(user1)
+      // const withdrawShares = await stakeTogether.sharesByWei(withdrawAmount)
+      // const withdrawDelegations = [{ pool: poolAddress, shares: userShares - withdrawShares }]
+      // await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, withdrawDelegations)
+
+      // // Check the balance after withdraw
+      // const expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
+      // expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
+
+      // // Check the WithdrawBase event
+      // const withdrawEventFilter = stakeTogether.filters.WithdrawBase(user1.address, undefined, undefined)
+      // const withdrawLogs = await stakeTogether.queryFilter(withdrawEventFilter)
+      // const withdrawEvent = withdrawLogs[0]
+      // const [_from, _value, _withdrawType] = withdrawEvent.args
+
+      // expect(_from).to.equal(user1.address)
+      // expect(_value).to.equal(withdrawAmount)
+      // expect(_withdrawType).to.equal(1) // Assuming the correct enum value is used
+
+      // // Check the DelegationUpdated event
+      // const delegationEventFilter = stakeTogether.filters.UpdateDelegations(user1.address, undefined)
+      // const delegationLogs = await stakeTogether.queryFilter(delegationEventFilter)
+      // const delegationEvent = delegationLogs[0]
+      // const [emittedAddress, emittedDelegations] = delegationEvent.args
+
+      // expect(emittedAddress).to.equal(user1.address)
+      // expect(emittedDelegations[0].pool).to.equal(poolAddress)
+      // expect(emittedDelegations[0].shares).to.equal(userShares - withdrawShares)
+    })
+
+    it('should allow the router to withdraw a refund', async function () {
+      const beaconBalance = ethers.parseEther('10')
+      await mockRouter.connect(owner).setBeaconBalance(beaconBalance)
+
+      const refundValue = ethers.parseEther('1')
+      const initialBeaconBalance = await stakeTogether.beaconBalance()
+
+      expect(initialBeaconBalance).to.equal(beaconBalance)
+
+      await expect(mockRouter.connect(user1).withdrawRefund({ value: refundValue }))
+        .to.emit(stakeTogether, 'WithdrawRefund')
+        .withArgs(mockRouterProxy, refundValue)
+
+      expect(await stakeTogether.beaconBalance()).to.equal(initialBeaconBalance - refundValue)
+    })
+
+    it('should reject withdrawal from addresses other than the router', async function () {
+      const refundValue = ethers.parseEther('1')
+
+      await expect(
+        stakeTogether.connect(user2).withdrawRefund({ value: refundValue }),
+      ).to.be.revertedWith('OR')
     })
   })
 

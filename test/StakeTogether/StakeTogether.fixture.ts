@@ -287,6 +287,8 @@ export async function stakeTogetherFixture() {
     mockStakeTogetherProxy: mockStakeTogetherProxy,
     mockRouter: router.routerContract,
     mockRouterProxy: router.proxyAddress,
+    withdrawals: withdrawals.withdrawalsContract,
+    withdrawalsProxy: withdrawals.proxyAddress,
     UPGRADER_ROLE,
     ADMIN_ROLE,
     VALIDATOR_ORACLE_ROLE,
