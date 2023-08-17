@@ -57,11 +57,11 @@ contract StakeTogether is
   mapping(address => bool) public pools;
 
   address[] private validatorsOracle;
-  mapping(address => uint256) public validatorsOracleIndices;
+  mapping(address => uint256) private validatorsOracleIndices;
   uint256 public currentOracleIndex;
 
-  mapping(bytes => bool) private validators;
-  uint256 private totalValidators;
+  mapping(bytes => bool) public validators;
+  uint256 public totalValidators;
 
   mapping(FeeRole => address payable) private feesRole;
   mapping(FeeType => Fee) private fees;
@@ -96,11 +96,10 @@ contract StakeTogether is
     deposit = IDepositContract(_deposit);
     withdrawalCredentials = _withdrawalCredentials;
 
-    beaconBalance = 0;
-
-    currentOracleIndex = 0;
-
     totalShares = 0;
+    totalValidators = 0;
+    beaconBalance = 0;
+    currentOracleIndex = 0;
 
     _mintShares(address(this), 1);
   }
@@ -415,23 +414,17 @@ contract StakeTogether is
    ** VALIDATORS ORACLE **
    ***********************/
 
-  function getValidatorsOracle() external view returns (address[] memory) {
-    return validatorsOracle;
+  function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
+    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
+    validatorsOracle.push(_account);
+    validatorsOracleIndices[_account] = validatorsOracle.length;
+    emit AddValidatorOracle(_account);
   }
 
-  function addValidatorOracle(address _oracleAddress) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    _grantRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
-    validatorsOracle.push(_oracleAddress);
-    validatorsOracleIndices[_oracleAddress] = validatorsOracle.length;
-    emit AddValidatorOracle(_oracleAddress);
-  }
+  function removeValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
+    require(validatorsOracleIndices[_account] > 0, 'NF');
 
-  function removeValidatorOracle(
-    address _oracleAddress
-  ) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    require(validatorsOracleIndices[_oracleAddress] > 0, 'NF');
-
-    uint256 index = validatorsOracleIndices[_oracleAddress] - 1;
+    uint256 index = validatorsOracleIndices[_account] - 1;
 
     if (index < validatorsOracle.length - 1) {
       address lastAddress = validatorsOracle[validatorsOracle.length - 1];
@@ -441,15 +434,13 @@ contract StakeTogether is
 
     validatorsOracle.pop();
 
-    delete validatorsOracleIndices[_oracleAddress];
-    _revokeRole(VALIDATOR_ORACLE_ROLE, _oracleAddress);
-    emit RemoveValidatorOracle(_oracleAddress);
+    delete validatorsOracleIndices[_account];
+    _revokeRole(VALIDATOR_ORACLE_ROLE, _account);
+    emit RemoveValidatorOracle(_account);
   }
 
-  function isValidatorOracle(address _oracleAddress) public view returns (bool) {
-    return
-      hasRole(VALIDATOR_ORACLE_ROLE, _oracleAddress) &&
-      validatorsOracle[currentOracleIndex] == _oracleAddress;
+  function isValidatorOracle(address _account) public view returns (bool) {
+    return hasRole(VALIDATOR_ORACLE_ROLE, _account) && validatorsOracleIndices[_account] > 0;
   }
 
   function forceNextValidatorOracle() external {
@@ -486,7 +477,8 @@ contract StakeTogether is
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
     require(isValidatorOracle(msg.sender), 'OV');
-    require(address(this).balance >= config.validatorSize, 'NB');
+    require(address(this).balance >= config.poolSize, 'NBP');
+    require(address(this).balance >= config.validatorSize, 'NBV');
     require(!validators[_publicKey], 'VE');
 
     (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
