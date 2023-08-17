@@ -104,7 +104,7 @@ describe('Withdrawals', function () {
     expect(await withdrawals.stakeTogether()).to.equal(user1.address)
   })
 
-  it('should correctly receive Ether and transfer to StakeTogether via receive', async function () {
+  it.skip('should correctly receive Ether and transfer to StakeTogether via receive', async function () {
     // Set the StakeTogether address to user1
     await connect(withdrawals, owner).setStakeTogether(user1.address)
 

@@ -4,6 +4,7 @@ import { ethers, network, upgrades } from 'hardhat'
 import {
   Airdrop,
   Airdrop__factory,
+  MockDepositContract__factory,
   MockStakeTogether,
   MockStakeTogether__factory,
   Router,
@@ -13,7 +14,7 @@ import {
   Withdrawals,
   Withdrawals__factory,
 } from '../../typechain'
-import { MockDepositContract__factory } from '../../typechain/factories/contracts/mocks/MockDepositContract.sol'
+
 import { checkVariables } from '../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
