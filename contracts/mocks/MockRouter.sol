@@ -59,6 +59,26 @@ contract MockRouter is
     _disableInitializers();
   }
 
+  function initialize(address _airdrop, address _withdrawals) public initializer {
+    __Pausable_init();
+    __AccessControl_init();
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+    _grantRole(UPGRADER_ROLE, msg.sender);
+    _grantRole(ORACLE_REPORT_MANAGER_ROLE, msg.sender);
+
+    version = 1;
+
+    airdrop = Airdrop(payable(_airdrop));
+    withdrawals = Withdrawals(payable(_withdrawals));
+
+    reportBlockNumber = 1;
+    lastConsensusEpoch = 0;
+    lastExecutedConsensusEpoch = 0;
+  }
+
   function initializeV2() external onlyRole(UPGRADER_ROLE) {
     version = 2;
   }
@@ -72,4 +92,36 @@ contract MockRouter is
   }
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+  function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
+    require(address(stakeTogether) == address(0), 'STAKE_TOGETHER_ALREADY_SET');
+    stakeTogether = StakeTogether(payable(_stakeTogether));
+    emit SetStakeTogether(_stakeTogether);
+  }
+
+  /************
+   ** CONFIG **
+   ************/
+
+  function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
+    if (config.minBlocksBeforeExecution < 300) {
+      config.minBlocksBeforeExecution = 300;
+    } else {
+      config.minBlocksBeforeExecution = config.minBlocksBeforeExecution;
+    }
+    config = _config;
+    emit SetConfig(_config);
+  }
+
+  /************
+   ** MOCK FUNCTIONS **
+   ************/
+
+  function setBeaconBalance(uint256 _amount) external {
+    stakeTogether.setBeaconBalance(_amount);
+  }
+
+  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
+    stakeTogether.removeValidator(_epoch, _publicKey);
+  }
 }

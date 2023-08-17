@@ -5,10 +5,10 @@ import {
   Airdrop,
   Airdrop__factory,
   MockDepositContract__factory,
+  MockRouter__factory,
   MockStakeTogether,
   MockStakeTogether__factory,
   Router,
-  Router__factory,
   StakeTogether,
   StakeTogether__factory,
   Withdrawals,
@@ -55,7 +55,7 @@ async function deployRouter(
   airdropContract: string,
   withdrawalsContract: string,
 ) {
-  const RouterFactory = new Router__factory().connect(owner)
+  const RouterFactory = new MockRouter__factory().connect(owner)
 
   const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
 
@@ -285,6 +285,8 @@ export async function stakeTogetherFixture() {
     stakeTogetherProxy: stakeTogether.proxyAddress,
     mockStakeTogether: mockStakeTogetherContract,
     mockStakeTogetherProxy: mockStakeTogetherProxy,
+    mockRouter: router.routerContract,
+    mockRouterProxy: router.proxyAddress,
     UPGRADER_ROLE,
     ADMIN_ROLE,
     VALIDATOR_ORACLE_ROLE,

@@ -478,7 +478,6 @@ contract StakeTogether is
   ) external nonReentrant whenNotPaused {
     require(isValidatorOracle(msg.sender), 'OV');
     require(address(this).balance >= config.poolSize, 'NBP');
-    require(address(this).balance >= config.validatorSize, 'NBV');
     require(!validators[_publicKey], 'VE');
 
     (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
@@ -514,12 +513,12 @@ contract StakeTogether is
     );
   }
 
-  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
+  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external {
     require(msg.sender == address(router), 'OR');
-    require(validators[_publicKey], 'OV');
+    require(validators[_publicKey], 'NF');
     validators[_publicKey] = false;
     totalValidators--;
-    emit RemoveValidator(msg.sender, _epoch, _publicKey, msg.value);
+    emit RemoveValidator(msg.sender, _epoch, _publicKey);
   }
 
   /*****************

@@ -88,7 +88,7 @@ interface IStakeTogether {
   event NextValidatorOracle(uint256 index, address indexed account);
   event ReceiveEther(address indexed sender, uint amount);
   event RemovePool(address indexed pool);
-  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey, uint256 receivedAmount);
+  event RemoveValidator(address indexed account, uint256 epoch, bytes publicKey);
   event RemoveValidatorOracle(address indexed account);
   event SetBeaconBalance(uint256 amount);
   event SetConfig(Config config);

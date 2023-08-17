@@ -3,7 +3,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { MockStakeTogether, MockStakeTogether__factory, StakeTogether } from '../../typechain'
+import { MockRouter, MockStakeTogether, MockStakeTogether__factory, StakeTogether } from '../../typechain'
 import connect from '../utils/connect'
 import { stakeTogetherFixture } from './StakeTogether.fixture'
 
@@ -14,6 +14,8 @@ describe('Stake Together', function () {
   let stakeTogetherProxy: string
   let mockStakeTogether: MockStakeTogether
   let mockStakeTogetherProxy: string
+  let mockRouter: MockRouter
+  let mockRouterProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -36,6 +38,8 @@ describe('Stake Together', function () {
     stakeTogetherProxy = fixture.stakeTogetherProxy
     mockStakeTogether = fixture.mockStakeTogether
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
+    mockRouter = fixture.mockRouter as unknown as MockRouter
+    mockRouterProxy = fixture.mockRouterProxy
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -329,6 +333,33 @@ describe('Stake Together', function () {
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(1)
       expect(_referral).to.equal(referral)
+
+      const expectedBalance = await stakeTogether.weiByShares(user1Shares)
+      const actualBalance = await stakeTogether.balanceOf(user1.address)
+      expect(actualBalance).to.equal(expectedBalance)
+
+      const calculatedShares = await stakeTogether.sharesByWei(user1DepositAmount - fee)
+      expect(calculatedShares).to.equal(user1Shares)
+    })
+
+    it('should correctly handle deposit with minimum deposit amount', async function () {
+      const user1DepositAmount = ethers.parseEther('0.001')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const config = await stakeTogether.config()
+      expect(config.minDepositAmount).to.equal(user1DepositAmount)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await tx1.wait()
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
       const actualBalance = await stakeTogether.balanceOf(user1.address)
@@ -1411,13 +1442,13 @@ describe('Stake Together', function () {
   })
 
   describe('Validators', () => {
-    it('should create a new validator', async function () {
-      const publicKey =
-        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
-      const signature =
-        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
-      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+    const publicKey =
+      '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+    const signature =
+      '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+    const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
 
+    it('should create a new validator', async function () {
       const poolSize = ethers.parseEther('32.1')
       const validatorSize = ethers.parseEther('32')
 
@@ -1449,6 +1480,125 @@ describe('Stake Together', function () {
 
       expect(await stakeTogether.validators(publicKey)).to.be.true
       expect(await stakeTogether.totalValidators()).to.equal(1n)
+    })
+
+    it('should fail to create a validator by an invalid oracle', async function () {
+      const invalidOracle = user2
+
+      await expect(
+        stakeTogether.connect(invalidOracle).createValidator(publicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('OV')
+    })
+
+    it('should fail to create a validator when the contract balance is less than pool size', async function () {
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      const insufficientFunds = ethers.parseEther('31') // Insufficient value
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: insufficientFunds })
+
+      await expect(
+        stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NBP') // Checking for the rejection with code 'NBP'
+    })
+
+    it('should fail to create a validator with an existing public key', async function () {
+      const poolSize = ethers.parseEther('32.1')
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      // Sending sufficient funds for pool size and validator size
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize * 2n })
+
+      // Creating the first validator
+      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+
+      // Attempting to create a second validator with the same public key
+      await expect(
+        stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('VE') // Checking for the rejection with code 'VE'
+    })
+
+    it('should create a new validator and emit MintRewards logs', async function () {
+      const poolSize = ethers.parseEther('32.1')
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      // Sending sufficient funds for pool size and validator size
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
+
+      // Creating the validator
+      const tx = await stakeTogether
+        .connect(oracle)
+        .createValidator(publicKey, signature, depositDataRoot)
+
+      // Verifying the MintRewards event
+      const receipt = await tx.wait()
+      const mintRewardsFilter = stakeTogether.filters.MintRewards() // Replace null with specific values if needed
+      const logs = await stakeTogether.queryFilter(mintRewardsFilter)
+
+      // Checking the arguments of the MintRewards event
+      expect(logs[0].args[0]).to.equal('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266')
+      expect(logs[0].args[1]).to.equal(0n)
+      expect(logs[0].args[2]).to.equal(100000000000000n)
+      expect(logs[0].args[3]).to.equal(3n)
+      expect(logs[0].args[4]).to.equal(2n)
+    })
+
+    it('should create and then remove a validator', async function () {
+      const poolSize = ethers.parseEther('32.1')
+      const epoch = 1
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
+
+      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+
+      expect(await stakeTogether.validators(publicKey)).to.be.true
+      expect(await stakeTogether.totalValidators()).to.equal(1n)
+
+      await mockRouter.connect(owner).removeValidator(epoch, publicKey)
+
+      expect(await stakeTogether.validators(publicKey)).to.be.false
+      expect(await stakeTogether.totalValidators()).to.equal(0n)
+
+      const eventFilter = stakeTogether.filters.RemoveValidator()
+      const logs = await stakeTogether.queryFilter(eventFilter)
+      const event = logs[0]
+      expect(event.args[0]).to.equal(mockRouterProxy)
+      expect(event.args[1]).to.equal(epoch)
+      expect(event.args[2]).to.equal(publicKey)
+    })
+
+    it('should only allow the router to remove a validator', async function () {
+      await expect(stakeTogether.connect(user1).removeValidator(1, publicKey)).to.be.revertedWith('OR')
+    })
+
+    it('should fail to remove a non-existing validator', async function () {
+      const nonExistingPublicKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+
+      await expect(mockRouter.connect(owner).removeValidator(1, nonExistingPublicKey)).to.be.revertedWith(
+        'NF',
+      )
+    })
+
+    it('should set the beacon balance through the router', async function () {
+      const beaconBalance = ethers.parseEther('10')
+      await mockRouter.connect(owner).setBeaconBalance(beaconBalance)
+      expect(await stakeTogether.beaconBalance()).to.equal(beaconBalance)
+    })
+
+    it('should fail to set the beacon balance by non-router address', async function () {
+      const beaconBalance = ethers.parseEther('10')
+      await expect(stakeTogether.connect(user1).setBeaconBalance(beaconBalance)).to.be.revertedWith('OR')
     })
   })
 })
