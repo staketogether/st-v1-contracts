@@ -13,9 +13,8 @@ import {
   Withdrawals,
   Withdrawals__factory,
 } from '../../typechain'
+import { MockDepositContract__factory } from '../../typechain/factories/contracts/mocks/MockDepositContract.sol'
 import { checkVariables } from '../utils/env'
-
-const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)
@@ -91,6 +90,12 @@ async function deployStakeTogether(
   routerContract: string,
   withdrawalsContract: string,
 ) {
+  const MockDepositContractFactory = new MockDepositContract__factory().connect(owner)
+
+  const mockDepositContract = await MockDepositContractFactory.deploy()
+
+  const depositAddress = await mockDepositContract.getAddress()
+
   function convertToWithdrawalAddress(eth1Address: string): string {
     const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
     const paddedAddress = address.padStart(64, '0')
@@ -100,11 +105,13 @@ async function deployStakeTogether(
 
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
 
+  const withdrawalsAddress = convertToWithdrawalAddress(withdrawalsContract)
+
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     routerContract,
     withdrawalsContract,
     depositAddress,
-    convertToWithdrawalAddress(routerContract),
+    withdrawalsAddress,
   ])
 
   await stakeTogether.waitForDeployment()
