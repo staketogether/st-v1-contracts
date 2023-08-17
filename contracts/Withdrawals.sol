@@ -62,23 +62,23 @@ contract Withdrawals is
 
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 amount
-  ) internal override whenNotPaused {
-    super._beforeTokenTransfer(from, to, amount);
-  }
-
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.sender, msg.value);
-    _checkExtraAmount();
+    _refundExtraAmount();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
+  }
+
+  function _beforeTokenTransfer(
+    address from,
+    address to,
+    uint256 amount
+  ) internal override whenNotPaused {
+    super._beforeTokenTransfer(from, to, amount);
   }
 
   /**************
@@ -91,14 +91,12 @@ contract Withdrawals is
   }
 
   function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
-    require(address(stakeTogether) != address(0), 'STAKE_TOGETHER_NOT_SET');
-    require(_amount > 0, 'ZERO_AMOUNT');
-    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_WETH_BALANCE');
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
+    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_STW_BALANCE');
+    require(_amount > 0, 'ZERO_AMOUNT');
 
     _burn(msg.sender, _amount);
     payable(msg.sender).transfer(_amount);
-
     emit Withdraw(msg.sender, _amount);
   }
 
@@ -106,15 +104,11 @@ contract Withdrawals is
     return address(this).balance >= _amount;
   }
 
-  function _checkExtraAmount() internal {
+  function _refundExtraAmount() private {
     uint256 _supply = totalSupply();
     if (address(this).balance > _supply) {
-      uint256 routerExtraAmount = address(this).balance - _supply;
-      _transferToStakeTogether(routerExtraAmount);
+      uint256 extraAmount = address(this).balance - _supply;
+      stakeTogether.withdrawRefund{ value: extraAmount }();
     }
-  }
-
-  function _transferToStakeTogether(uint256 _amount) private {
-    payable(address(stakeTogether)).transfer(_amount);
   }
 }

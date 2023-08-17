@@ -207,7 +207,7 @@ contract StakeTogether is
     emit BurnShares(_account, _sharesAmount);
   }
 
-  function _transfer(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+  function _transfer(address _from, address _to, uint256 _amount) internal override {
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
