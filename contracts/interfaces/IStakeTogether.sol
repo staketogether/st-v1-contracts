@@ -89,11 +89,6 @@ interface IStakeTogether {
   /// @param sharesAmount The amount of shares burned
   event BurnShares(address indexed account, uint256 sharesAmount);
 
-  /// @notice Emitted when rewards are claimed
-  /// @param account The address of the account
-  /// @param sharesAmount The amount of shares claimed
-  event ClaimRewards(address indexed account, uint256 sharesAmount);
-
   /// @notice Emitted when a validator is created
   /// @param creator The address of the creator
   /// @param amount The amount for the validator

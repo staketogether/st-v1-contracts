@@ -32,7 +32,6 @@ contract Airdrop is
 
   mapping(uint256 => bytes32) public merkleRoots;
   mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap;
-  uint256 public maxBatchSize;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -86,16 +85,11 @@ contract Airdrop is
     emit SetRouter(_router);
   }
 
-  function setMaxBatch(uint256 _batchSize) external onlyRole(ADMIN_ROLE) {
-    maxBatchSize = _batchSize;
-    emit SetMaxBatch(_batchSize);
-  }
-
   /**************
    ** AIRDROPS **
    **************/
 
-  function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant {
+  function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'ONLY_ROUTER');
     require(merkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
     merkleRoots[_epoch] = merkleRoot;
@@ -104,56 +98,37 @@ contract Airdrop is
 
   function claim(
     uint256 _epoch,
+    uint256 _index,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
-  ) public nonReentrant whenNotPaused {
-    require(merkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
+  ) external nonReentrant whenNotPaused {
+    require(!isClaimed(_epoch, _index), 'ALREADY_CLAIMED');
+    require(merkleRoots[_epoch] != bytes32(0), 'MERKLE_ROOT_NOT_SET');
     require(_account != address(0), 'ZERO_ADDRESS');
-    require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
-    if (isClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
+    require(_sharesAmount > 0, 'ZERO_AMOUNT');
 
-    bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
-    if (!MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_epoch], leaf))
-      revert('INVALID_MERKLE_PROOF');
+    bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_index, _account, _sharesAmount))));
+    require(MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_epoch], leaf), 'INVALID_PROOF');
 
-    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
-    uint256 claimedWordIndex = index / 256;
-    uint256 claimedBitIndex = index % 256;
+    _setClaimed(_epoch, _index);
+
+    stakeTogether.transferRewardsShares(_account, _sharesAmount);
+
+    emit Claim(_epoch, _index, _account, _sharesAmount, merkleProof);
+  }
+
+  function _setClaimed(uint256 _epoch, uint256 _index) private {
+    uint256 claimedWordIndex = _index / 256;
+    uint256 claimedBitIndex = _index % 256;
     claimBitMap[_epoch][claimedWordIndex] =
       claimBitMap[_epoch][claimedWordIndex] |
       (1 << claimedBitIndex);
-
-    stakeTogether.claimRewards(_account, _sharesAmount);
-    emit ClaimAirdrop(_epoch, _account, _sharesAmount);
   }
 
-  function claimBatch(
-    uint256[] calldata _epochs,
-    address[] calldata _accounts,
-    uint256[] calldata _sharesAmounts,
-    bytes32[][] calldata merkleProofs
-  ) external nonReentrant whenNotPaused {
-    uint256 length = _epochs.length;
-    require(length <= maxBatchSize, 'BATCH_SIZE_EXCEEDS_LIMIT');
-    require(
-      _accounts.length == length && _sharesAmounts.length == length && merkleProofs.length == length,
-      'INVALID_ARRAYS_LENGTH'
-    );
-
-    uint256 totalAmount = 0;
-    for (uint256 i = 0; i < length; i++) {
-      claim(_epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
-      totalAmount += _sharesAmounts[i];
-    }
-
-    emit ClaimBatch(msg.sender, length, totalAmount);
-  }
-
-  function isClaimed(uint256 _epoch, address _account) public view returns (bool) {
-    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
-    uint256 claimedWordIndex = index / 256;
-    uint256 claimedBitIndex = index % 256;
+  function isClaimed(uint256 _epoch, uint256 _index) public view returns (bool) {
+    uint256 claimedWordIndex = _index / 256;
+    uint256 claimedBitIndex = _index % 256;
     uint256 claimedWord = claimBitMap[_epoch][claimedWordIndex];
     uint256 mask = (1 << claimedBitIndex);
     return claimedWord & mask == mask;

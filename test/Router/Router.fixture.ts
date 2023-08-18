@@ -22,8 +22,6 @@ async function deployAirdrop(owner: HardhatEthersSigner) {
 
   const airdropContract = airdrop as unknown as Airdrop
 
-  await airdropContract.setMaxBatch(100)
-
   return { proxyAddress, implementationAddress, airdropContract }
 }
 

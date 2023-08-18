@@ -188,6 +188,17 @@ contract MockStakeTogether is
     return true;
   }
 
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
+  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
+    return true;
+  }
+
   /// @notice Transfers an amount of wei from one address to another.
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
@@ -211,24 +222,17 @@ contract MockStakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _sharesAmount The number of shares to be transferred.
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
+  function _transferShares(
+    address _from,
+    address _to,
+    uint256 _sharesAmount
+  ) private whenNotPaused nonReentrant {
     require(_from != address(0), 'ZA'); // ZA = Zero Address
     require(_to != address(0), 'ZA'); // ZA = Zero Address
     require(_sharesAmount <= shares[_from], 'IS'); // IS = Insufficient Shares
     shares[_from] -= _sharesAmount;
     shares[_to] += _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
-  }
-
-  /// @notice Transfers tokens from one address to another using an allowance mechanism.
-  /// @param _from Address to transfer from.
-  /// @param _to Address to transfer to.
-  /// @param _amount Amount of tokens to transfer.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
-    _spendAllowance(_from, msg.sender, _amount);
-    _transfer(_from, _to, _amount);
-    return true;
   }
 
   /// @notice Returns the remaining number of tokens that an spender is allowed to spend on behalf of a token owner.
@@ -341,7 +345,7 @@ contract MockStakeTogether is
     uint256 _sharesAmount,
     FeeType _feeType,
     FeeRole _feeRole
-  ) public payable nonReentrant {
+  ) public payable nonReentrant whenNotPaused {
     require(msg.sender == router, 'OR'); // OR = Only Router
     _mintRewards(_address, _sharesAmount, _feeType, _feeRole);
   }
@@ -349,11 +353,10 @@ contract MockStakeTogether is
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
-  function claimRewards(address _account, uint256 _sharesAmount) external nonReentrant whenNotPaused {
+  function transferRewardsShares(address _account, uint256 _sharesAmount) external whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
     _transferShares(airdropFee, _account, _sharesAmount);
-    emit ClaimRewards(_account, _sharesAmount);
   }
 
   /***********

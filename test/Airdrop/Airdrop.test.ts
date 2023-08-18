@@ -1,5 +1,6 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
@@ -119,18 +120,6 @@ describe('Airdrop', function () {
 
       expect(await airdrop.router()).to.equal(user1.address)
     })
-
-    it('should correctly set the max batch size and emit SetMaxBatch event', async function () {
-      const newBatchSize = 10
-
-      await expect(connect(airdrop, user1).setMaxBatch(newBatchSize)).to.be.reverted
-
-      await expect(connect(airdrop, owner).setMaxBatch(newBatchSize))
-        .to.emit(airdrop, 'SetMaxBatch')
-        .withArgs(newBatchSize)
-
-      expect(await airdrop.maxBatchSize()).to.equal(newBatchSize)
-    })
   })
 
   describe('Receive Ether', function () {
@@ -216,6 +205,144 @@ describe('Airdrop', function () {
       await expect(connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot2)).to.be.revertedWith(
         'MERKLE_ALREADY_SET_FOR_EPOCH',
       )
+    })
+  })
+
+  describe('Claim', function () {
+    it('should allow a valid claim and emit claim event', async function () {
+      const user5Balance = await mockStakeTogether.balanceOf(user5.address)
+      expect(user5Balance).to.equal(0n)
+
+      const user2Balance = await mockStakeTogether.balanceOf(user2.address)
+      expect(user2Balance).to.equal(0n)
+
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await mockStakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      const tx1 = await mockStakeTogether
+        .connect(user1)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await tx1.wait()
+
+      const epoch = 1
+      const index0 = 0n
+      const index1 = 1n
+
+      const values: [bigint, string, bigint][] = [
+        [index0, user5.address, 50000000000000n],
+        [index1, user2.address, 25000000000000n],
+      ]
+
+      const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
+
+      const proof1 = tree.getProof([index0, user5.address, 50000000000000n])
+      const proof2 = tree.getProof([index1, user2.address, 25000000000000n])
+
+      await airdrop.connect(owner).setRouter(owner.address)
+      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+
+      await expect(airdrop.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1))
+        .to.emit(airdrop, 'Claim')
+        .withArgs(epoch, index0, user5.address, 50000000000000n, proof1)
+
+      await expect(
+        airdrop.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1),
+      ).to.be.revertedWith('ALREADY_CLAIMED')
+
+      expect(await airdrop.isClaimed(epoch, index0)).to.equal(true)
+      expect(await airdrop.isClaimed(epoch, index1)).to.equal(false)
+
+      await airdrop.connect(user1).claim(epoch, index1, user2.address, 25000000000000n, proof2)
+
+      expect(await airdrop.isClaimed(epoch, index1)).to.equal(true)
+
+      const user5BalanceUpdated = await mockStakeTogether.balanceOf(user5.address)
+      expect(user5BalanceUpdated).to.equal(50000000000000n)
+
+      const user2BalanceUpdated = await mockStakeTogether.balanceOf(user2.address)
+      expect(user2BalanceUpdated).to.equal(25000000000000n)
+    })
+
+    it('should revert if the Merkle root is not set', async function () {
+      const epoch = 1
+      const index = 0
+      const sharesAmount = ethers.parseEther('5')
+      const proof: string[] = []
+      await expect(
+        airdrop.connect(user1).claim(epoch, index, user1.address, sharesAmount, proof),
+      ).to.be.revertedWith('MERKLE_ROOT_NOT_SET')
+    })
+
+    it('should revert if the account address is zero', async function () {
+      const epoch = 1
+      const index0 = 0n
+      const index1 = 1n
+
+      const values: [bigint, string, bigint][] = [
+        [index0, nullAddress, 5000000000000000000n],
+        [index1, user2.address, 2500000000000000000n],
+      ]
+
+      const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
+
+      const proof1 = tree.getProof([index0, nullAddress, 5000000000000000000n])
+      const proof2 = tree.getProof([index1, user2.address, 2500000000000000000n])
+
+      await airdrop.connect(owner).setRouter(owner.address)
+      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+
+      await expect(
+        airdrop.connect(user1).claim(epoch, index0, nullAddress, 5000000000000000000n, proof1),
+      ).to.be.revertedWith('ZERO_ADDRESS')
+    })
+
+    it('should revert if the account amount is zero', async function () {
+      const epoch = 1
+      const index0 = 0n
+      const index1 = 1n
+
+      const values: [bigint, string, bigint][] = [
+        [index0, user1.address, 0n],
+        [index1, user2.address, 2500000000000000000n],
+      ]
+
+      const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
+
+      const proof1 = tree.getProof([index0, user1.address, 0n])
+
+      await airdrop.connect(owner).setRouter(owner.address)
+      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+
+      await expect(
+        airdrop.connect(user1).claim(epoch, index0, user1.address, 0n, proof1),
+      ).to.be.revertedWith('ZERO_AMOUNT')
+    })
+
+    it('should revert if proof is invalid', async function () {
+      const epoch = 1
+      const index0 = 0n
+      const index1 = 1n
+
+      const values: [bigint, string, bigint][] = [
+        [index0, user1.address, 5000000000000000000n],
+        [index1, user2.address, 2500000000000000000n],
+      ]
+
+      const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
+
+      await airdrop.connect(owner).setRouter(owner.address)
+      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+
+      await expect(
+        airdrop.connect(user1).claim(epoch, index0, user1.address, 5000000000000000000n, []),
+      ).to.be.revertedWith('INVALID_PROOF')
     })
   })
 })

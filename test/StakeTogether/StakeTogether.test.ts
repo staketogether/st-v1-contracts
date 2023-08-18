@@ -290,9 +290,9 @@ describe('Stake Together', function () {
 
       expect(initialSharesAirdrop).to.be.gte(sharesAmount)
 
-      const tx = await stakeTogether.connect(airdropFeeAddress).claimRewards(user1.address, sharesAmount)
-
-      await expect(tx).to.emit(stakeTogether, 'ClaimRewards').withArgs(user1.address, sharesAmount)
+      const tx = await stakeTogether
+        .connect(airdropFeeAddress)
+        .transferRewardsShares(user1.address, sharesAmount)
 
       const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
       const finalSharesAccount = await stakeTogether.shares(user1.address)
@@ -304,7 +304,7 @@ describe('Stake Together', function () {
       const sharesAmount = ethers.parseEther('10')
 
       await expect(
-        stakeTogether.connect(user2).claimRewards(user1.address, sharesAmount),
+        stakeTogether.connect(user2).transferRewardsShares(user1.address, sharesAmount),
       ).to.be.revertedWith('OA')
     })
   })

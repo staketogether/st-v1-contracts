@@ -353,11 +353,10 @@ contract StakeTogether is
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
-  function claimRewards(address _account, uint256 _sharesAmount) external nonReentrant whenNotPaused {
+  function transferRewardsShares(address _account, uint256 _sharesAmount) external whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
     _transferShares(airdropFee, _account, _sharesAmount);
-    emit ClaimRewards(_account, _sharesAmount);
   }
 
   /***********
