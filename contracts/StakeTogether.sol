@@ -154,14 +154,16 @@ contract StakeTogether is
 
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
-  function totalSupply() public view override returns (uint256) {
+  function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
     return address(this).balance + beaconBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
   /// @param _account The address of the account.
   /// @return Balance value of the given account.
-  function balanceOf(address _account) public view override returns (uint256) {
+  function balanceOf(
+    address _account
+  ) public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
     return weiByShares(shares[_account]);
   }
 
@@ -183,7 +185,10 @@ contract StakeTogether is
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   /// @return True if the transfer was successful.
-  function transfer(address _to, uint256 _amount) public override returns (bool) {
+  function transfer(
+    address _to,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     _transfer(msg.sender, _to, _amount);
     return true;
   }
@@ -193,7 +198,11 @@ contract StakeTogether is
   /// @param _to Address to transfer to.
   /// @param _amount Amount of tokens to transfer.
   /// @return A boolean value indicating whether the operation succeeded.
-  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+  function transferFrom(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -239,7 +248,10 @@ contract StakeTogether is
   /// @param _account Address of the token owner.
   /// @param _spender Address of the spender.
   /// @return A uint256 value representing the remaining number of tokens available for the spender.
-  function allowance(address _account, address _spender) public view override returns (uint256) {
+  function allowance(
+    address _account,
+    address _spender
+  ) public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
     return allowances[_account][_spender];
   }
 
@@ -247,7 +259,10 @@ contract StakeTogether is
   /// @param _spender Address of the spender.
   /// @param _amount Amount of allowance to be set.
   /// @return A boolean value indicating whether the operation succeeded.
-  function approve(address _spender, uint256 _amount) public override returns (bool) {
+  function approve(
+    address _spender,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     _approve(msg.sender, _spender, _amount);
     return true;
   }
@@ -267,7 +282,10 @@ contract StakeTogether is
   /// @param _spender Address of the spender.
   /// @param _addedValue The additional amount to increase the allowance by.
   /// @return A boolean value indicating whether the operation succeeded.
-  function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
+  function increaseAllowance(
+    address _spender,
+    uint256 _addedValue
+  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue);
     return true;
   }
@@ -276,7 +294,10 @@ contract StakeTogether is
   /// @param _spender Address of the spender.
   /// @param _subtractedValue The amount to subtract from the allowance.
   /// @return A boolean value indicating whether the operation succeeded.
-  function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
+  function decreaseAllowance(
+    address _spender,
+    uint256 _subtractedValue
+  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
     require(currentAllowance >= _subtractedValue, 'IA'); // IA = Insufficient Allowance
     _approve(msg.sender, _spender, currentAllowance - _subtractedValue);

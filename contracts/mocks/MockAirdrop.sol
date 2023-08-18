@@ -38,6 +38,7 @@ contract MockAirdrop is
     _disableInitializers();
   }
 
+  /// @notice Initializes the contract with initial settings.
   function initialize() public initializer {
     __Pausable_init();
     __AccessControl_init();
@@ -50,16 +51,25 @@ contract MockAirdrop is
     version = 1;
   }
 
+  /// @notice Pauses all contract functionalities.
+  /// @dev Only callable by the admin role.
   function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
+  /// @notice Unpauses all contract functionalities.
+  /// @dev Only callable by the admin role.
   function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
-  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+  /// @notice Internal function to authorize an upgrade.
+  /// @dev Only callable by the upgrader role.
+  /// @param _newImplementation Address of the new contract implementation.
+  function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
+  /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
+  /// @dev Only callable by the admin role.
   receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
   }
@@ -73,12 +83,18 @@ contract MockAirdrop is
     payable(stakeTogetherFee).transfer(extraAmount);
   }
 
+  /// @notice Sets the StakeTogether contract address.
+  /// @param _stakeTogether The address of the StakeTogether contract.
+  /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
+  /// @notice Sets the Router contract address.
+  /// @param _router The address of the router.
+  /// @dev Only callable by the admin role.
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
     router = Router(payable(_router));
@@ -89,6 +105,10 @@ contract MockAirdrop is
    ** AIRDROPS **
    **************/
 
+  /// @notice Adds a new Merkle root for a given epoch.
+  /// @param _epoch The epoch number.
+  /// @param merkleRoot The Merkle root.
+  /// @dev Only callable by the router.
   function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'ONLY_ROUTER');
     require(merkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
@@ -96,6 +116,13 @@ contract MockAirdrop is
     emit AddMerkleRoot(_epoch, merkleRoot);
   }
 
+  /// @notice Claims a reward for a specific epoch.
+  /// @param _epoch The epoch number.
+  /// @param _index The index in the Merkle tree.
+  /// @param _account The address claiming the reward.
+  /// @param _sharesAmount The amount of shares to claim.
+  /// @param merkleProof The Merkle proof required to claim the reward.
+  /// @dev Verifies the Merkle proof and transfers the reward shares.
   function claim(
     uint256 _epoch,
     uint256 _index,
@@ -103,7 +130,7 @@ contract MockAirdrop is
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
-    require(!isClaimedByIndex(_epoch, _index), 'ALREADY_CLAIMED');
+    require(!isClaimed(_epoch, _index), 'ALREADY_CLAIMED');
     require(merkleRoots[_epoch] != bytes32(0), 'MERKLE_ROOT_NOT_SET');
     require(_account != address(0), 'ZERO_ADDRESS');
     require(_sharesAmount > 0, 'ZERO_AMOUNT');
@@ -113,12 +140,15 @@ contract MockAirdrop is
 
     _setClaimed(_epoch, _index);
 
-    // Todo: fix delegation shares for claim rewards
-    // stakeTogether.claimRewards(_account, _sharesAmount);
+    stakeTogether.transferRewardsShares(_account, _sharesAmount);
 
     emit Claim(_epoch, _index, _account, _sharesAmount, merkleProof);
   }
 
+  /// @notice Marks a reward as claimed for a specific index and epoch.
+  /// @param _epoch The epoch number.
+  /// @param _index The index in the Merkle tree.
+  /// @dev This function is private and is used internally to update the claim status.
   function _setClaimed(uint256 _epoch, uint256 _index) private {
     uint256 claimedWordIndex = _index / 256;
     uint256 claimedBitIndex = _index % 256;
@@ -127,7 +157,11 @@ contract MockAirdrop is
       (1 << claimedBitIndex);
   }
 
-  function isClaimedByIndex(uint256 _epoch, uint256 _index) public view returns (bool) {
+  /// @notice Checks if a reward has been claimed for a specific index and epoch.
+  /// @param _epoch The epoch number.
+  /// @param _index The index in the Merkle tree.
+  /// @return Returns true if the reward has been claimed, false otherwise.
+  function isClaimed(uint256 _epoch, uint256 _index) public view returns (bool) {
     uint256 claimedWordIndex = _index / 256;
     uint256 claimedBitIndex = _index % 256;
     uint256 claimedWord = claimBitMap[_epoch][claimedWordIndex];
