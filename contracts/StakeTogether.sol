@@ -188,6 +188,17 @@ contract StakeTogether is
     return true;
   }
 
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
+  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
+    return true;
+  }
+
   /// @notice Transfers an amount of wei from one address to another.
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
@@ -211,24 +222,17 @@ contract StakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _sharesAmount The number of shares to be transferred.
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
+  function _transferShares(
+    address _from,
+    address _to,
+    uint256 _sharesAmount
+  ) private whenNotPaused nonReentrant {
     require(_from != address(0), 'ZA'); // ZA = Zero Address
     require(_to != address(0), 'ZA'); // ZA = Zero Address
     require(_sharesAmount <= shares[_from], 'IS'); // IS = Insufficient Shares
     shares[_from] -= _sharesAmount;
     shares[_to] += _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
-  }
-
-  /// @notice Transfers tokens from one address to another using an allowance mechanism.
-  /// @param _from Address to transfer from.
-  /// @param _to Address to transfer to.
-  /// @param _amount Amount of tokens to transfer.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
-    _spendAllowance(_from, msg.sender, _amount);
-    _transfer(_from, _to, _amount);
-    return true;
   }
 
   /// @notice Returns the remaining number of tokens that an spender is allowed to spend on behalf of a token owner.
