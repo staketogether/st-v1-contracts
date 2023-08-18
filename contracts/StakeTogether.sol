@@ -18,6 +18,9 @@ import './interfaces/IStakeTogether.sol';
 import './interfaces/IDepositContract.sol';
 
 /// @custom:security-contact security@staketogether.app
+/// @title StakeTogether Pool Contract
+/// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
+/// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 contract StakeTogether is
   Initializable,
   ERC20Upgradeable,
@@ -29,48 +32,53 @@ contract StakeTogether is
   ReentrancyGuardUpgradeable,
   IStakeTogether
 {
-  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
-  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE');
-  bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE');
-  bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE');
-  bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE');
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
+  bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE'); /// Role for managing pools.
+  bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE'); /// Role for managing validator oracles.
+  bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
+  bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for sentinel functionality in validator oracle management.
 
-  uint256 public version;
+  uint256 public version; /// Contract version.
 
-  address public router;
-  Withdrawals public withdrawals;
-  IDepositContract public depositContract;
+  address public router; /// Address of the contract router.
+  Withdrawals public withdrawals; /// Withdrawals contract instance.
+  IDepositContract public depositContract; /// Deposit contract interface.
 
-  bytes public withdrawalCredentials;
-  uint256 public beaconBalance;
-  Config public config;
+  bytes public withdrawalCredentials; /// Credentials for withdrawals.
+  uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
+  Config public config; /// Configuration settings for the protocol.
 
-  mapping(address => uint256) public shares;
-  uint256 public totalShares;
-  mapping(address => mapping(address => uint256)) private allowances;
+  mapping(address => uint256) public shares; /// Mapping of addresses to their shares.
+  uint256 public totalShares; /// Total number of shares.
+  mapping(address => mapping(address => uint256)) private allowances; /// Allowances mapping.
 
-  uint256 public lastResetBlock;
-  uint256 public totalDeposited;
-  uint256 public totalWithdrawn;
+  uint256 public lastResetBlock; /// Block number of the last reset.
+  uint256 public totalDeposited; /// Total amount deposited.
+  uint256 public totalWithdrawn; /// Total amount withdrawn.
 
-  mapping(address => bool) public pools;
+  mapping(address => bool) public pools; /// Mapping of pool addresses.
 
-  address[] private validatorsOracle;
-  mapping(address => uint256) private validatorsOracleIndices;
-  uint256 public currentOracleIndex;
+  address[] private validatorsOracle; /// List of validator oracles.
+  mapping(address => uint256) private validatorsOracleIndices; /// Mapping of validator oracle indices.
+  uint256 public currentOracleIndex; /// Current index of the oracle.
 
-  mapping(bytes => bool) public validators;
-  uint256 public totalValidators;
+  mapping(bytes => bool) public validators; /// Mapping of validators.
+  uint256 public totalValidators; /// Total number of validators.
 
-  mapping(FeeRole => address payable) private feesRole;
-  mapping(FeeType => Fee) private fees;
+  mapping(FeeRole => address payable) private feesRole; /// Mapping of fee roles to addresses.
+  mapping(FeeType => Fee) private fees; /// Mapping of fee types to fee details.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
 
+  /// @notice Stake Together Pool Initialization
+  /// @param _router The address of the router.
+  /// @param _withdrawals The address of the withdrawals contract.
+  /// @param _depositContract The address of the deposit contract.
+  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
     address _router,
     address _withdrawals,
@@ -104,16 +112,25 @@ contract StakeTogether is
     _mintShares(address(this), 1 ether);
   }
 
+  /// @notice Pauses the contract, preventing certain actions.
+  /// @dev Only callable by the admin role.
   function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
+  /// @notice Unpauses the contract, allowing actions to resume.
+  /// @dev Only callable by the admin role.
   function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
-  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+  /// @notice Internal function to authorize an upgrade.
+  /// @dev Only callable by the upgrader role.
+  /// @param _newImplementation Address of the new contract implementation.
+  function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
+  /// @notice Receive function to accept incoming ETH transfers.
+  /// @dev Non-reentrant to prevent re-entrancy attacks.
   receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
   }
@@ -122,6 +139,9 @@ contract StakeTogether is
    ** CONFIG **
    ************/
 
+  /// @notice Sets the configuration for the Stake Together Protocol.
+  /// @dev Only callable by the admin role.
+  /// @param _config Configuration settings to be applied.
   function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
     require(_config.poolSize >= config.validatorSize, 'IS');
     config = _config;
@@ -132,38 +152,65 @@ contract StakeTogether is
    ** SHARES **
    ************/
 
+  /// @notice Returns the total supply of the pool (contract balance + beacon balance).
+  /// @return Total supply value.
   function totalSupply() public view override returns (uint256) {
     return address(this).balance + beaconBalance;
   }
 
+  ///  @notice Calculates the shares amount by wei.
+  /// @param _account The address of the account.
+  /// @return Balance value of the given account.
   function balanceOf(address _account) public view override returns (uint256) {
     return weiByShares(shares[_account]);
   }
 
+  /// @notice Calculates the wei amount by shares.
+  /// @param _sharesAmount Amount of shares.
+  /// @return Equivalent amount in wei.
   function weiByShares(uint256 _sharesAmount) public view returns (uint256) {
     return MathUpgradeable.mulDiv(_sharesAmount, totalSupply(), totalShares, MathUpgradeable.Rounding.Up);
   }
 
+  /// @notice Calculates the shares amount by wei.
+  /// @param _amount Amount in wei.
+  /// @return Equivalent amount in shares.
   function sharesByWei(uint256 _amount) public view returns (uint256) {
     return MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
   }
 
+  /// @notice Transfers an amount of wei to the specified address.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  /// @return True if the transfer was successful.
   function transfer(address _to, uint256 _amount) public override returns (bool) {
     _transfer(msg.sender, _to, _amount);
     return true;
   }
 
+  /// @notice Transfers an amount of wei from one address to another.
+  /// @param _from The address to transfer from.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
   function _transfer(address _from, address _to, uint256 _amount) internal override {
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
   }
 
+  /// @notice Transfers a number of shares to the specified address.
+  /// @param _to The address to transfer to.
+  /// @param _sharesAmount The number of shares to be transferred.
+  /// @return Equivalent amount in wei.
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
     return weiByShares(_sharesAmount);
   }
 
+  /// @notice Internal function to handle the transfer of shares.
+  /// @param _from The address to transfer from.
+  /// @param _to The address to transfer to.
+  /// @param _sharesAmount The number of shares to be transferred.
   function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
     require(_from != address(0), 'ZA');
     require(_to != address(0), 'ZA');
@@ -173,21 +220,38 @@ contract StakeTogether is
     emit TransferShares(_from, _to, _sharesAmount);
   }
 
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
   function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
   }
 
+  /// @notice Returns the remaining number of tokens that an spender is allowed to spend on behalf of a token owner.
+  /// @param _account Address of the token owner.
+  /// @param _spender Address of the spender.
+  /// @return A uint256 value representing the remaining number of tokens available for the spender.
   function allowance(address _account, address _spender) public view override returns (uint256) {
     return allowances[_account][_spender];
   }
 
+  /// @notice Sets the amount `_amount` as allowance of `_spender` over the caller's tokens.
+  /// @param _spender Address of the spender.
+  /// @param _amount Amount of allowance to be set.
+  /// @return A boolean value indicating whether the operation succeeded.
   function approve(address _spender, uint256 _amount) public override returns (bool) {
     _approve(msg.sender, _spender, _amount);
     return true;
   }
 
+  /// @notice Internal function to set the approval amount for a given spender and owner.
+  /// @param _account Address of the token owner.
+  /// @param _spender Address of the spender.
+  /// @param _amount Amount of allowance to be set.
   function _approve(address _account, address _spender, uint256 _amount) internal override {
     require(_account != address(0), 'ZA');
     require(_spender != address(0), 'ZA');
@@ -195,11 +259,19 @@ contract StakeTogether is
     emit Approval(_account, _spender, _amount);
   }
 
+  /// @notice Increases the allowance granted to `_spender` by the caller.
+  /// @param _spender Address of the spender.
+  /// @param _addedValue The additional amount to increase the allowance by.
+  /// @return A boolean value indicating whether the operation succeeded.
   function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
     _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue);
     return true;
   }
 
+  /// @notice Decreases the allowance granted to `_spender` by the caller.
+  /// @param _spender Address of the spender.
+  /// @param _subtractedValue The amount to subtract from the allowance.
+  /// @return A boolean value indicating whether the operation succeeded.
   function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
     require(currentAllowance >= _subtractedValue, 'IA');
@@ -207,6 +279,10 @@ contract StakeTogether is
     return true;
   }
 
+  /// @notice Internal function to deduct the allowance for a given spender, if any.
+  /// @param _account Address of the token owner.
+  /// @param _spender Address of the spender.
+  /// @param _amount Amount to be deducted from the allowance.
   function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
@@ -215,6 +291,9 @@ contract StakeTogether is
     }
   }
 
+  /// @notice Internal function to mint shares to a given address.
+  /// @param _to Address to mint shares to.
+  /// @param _sharesAmount Amount of shares to mint.
   function _mintShares(address _to, uint256 _sharesAmount) private whenNotPaused {
     require(_to != address(0), 'ZA');
     shares[_to] += _sharesAmount;
@@ -222,6 +301,9 @@ contract StakeTogether is
     emit MintShares(_to, _sharesAmount);
   }
 
+  /// @notice Internal function to burn shares from a given address.
+  /// @param _account Address to burn shares from.
+  /// @param _sharesAmount Amount of shares to burn.
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     require(_account != address(0), 'ZA');
     require(_sharesAmount <= shares[_account], 'IS');
@@ -234,6 +316,11 @@ contract StakeTogether is
    ** REWARDS **
    *************/
 
+  /// @notice Internal function to mint rewards as shares to a given address.
+  /// @param _address Address to mint rewards to.
+  /// @param _sharesAmount Amount of reward shares to mint.
+  /// @param _feeType Type of fee associated with the minting.
+  /// @param _feeRole Role of the fee within the system.
   function _mintRewards(
     address _address,
     uint256 _sharesAmount,
@@ -244,6 +331,11 @@ contract StakeTogether is
     emit MintRewards(_address, _sharesAmount, _feeType, _feeRole);
   }
 
+  /// @notice Function to mint rewards to a given address, accessible only by the router.
+  /// @param _address Address to mint rewards to.
+  /// @param _sharesAmount Amount of reward shares to mint.
+  /// @param _feeType Type of fee associated with the minting.
+  /// @param _feeRole Role of the fee within the system.
   function mintRewards(
     address _address,
     uint256 _sharesAmount,
@@ -254,6 +346,9 @@ contract StakeTogether is
     _mintRewards(_address, _sharesAmount, _feeType, _feeRole);
   }
 
+  /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
+  /// @param _account Address to transfer the claimed rewards to.
+  /// @param _sharesAmount Amount of shares to claim as rewards.
   function claimRewards(address _account, uint256 _sharesAmount) external nonReentrant whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA');
