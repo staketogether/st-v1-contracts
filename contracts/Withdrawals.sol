@@ -94,10 +94,9 @@ contract Withdrawals is
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
     require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_STW_BALANCE');
     require(_amount > 0, 'ZERO_AMOUNT');
-
     _burn(msg.sender, _amount);
-    payable(msg.sender).transfer(_amount);
     emit Withdraw(msg.sender, _amount);
+    payable(msg.sender).transfer(_amount);
   }
 
   function isWithdrawReady(uint256 _amount) public view returns (bool) {
