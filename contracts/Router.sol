@@ -374,6 +374,8 @@ contract Router is
       require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');
     }
 
+    // Todo: add valid merkle tree
+
     require(_report.withdrawAmount <= withdrawals.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
 
     require(stakeTogether.beaconBalance() - _report.lossAmount > 0, 'INVALID_BEACON_BALANCE');
