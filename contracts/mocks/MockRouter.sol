@@ -137,4 +137,8 @@ contract MockRouter is
   ) public payable nonReentrant {
     stakeTogether.mintRewards{ value: msg.value }(_address, _sharesAmount, _feeType, _feeRole);
   }
+
+  function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant {
+    airdrop.addMerkleRoot(_epoch, merkleRoot);
+  }
 }

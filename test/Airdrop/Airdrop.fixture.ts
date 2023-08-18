@@ -268,6 +268,8 @@ export async function airdropFixture() {
     airdropProxy: airdrop.proxyAddress,
     mockStakeTogether: stakeTogether.mockStakeTogetherContract,
     mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
+    mockRouter: router.routerContract,
+    mockRouterProxy: router.proxyAddress,
     UPGRADER_ROLE,
     ADMIN_ROLE,
   }

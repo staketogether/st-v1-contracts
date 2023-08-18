@@ -3,7 +3,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-import { Airdrop, MockAirdrop__factory, MockStakeTogether } from '../../typechain'
+import { Airdrop, MockAirdrop__factory, MockRouter, MockStakeTogether } from '../../typechain'
 import connect from '../utils/connect'
 import { airdropFixture } from './Airdrop.fixture'
 
@@ -14,6 +14,8 @@ describe('Airdrop', function () {
   let airdropProxy: string
   let mockStakeTogether: MockStakeTogether
   let mockStakeTogetherProxy: string
+  let mockRouter: MockRouter
+  let mockRouterProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -33,6 +35,9 @@ describe('Airdrop', function () {
     airdropProxy = fixture.airdropProxy
     mockStakeTogether = fixture.mockStakeTogether
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
+
+    mockRouter = fixture.mockRouter as unknown as MockRouter
+    mockRouterProxy = fixture.mockRouterProxy
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -174,6 +179,43 @@ describe('Airdrop', function () {
     it('should revert if there is no extra Ether in contract balance', async function () {
       await mockStakeTogether.setFeeAddress(2, user5.address)
       await expect(airdrop.connect(owner).transferExtraAmount()).to.be.revertedWith('NO_EXTRA_AMOUNT')
+    })
+  })
+
+  describe('addMerkleRoot', function () {
+    it('should add a Merkle root if called by the router address', async function () {
+      const epoch = 1
+      const merkleRoot = ethers.keccak256('0x1234')
+
+      await connect(airdrop, owner).setRouter(owner.address)
+
+      await expect(connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot))
+        .to.emit(airdrop, 'AddMerkleRoot')
+        .withArgs(epoch, merkleRoot)
+
+      expect(await airdrop.merkleRoots(epoch)).to.equal(merkleRoot)
+    })
+
+    it('should fail if called by an address other than the router', async function () {
+      const epoch = 1
+      const merkleRoot = ethers.keccak256('0x1234')
+
+      await expect(connect(airdrop, user1).addMerkleRoot(epoch, merkleRoot)).to.be.revertedWith(
+        'ONLY_ROUTER',
+      )
+    })
+
+    it('should fail if Merkle root is already set for the epoch', async function () {
+      const epoch = 1
+      const merkleRoot1 = ethers.keccak256('0x1234')
+      const merkleRoot2 = ethers.keccak256('0x5678')
+
+      await connect(airdrop, owner).setRouter(owner.address)
+      await connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot1)
+
+      await expect(connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot2)).to.be.revertedWith(
+        'MERKLE_ALREADY_SET_FOR_EPOCH',
+      )
     })
   })
 })
