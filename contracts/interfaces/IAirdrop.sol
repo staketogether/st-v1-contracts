@@ -4,21 +4,11 @@ pragma solidity ^0.8.18;
 
 /// @custom:security-contact security@staketogether.app
 interface IAirdrop {
-  event AddAirdropMerkleRoot(uint256 indexed epoch, bytes32 merkleRoot);
-  event AddMerkleRoots(
-    uint256 indexed epoch,
-    bytes32 poolsRoot,
-    bytes32 operatorsRoot,
-    bytes32 stakeRoot,
-    bytes32 withdrawalsRoot,
-    bytes32 rewardsRoot
-  );
+  event AddMerkleRoot(uint256 indexed epoch, bytes32 merkleRoot);
   event ClaimAirdrop(uint256 indexed epoch, address indexed account, uint256 sharesAmount);
-  event ClaimAirdropBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
-  event ClaimRewards(uint256 indexed _epoch, address indexed _account, uint256 sharesAmount);
-  event ClaimRewardsBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
+  event ClaimBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
   event ReceiveEther(address indexed sender, uint amount);
-  event SetMaxBatchSize(uint256 maxBatchSize);
+  event SetMaxBatch(uint256 maxBatchSize);
   event SetRouter(address router);
   event SetStakeTogether(address stakeTogether);
 }

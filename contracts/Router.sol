@@ -307,7 +307,7 @@ contract Router is
     }
 
     if (_report.merkleRoot != bytes32(0)) {
-      airdrop.addAirdropMerkleRoot(_report.epoch, _report.merkleRoot);
+      airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
     }
 
     if (_report.withdrawAmount > 0) {

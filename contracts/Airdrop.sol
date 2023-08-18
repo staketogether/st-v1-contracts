@@ -30,8 +30,8 @@ contract Airdrop is
   StakeTogether public stakeTogether;
   Router public router;
 
-  mapping(uint256 => bytes32) public airdropsMerkleRoots;
-  mapping(uint256 => mapping(uint256 => uint256)) private claimedBitMap;
+  mapping(uint256 => bytes32) public merkleRoots;
+  mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap;
   uint256 public maxBatchSize;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -63,7 +63,15 @@ contract Airdrop is
 
   receive() external payable nonReentrant {
     emit ReceiveEther(msg.sender, msg.value);
-    _transferToStakeTogether();
+  }
+
+  /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
+  /// @dev Only callable by the admin role.
+  function transferExtraAmount() external whenNotPaused onlyRole(ADMIN_ROLE) {
+    uint256 extraAmount = address(this).balance;
+    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
+    address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
+    payable(stakeTogetherFee).transfer(extraAmount);
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -78,43 +86,49 @@ contract Airdrop is
     emit SetRouter(_router);
   }
 
-  function _transferToStakeTogether() private {
-    payable(address(stakeTogether)).transfer(address(this).balance);
+  function setMaxBatch(uint256 _batchSize) external onlyRole(ADMIN_ROLE) {
+    maxBatchSize = _batchSize;
+    emit SetMaxBatch(_batchSize);
   }
 
   /**************
    ** AIRDROPS **
    **************/
 
-  function addAirdropMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external {
+  function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant {
     require(msg.sender == address(router), 'ONLY_ROUTER');
-    require(airdropsMerkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
-    airdropsMerkleRoots[_epoch] = merkleRoot;
-    emit AddAirdropMerkleRoot(_epoch, merkleRoot);
+    require(merkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
+    merkleRoots[_epoch] = merkleRoot;
+    emit AddMerkleRoot(_epoch, merkleRoot);
   }
 
-  function claimAirdrop(
+  function claim(
     uint256 _epoch,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) public nonReentrant whenNotPaused {
-    require(airdropsMerkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
+    require(merkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
     require(_account != address(0), 'ZERO_ADDR');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
-    if (isAirdropClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
+    if (isClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
 
     bytes32 leaf = keccak256(abi.encodePacked(_account, _sharesAmount));
-    if (!MerkleProofUpgradeable.verify(merkleProof, airdropsMerkleRoots[_epoch], leaf))
+    if (!MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_epoch], leaf))
       revert('INVALID_MERKLE_PROOF');
 
-    _setAirdropClaimed(_epoch, _account);
+    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
+    uint256 claimedWordIndex = index / 256;
+    uint256 claimedBitIndex = index % 256;
+    claimBitMap[_epoch][claimedWordIndex] =
+      claimBitMap[_epoch][claimedWordIndex] |
+      (1 << claimedBitIndex);
 
     stakeTogether.claimRewards(_account, _sharesAmount);
     emit ClaimAirdrop(_epoch, _account, _sharesAmount);
   }
 
-  function claimAirdropBatch(
+  function claimBatch(
     uint256[] calldata _epochs,
     address[] calldata _accounts,
     uint256[] calldata _sharesAmounts,
@@ -129,33 +143,19 @@ contract Airdrop is
 
     uint256 totalAmount = 0;
     for (uint256 i = 0; i < length; i++) {
-      claimAirdrop(_epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
+      claim(_epochs[i], _accounts[i], _sharesAmounts[i], merkleProofs[i]);
       totalAmount += _sharesAmounts[i];
     }
 
-    emit ClaimAirdropBatch(msg.sender, length, totalAmount);
+    emit ClaimBatch(msg.sender, length, totalAmount);
   }
 
-  function setMaxBatchSize(uint256 _maxBatchSize) external onlyRole(ADMIN_ROLE) {
-    maxBatchSize = _maxBatchSize;
-    emit SetMaxBatchSize(_maxBatchSize);
-  }
-
-  function isAirdropClaimed(uint256 _epoch, address _account) public view returns (bool) {
+  function isClaimed(uint256 _epoch, address _account) public view returns (bool) {
     uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
     uint256 claimedWordIndex = index / 256;
     uint256 claimedBitIndex = index % 256;
-    uint256 claimedWord = claimedBitMap[_epoch][claimedWordIndex];
+    uint256 claimedWord = claimBitMap[_epoch][claimedWordIndex];
     uint256 mask = (1 << claimedBitIndex);
     return claimedWord & mask == mask;
-  }
-
-  function _setAirdropClaimed(uint256 _epoch, address _account) private {
-    uint256 index = uint256(keccak256(abi.encodePacked(_epoch, _account)));
-    uint256 claimedWordIndex = index / 256;
-    uint256 claimedBitIndex = index % 256;
-    claimedBitMap[_epoch][claimedWordIndex] =
-      claimedBitMap[_epoch][claimedWordIndex] |
-      (1 << claimedBitIndex);
   }
 }

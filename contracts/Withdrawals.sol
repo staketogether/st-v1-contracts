@@ -79,6 +79,15 @@ contract Withdrawals is
     emit ReceiveEther(msg.sender, msg.value);
   }
 
+  /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
+  /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
+  function transferExtraAmount() external whenNotPaused onlyRole(ADMIN_ROLE) {
+    uint256 extraAmount = address(this).balance - totalSupply();
+    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
+    address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
+    payable(stakeTogetherFee).transfer(extraAmount);
+  }
+
   /// @notice Sets the StakeTogether contract address.
   /// @param _stakeTogether The address of the new StakeTogether contract.
   /// @dev Only callable by the admin role.
@@ -131,14 +140,5 @@ contract Withdrawals is
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
   function isWithdrawReady(uint256 _amount) public view returns (bool) {
     return address(this).balance >= _amount;
-  }
-
-  /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
-  /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
-  function transferExtraAmount() external whenNotPaused onlyRole(ADMIN_ROLE) {
-    uint256 extraAmount = address(this).balance - totalSupply();
-    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
-    address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
-    payable(stakeTogetherFee).transfer(extraAmount);
   }
 }

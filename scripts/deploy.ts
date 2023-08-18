@@ -63,7 +63,7 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
 
   const airdropContract = airdrop as unknown as Airdrop
 
-  await airdropContract.setMaxBatchSize(100)
+  await airdropContract.setMaxBatch(100)
 
   return { proxyAddress, implementationAddress, airdropContract }
 }
