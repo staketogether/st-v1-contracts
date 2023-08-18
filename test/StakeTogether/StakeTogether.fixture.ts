@@ -6,8 +6,6 @@ import {
   Airdrop__factory,
   MockDepositContract__factory,
   MockRouter__factory,
-  MockStakeTogether,
-  MockStakeTogether__factory,
   Router,
   StakeTogether,
   StakeTogether__factory,
@@ -24,9 +22,6 @@ async function deployAirdrop(owner: HardhatEthersSigner) {
   const proxyAddress = await airdrop.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  // console.log(`Airdrop\t\t Proxy\t\t\t ${proxyAddress}`);
-  // console.log(`Airdrop\t\t Implementation\t\t ${implementationAddress}`);
-
   const airdropContract = airdrop as unknown as Airdrop
 
   await airdropContract.setMaxBatchSize(100)
@@ -41,9 +36,6 @@ async function deployWithdrawals(owner: HardhatEthersSigner) {
   await withdrawals.waitForDeployment()
   const proxyAddress = await withdrawals.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  // console.log(`Withdrawals\t Proxy\t\t\t ${proxyAddress}`);
-  // console.log(`Withdrawals\t Implementation\t\t ${implementationAddress}`);
 
   const withdrawalsContract = withdrawals as unknown as Withdrawals
 
@@ -63,10 +55,6 @@ async function deployRouter(
   const proxyAddress = await router.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  // console.log(`Router\t\t Proxy\t\t\t ${proxyAddress}`);
-  // console.log(`Router\t\t Implementation\t\t ${implementationAddress}`);
-
-  // Create the configuration
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
@@ -77,10 +65,8 @@ async function deployRouter(
     reportBlockFrequency: 1,
   }
 
-  // Cast the contract to the correct type
   const routerContract = router as unknown as Router
 
-  // Set the configuration
   await routerContract.setConfig(config)
 
   return { proxyAddress, implementationAddress, routerContract }
@@ -92,9 +78,7 @@ async function deployStakeTogether(
   withdrawalsContract: string,
 ) {
   const MockDepositContractFactory = new MockDepositContract__factory().connect(owner)
-
   const mockDepositContract = await MockDepositContractFactory.deploy()
-
   const depositAddress = await mockDepositContract.getAddress()
 
   function convertToWithdrawalAddress(eth1Address: string): string {
@@ -118,9 +102,6 @@ async function deployStakeTogether(
   await stakeTogether.waitForDeployment()
   const proxyAddress = await stakeTogether.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  // console.log(`StakeTogether\t Proxy\t\t\t ${proxyAddress}`);
-  // console.log(`StakeTogether\t Implementation\t\t ${implementationAddress}`);
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
@@ -247,20 +228,6 @@ export async function stakeTogetherFixture() {
 
   await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
-  // UPGRADE
-
-  const MockStakeTogether = new MockStakeTogether__factory().connect(owner)
-  const mockStakeTogether = await upgrades.deployProxy(MockStakeTogether)
-  await mockStakeTogether.waitForDeployment()
-
-  const mockStakeTogetherProxy = await mockStakeTogether.getAddress()
-  const mockStakeTogetherImplementation = await getImplementationAddress(
-    network.provider,
-    mockStakeTogetherProxy,
-  )
-
-  const mockStakeTogetherContract = mockStakeTogether as unknown as MockStakeTogether
-
   const UPGRADER_ROLE = await stakeTogether.stakeTogetherContract.UPGRADER_ROLE()
   const ADMIN_ROLE = await stakeTogether.stakeTogetherContract.ADMIN_ROLE()
   const VALIDATOR_ORACLE_ROLE = await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_ROLE()
@@ -283,8 +250,6 @@ export async function stakeTogetherFixture() {
     nullAddress,
     stakeTogether: stakeTogether.stakeTogetherContract,
     stakeTogetherProxy: stakeTogether.proxyAddress,
-    mockStakeTogether: mockStakeTogetherContract,
-    mockStakeTogetherProxy: mockStakeTogetherProxy,
     mockRouter: router.routerContract,
     mockRouterProxy: router.proxyAddress,
     withdrawals: withdrawals.withdrawalsContract,

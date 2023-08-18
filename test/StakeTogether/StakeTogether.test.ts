@@ -3,13 +3,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import {
-  MockRouter,
-  MockStakeTogether,
-  MockStakeTogether__factory,
-  StakeTogether,
-  Withdrawals,
-} from '../../typechain'
+import { MockRouter, MockStakeTogether__factory, StakeTogether, Withdrawals } from '../../typechain'
 import connect from '../utils/connect'
 import { stakeTogetherFixture } from './StakeTogether.fixture'
 
@@ -18,8 +12,8 @@ dotenv.config()
 describe('Stake Together', function () {
   let stakeTogether: StakeTogether
   let stakeTogetherProxy: string
-  let mockStakeTogether: MockStakeTogether
-  let mockStakeTogetherProxy: string
+  // let mockStakeTogether: MockStakeTogether
+  // let mockStakeTogetherProxy: string
   let mockRouter: MockRouter
   let mockRouterProxy: string
   let withdrawals: Withdrawals
@@ -45,8 +39,8 @@ describe('Stake Together', function () {
     const fixture = await loadFixture(stakeTogetherFixture)
     stakeTogether = fixture.stakeTogether
     stakeTogetherProxy = fixture.stakeTogetherProxy
-    mockStakeTogether = fixture.mockStakeTogether
-    mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
+    // mockStakeTogether = fixture.mockStakeTogether
+    // mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
     mockRouter = fixture.mockRouter as unknown as MockRouter
     mockRouterProxy = fixture.mockRouterProxy
     withdrawals = fixture.withdrawals

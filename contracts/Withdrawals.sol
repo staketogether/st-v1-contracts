@@ -13,6 +13,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 
 import './StakeTogether.sol';
 import './interfaces/IWithdrawals.sol';
+import './interfaces/IStakeTogether.sol';
 
 /// @custom:security-contact security@staketogether.app
 contract Withdrawals is
@@ -64,7 +65,6 @@ contract Withdrawals is
 
   receive() external payable {
     emit ReceiveEther(msg.sender, msg.value);
-    _transferExtraAmount();
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -94,8 +94,8 @@ contract Withdrawals is
     require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
     require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_STW_BALANCE');
     require(_amount > 0, 'ZERO_AMOUNT');
-    _burn(msg.sender, _amount);
     emit Withdraw(msg.sender, _amount);
+    _burn(msg.sender, _amount);
     payable(msg.sender).transfer(_amount);
   }
 
@@ -103,11 +103,10 @@ contract Withdrawals is
     return address(this).balance >= _amount;
   }
 
-  function _transferExtraAmount() private {
-    uint256 _supply = totalSupply();
-    if (address(this).balance > _supply) {
-      uint256 extraAmount = address(this).balance - _supply;
-      payable(address(stakeTogether)).transfer(extraAmount);
-    }
+  function transferExtraAmount() external whenNotPaused onlyRole(ADMIN_ROLE) {
+    uint256 extraAmount = address(this).balance - totalSupply();
+    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
+    address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
+    payable(stakeTogetherFee).transfer(extraAmount);
   }
 }

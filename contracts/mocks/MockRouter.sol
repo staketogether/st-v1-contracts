@@ -113,9 +113,9 @@ contract MockRouter is
     emit SetConfig(_config);
   }
 
-  /************
+  /********************
    ** MOCK FUNCTIONS **
-   ************/
+   ********************/
 
   function setBeaconBalance(uint256 _amount) external {
     stakeTogether.setBeaconBalance(_amount);

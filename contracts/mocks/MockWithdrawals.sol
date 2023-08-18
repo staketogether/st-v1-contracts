@@ -86,7 +86,6 @@ contract MockWithdrawals is
 
     _burn(msg.sender, _amount);
     payable(msg.sender).transfer(_amount);
-    emit Withdraw(msg.sender, _amount);
   }
 
   function isWithdrawReady(uint256 _amount) public view returns (bool) {
