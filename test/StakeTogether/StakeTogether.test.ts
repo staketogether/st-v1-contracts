@@ -2056,6 +2056,66 @@ describe('Stake Together', function () {
       expect(user1Balance).to.equal(initialUser1Balance - amountToTransfer)
       expect(user3Balance).to.equal(amountToTransfer)
     })
+
+    it('should permit a spender and allow them to transfer funds', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+
+      const amountToApprove = ethers.parseEther('50')
+      const nonce = await stakeTogether.nonces(user1.address)
+      const deadline = ethers.MaxUint256
+      const domain = {
+        name: 'Stake Together Pool',
+        version: '1',
+        chainId: await network.provider.send('eth_chainId'),
+        verifyingContract: stakeTogetherProxy,
+      }
+      const types = {
+        Permit: [
+          { name: 'owner', type: 'address' },
+          { name: 'spender', type: 'address' },
+          { name: 'value', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+        ],
+      }
+      const value = {
+        owner: user1.address,
+        spender: user2.address,
+        value: amountToApprove.toString(),
+        nonce: nonce.toString(),
+        deadline: deadline.toString(),
+      }
+      const signature = await user1.signTypedData(domain, types, value)
+      const sig = ethers.getBytes(signature)
+      const r = ethers.hexlify(sig.slice(0, 32))
+      const s = ethers.hexlify(sig.slice(32, 64))
+      const v = sig[64] < 27 ? sig[64] + 27 : sig[64]
+
+      await stakeTogether
+        .connect(user2)
+        .permit(user1.address, user2.address, amountToApprove, deadline, v, r, s)
+
+      const newAllowance = await stakeTogether.allowance(user1.address, user2.address)
+      expect(newAllowance).to.equal(amountToApprove)
+
+      await stakeTogether.connect(user2).transferFrom(user1.address, user3.address, amountToApprove)
+
+      const newUser1Balance = await stakeTogether.balanceOf(user1.address)
+      expect(newUser1Balance).to.equal(user1SharesAfterDeposit - amountToApprove)
+
+      const newUser2Balance = await stakeTogether.balanceOf(user3.address)
+      expect(newUser2Balance).to.equal(amountToApprove)
+    })
   })
 
   describe('Shares', function () {
