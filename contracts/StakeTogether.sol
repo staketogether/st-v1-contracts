@@ -17,10 +17,10 @@ import './Withdrawals.sol';
 import './interfaces/IStakeTogether.sol';
 import './interfaces/IDepositContract.sol';
 
-/// @custom:security-contact security@staketogether.app
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
+/// @custom:security-contact security@staketogether.app
 contract StakeTogether is
   Initializable,
   ERC20Upgradeable,

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
-/// @custom:security-contact security@staketogether.app
 /// @title StakeTogether Interface
 /// @notice This interface defines the essential structures and functions for the StakeTogether protocol.
+/// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
   /// @notice Configuration for the StakeTogether protocol.
   struct Config {
