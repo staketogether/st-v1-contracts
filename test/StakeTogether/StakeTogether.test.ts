@@ -12,8 +12,7 @@ dotenv.config()
 describe('Stake Together', function () {
   let stakeTogether: StakeTogether
   let stakeTogetherProxy: string
-  // let mockStakeTogether: MockStakeTogether
-  // let mockStakeTogetherProxy: string
+
   let mockRouter: MockRouter
   let mockRouterProxy: string
   let withdrawals: Withdrawals
@@ -39,8 +38,6 @@ describe('Stake Together', function () {
     const fixture = await loadFixture(stakeTogetherFixture)
     stakeTogether = fixture.stakeTogether
     stakeTogetherProxy = fixture.stakeTogetherProxy
-    // mockStakeTogether = fixture.mockStakeTogether
-    // mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
     mockRouter = fixture.mockRouter as unknown as MockRouter
     mockRouterProxy = fixture.mockRouterProxy
     withdrawals = fixture.withdrawals
