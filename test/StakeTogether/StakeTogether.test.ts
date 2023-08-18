@@ -237,6 +237,85 @@ describe('Stake Together', function () {
       const totalContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
       expect(totalContractBalance).to.equal(ethers.parseEther('3') + initialBalance)
     })
+
+    it('should mint rewards and emit MintRewards event through mockRouter', async function () {
+      const sharesAmount = ethers.parseEther('10')
+      const rewardAmount = ethers.parseEther('5')
+      const feeType = 0
+      const feeRole = 0
+
+      const initialShares = await stakeTogether.shares(user1.address)
+
+      const tx = await mockRouter
+        .connect(user1)
+        .mintRewards(user1.address, sharesAmount, feeType, feeRole, {
+          value: rewardAmount,
+        })
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'MintRewards')
+        .withArgs(user1.address, rewardAmount, sharesAmount, feeType, feeRole)
+
+      const finalShares = await stakeTogether.shares(user1.address)
+      expect(finalShares).to.equal(initialShares + sharesAmount)
+    })
+
+    it('should fail to mint rewards if called directly on stakeTogether', async function () {
+      const sharesAmount = ethers.parseEther('10')
+      const rewardAmount = ethers.parseEther('5')
+      const feeType = 0
+      const feeRole = 0
+
+      await expect(
+        stakeTogether
+          .connect(user1)
+          .mintRewards(user1.address, sharesAmount, feeType, feeRole, { value: rewardAmount }),
+      ).to.be.revertedWith('OR')
+    })
+
+    it('should claim rewards and emit ClaimRewards event', async function () {
+      const airdropFeeAddress = user3
+
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1Shares = user1DepositAmount - fee
+
+      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+
+      await stakeTogether
+        .connect(airdropFeeAddress)
+        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+
+      const sharesAmount = ethers.parseEther('10')
+
+      await stakeTogether.connect(owner).setFeeAddress(0, airdropFeeAddress)
+
+      const initialSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
+      const initialSharesAccount = await stakeTogether.shares(user1.address)
+
+      expect(initialSharesAirdrop).to.be.gte(sharesAmount)
+
+      const tx = await stakeTogether.connect(airdropFeeAddress).claimRewards(user1.address, sharesAmount)
+
+      await expect(tx).to.emit(stakeTogether, 'ClaimRewards').withArgs(user1.address, sharesAmount)
+
+      const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
+      const finalSharesAccount = await stakeTogether.shares(user1.address)
+      expect(finalSharesAirdrop).to.equal(initialSharesAirdrop - sharesAmount)
+      expect(finalSharesAccount).to.equal(initialSharesAccount + sharesAmount)
+    })
+
+    it('should fail to claim rewards if caller is not airdrop fee address', async function () {
+      const sharesAmount = ethers.parseEther('10')
+
+      await expect(
+        stakeTogether.connect(user2).claimRewards(user1.address, sharesAmount),
+      ).to.be.revertedWith('OA')
+    })
   })
 
   describe('Set Configuration', function () {
@@ -1834,6 +1913,249 @@ describe('Stake Together', function () {
           'ZA',
         )
       })
+    })
+  })
+
+  describe('Transfer', function () {
+    it('should successfully transfer shares and emit TransferShares event', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+
+      const sharesToTransfer = ethers.parseEther('2')
+      const tx = await stakeTogether.connect(user1).transferShares(user2.address, sharesToTransfer)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'TransferShares')
+        .withArgs(user1.address, user2.address, sharesToTransfer)
+
+      const user1SharesAfterTransfer = await stakeTogether.shares(user1.address)
+      const user2SharesAfterTransfer = await stakeTogether.shares(user2.address)
+
+      expect(user1SharesAfterTransfer).to.equal(user1SharesAfterDeposit - sharesToTransfer)
+      expect(user2SharesAfterTransfer).to.equal(sharesToTransfer)
+    })
+
+    it('should fail if _to address is zero', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+      await expect(
+        stakeTogether.connect(user1).transferShares(nullAddress, ethers.parseEther('2')),
+      ).to.be.revertedWith('ZA')
+    })
+
+    it('should fail if _sharesAmount is greater than shares owned by _from', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+      const user1Shares = await stakeTogether.shares(user1.address)
+      await expect(
+        stakeTogether.connect(user1).transferShares(user2.address, user1Shares + 10n),
+      ).to.be.revertedWith('IS')
+    })
+
+    it('should successfully transfer amount and emit Transfer event', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+
+      const amountToTransfer = ethers.parseEther('2')
+      const tx = await stakeTogether.connect(user1).transfer(user2.address, amountToTransfer)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Transfer')
+        .withArgs(user1.address, user2.address, amountToTransfer)
+
+      const user1BalanceAfterTransfer = await stakeTogether.balanceOf(user1.address)
+      const user2BalanceAfterTransfer = await stakeTogether.balanceOf(user2.address)
+
+      expect(user1BalanceAfterTransfer).to.equal(user1DepositAmount - amountToTransfer - fee)
+      expect(user2BalanceAfterTransfer).to.equal(amountToTransfer)
+    })
+
+    it('should fail if _to address is zero', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+
+      await expect(
+        stakeTogether.connect(user1).transfer(nullAddress, ethers.parseEther('2')),
+      ).to.be.revertedWith('ZA')
+    })
+
+    it('should fail if _amount is greater than balance owned by _from', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+
+      const user1Balance = await stakeTogether.balanceOf(user1.address)
+      await expect(
+        stakeTogether.connect(user1).transfer(user2.address, user1Balance + 1n),
+      ).to.be.revertedWith('IS')
+    })
+
+    it('should transfer from one address to another using an approved spender and emit Transfer event', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+      const user1SharesAfterDeposit = user1DepositAmount - fee
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether
+        .connect(user1)
+        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+          value: user1DepositAmount,
+        })
+
+      const amountToApprove = ethers.parseEther('50')
+      const amountToTransfer = ethers.parseEther('20')
+      const initialUser1Balance = user1SharesAfterDeposit
+
+      await stakeTogether.connect(user1).approve(user2.address, amountToApprove)
+
+      const tx = await stakeTogether
+        .connect(user2)
+        .transferFrom(user1.address, user3.address, amountToTransfer)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Transfer')
+        .withArgs(user1.address, user3.address, amountToTransfer)
+
+      const remainingAllowance = await stakeTogether.allowance(user1.address, user2.address)
+      expect(remainingAllowance).to.equal(amountToApprove - amountToTransfer)
+
+      const user1Balance = await stakeTogether.shares(user1.address)
+      const user3Balance = await stakeTogether.shares(user3.address)
+      expect(user1Balance).to.equal(initialUser1Balance - amountToTransfer)
+      expect(user3Balance).to.equal(amountToTransfer)
+    })
+  })
+
+  describe('Shares', function () {
+    it('should approve an amount for a spender and emit Approval event', async function () {
+      const amountToApprove = ethers.parseEther('50')
+
+      const tx = await stakeTogether.connect(user1).approve(user2.address, amountToApprove)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Approval')
+        .withArgs(user1.address, user2.address, amountToApprove)
+
+      const allowanceAfterApprove = await stakeTogether.allowance(user1.address, user2.address)
+      expect(allowanceAfterApprove).to.equal(amountToApprove)
+    })
+
+    it('should fail to approve if _spender address is zero', async function () {
+      const amountToApprove = ethers.parseEther('50')
+
+      await expect(stakeTogether.connect(user1).approve(nullAddress, amountToApprove)).to.be.revertedWith(
+        'ZA',
+      )
+    })
+
+    it('should return correct allowance', async function () {
+      const amountToApprove = ethers.parseEther('50')
+
+      await stakeTogether.connect(user1).approve(user2.address, amountToApprove)
+
+      const allowance = await stakeTogether.allowance(user1.address, user2.address)
+
+      expect(allowance).to.equal(amountToApprove)
+    })
+
+    it('should increase allowance and emit Approval event', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const initialAllowance = ethers.parseEther('50')
+      const addedValue = ethers.parseEther('10')
+
+      await stakeTogether.connect(user1).approve(user2.address, initialAllowance)
+
+      const tx = await stakeTogether.connect(user1).increaseAllowance(user2.address, addedValue)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Approval')
+        .withArgs(user1.address, user2.address, initialAllowance + addedValue)
+
+      const finalAllowance = await stakeTogether.allowance(user1.address, user2.address)
+      expect(finalAllowance).to.equal(initialAllowance + addedValue)
+    })
+
+    it('should decrease allowance and emit Approval event', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const initialAllowance = ethers.parseEther('50')
+      const subtractedValue = ethers.parseEther('10')
+
+      await stakeTogether.connect(user1).approve(user2.address, initialAllowance)
+
+      const tx = await stakeTogether.connect(user1).decreaseAllowance(user2.address, subtractedValue)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Approval')
+        .withArgs(user1.address, user2.address, initialAllowance - subtractedValue)
+
+      const finalAllowance = await stakeTogether.allowance(user1.address, user2.address)
+      expect(finalAllowance).to.equal(initialAllowance - subtractedValue)
+    })
+
+    it('should fail to decrease allowance if subtracted value is greater than current allowance', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const initialAllowance = ethers.parseEther('50')
+      const subtractedValue = ethers.parseEther('60')
+
+      await stakeTogether.connect(user1).approve(user2.address, initialAllowance)
+
+      await expect(
+        stakeTogether.connect(user1).decreaseAllowance(user2.address, subtractedValue),
+      ).to.be.revertedWith('IA')
     })
   })
 })

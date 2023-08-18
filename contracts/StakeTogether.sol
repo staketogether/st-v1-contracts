@@ -153,15 +153,30 @@ contract StakeTogether is
     return true;
   }
 
-  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
-    _spendAllowance(_from, msg.sender, _amount);
-    _transfer(_from, _to, _amount);
-    return true;
+  function _transfer(address _from, address _to, uint256 _amount) internal override {
+    uint256 _sharesToTransfer = sharesByWei(_amount);
+    _transferShares(_from, _to, _sharesToTransfer);
+    emit Transfer(_from, _to, _amount);
   }
 
   function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
     return weiByShares(_sharesAmount);
+  }
+
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
+    require(_from != address(0), 'ZA');
+    require(_to != address(0), 'ZA');
+    require(_sharesAmount <= shares[_from], 'IS');
+    shares[_from] -= _sharesAmount;
+    shares[_to] += _sharesAmount;
+    emit TransferShares(_from, _to, _sharesAmount);
+  }
+
+  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
+    return true;
   }
 
   function allowance(address _account, address _spender) public view override returns (uint256) {
@@ -171,6 +186,13 @@ contract StakeTogether is
   function approve(address _spender, uint256 _amount) public override returns (bool) {
     _approve(msg.sender, _spender, _amount);
     return true;
+  }
+
+  function _approve(address _account, address _spender, uint256 _amount) internal override {
+    require(_account != address(0), 'ZA');
+    require(_spender != address(0), 'ZA');
+    allowances[_account][_spender] = _amount;
+    emit Approval(_account, _spender, _amount);
   }
 
   function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
@@ -185,11 +207,12 @@ contract StakeTogether is
     return true;
   }
 
-  function _approve(address _account, address _spender, uint256 _amount) internal override {
-    require(_account != address(0), 'ZA');
-    require(_spender != address(0), 'ZA');
-    allowances[_account][_spender] = _amount;
-    emit Approval(_account, _spender, _amount);
+  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
+    uint256 currentAllowance = allowances[_account][_spender];
+    if (currentAllowance != ~uint256(0)) {
+      require(currentAllowance >= _amount, 'IA');
+      _approve(_account, _spender, currentAllowance - _amount);
+    }
   }
 
   function _mintShares(address _to, uint256 _sharesAmount) private whenNotPaused {
@@ -205,29 +228,6 @@ contract StakeTogether is
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
-  }
-
-  function _transfer(address _from, address _to, uint256 _amount) internal override {
-    uint256 _sharesToTransfer = sharesByWei(_amount);
-    _transferShares(_from, _to, _sharesToTransfer);
-    emit Transfer(_from, _to, _amount);
-  }
-
-  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
-    require(_from != address(0), 'ZA');
-    require(_to != address(0), 'ZA');
-    require(_sharesAmount <= shares[_from], 'IS');
-    shares[_from] -= _sharesAmount;
-    shares[_to] += _sharesAmount;
-    emit TransferShares(_from, _to, _sharesAmount);
-  }
-
-  function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
-    uint256 currentAllowance = allowances[_account][_spender];
-    if (currentAllowance != ~uint256(0)) {
-      require(currentAllowance >= _amount, 'IA');
-      _approve(_account, _spender, currentAllowance - _amount);
-    }
   }
 
   /*************

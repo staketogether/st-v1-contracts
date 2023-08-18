@@ -128,4 +128,13 @@ contract MockRouter is
   function withdrawRefund() external payable {
     stakeTogether.withdrawRefund{ value: msg.value }();
   }
+
+  function mintRewards(
+    address _address,
+    uint256 _sharesAmount,
+    IStakeTogether.FeeType _feeType,
+    IStakeTogether.FeeRole _feeRole
+  ) public payable nonReentrant {
+    stakeTogether.mintRewards{ value: msg.value }(_address, _sharesAmount, _feeType, _feeRole);
+  }
 }
