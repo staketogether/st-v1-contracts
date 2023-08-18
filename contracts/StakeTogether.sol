@@ -345,7 +345,7 @@ contract StakeTogether is
     uint256 _sharesAmount,
     FeeType _feeType,
     FeeRole _feeRole
-  ) public payable nonReentrant {
+  ) public payable nonReentrant whenNotPaused {
     require(msg.sender == router, 'OR'); // OR = Only Router
     _mintRewards(_address, _sharesAmount, _feeType, _feeRole);
   }
