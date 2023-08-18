@@ -169,12 +169,12 @@ contract Router is
     emit UnBlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
   }
 
-  function addSentinel(address _sentinel) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function addSentinel(address _sentinel) external onlyRole(ADMIN_ROLE) {
     require(!hasRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel), 'SENTINEL_EXISTS');
     grantRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
   }
 
-  function removeSentinel(address _sentinel) external onlyRole(DEFAULT_ADMIN_ROLE) {
+  function removeSentinel(address _sentinel) external onlyRole(ADMIN_ROLE) {
     require(hasRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel), 'SENTINEL_NOT_EXISTS');
     revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
   }
