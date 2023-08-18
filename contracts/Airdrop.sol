@@ -67,7 +67,7 @@ contract Airdrop is
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role.
-  function transferExtraAmount() external whenNotPaused onlyRole(ADMIN_ROLE) {
+  function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance;
     require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
@@ -109,7 +109,7 @@ contract Airdrop is
     bytes32[] calldata merkleProof
   ) public nonReentrant whenNotPaused {
     require(merkleRoots[_epoch] != bytes32(0), 'EPOCH_NOT_FOUND');
-    require(_account != address(0), 'ZERO_ADDR');
+    require(_account != address(0), 'ZERO_ADDRESS');
     require(_sharesAmount > 0, 'ZERO_SHARES_AMOUNT');
     if (isClaimed(_epoch, _account)) revert('ALREADY_CLAIMED');
 

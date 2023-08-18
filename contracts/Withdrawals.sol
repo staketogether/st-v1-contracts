@@ -81,7 +81,7 @@ contract Withdrawals is
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
-  function transferExtraAmount() external whenNotPaused onlyRole(ADMIN_ROLE) {
+  function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance - totalSupply();
     require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
