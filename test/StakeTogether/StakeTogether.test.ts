@@ -254,7 +254,7 @@ describe('Stake Together', function () {
 
       await expect(tx)
         .to.emit(stakeTogether, 'MintRewards')
-        .withArgs(user1.address, rewardAmount, sharesAmount, feeType, feeRole)
+        .withArgs(user1.address, sharesAmount, feeType, feeRole)
 
       const finalShares = await stakeTogether.shares(user1.address)
       expect(finalShares).to.equal(initialShares + sharesAmount)
@@ -1722,10 +1722,9 @@ describe('Stake Together', function () {
 
       // Checking the arguments of the MintRewards event
       expect(logs[0].args[0]).to.equal('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266')
-      expect(logs[0].args[1]).to.equal(0n)
-      expect(logs[0].args[2]).to.equal(100000000000000n)
-      expect(logs[0].args[3]).to.equal(3n)
-      expect(logs[0].args[4]).to.equal(2n)
+      expect(logs[0].args[1]).to.equal(100000000000000n)
+      expect(logs[0].args[2]).to.equal(3n)
+      expect(logs[0].args[3]).to.equal(2n)
     })
 
     it('should create and then remove a validator', async function () {
@@ -1897,21 +1896,6 @@ describe('Stake Together', function () {
 
       it('should revert when calling estimateFeeFixed which is PERCENTAGE', async function () {
         await expect(stakeTogether.estimateFeeFixed(1)).to.be.reverted
-      })
-
-      it('should revert if any fee address is zero', async function () {
-        await stakeTogether.setFeeAddress(0, nullAddress)
-
-        await stakeTogether.setFee(0n, ethers.parseEther('0.003'), 1n, [
-          ethers.parseEther('0.6'),
-          0n,
-          ethers.parseEther('0.4'),
-          0n,
-        ])
-
-        await expect(stakeTogether.estimateFeePercentage(0, ethers.parseEther('0.1'))).to.be.revertedWith(
-          'ZA',
-        )
       })
     })
   })

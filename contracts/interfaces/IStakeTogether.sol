@@ -77,13 +77,7 @@ interface IStakeTogether {
   );
   event DepositBase(address indexed to, uint256 amount, DepositType depositType, address referral);
   event DepositLimitReached(address indexed sender, uint256 amount);
-  event MintRewards(
-    address indexed to,
-    uint256 amount,
-    uint256 sharesAmount,
-    FeeType feeType,
-    FeeRole feeRole
-  );
+  event MintRewards(address indexed to, uint256 sharesAmount, FeeType feeType, FeeRole feeRole);
   event MintShares(address indexed to, uint256 sharesAmount);
   event NextValidatorOracle(uint256 index, address indexed account);
   event ReceiveEther(address indexed sender, uint amount);

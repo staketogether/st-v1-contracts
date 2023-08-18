@@ -236,13 +236,12 @@ contract StakeTogether is
 
   function _mintRewards(
     address _address,
-    uint256 _amount,
     uint256 _sharesAmount,
     FeeType _feeType,
     FeeRole _feeRole
   ) private {
     _mintShares(_address, _sharesAmount);
-    emit MintRewards(_address, _amount, _sharesAmount, _feeType, _feeRole);
+    emit MintRewards(_address, _sharesAmount, _feeType, _feeRole);
   }
 
   function mintRewards(
@@ -252,7 +251,7 @@ contract StakeTogether is
     FeeRole _feeRole
   ) public payable nonReentrant {
     require(msg.sender == router, 'OR');
-    _mintRewards(_address, msg.value, _sharesAmount, _feeType, _feeRole);
+    _mintRewards(_address, _sharesAmount, _feeType, _feeRole);
   }
 
   function claimRewards(address _account, uint256 _sharesAmount) external nonReentrant whenNotPaused {
@@ -287,7 +286,7 @@ contract StakeTogether is
         if (roles[i] == FeeRole.Sender) {
           _mintShares(_to, _shares[i]);
         } else {
-          _mintRewards(getFeeAddress(roles[i]), 0, _shares[i], FeeType.StakeEntry, roles[i]);
+          _mintRewards(getFeeAddress(roles[i]), _shares[i], FeeType.StakeEntry, roles[i]);
         }
       }
     }
@@ -376,7 +375,7 @@ contract StakeTogether is
       (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakePool);
       FeeRole[4] memory roles = getFeesRoles();
       for (uint i = 0; i < roles.length - 1; i++) {
-        _mintRewards(getFeeAddress(roles[i]), msg.value, _shares[i], FeeType.StakePool, roles[i]);
+        _mintRewards(getFeeAddress(roles[i]), _shares[i], FeeType.StakePool, roles[i]);
       }
     }
     pools[_pool] = true;
@@ -483,7 +482,7 @@ contract StakeTogether is
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < _shares.length - 1; i++) {
       if (_shares[i] > 0) {
-        _mintRewards(getFeeAddress(roles[i]), 0, _shares[i], FeeType.StakeValidator, roles[i]);
+        _mintRewards(getFeeAddress(roles[i]), _shares[i], FeeType.StakeValidator, roles[i]);
       }
     }
     _setBeaconBalance(beaconBalance + config.validatorSize);
@@ -518,6 +517,11 @@ contract StakeTogether is
    **    FEES     **
    *****************/
 
+  function getFeesRoles() public pure returns (FeeRole[4] memory) {
+    FeeRole[4] memory roles = [FeeRole.Airdrop, FeeRole.Operator, FeeRole.StakeTogether, FeeRole.Sender];
+    return roles;
+  }
+
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     feesRole[_role] = _address;
     emit SetFeeAddress(_role, _address);
@@ -525,11 +529,6 @@ contract StakeTogether is
 
   function getFeeAddress(FeeRole _role) public view returns (address) {
     return feesRole[_role];
-  }
-
-  function getFeesRoles() public pure returns (FeeRole[4] memory) {
-    FeeRole[4] memory roles = [FeeRole.Airdrop, FeeRole.Operator, FeeRole.StakeTogether, FeeRole.Sender];
-    return roles;
   }
 
   function setFee(
@@ -579,15 +578,6 @@ contract StakeTogether is
     uint256 _sharesAmount
   ) private view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
     FeeRole[4] memory roles = getFeesRoles();
-    address[4] memory feeAddresses;
-
-    for (uint256 i = 0; i < roles.length; i++) {
-      feeAddresses[i] = getFeeAddress(roles[i]);
-    }
-
-    for (uint256 i = 0; i < feeAddresses.length - 1; i++) {
-      require(feeAddresses[i] != address(0), 'ZA');
-    }
 
     uint256 feeValue = fees[_feeType].value;
     uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
