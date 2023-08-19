@@ -570,7 +570,7 @@ contract StakeTogether is
     require(isValidatorOracle(msg.sender), 'OV');
     require(address(this).balance >= config.poolSize, 'NBP');
     require(!validators[_publicKey], 'VE');
-    _processStakeValidatorFees();
+    _processStakeValidatorFee();
     _setBeaconBalance(beaconBalance + config.validatorSize);
     validators[_publicKey] = true;
     _nextValidatorOracle();
@@ -663,33 +663,31 @@ contract StakeTogether is
   }
 
   function _distributeFees(FeeType _feeType, uint256 _sharesAmount, address _to) private {
-    uint256[4] memory _shares;
-
+    uint256[4] memory allocatedShares;
     FeeRole[4] memory roles = getFeesRoles();
 
     uint256 amount = fees[_feeType].mathType == FeeMath.FIXED ? fees[_feeType].value : _sharesAmount;
-
     uint256 feeValue = fees[_feeType].value;
     uint256 feeShares = MathUpgradeable.mulDiv(amount, feeValue, 1 ether);
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
       uint256 allocation = fees[_feeType].allocations[roles[i]];
-      _shares[i] = MathUpgradeable.mulDiv(feeShares, allocation, 1 ether);
-      totalAllocatedShares += _shares[i];
+      allocatedShares[i] = MathUpgradeable.mulDiv(feeShares, allocation, 1 ether);
+      totalAllocatedShares += allocatedShares[i];
     }
 
-    _shares[3] = amount - totalAllocatedShares;
+    allocatedShares[3] = amount - totalAllocatedShares;
 
     uint length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
 
     for (uint i = 0; i < length; i++) {
-      if (_shares[i] > 0) {
+      if (allocatedShares[i] > 0) {
         if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
-          _mintShares(_to, _shares[i]);
+          _mintShares(_to, allocatedShares[i]);
         } else {
-          _mintShares(getFeeAddress(roles[i]), _shares[i]);
-          emit MintFeeShares(getFeeAddress(roles[i]), _shares[i], _feeType, roles[i]);
+          _mintShares(getFeeAddress(roles[i]), allocatedShares[i]);
+          emit MintFeeShares(getFeeAddress(roles[i]), allocatedShares[i], _feeType, roles[i]);
         }
       }
     }
@@ -709,7 +707,7 @@ contract StakeTogether is
     _distributeFees(FeeType.StakePool, 0, address(0));
   }
 
-  function _processStakeValidatorFees() private {
+  function _processStakeValidatorFee() private {
     _distributeFees(FeeType.StakeValidator, 0, address(0));
   }
 }
