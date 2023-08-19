@@ -244,8 +244,6 @@ export async function withdrawalsFixture() {
 
   const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
 
-  // CONFIG
-
   await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
   const UPGRADER_ROLE = await withdrawals.withdrawalsContract.UPGRADER_ROLE()

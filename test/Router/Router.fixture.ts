@@ -4,10 +4,11 @@ import { ethers, network, upgrades } from 'hardhat'
 import {
   Airdrop,
   Airdrop__factory,
-  MockStakeTogether,
-  MockStakeTogether__factory,
+  MockDepositContract__factory,
   Router,
   Router__factory,
+  StakeTogether,
+  StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
 } from '../../typechain'
@@ -51,7 +52,6 @@ async function deployRouter(
   const proxyAddress = await router.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  // Create the configuration
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
@@ -62,13 +62,136 @@ async function deployRouter(
     reportBlockFrequency: 1,
   }
 
-  // Cast the contract to the correct type
   const routerContract = router as unknown as Router
 
-  // Set the configuration
   await routerContract.setConfig(config)
 
   return { proxyAddress, implementationAddress, routerContract }
+}
+
+async function deployStakeTogether(
+  owner: HardhatEthersSigner,
+  routerContract: string,
+  withdrawalsContract: string,
+) {
+  const MockDepositContractFactory = new MockDepositContract__factory().connect(owner)
+  const mockDepositContract = await MockDepositContractFactory.deploy()
+  const depositAddress = await mockDepositContract.getAddress()
+
+  function convertToWithdrawalAddress(eth1Address: string): string {
+    const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
+    const paddedAddress = address.padStart(64, '0')
+    const withdrawalAddress = '0x01' + paddedAddress
+    return withdrawalAddress
+  }
+
+  const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
+
+  const withdrawalsAddress = convertToWithdrawalAddress(withdrawalsContract)
+
+  const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    routerContract,
+    withdrawalsContract,
+    depositAddress,
+    withdrawalsAddress,
+  ])
+
+  await stakeTogether.waitForDeployment()
+  const proxyAddress = await stakeTogether.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+
+  const stakeTogetherContract = stakeTogether as unknown as StakeTogether
+
+  const config = {
+    validatorSize: ethers.parseEther('32'),
+    poolSize: ethers.parseEther('32'),
+    minDepositAmount: ethers.parseEther('0.001'),
+    minWithdrawAmount: ethers.parseEther('0.00001'),
+    depositLimit: ethers.parseEther('1000'),
+    withdrawalLimit: ethers.parseEther('1000'),
+    blocksPerDay: 7200n,
+    maxDelegations: 64n,
+    feature: {
+      AddPool: true,
+      Deposit: true,
+      WithdrawPool: true,
+      WithdrawValidator: true,
+    },
+  }
+
+  await stakeTogetherContract.setConfig(config)
+
+  // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
+  await stakeTogetherContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
+    ethers.parseEther('0.6'),
+    0n,
+    ethers.parseEther('0.4'),
+    0n,
+  ])
+
+  // Set the StakeRewards fee to 0.09 ether and make it a percentage-based fee
+  await stakeTogetherContract.setFee(1n, ethers.parseEther('0.09'), 1n, [
+    ethers.parseEther('0.33'),
+    ethers.parseEther('0.33'),
+    ethers.parseEther('0.34'),
+    0n,
+  ])
+
+  // Set the StakePool fee to 1 ether and make it a fixed fee
+  await stakeTogetherContract.setFee(2n, ethers.parseEther('1'), 0n, [
+    ethers.parseEther('0.4'),
+    0n,
+    ethers.parseEther('0.6'),
+    0n,
+  ])
+
+  // Set the StakeValidator fee to 0.01 ether and make it a fixed fee
+  await stakeTogetherContract.setFee(3n, ethers.parseEther('0.01'), 0n, [
+    0n,
+    0n,
+    ethers.parseEther('1'),
+    0n,
+  ])
+
+  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
+
+  return { proxyAddress, implementationAddress, stakeTogetherContract }
+}
+
+export async function configContracts(
+  owner: HardhatEthersSigner,
+  airdrop: {
+    proxyAddress: string
+    implementationAddress: string
+    airdropContract: Airdrop
+  },
+  stakeTogether: {
+    proxyAddress: string
+    implementationAddress: string
+    stakeTogetherContract: StakeTogether
+  },
+  withdrawals: {
+    proxyAddress: string
+    implementationAddress: string
+    withdrawalsContract: Withdrawals
+  },
+  router: {
+    proxyAddress: string
+    implementationAddress: string
+    routerContract: Router
+  },
+) {
+  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
+
+  await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
+  await airdrop.airdropContract.setRouter(router.proxyAddress)
+
+  await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
+
+  // await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 }
 
 export async function routerFixture() {
@@ -90,21 +213,19 @@ export async function routerFixture() {
 
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
 
+  // DEPLOY
+
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
 
-  const MockStakeTogether = new MockStakeTogether__factory().connect(owner)
-  const mockStakeTogether = await upgrades.deployProxy(MockStakeTogether)
-  await mockStakeTogether.waitForDeployment()
-
-  const stakeTogetherProxy = await mockStakeTogether.getAddress()
-  const stakeTogetherImplementation = await getImplementationAddress(network.provider, stakeTogetherProxy)
-
-  const stakeTogether = mockStakeTogether as unknown as MockStakeTogether
+  await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
   const UPGRADER_ROLE = await router.routerContract.UPGRADER_ROLE()
   const ADMIN_ROLE = await router.routerContract.ADMIN_ROLE()
+  const ORACLE_REPORT_MANAGER_ROLE = await router.routerContract.ORACLE_REPORT_MANAGER_ROLE()
+  const ORACLE_REPORT_SENTINEL_ROLE = await router.routerContract.ORACLE_REPORT_SENTINEL_ROLE()
 
   return {
     provider,
@@ -120,9 +241,11 @@ export async function routerFixture() {
     nullAddress,
     router: router.routerContract,
     routerProxy: router.proxyAddress,
-    stakeTogether,
-    stakeTogetherProxy,
+    stakeTogether: stakeTogether.stakeTogetherContract,
+    stakeTogetherProxy: stakeTogether.proxyAddress,
     UPGRADER_ROLE,
     ADMIN_ROLE,
+    ORACLE_REPORT_MANAGER_ROLE,
+    ORACLE_REPORT_SENTINEL_ROLE,
   }
 }

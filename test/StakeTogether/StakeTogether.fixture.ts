@@ -219,10 +219,7 @@ export async function stakeTogetherFixture() {
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
-
   const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
-
-  // CONFIG
 
   await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 

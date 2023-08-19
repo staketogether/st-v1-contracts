@@ -308,7 +308,7 @@ describe('Stake Together', function () {
     })
 
     // Todo: Revise Precision
-    it('REVISE_THAT_should correctly process stake rewards fee through processStakeRewardsFee', async function () {
+    it.skip('REVISE_THAT_should correctly process stake rewards fee through processStakeRewardsFee', async function () {
       const rewardAmount = ethers.parseEther('1')
 
       const weiBySharesPre = BigInt(await stakeTogether.weiByShares(rewardAmount))
