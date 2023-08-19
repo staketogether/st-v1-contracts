@@ -37,20 +37,20 @@ contract MockRouter is
   Airdrop public airdrop;
   Config public config;
 
-  uint256 public totalReportOracles;
-  mapping(address => bool) private reportOracles;
-  mapping(address => uint256) public reportOraclesBlacklist;
+  uint256 public totalReportsOracle;
+  mapping(address => bool) private reportsOracles;
+  mapping(address => uint256) public reportsOracleBlacklist;
 
-  mapping(uint256 => mapping(bytes32 => address[])) public oracleReports;
-  mapping(uint256 => mapping(bytes32 => uint256)) public oracleReportsVotes;
+  mapping(uint256 => mapping(bytes32 => address[])) public reports;
+  mapping(uint256 => mapping(bytes32 => uint256)) public reportVotes;
   mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
   mapping(uint256 => bytes32[]) public reportHistoric;
   mapping(uint256 => bytes32) public consensusReport;
-  mapping(uint256 => bool) public consensusInvalidatedReport;
+  mapping(uint256 => bool) public invalidatedReports;
 
-  uint256 public reportBlockNumber;
+  uint256 public reportBlock;
   uint256 public lastConsensusEpoch;
-  uint256 public lastExecutedConsensusEpoch;
+  uint256 public lastExecutedEpoch;
 
   mapping(bytes32 => uint256) public reportExecutionBlock;
 
@@ -59,7 +59,7 @@ contract MockRouter is
     _disableInitializers();
   }
 
-  function initialize(address _airdrop, address _withdrawals) public initializer {
+  function initialize(address _airdrop, address _withdrawals) external initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -74,20 +74,20 @@ contract MockRouter is
     airdrop = Airdrop(payable(_airdrop));
     withdrawals = Withdrawals(payable(_withdrawals));
 
-    reportBlockNumber = 1;
+    reportBlock = 1;
     lastConsensusEpoch = 0;
-    lastExecutedConsensusEpoch = 0;
+    lastExecutedEpoch = 0;
   }
 
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
-  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+  function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   receive() external payable {
     emit ReceiveEther(msg.sender, msg.value);
@@ -103,7 +103,7 @@ contract MockRouter is
    ** CONFIG **
    ************/
 
-  function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
+  function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     if (config.minBlocksBeforeExecution < 300) {
       config.minBlocksBeforeExecution = 300;
     } else {
@@ -117,70 +117,43 @@ contract MockRouter is
    ** REPORT ORACLE **
    *******************/
 
-  modifier onlyReportOracle() {
+  modifier reportOracle() {
     require(
-      reportOracles[msg.sender] && reportOraclesBlacklist[msg.sender] < config.oracleBlackListLimit,
+      reportsOracles[msg.sender] && reportsOracleBlacklist[msg.sender] < config.oracleBlackListLimit,
       'ONLY_REPORT_ORACLE'
     );
     _;
   }
 
-  function isReportOracle(address _oracle) public view returns (bool) {
-    return reportOracles[_oracle] && reportOraclesBlacklist[_oracle] < config.oracleBlackListLimit;
+  function isReportOracle(address _oracle) external view returns (bool) {
+    return reportsOracles[_oracle] && reportsOracleBlacklist[_oracle] < config.oracleBlackListLimit;
   }
 
-  function isReportOracleBlackListed(address _oracle) public view returns (bool) {
-    return reportOraclesBlacklist[_oracle] >= config.oracleBlackListLimit;
+  function isReportOracleBlackListed(address _oracle) external view returns (bool) {
+    return reportsOracleBlacklist[_oracle] >= config.oracleBlackListLimit;
   }
 
   function addReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(totalReportOracles < config.reportOracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
-    require(!reportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
+    require(totalReportsOracle < config.reportOracleQuorum, 'REPORT_ORACLE_QUORUM_REACHED');
+    require(!reportsOracles[_oracle], 'REPORT_ORACLE_EXISTS');
     _grantRole(ORACLE_REPORT_ROLE, _oracle);
-    reportOracles[_oracle] = true;
-    totalReportOracles++;
+    reportsOracles[_oracle] = true;
+    totalReportsOracle++;
     emit AddReportOracle(_oracle);
-    _updateReportOracleQuorum();
+    _updateQuorum();
   }
 
   function removeReportOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(reportOracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(reportsOracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
     _revokeRole(ORACLE_REPORT_ROLE, oracle);
-    reportOracles[oracle] = false;
-    totalReportOracles--;
+    reportsOracles[oracle] = false;
+    totalReportsOracle--;
     emit RemoveReportOracle(oracle);
-    _updateReportOracleQuorum();
+    _updateQuorum();
   }
 
-  function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    reportOraclesBlacklist[_oracle] = config.oracleBlackListLimit;
-    reportOracles[_oracle] = false;
-    emit BlacklistReportOracleManually(_oracle, reportOraclesBlacklist[_oracle]);
-  }
-
-  function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(reportOracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
-    require(
-      reportOraclesBlacklist[_oracle] >= config.oracleBlackListLimit || !reportOracles[_oracle],
-      'REPORT_ORACLE_NOT_BLACKLISTED'
-    );
-    reportOraclesBlacklist[_oracle] = 0;
-    reportOracles[_oracle] = true;
-    emit UnBlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
-  }
-
-  function addSentinel(address _sentinel) external onlyRole(ADMIN_ROLE) {
-    require(!hasRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel), 'SENTINEL_EXISTS');
-    grantRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
-  }
-
-  function removeSentinel(address _sentinel) external onlyRole(ADMIN_ROLE) {
-    require(hasRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel), 'SENTINEL_NOT_EXISTS');
-    revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _sentinel);
-  }
-
-  function _updateReportOracleQuorum() internal {
-    uint256 newQuorum = MathUpgradeable.mulDiv(totalReportOracles, 3, 5);
+  function _updateQuorum() private {
+    uint256 newQuorum = MathUpgradeable.mulDiv(totalReportsOracle, 3, 5);
 
     config.reportOracleQuorum = newQuorum < config.minReportOracleQuorum
       ? config.minReportOracleQuorum
@@ -188,23 +161,50 @@ contract MockRouter is
     emit UpdateReportOracleQuorum(newQuorum);
   }
 
-  function _rewardOrPenalizeReportOracle(address _oracle, bytes32 _reportHash, bool consensus) internal {
+  function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
+    reportsOracleBlacklist[_oracle] = config.oracleBlackListLimit;
+    reportsOracles[_oracle] = false;
+    emit BlacklistReportOracleManually(_oracle, reportsOracleBlacklist[_oracle]);
+  }
+
+  function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
+    require(reportsOracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(
+      reportsOracleBlacklist[_oracle] >= config.oracleBlackListLimit,
+      'REPORT_ORACLE_NOT_BLACKLISTED'
+    );
+    reportsOracleBlacklist[_oracle] = 0;
+    reportsOracles[_oracle] = true;
+    emit UnBlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
+  }
+
+  function addSentinel(address _account) external onlyRole(ADMIN_ROLE) {
+    require(!hasRole(ORACLE_REPORT_SENTINEL_ROLE, _account), 'SENTINEL_EXISTS');
+    grantRole(ORACLE_REPORT_SENTINEL_ROLE, _account);
+  }
+
+  function removeSentinel(address _account) external onlyRole(ADMIN_ROLE) {
+    require(hasRole(ORACLE_REPORT_SENTINEL_ROLE, _account), 'SENTINEL_NOT_EXISTS');
+    revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _account);
+  }
+
+  function _evaluateOracleConduct(address _oracle, bytes32 _reportHash, bool consensus) private {
     if (consensus) {
-      if (reportOraclesBlacklist[_oracle] > 0) {
-        reportOraclesBlacklist[_oracle]--;
+      if (reportsOracleBlacklist[_oracle] > 0) {
+        reportsOracleBlacklist[_oracle]--;
       }
-      emit RewardReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash);
+      emit RewardReportOracle(_oracle, reportsOracleBlacklist[_oracle], _reportHash);
     } else {
-      reportOraclesBlacklist[_oracle]++;
+      reportsOracleBlacklist[_oracle]++;
 
-      bool blacklist = reportOraclesBlacklist[_oracle] >= config.oracleBlackListLimit;
+      bool blacklist = reportsOracleBlacklist[_oracle] >= config.oracleBlackListLimit;
       if (blacklist) {
-        reportOracles[_oracle] = false;
-        emit BlacklistReportOracle(_oracle, reportOraclesBlacklist[_oracle]);
-        _updateReportOracleQuorum();
+        reportsOracles[_oracle] = false;
+        emit BlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
+        _updateQuorum();
       }
 
-      emit PenalizeReportOracle(_oracle, reportOraclesBlacklist[_oracle], _reportHash, blacklist);
+      emit PenalizeReportOracle(_oracle, reportsOracleBlacklist[_oracle], _reportHash, blacklist);
     }
   }
 
@@ -220,23 +220,23 @@ contract MockRouter is
     uint256 _epoch,
     bytes32 _hash,
     Report calldata _report
-  ) external onlyReportOracle nonReentrant whenNotPaused {
-    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
+  ) external reportOracle nonReentrant whenNotPaused {
+    require(block.number < reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
     require(_epoch > lastConsensusEpoch, 'EPOCH_LOWER_THAN_LAST_CONSENSUS');
 
-    auditReport(_report, _hash);
+    validReport(_report, _hash);
 
-    if (block.number >= reportBlockNumber + config.reportBlockFrequency) {
-      reportBlockNumber += config.reportBlockFrequency;
-      emit SkipNextBlockInterval(_epoch, reportBlockNumber);
+    if (block.number >= reportBlock + config.reportBlockFrequency) {
+      reportBlock += config.reportBlockFrequency;
+      emit SkipNextBlockInterval(_epoch, reportBlock);
     }
 
-    oracleReports[_epoch][_hash].push(msg.sender);
-    oracleReportsVotes[_epoch][_hash]++;
+    reports[_epoch][_hash].push(msg.sender);
+    reportVotes[_epoch][_hash]++;
     reportHistoric[_epoch].push(_hash);
 
     if (consensusReport[_epoch] == bytes32(0)) {
-      if (oracleReportsVotes[_epoch][_hash] >= config.reportOracleQuorum) {
+      if (reportVotes[_epoch][_hash] >= config.reportOracleQuorum) {
         consensusReport[_epoch] = _hash;
         emit ConsensusApprove(block.number, _epoch, _hash);
         reportExecutionBlock[_hash] = block.number;
@@ -249,65 +249,39 @@ contract MockRouter is
     emit SubmitReport(msg.sender, block.number, _epoch, _hash);
   }
 
+  // Todo: simplify this function (too many operations, need economy of gas)
+  // Todo: split execute report into multiple operations
   function executeReport(
     bytes32 _hash,
     Report calldata _report
-  ) external nonReentrant whenNotPaused onlyReportOracle {
-    require(
-      block.number >= reportExecutionBlock[_hash] + config.minBlocksBeforeExecution,
-      'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
-    );
-    require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
-    require(!executedReports[_report.epoch][_hash], 'REPORT_ALREADY_EXECUTED');
+  ) external nonReentrant whenNotPaused reportOracle {
+    validReport(_report, _hash);
 
-    auditReport(_report, _hash);
+    for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
+      bytes32 reportHash = reportHistoric[_report.epoch][i];
+      address[] memory oracles = reports[_report.epoch][reportHash];
+      for (uint256 j = 0; j < oracles.length; j++) {
+        _evaluateOracleConduct(oracles[j], reportHash, reportHash == _hash);
+      }
+    }
 
-    reportBlockNumber += config.reportBlockFrequency;
+    reportBlock += config.reportBlockFrequency;
     executedReports[_report.epoch][_hash] = true;
-    lastExecutedConsensusEpoch = _report.epoch;
+    lastExecutedEpoch = _report.epoch;
+    delete reportHistoric[_report.epoch];
+    emit ExecuteReport(msg.sender, _hash, _report);
+
+    if (_report.merkleRoot != bytes32(0)) {
+      airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
+    }
+
+    // if (_report.profitAmount > 0) {
+    //   stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }(_report.profitAmount);
+    // }
 
     if (_report.lossAmount > 0) {
       uint256 newBeaconBalance = stakeTogether.beaconBalance() - _report.lossAmount;
       stakeTogether.setBeaconBalance(newBeaconBalance);
-    }
-
-    (uint256[4] memory _shares, uint256[4] memory _amounts) = stakeTogether.estimateFeePercentage(
-      IStakeTogether.FeeType.StakeRewards,
-      _report.profitAmount
-    );
-
-    if (_report.validatorsToExit.length > 0) {
-      emit ValidatorsToExit(_report.epoch, _report.validatorsToExit);
-    }
-
-    if (_report.exitedValidators.length > 0) {
-      for (uint256 i = 0; i < _report.exitedValidators.length; i++) {
-        stakeTogether.removeValidator(_report.epoch, _report.exitedValidators[i]);
-      }
-    }
-
-    for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
-      bytes32 reportHash = reportHistoric[_report.epoch][i];
-      address[] memory oracles = oracleReports[_report.epoch][reportHash];
-      for (uint256 j = 0; j < oracles.length; j++) {
-        _rewardOrPenalizeReportOracle(oracles[j], reportHash, reportHash == _hash);
-      }
-    }
-
-    StakeTogether.FeeRole[4] memory roles = stakeTogether.getFeesRoles();
-    for (uint i = 0; i < roles.length - 1; i++) {
-      if (_shares[i] > 0) {
-        stakeTogether.mintRewards{ value: _amounts[i] }(
-          stakeTogether.getFeeAddress(roles[i]),
-          _shares[i],
-          IStakeTogether.FeeType.StakeRewards,
-          roles[i]
-        );
-      }
-    }
-
-    if (_report.merkleRoot != bytes32(0)) {
-      airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
     }
 
     if (_report.withdrawAmount > 0) {
@@ -322,9 +296,9 @@ contract MockRouter is
       payable(address(stakeTogether)).transfer(_report.routerExtraAmount);
     }
 
-    delete reportHistoric[_report.epoch];
-
-    emit ExecuteReport(msg.sender, _hash, _report);
+    if (_report.validatorsToExit.length > 0) {
+      emit ValidatorsToExit(_report.epoch, _report.validatorsToExit);
+    }
   }
 
   function invalidateConsensus(
@@ -333,7 +307,7 @@ contract MockRouter is
   ) external onlyRole(ORACLE_REPORT_SENTINEL_ROLE) {
     require(_epoch == lastConsensusEpoch, 'CAN_ONLY_INVALIDATE_CURRENT_EPOCH');
     require(consensusReport[_epoch] == _hash, 'REPORT_NOT_CONSENSUS_OR_NOT_EXISTS');
-    consensusInvalidatedReport[_epoch] = true;
+    invalidatedReports[_epoch] = true;
     emit InvalidateConsensus(block.number, _epoch, _hash);
   }
 
@@ -342,30 +316,35 @@ contract MockRouter is
     emit SetLastConsensusEpoch(_epoch);
   }
 
-  function isReadyToSubmit(uint256 _epoch) public view returns (bool) {
+  function isReadyToSubmit(uint256 _epoch) external view returns (bool) {
     return
-      (_epoch > lastConsensusEpoch) &&
-      (!consensusInvalidatedReport[_epoch]) &&
-      (block.number >= reportBlockNumber);
+      (_epoch > lastConsensusEpoch) && (!invalidatedReports[_epoch]) && (block.number >= reportBlock);
   }
 
-  function isReadyToExecute(uint256 _epoch, bytes32 _hash) public view returns (bool) {
+  function isReadyToExecute(uint256 _epoch, bytes32 _hash) external view returns (bool) {
     return
-      (_epoch > lastConsensusEpoch) &&
-      (!consensusInvalidatedReport[_epoch]) &&
-      consensusReport[_epoch] == _hash;
+      (_epoch > lastConsensusEpoch) && (!invalidatedReports[_epoch]) && consensusReport[_epoch] == _hash;
   }
 
   /******************
    ** AUDIT REPORT **
    ******************/
 
-  function auditReport(Report calldata _report, bytes32 _hash) public view returns (bool) {
+  function validReport(Report calldata _report, bytes32 _hash) public view returns (bool) {
+    require(!invalidatedReports[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
+
+    require(
+      block.number >= reportExecutionBlock[_hash] + config.minBlocksBeforeExecution,
+      'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
+    );
+    require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
+    require(!executedReports[_report.epoch][_hash], 'REPORT_ALREADY_EXECUTED');
+
     require(keccak256(abi.encode(_report)) == _hash, 'REPORT_HASH_MISMATCH');
 
-    require(block.number < reportBlockNumber, 'BLOCK_NUMBER_NOT_REACHED');
+    require(block.number < reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
     require(_report.epoch <= lastConsensusEpoch, 'INVALID_EPOCH');
-    require(!consensusInvalidatedReport[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
+
     require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
     require(_report.merkleRoot != bytes32(0), 'INVALID_MERKLE_ROOT');
     require(_report.validatorsToExit.length <= config.maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
@@ -387,10 +366,6 @@ contract MockRouter is
 
   function setBeaconBalance(uint256 _amount) external {
     stakeTogether.setBeaconBalance(_amount);
-  }
-
-  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external payable nonReentrant {
-    stakeTogether.removeValidator(_epoch, _publicKey);
   }
 
   function withdrawRefund() external payable {

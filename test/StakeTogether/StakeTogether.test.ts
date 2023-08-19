@@ -1648,7 +1648,6 @@ describe('Stake Together', function () {
       expect(beaconBalance).to.equal(validatorSize)
 
       expect(await stakeTogether.validators(publicKey)).to.be.true
-      expect(await stakeTogether.totalValidators()).to.equal(1n)
     })
 
     it('should fail to create a validator by an invalid oracle', async function () {
@@ -1716,46 +1715,6 @@ describe('Stake Together', function () {
       expect(logs[0].args[1]).to.equal(100000000000000n)
       expect(logs[0].args[2]).to.equal(3n)
       expect(logs[0].args[3]).to.equal(2n)
-    })
-
-    it('should create and then remove a validator', async function () {
-      const poolSize = ethers.parseEther('32.1')
-      const epoch = 1
-
-      const oracle = user1
-      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
-      await stakeTogether.connect(owner).addValidatorOracle(oracle)
-
-      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
-
-      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
-
-      expect(await stakeTogether.validators(publicKey)).to.be.true
-      expect(await stakeTogether.totalValidators()).to.equal(1n)
-
-      await mockRouter.connect(owner).removeValidator(epoch, publicKey)
-
-      expect(await stakeTogether.validators(publicKey)).to.be.false
-      expect(await stakeTogether.totalValidators()).to.equal(0n)
-
-      const eventFilter = stakeTogether.filters.RemoveValidator()
-      const logs = await stakeTogether.queryFilter(eventFilter)
-      const event = logs[0]
-      expect(event.args[0]).to.equal(mockRouterProxy)
-      expect(event.args[1]).to.equal(epoch)
-      expect(event.args[2]).to.equal(publicKey)
-    })
-
-    it('should only allow the router to remove a validator', async function () {
-      await expect(stakeTogether.connect(user1).removeValidator(1, publicKey)).to.be.revertedWith('OR')
-    })
-
-    it('should fail to remove a non-existing validator', async function () {
-      const nonExistingPublicKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-
-      await expect(mockRouter.connect(owner).removeValidator(1, nonExistingPublicKey)).to.be.revertedWith(
-        'NF',
-      )
     })
 
     it('should set the beacon balance through the router', async function () {

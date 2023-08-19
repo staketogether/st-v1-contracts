@@ -64,7 +64,6 @@ contract StakeTogether is
   uint256 public currentOracleIndex; /// Current index of the oracle.
 
   mapping(bytes => bool) public validators; /// Mapping of validators.
-  uint256 public totalValidators; /// Total number of validators.
 
   mapping(FeeRole => address payable) private feesRole; /// Mapping of fee roles to addresses.
   mapping(FeeType => Fee) private fees; /// Mapping of fee types to fee details.
@@ -105,7 +104,6 @@ contract StakeTogether is
     withdrawalCredentials = _withdrawalCredentials;
 
     totalShares = 0;
-    totalValidators = 0;
     beaconBalance = 0;
     currentOracleIndex = 0;
 
@@ -660,7 +658,6 @@ contract StakeTogether is
     }
     _setBeaconBalance(beaconBalance + config.validatorSize);
     validators[_publicKey] = true;
-    totalValidators++;
     _nextValidatorOracle();
     depositContract.deposit{ value: config.validatorSize }(
       _publicKey,
@@ -676,18 +673,6 @@ contract StakeTogether is
       _signature,
       _depositDataRoot
     );
-  }
-
-  /// @notice Removes a validator by its epoch and public key.
-  /// @param _epoch The epoch of the validator.
-  /// @param _publicKey The public key of the validator.
-  /// @dev Only the router address can call this function.
-  function removeValidator(uint256 _epoch, bytes calldata _publicKey) external {
-    require(msg.sender == address(router), 'OR');
-    require(validators[_publicKey], 'NF');
-    validators[_publicKey] = false;
-    totalValidators--;
-    emit RemoveValidator(msg.sender, _epoch, _publicKey);
   }
 
   /*****************

@@ -421,12 +421,6 @@ interface IStakeTogether {
     bytes32 _depositDataRoot
   ) external;
 
-  /// @notice Removes a validator by its epoch and external key.
-  /// @param _epoch The epoch of the validator.
-  /// @param _externalKey The external key of the validator.
-  /// @dev Only the router address can call this function.
-  function removeValidator(uint256 _epoch, bytes calldata _externalKey) external;
-
   /*****************
    **    FEES     **
    *****************/

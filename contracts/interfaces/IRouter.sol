@@ -17,14 +17,13 @@ interface IRouter {
   struct Report {
     uint256 blockNumber;
     uint256 epoch;
+    bytes32 merkleRoot;
     uint256 profitAmount;
     uint256 lossAmount; // Penalty or Slashing
-    bytes32 merkleRoot;
-    ValidatorOracle[] validatorsToExit; // Validators that should exit
-    bytes[] exitedValidators; // Validators that already exited
     uint256 withdrawAmount; // Amount of ETH to send to WETH contract
     uint256 withdrawRefundAmount; // Rest withdrawal validator amount
     uint256 routerExtraAmount; // Extra money on this contract
+    ValidatorOracle[] validatorsToExit; // Validators that should exit
   }
 
   struct ValidatorOracle {

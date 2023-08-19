@@ -42,7 +42,7 @@ contract Withdrawals is
   }
 
   /// @notice Initialization function for Withdrawals contract.
-  function initialize() public initializer {
+  function initialize() external initializer {
     __ERC20_init('Stake Together Withdraw', 'stwETH');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -59,13 +59,13 @@ contract Withdrawals is
 
   /// @notice Pauses withdrawals.
   /// @dev Only callable by the admin role.
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
   /// @notice Unpauses withdrawals.
   /// @dev Only callable by the admin role.
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
