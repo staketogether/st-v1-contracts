@@ -1999,14 +1999,6 @@ describe('Stake Together', function () {
           0n,
         ])
       })
-
-      // it('should revert when calling estimateFeePercentage which is FIXED', async function () {
-      //   await expect(stakeTogether.estimateFeePercentage(2, ethers.parseEther('0.1'))).to.be.reverted
-      // })
-
-      it('should revert when calling estimateFeeFixed which is PERCENTAGE', async function () {
-        await expect(stakeTogether.estimateFeeFixed(1)).to.be.reverted
-      })
     })
   })
 

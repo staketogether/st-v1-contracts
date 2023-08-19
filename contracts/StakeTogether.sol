@@ -662,40 +662,20 @@ contract StakeTogether is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  // /// @notice Estimates the fee percentage for a given fee type and amount.
-  // /// @param _feeType The type of fee.
-  // /// @param _amount The amount for which to estimate the fee.
-  // /// @return _shares The shares of the fee.
-  // /// @return _amounts The amounts of the fee.
-  // function estimateFeePercentage(
-  //   FeeType _feeType,
-  //   uint256 _amount
-  // ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
-  //   require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
-  //   uint256 sharesAmount = sharesByWei(_amount);
-  //   return _distributeShares(_feeType, sharesAmount);
-  // }
-
-  /// @notice Estimates the fixed fee for a given fee type.
-  /// @param _feeType The type of fee.
-  /// @return _shares The shares of the fee.
-  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[4] memory _shares) {
-    require(fees[_feeType].mathType == FeeMath.FIXED);
-    return _distributeShares(_feeType, fees[_feeType].value);
-  }
-
   /// @notice Internal function to estimate the fee for a given fee type and share amount.
   /// @param _feeType The type of fee.
   /// @param _sharesAmount The share amount for which to estimate the fee.
   /// @return _shares The shares of the fee.
-  function _distributeShares(
+  function _distributeFees(
     FeeType _feeType,
     uint256 _sharesAmount
   ) private view returns (uint256[4] memory _shares) {
     FeeRole[4] memory roles = getFeesRoles();
 
+    uint256 amount = fees[_feeType].mathType == FeeMath.FIXED ? fees[_feeType].value : _sharesAmount;
+
     uint256 feeValue = fees[_feeType].value;
-    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
+    uint256 feeShares = MathUpgradeable.mulDiv(amount, feeValue, 1 ether);
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
@@ -704,7 +684,7 @@ contract StakeTogether is
       totalAllocatedShares += _shares[i];
     }
 
-    _shares[3] = _sharesAmount - totalAllocatedShares;
+    _shares[3] = amount - totalAllocatedShares;
 
     return (_shares);
   }
@@ -713,8 +693,7 @@ contract StakeTogether is
   function _processStakeRewardsFee(uint256 _amount) private {
     uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
 
-    uint256[4] memory _shares = _distributeShares(FeeType.StakeRewards, sharesAmount);
-
+    uint256[4] memory _shares = _distributeFees(FeeType.StakeRewards, sharesAmount);
     StakeTogether.FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       if (_shares[i] > 0) {
@@ -733,7 +712,7 @@ contract StakeTogether is
   /// @param _amount The amount of shares to calculate the fees for.
   function _processStakeEntryFee(address _to, uint256 _amount) private {
     uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
-    uint256[4] memory _shares = _distributeShares(FeeType.StakeEntry, sharesAmount);
+    uint256[4] memory _shares = _distributeFees(FeeType.StakeEntry, sharesAmount);
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length; i++) {
       if (_shares[i] > 0) {
@@ -748,7 +727,7 @@ contract StakeTogether is
 
   /// @notice Processes the fees for Stake Pool.
   function _processStakePoolFee() private {
-    uint256[4] memory _shares = estimateFeeFixed(FeeType.StakePool);
+    uint256[4] memory _shares = _distributeFees(FeeType.StakePool, 0);
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakePool, roles[i]);
@@ -757,7 +736,7 @@ contract StakeTogether is
 
   /// @notice Processes the fees for Stake Validator.
   function _processStakeValidatorFees() private {
-    uint256[4] memory _shares = estimateFeeFixed(FeeType.StakeValidator);
+    uint256[4] memory _shares = _distributeFees(FeeType.StakeValidator, 0);
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < _shares.length - 1; i++) {
       if (_shares[i] > 0) {
