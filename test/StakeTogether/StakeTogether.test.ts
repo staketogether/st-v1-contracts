@@ -215,7 +215,6 @@ describe('Stake Together', function () {
       const profitPerUserBase = totalProfit / 3n
       const hasRemainder = totalProfit % 3n > 0n
       const profitPerUser = hasRemainder ? profitPerUserBase + 1n : profitPerUserBase
-      // Todo: CHECK PROFIT PER USER 1 ETHER
 
       // Checking the balance of each user
       for (let i = 0; i < users.length; i++) {
@@ -229,38 +228,120 @@ describe('Stake Together', function () {
       expect(totalContractBalance).to.equal(ethers.parseEther('3') + initialBalance)
     })
 
-    it('should mint rewards and emit MintRewards event through mockRouter', async function () {
-      const sharesAmount = ethers.parseEther('10')
-      const rewardAmount = ethers.parseEther('5')
-      const feeType = 0
-      const feeRole = 0
+    // Todo: Revise Precision
+    it('REVISE_THAT_should correctly process stake rewards fee through processStakeRewardsFee', async function () {
+      const rewardAmount = ethers.parseEther('1')
 
-      const initialShares = await stakeTogether.shares(user1.address)
+      const weiBySharesPre = BigInt(await stakeTogether.weiByShares(rewardAmount))
 
-      const tx = await mockRouter
-        .connect(user1)
-        .mintRewards(user1.address, sharesAmount, feeType, feeRole, {
-          value: rewardAmount,
-        })
+      expect(weiBySharesPre).to.equal(rewardAmount)
 
-      await expect(tx)
-        .to.emit(stakeTogether, 'MintRewards')
-        .withArgs(user1.address, sharesAmount, feeType, feeRole)
+      await mockRouter.connect(user1).processStakeRewardsFee(rewardAmount, {
+        value: rewardAmount,
+      })
 
-      const finalShares = await stakeTogether.shares(user1.address)
-      expect(finalShares).to.equal(initialShares + sharesAmount)
+      let eventFilter = stakeTogether.filters.MintFeeShares()
+      let logs = await stakeTogether.queryFilter(eventFilter)
+
+      expect(logs.length).to.equal(3)
+
+      expect(logs[0].args).to.deep.equal([
+        '0x67d269191c92Caf3cD7723F116c85e6E9bf55933',
+        14850000000000000n,
+        1n,
+        0n,
+      ])
+
+      expect(logs[1].args).to.deep.equal([
+        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        14850000000000000n,
+        1n,
+        1n,
+      ])
+
+      expect(logs[2].args).to.deep.equal([
+        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        15300000000000000n,
+        1n,
+        2n,
+      ])
+
+      const totalBalancePos = BigInt(await ethers.provider.getBalance(stakeTogether))
+      const totalSharesPos = BigInt(await stakeTogether.totalShares())
+
+      const preSharesValue = BigInt(await stakeTogether.weiByShares(1000000000000000000n))
+      const rewardsSharesValue = BigInt(await stakeTogether.weiByShares(45000000000000000n))
+      const totalSharesValue = BigInt(await stakeTogether.weiByShares(1045000000000000000n))
+
+      const preSharesValuation = 1913875598086124402n
+      const rewardsSharesValuation = 86124401913875599n
+      const postSharesValuation = 2000000000000000000n
+
+      expect(totalBalancePos).to.equal(2000000000000000000n)
+      expect(totalSharesPos).to.equal(1045000000000000000n)
+
+      expect(preSharesValue).to.equal(preSharesValuation)
+      expect(rewardsSharesValue).to.equal(rewardsSharesValuation)
+      expect(totalSharesValue).to.equal(postSharesValuation)
+
+      expect(preSharesValuation + rewardsSharesValuation).to.equal(postSharesValuation + 1n) // round up
+
+      await mockRouter.connect(user1).processStakeRewardsFee(rewardAmount, {
+        value: rewardAmount,
+      })
+
+      eventFilter = stakeTogether.filters.MintFeeShares()
+      logs = await stakeTogether.queryFilter(eventFilter)
+
+      expect(logs.length).to.equal(6)
+
+      expect(logs[3].args).to.deep.equal([
+        '0x67d269191c92Caf3cD7723F116c85e6E9bf55933',
+        10345499999999999n,
+        1n,
+        0n,
+      ])
+
+      expect(logs[4].args).to.deep.equal([
+        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        10345499999999999n,
+        1n,
+        1n,
+      ])
+
+      expect(logs[5].args).to.deep.equal([
+        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+        10658999999999999n,
+        1n,
+        2n,
+      ])
+
+      const totalBalancePos2 = BigInt(await ethers.provider.getBalance(stakeTogether))
+      const totalSharesPos2 = BigInt(await stakeTogether.totalShares())
+
+      const preSharesValue2 = BigInt(await stakeTogether.weiByShares(1000000000000000000n))
+      const rewardsSharesValue2 = BigInt(await stakeTogether.weiByShares(45000000000000000n))
+      const totalSharesValue2 = BigInt(await stakeTogether.weiByShares(1045000000000000000n))
+
+      const preSharesValuation2 = 2787197472940957875n
+      const rewardsSharesValuation2 = 125423886282343105n
+      const postSharesValuation2 = 2912621359223300979n
+
+      expect(totalBalancePos2).to.equal(3000000000000000000n)
+      expect(totalSharesPos2).to.equal(1076349999999999997n)
+
+      expect(preSharesValue2).to.equal(preSharesValuation2)
+      expect(rewardsSharesValue2).to.equal(rewardsSharesValuation2)
+      expect(totalSharesValue2).to.equal(postSharesValuation2)
+
+      expect(preSharesValuation2 + rewardsSharesValuation2).to.equal(postSharesValuation2 + 1n) // round up
     })
 
     it('should fail to mint rewards if called directly on stakeTogether', async function () {
-      const sharesAmount = ethers.parseEther('10')
       const rewardAmount = ethers.parseEther('5')
-      const feeType = 0
-      const feeRole = 0
 
       await expect(
-        stakeTogether
-          .connect(user1)
-          .mintRewards(user1.address, sharesAmount, feeType, feeRole, { value: rewardAmount }),
+        stakeTogether.connect(user1).processStakeRewardsFee(rewardAmount, { value: rewardAmount }),
       ).to.be.revertedWith('OR')
     })
 
@@ -1129,7 +1210,7 @@ describe('Stake Together', function () {
 
       // console.log('MINT_SHARES', logs[0].args)
 
-      eventFilter = stakeTogether.filters.MintRewards()
+      eventFilter = stakeTogether.filters.MintFeeShares()
       logs = await stakeTogether.queryFilter(eventFilter)
 
       // console.log('MINT_REWARDS_1', logs)
@@ -1690,7 +1771,7 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('VE') // Checking for the rejection with code 'VE'
     })
 
-    it('should create a new validator and emit MintRewards logs', async function () {
+    it('should create a new validator and emit MintFeeShares logs', async function () {
       const poolSize = ethers.parseEther('32.1')
 
       const oracle = user1
@@ -1705,12 +1786,12 @@ describe('Stake Together', function () {
         .connect(oracle)
         .createValidator(publicKey, signature, depositDataRoot)
 
-      // Verifying the MintRewards event
+      // Verifying the MintFeeShares event
       const receipt = await tx.wait()
-      const mintRewardsFilter = stakeTogether.filters.MintRewards() // Replace null with specific values if needed
+      const mintRewardsFilter = stakeTogether.filters.MintFeeShares() // Replace null with specific values if needed
       const logs = await stakeTogether.queryFilter(mintRewardsFilter)
 
-      // Checking the arguments of the MintRewards event
+      // Checking the arguments of the MintFeeShares event
       expect(logs[0].args[0]).to.equal('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266')
       expect(logs[0].args[1]).to.equal(100000000000000n)
       expect(logs[0].args[2]).to.equal(3n)

@@ -271,14 +271,16 @@ contract MockRouter is
     delete reportHistoric[_report.epoch];
     emit ExecuteReport(msg.sender, _hash, _report);
 
+    // Todo: implement optimized staking rewards
+
     if (_report.merkleRoot != bytes32(0)) {
       airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
     }
 
     // Todo: implement that
-    // if (_report.profitAmount > 0) {
-    //   stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }(_report.profitAmount);
-    // }
+    if (_report.profitAmount > 0) {
+      stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }(_report.profitAmount);
+    }
 
     if (_report.lossAmount > 0) {
       uint256 newBeaconBalance = stakeTogether.beaconBalance() - _report.lossAmount;
@@ -372,13 +374,8 @@ contract MockRouter is
     stakeTogether.withdrawRefund{ value: msg.value }();
   }
 
-  function mintRewards(
-    address _address,
-    uint256 _sharesAmount,
-    IStakeTogether.FeeType _feeType,
-    IStakeTogether.FeeRole _feeRole
-  ) public payable nonReentrant {
-    stakeTogether.mintRewards{ value: msg.value }(_address, _sharesAmount, _feeType, _feeRole);
+  function processStakeRewardsFee(uint256 _amount) external payable {
+    stakeTogether.processStakeRewardsFee{ value: msg.value }(_amount);
   }
 
   function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant {

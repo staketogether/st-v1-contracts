@@ -152,16 +152,14 @@ contract StakeTogether is
 
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
-  function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
+  function totalSupply() public view override returns (uint256) {
     return address(this).balance + beaconBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
   /// @param _account The address of the account.
   /// @return Balance value of the given account.
-  function balanceOf(
-    address _account
-  ) public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
+  function balanceOf(address _account) public view override returns (uint256) {
     return weiByShares(shares[_account]);
   }
 
@@ -183,10 +181,7 @@ contract StakeTogether is
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   /// @return True if the transfer was successful.
-  function transfer(
-    address _to,
-    uint256 _amount
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  function transfer(address _to, uint256 _amount) public override returns (bool) {
     _transfer(msg.sender, _to, _amount);
     return true;
   }
@@ -196,11 +191,7 @@ contract StakeTogether is
   /// @param _to Address to transfer to.
   /// @param _amount Amount of tokens to transfer.
   /// @return A boolean value indicating whether the operation succeeded.
-  function transferFrom(
-    address _from,
-    address _to,
-    uint256 _amount
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _amount) public override returns (bool) {
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -246,10 +237,7 @@ contract StakeTogether is
   /// @param _account Address of the token owner.
   /// @param _spender Address of the spender.
   /// @return A uint256 value representing the remaining number of tokens available for the spender.
-  function allowance(
-    address _account,
-    address _spender
-  ) public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
+  function allowance(address _account, address _spender) public view override returns (uint256) {
     return allowances[_account][_spender];
   }
 
@@ -257,10 +245,7 @@ contract StakeTogether is
   /// @param _spender Address of the spender.
   /// @param _amount Amount of allowance to be set.
   /// @return A boolean value indicating whether the operation succeeded.
-  function approve(
-    address _spender,
-    uint256 _amount
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  function approve(address _spender, uint256 _amount) public override returns (bool) {
     _approve(msg.sender, _spender, _amount);
     return true;
   }
@@ -280,10 +265,7 @@ contract StakeTogether is
   /// @param _spender Address of the spender.
   /// @param _addedValue The additional amount to increase the allowance by.
   /// @return A boolean value indicating whether the operation succeeded.
-  function increaseAllowance(
-    address _spender,
-    uint256 _addedValue
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
     _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue);
     return true;
   }
@@ -292,10 +274,7 @@ contract StakeTogether is
   /// @param _spender Address of the spender.
   /// @param _subtractedValue The amount to subtract from the allowance.
   /// @return A boolean value indicating whether the operation succeeded.
-  function decreaseAllowance(
-    address _spender,
-    uint256 _subtractedValue
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
     require(currentAllowance >= _subtractedValue, 'IA'); // IA = Insufficient Allowance
     _approve(msg.sender, _spender, currentAllowance - _subtractedValue);
@@ -335,49 +314,6 @@ contract StakeTogether is
     emit BurnShares(_account, _sharesAmount);
   }
 
-  /*************
-   ** REWARDS **
-   *************/
-
-  /// @notice Internal function to mint rewards as shares to a given address.
-  /// @param _address Address to mint rewards to.
-  /// @param _sharesAmount Amount of reward shares to mint.
-  /// @param _feeType Type of fee associated with the minting.
-  /// @param _feeRole Role of the fee within the system.
-  function _mintRewards(
-    address _address,
-    uint256 _sharesAmount,
-    FeeType _feeType,
-    FeeRole _feeRole
-  ) private {
-    _mintShares(_address, _sharesAmount);
-    emit MintRewards(_address, _sharesAmount, _feeType, _feeRole);
-  }
-
-  /// @notice Function to mint rewards to a given address, accessible only by the router.
-  /// @param _address Address to mint rewards to.
-  /// @param _sharesAmount Amount of reward shares to mint.
-  /// @param _feeType Type of fee associated with the minting.
-  /// @param _feeRole Role of the fee within the system.
-  function mintRewards(
-    address _address,
-    uint256 _sharesAmount,
-    FeeType _feeType,
-    FeeRole _feeRole
-  ) public payable nonReentrant whenNotPaused {
-    require(msg.sender == router, 'OR'); // OR = Only Router
-    _mintRewards(_address, _sharesAmount, _feeType, _feeRole);
-  }
-
-  /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
-  /// @param _account Address to transfer the claimed rewards to.
-  /// @param _sharesAmount Amount of shares to claim as rewards.
-  function transferRewardsShares(address _account, uint256 _sharesAmount) external whenNotPaused {
-    address airdropFee = getFeeAddress(FeeRole.Airdrop);
-    require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
-    _transferShares(airdropFee, _account, _sharesAmount);
-  }
-
   /***********
    ** STAKE **
    ***********/
@@ -399,18 +335,7 @@ contract StakeTogether is
 
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
 
-    (uint256[4] memory _shares, ) = _estimateFee(FeeType.StakeEntry, sharesAmount);
-
-    FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < roles.length; i++) {
-      if (_shares[i] > 0) {
-        if (roles[i] == FeeRole.Sender) {
-          _mintShares(_to, _shares[i]);
-        } else {
-          _mintRewards(getFeeAddress(roles[i]), _shares[i], FeeType.StakeEntry, roles[i]);
-        }
-      }
-    }
+    _processStakeEntryFee(_to, sharesAmount);
 
     totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _referral);
@@ -514,11 +439,7 @@ contract StakeTogether is
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakePool);
-      FeeRole[4] memory roles = getFeesRoles();
-      for (uint i = 0; i < roles.length - 1; i++) {
-        _mintRewards(getFeeAddress(roles[i]), _shares[i], FeeType.StakePool, roles[i]);
-      }
+      _processStakePoolFee();
     }
     pools[_pool] = true;
     emit AddPool(_pool, _listed, msg.value);
@@ -649,13 +570,7 @@ contract StakeTogether is
     require(isValidatorOracle(msg.sender), 'OV');
     require(address(this).balance >= config.poolSize, 'NBP');
     require(!validators[_publicKey], 'VE');
-    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
-    FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < _shares.length - 1; i++) {
-      if (_shares[i] > 0) {
-        _mintRewards(getFeeAddress(roles[i]), _shares[i], FeeType.StakeValidator, roles[i]);
-      }
-    }
+    _processStakeValidatorFees();
     _setBeaconBalance(beaconBalance + config.validatorSize);
     validators[_publicKey] = true;
     _nextValidatorOracle();
@@ -673,6 +588,24 @@ contract StakeTogether is
       _signature,
       _depositDataRoot
     );
+  }
+
+  /*************
+   ** REWARDS **
+   *************/
+
+  function processStakeRewardsFee(uint256 _profitAmount) external payable nonReentrant whenNotPaused {
+    require(msg.sender == address(router), 'OR'); // OR = Only Router
+    _processStakeRewardsFee(_profitAmount);
+  }
+
+  /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
+  /// @param _account Address to transfer the claimed rewards to.
+  /// @param _sharesAmount Amount of shares to claim as rewards.
+  function transferRewardsShares(address _account, uint256 _sharesAmount) external whenNotPaused {
+    address airdropFee = getFeeAddress(FeeRole.Airdrop);
+    require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
+    _transferShares(airdropFee, _account, _sharesAmount);
   }
 
   /*****************
@@ -729,10 +662,6 @@ contract StakeTogether is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  /*******************
-   ** ESTIMATE FEES **
-   *******************/
-
   /// @notice Estimates the fee percentage for a given fee type and amount.
   /// @param _feeType The type of fee.
   /// @param _amount The amount for which to estimate the fee.
@@ -786,5 +715,78 @@ contract StakeTogether is
     }
 
     return (_shares, _amounts);
+  }
+
+  /// @notice Processes the fees for the specified share amount.
+  /// @param _to The address to which the shares are to be minted.
+  /// @param sharesAmount The amount of shares to calculate the fees for.
+  function _processStakeEntryFee(address _to, uint256 sharesAmount) private {
+    (uint256[4] memory _shares, ) = _estimateFee(FeeType.StakeEntry, sharesAmount);
+
+    FeeRole[4] memory roles = getFeesRoles();
+    for (uint i = 0; i < roles.length; i++) {
+      if (_shares[i] > 0) {
+        if (roles[i] == FeeRole.Sender) {
+          _mintShares(_to, _shares[i]);
+        } else {
+          _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeEntry, roles[i]);
+        }
+      }
+    }
+  }
+
+  /// @notice Processes the Stake Rewards fees.
+  function _processStakeRewardsFee(uint256 _profitAmount) private {
+    (uint256[4] memory _shares, ) = estimateFeePercentage(
+      IStakeTogether.FeeType.StakeRewards,
+      _profitAmount
+    );
+
+    StakeTogether.FeeRole[4] memory roles = getFeesRoles();
+    for (uint i = 0; i < roles.length - 1; i++) {
+      if (_shares[i] > 0) {
+        _mintFeeShares(
+          getFeeAddress(roles[i]),
+          _shares[i],
+          IStakeTogether.FeeType.StakeRewards,
+          roles[i]
+        );
+      }
+    }
+  }
+
+  /// @notice Processes the fees for Stake Pool.
+  function _processStakePoolFee() private {
+    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakePool);
+    FeeRole[4] memory roles = getFeesRoles();
+    for (uint i = 0; i < roles.length - 1; i++) {
+      _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakePool, roles[i]);
+    }
+  }
+
+  /// @notice Processes the fees for Stake Validator.
+  function _processStakeValidatorFees() private {
+    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
+    FeeRole[4] memory roles = getFeesRoles();
+    for (uint i = 0; i < _shares.length - 1; i++) {
+      if (_shares[i] > 0) {
+        _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeValidator, roles[i]);
+      }
+    }
+  }
+
+  /// @notice Internal function to mint rewards as shares to a given address.
+  /// @param _address Address to mint rewards to.
+  /// @param _sharesAmount Amount of reward shares to mint.
+  /// @param _feeType Type of fee associated with the minting.
+  /// @param _feeRole Role of the fee within the system.
+  function _mintFeeShares(
+    address _address,
+    uint256 _sharesAmount,
+    FeeType _feeType,
+    FeeRole _feeRole
+  ) private {
+    _mintShares(_address, _sharesAmount);
+    emit MintFeeShares(_address, _sharesAmount, _feeType, _feeRole);
   }
 }
