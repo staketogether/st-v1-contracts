@@ -1,0 +1,4 @@
+{
+  "filter_paths": "(mocks/|test/|node_modules/)",
+  "detectors_to_exclude": "naming-convention"
+}

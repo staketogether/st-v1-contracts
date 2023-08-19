@@ -1,5 +1,5 @@
 {
   "slither.solcPath": "",
-  "slither.hiddenDetectors": ["naming-convention"],
+  "slither.hiddenDetectors": [],
   "typescript.tsdk": "node_modules/typescript/lib"
 }
