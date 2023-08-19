@@ -594,9 +594,9 @@ contract MockStakeTogether is
    ** REWARDS **
    *************/
 
-  function processStakeRewardsFee(uint256 profitAmount) external payable nonReentrant whenNotPaused {
+  function processStakeRewardsFee() external payable nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'OR'); // OR = Only Router
-    _processStakeRewardsFee(profitAmount);
+    _processStakeRewardsFee(msg.value);
   }
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
@@ -606,16 +606,6 @@ contract MockStakeTogether is
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
     _transferShares(airdropFee, _account, _sharesAmount);
-  }
-
-  function _mintFeeShares(
-    address _address,
-    uint256 _sharesAmount,
-    FeeType _feeType,
-    FeeRole _feeRole
-  ) private {
-    _mintShares(_address, _sharesAmount);
-    emit MintFeeShares(_address, _sharesAmount, _feeType, _feeRole);
   }
 
   /*****************
@@ -746,10 +736,10 @@ contract MockStakeTogether is
   }
 
   /// @notice Processes the Stake Rewards fees.
-  function _processStakeRewardsFee(uint256 profitAmount) private {
+  function _processStakeRewardsFee(uint256 _profitAmount) private {
     (uint256[4] memory _shares, ) = estimateFeePercentage(
       IStakeTogether.FeeType.StakeRewards,
-      profitAmount
+      _profitAmount
     );
 
     StakeTogether.FeeRole[4] memory roles = getFeesRoles();
@@ -783,6 +773,21 @@ contract MockStakeTogether is
         _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeValidator, roles[i]);
       }
     }
+  }
+
+  /// @notice Internal function to mint rewards as shares to a given address.
+  /// @param _address Address to mint rewards to.
+  /// @param _sharesAmount Amount of reward shares to mint.
+  /// @param _feeType Type of fee associated with the minting.
+  /// @param _feeRole Role of the fee within the system.
+  function _mintFeeShares(
+    address _address,
+    uint256 _sharesAmount,
+    FeeType _feeType,
+    FeeRole _feeRole
+  ) private {
+    _mintShares(_address, _sharesAmount);
+    emit MintFeeShares(_address, _sharesAmount, _feeType, _feeRole);
   }
 
   /********************

@@ -279,7 +279,7 @@ contract MockRouter is
 
     // Todo: implement that
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }(_report.profitAmount);
+      stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }();
     }
 
     if (_report.lossAmount > 0) {
@@ -374,8 +374,8 @@ contract MockRouter is
     stakeTogether.withdrawRefund{ value: msg.value }();
   }
 
-  function processStakeRewardsFee(uint256 _amount) external payable {
-    stakeTogether.processStakeRewardsFee{ value: msg.value }(_amount);
+  function processStakeRewardsFee() external payable {
+    stakeTogether.processStakeRewardsFee{ value: msg.value }();
   }
 
   function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant {

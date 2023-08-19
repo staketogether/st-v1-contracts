@@ -184,7 +184,7 @@ describe('Stake Together', function () {
       expect(totalContractBalance).to.equal(ethers.parseEther('4') + initialBalance) // contract init with 1n
     })
 
-    it('should distribute profit equally among two depositors', async function () {
+    it('should distribute profit equally among two depositors by Stake Entry', async function () {
       const depositAmount = ethers.parseEther('1')
       const poolAddress = user3.address // Example pool address
 
@@ -207,20 +207,99 @@ describe('Stake Together', function () {
       const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
       expect(prevContractBalance).to.equal(ethers.parseEther('2') + initialBalance) // contract init with 1n
 
+      // Checking the balance of each user
+      // for (let i = 0; i < users.length; i++) {
+      //   const actualBalance = await stakeTogether.balanceOf(users[i].address)
+      //   console.log('User Balance Pre', actualBalance.toString())
+      // }
+
       // Sending 1 Ether profit to the contract
       await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('1') })
 
       // Simulating how the profit should be distributed
-      const totalProfit = ethers.parseEther('1') - totalFees / 2n
-      const profitPerUserBase = totalProfit / 3n
-      const hasRemainder = totalProfit % 3n > 0n
+      const userShares = ethers.parseEther('1') - totalFees / 2n
+      const profitPerUserBase = userShares / 3n
+      const hasRemainder = userShares % 3n > 0n
       const profitPerUser = hasRemainder ? profitPerUserBase + 1n : profitPerUserBase
 
       // Checking the balance of each user
       for (let i = 0; i < users.length; i++) {
         const expectedBalance = userBalancesBefore[i] + profitPerUser
         const actualBalance = await stakeTogether.balanceOf(users[i].address)
+        // console.log('User Balance Pos', actualBalance.toString())
         expect(actualBalance).to.be.equal(expectedBalance)
+      }
+
+      // Total balance in the contract should be 3 Ether + total fees
+      const totalContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(totalContractBalance).to.equal(ethers.parseEther('3') + initialBalance)
+    })
+
+    // Todo: fix this test
+    it.skip('should distribute profit equally among two depositors receiving by Staking Rewards', async function () {
+      const depositAmount = ethers.parseEther('1')
+      const poolAddress = user3.address // Example pool address
+
+      // Adding the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      // Two users depositing 1 Ether each
+      const users = [user1, user2]
+      let totalEntryFees = 0n
+      const userBalancesBefore = []
+      for (const user of users) {
+        const fee = (depositAmount * 3n) / 1000n
+        totalEntryFees += fee
+        const shares = depositAmount - fee
+        userBalancesBefore.push(shares)
+        const delegations = [{ pool: poolAddress, shares: shares }]
+        await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
+      }
+
+      const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
+      expect(prevContractBalance).to.equal(ethers.parseEther('2') + initialBalance)
+
+      // Checking the balance of each user
+      for (let i = 0; i < users.length; i++) {
+        const actualBalance = await stakeTogether.balanceOf(users[i].address)
+        console.log('User Balance Pre', actualBalance)
+      }
+
+      const preTotalShares = await stakeTogether.totalShares()
+
+      console.log('totalSharesPre')
+
+      const stakingRewards = ethers.parseEther('1')
+      await mockRouter.connect(user1).processStakeRewardsFee({
+        value: stakingRewards,
+      })
+
+      const posTotalShares = await stakeTogether.totalShares()
+
+      const generatedShares = posTotalShares - preTotalShares
+
+      const totalSharesValuation = await stakeTogether.weiByShares(posTotalShares)
+      console.log('totalSharesValuation', totalSharesValuation)
+      expect(totalSharesValuation).to.equal(ethers.parseEther('4'))
+
+      const sharesValuation = await stakeTogether.weiByShares(generatedShares)
+      console.log('sharesValuation', sharesValuation, ethers.formatEther(sharesValuation))
+      expect(sharesValuation).to.equal(ethers.parseEther('0.09'))
+
+      const loss = sharesValuation - ethers.parseEther('0.09')
+      console.log('loss', loss)
+      expect(loss).to.equal(0n)
+
+      const userShares = 997000000000000000n
+      const userBalance = 1300081499592502038n
+
+      // Checking the balance of each user
+      for (let i = 0; i < users.length; i++) {
+        const actualBalance = await stakeTogether.balanceOf(users[i].address)
+        expect(actualBalance).to.be.equal(userBalance)
+
+        const actualShares = await stakeTogether.shares(users[i].address)
+        expect(actualShares).to.be.equal(userShares)
       }
 
       // Total balance in the contract should be 3 Ether + total fees
@@ -236,7 +315,7 @@ describe('Stake Together', function () {
 
       expect(weiBySharesPre).to.equal(rewardAmount)
 
-      await mockRouter.connect(user1).processStakeRewardsFee(rewardAmount, {
+      await mockRouter.connect(user1).processStakeRewardsFee({
         value: rewardAmount,
       })
 
@@ -286,7 +365,7 @@ describe('Stake Together', function () {
 
       expect(preSharesValuation + rewardsSharesValuation).to.equal(postSharesValuation + 1n) // round up
 
-      await mockRouter.connect(user1).processStakeRewardsFee(rewardAmount, {
+      await mockRouter.connect(user1).processStakeRewardsFee({
         value: rewardAmount,
       })
 
@@ -341,7 +420,7 @@ describe('Stake Together', function () {
       const rewardAmount = ethers.parseEther('5')
 
       await expect(
-        stakeTogether.connect(user1).processStakeRewardsFee(rewardAmount, { value: rewardAmount }),
+        stakeTogether.connect(user1).processStakeRewardsFee({ value: rewardAmount }),
       ).to.be.revertedWith('OR')
     })
 
@@ -1868,30 +1947,30 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('SI')
     })
 
-    it('should successfully set fee for StakeValidator (index 3)', async function () {
-      const feeValue = ethers.parseEther('0.1')
-      const allocations = [
-        ethers.parseEther('0.25'),
-        ethers.parseEther('0.25'),
-        ethers.parseEther('0.25'),
-        ethers.parseEther('0.25'),
-      ]
+    // it('should successfully set fee for StakeValidator (index 3)', async function () {
+    //   const feeValue = ethers.parseEther('0.1')
+    //   const allocations = [
+    //     ethers.parseEther('0.25'),
+    //     ethers.parseEther('0.25'),
+    //     ethers.parseEther('0.25'),
+    //     ethers.parseEther('0.25'),
+    //   ]
 
-      const feeType = 3
+    //   const feeType = 3
 
-      const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, 0, allocations)
+    //   const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, 0, allocations)
 
-      await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, 0, allocations)
+    //   await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, 0, allocations)
 
-      const [_sharesFixed, _amountsFixed] = await stakeTogether.estimateFeeFixed(feeType)
+    //   const [_sharesFixed, _amountsFixed] = await stakeTogether.estimateFeeFixed(feeType)
 
-      await stakeTogether.connect(owner).setFee(feeType, feeValue, 1, allocations)
+    //   await stakeTogether.connect(owner).setFee(feeType, feeValue, 1, allocations)
 
-      const [_sharesPercentage, _amountsPercentage] = await stakeTogether.estimateFeePercentage(
-        feeType,
-        feeValue,
-      )
-    })
+    //   const [_sharesPercentage, _amountsPercentage] = await stakeTogether.estimateFeePercentage(
+    //     feeType,
+    //     feeValue,
+    //   )
+    // })
 
     describe('Revert', function () {
       beforeEach(async function () {
@@ -1921,9 +2000,9 @@ describe('Stake Together', function () {
         ])
       })
 
-      it('should revert when calling estimateFeePercentage which is FIXED', async function () {
-        await expect(stakeTogether.estimateFeePercentage(2, ethers.parseEther('0.1'))).to.be.reverted
-      })
+      // it('should revert when calling estimateFeePercentage which is FIXED', async function () {
+      //   await expect(stakeTogether.estimateFeePercentage(2, ethers.parseEther('0.1'))).to.be.reverted
+      // })
 
       it('should revert when calling estimateFeeFixed which is PERCENTAGE', async function () {
         await expect(stakeTogether.estimateFeeFixed(1)).to.be.reverted

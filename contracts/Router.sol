@@ -279,7 +279,7 @@ contract Router is
 
     // Todo: implement that
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }(_report.profitAmount);
+      stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }();
     }
 
     if (_report.lossAmount > 0) {

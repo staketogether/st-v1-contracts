@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
+import 'hardhat/console.sol';
+
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
@@ -333,9 +335,7 @@ contract StakeTogether is
       revert('DLR');
     }
 
-    uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
-
-    _processStakeEntryFee(_to, sharesAmount);
+    _processStakeEntryFee(_to, msg.value);
 
     totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _referral);
@@ -594,9 +594,9 @@ contract StakeTogether is
    ** REWARDS **
    *************/
 
-  function processStakeRewardsFee(uint256 _profitAmount) external payable nonReentrant whenNotPaused {
+  function processStakeRewardsFee() external payable nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'OR'); // OR = Only Router
-    _processStakeRewardsFee(_profitAmount);
+    _processStakeRewardsFee(msg.value);
   }
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
@@ -662,40 +662,36 @@ contract StakeTogether is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  /// @notice Estimates the fee percentage for a given fee type and amount.
-  /// @param _feeType The type of fee.
-  /// @param _amount The amount for which to estimate the fee.
-  /// @return _shares The shares of the fee.
-  /// @return _amounts The amounts of the fee.
-  function estimateFeePercentage(
-    FeeType _feeType,
-    uint256 _amount
-  ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
-    require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
-    uint256 sharesAmount = sharesByWei(_amount);
-    return _estimateFee(_feeType, sharesAmount);
-  }
+  // /// @notice Estimates the fee percentage for a given fee type and amount.
+  // /// @param _feeType The type of fee.
+  // /// @param _amount The amount for which to estimate the fee.
+  // /// @return _shares The shares of the fee.
+  // /// @return _amounts The amounts of the fee.
+  // function estimateFeePercentage(
+  //   FeeType _feeType,
+  //   uint256 _amount
+  // ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
+  //   require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
+  //   uint256 sharesAmount = sharesByWei(_amount);
+  //   return _distributeShares(_feeType, sharesAmount);
+  // }
 
   /// @notice Estimates the fixed fee for a given fee type.
   /// @param _feeType The type of fee.
   /// @return _shares The shares of the fee.
-  /// @return _amounts The amounts of the fee.
-  function estimateFeeFixed(
-    FeeType _feeType
-  ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
+  function estimateFeeFixed(FeeType _feeType) public view returns (uint256[4] memory _shares) {
     require(fees[_feeType].mathType == FeeMath.FIXED);
-    return _estimateFee(_feeType, fees[_feeType].value);
+    return _distributeShares(_feeType, fees[_feeType].value);
   }
 
   /// @notice Internal function to estimate the fee for a given fee type and share amount.
   /// @param _feeType The type of fee.
   /// @param _sharesAmount The share amount for which to estimate the fee.
   /// @return _shares The shares of the fee.
-  /// @return _amounts The amounts of the fee.
-  function _estimateFee(
+  function _distributeShares(
     FeeType _feeType,
     uint256 _sharesAmount
-  ) private view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
+  ) private view returns (uint256[4] memory _shares) {
     FeeRole[4] memory roles = getFeesRoles();
 
     uint256 feeValue = fees[_feeType].value;
@@ -710,37 +706,14 @@ contract StakeTogether is
 
     _shares[3] = _sharesAmount - totalAllocatedShares;
 
-    for (uint256 i = 0; i < roles.length; i++) {
-      _amounts[i] = weiByShares(_shares[i]);
-    }
-
-    return (_shares, _amounts);
-  }
-
-  /// @notice Processes the fees for the specified share amount.
-  /// @param _to The address to which the shares are to be minted.
-  /// @param sharesAmount The amount of shares to calculate the fees for.
-  function _processStakeEntryFee(address _to, uint256 sharesAmount) private {
-    (uint256[4] memory _shares, ) = _estimateFee(FeeType.StakeEntry, sharesAmount);
-
-    FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < roles.length; i++) {
-      if (_shares[i] > 0) {
-        if (roles[i] == FeeRole.Sender) {
-          _mintShares(_to, _shares[i]);
-        } else {
-          _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeEntry, roles[i]);
-        }
-      }
-    }
+    return (_shares);
   }
 
   /// @notice Processes the Stake Rewards fees.
-  function _processStakeRewardsFee(uint256 _profitAmount) private {
-    (uint256[4] memory _shares, ) = estimateFeePercentage(
-      IStakeTogether.FeeType.StakeRewards,
-      _profitAmount
-    );
+  function _processStakeRewardsFee(uint256 _amount) private {
+    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
+
+    uint256[4] memory _shares = _distributeShares(FeeType.StakeRewards, sharesAmount);
 
     StakeTogether.FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
@@ -755,9 +728,27 @@ contract StakeTogether is
     }
   }
 
+  /// @notice Processes the fees for the specified share amount.
+  /// @param _to The address to which the shares are to be minted.
+  /// @param _amount The amount of shares to calculate the fees for.
+  function _processStakeEntryFee(address _to, uint256 _amount) private {
+    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
+    uint256[4] memory _shares = _distributeShares(FeeType.StakeEntry, sharesAmount);
+    FeeRole[4] memory roles = getFeesRoles();
+    for (uint i = 0; i < roles.length; i++) {
+      if (_shares[i] > 0) {
+        if (roles[i] == FeeRole.Sender) {
+          _mintShares(_to, _shares[i]);
+        } else {
+          _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeEntry, roles[i]);
+        }
+      }
+    }
+  }
+
   /// @notice Processes the fees for Stake Pool.
   function _processStakePoolFee() private {
-    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakePool);
+    uint256[4] memory _shares = estimateFeeFixed(FeeType.StakePool);
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
       _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakePool, roles[i]);
@@ -766,7 +757,7 @@ contract StakeTogether is
 
   /// @notice Processes the fees for Stake Validator.
   function _processStakeValidatorFees() private {
-    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
+    uint256[4] memory _shares = estimateFeeFixed(FeeType.StakeValidator);
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < _shares.length - 1; i++) {
       if (_shares[i] > 0) {
