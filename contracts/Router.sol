@@ -297,8 +297,12 @@ contract Router is
       payable(address(stakeTogether)).transfer(_report.routerExtraAmount);
     }
 
-    if (_report.validatorsToExit.length > 0) {
-      emit ValidatorsToExit(_report.epoch, _report.validatorsToExit);
+    if (_report.validatorsToRemove.length > 0) {
+      emit ValidatorsToRemove(_report.epoch, _report.validatorsToRemove);
+    }
+
+    if (_report.validatorsRemoved.length > 0) {
+      emit ValidatorsRemoved(_report.epoch, _report.validatorsRemoved);
     }
   }
 
@@ -348,11 +352,6 @@ contract Router is
 
     require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
     require(_report.merkleRoot != bytes32(0), 'INVALID_MERKLE_ROOT');
-    require(_report.validatorsToExit.length <= config.maxValidatorsToExit, 'TOO_MANY_VALIDATORS_TO_EXIT');
-
-    for (uint256 i = 0; i < _report.validatorsToExit.length; i++) {
-      require(_report.validatorsToExit[i].oracle != address(0), 'INVALID_ORACLE_ADDRESS');
-    }
 
     require(_report.withdrawAmount <= withdrawals.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
 

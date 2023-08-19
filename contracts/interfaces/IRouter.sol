@@ -23,7 +23,8 @@ interface IRouter {
     uint256 withdrawAmount; // Amount of ETH to send to WETH contract
     uint256 withdrawRefundAmount; // Rest withdrawal validator amount
     uint256 routerExtraAmount; // Extra money on this contract
-    ValidatorOracle[] validatorsToExit; // Validators that should exit
+    ValidatorOracle[] validatorsToRemove; // Validators that should be removed
+    ValidatorOracle[] validatorsRemoved; // Validators that was removed
   }
 
   struct ValidatorOracle {
@@ -55,5 +56,6 @@ interface IRouter {
   );
   event UnBlacklistReportOracle(address indexed oracle, uint256 penalties);
   event UpdateReportOracleQuorum(uint256 quorum);
-  event ValidatorsToExit(uint256 indexed epoch, ValidatorOracle[] validators);
+  event ValidatorsToRemove(uint256 indexed epoch, ValidatorOracle[] validators);
+  event ValidatorsRemoved(uint256 indexed epoch, ValidatorOracle[] validators);
 }
