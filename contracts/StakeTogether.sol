@@ -688,20 +688,11 @@ contract StakeTogether is
         if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
           _mintShares(_to, _shares[i]);
         } else {
-          _mintFeeShares(getFeeAddress(roles[i]), _shares[i], _feeType, roles[i]);
+          _mintShares(getFeeAddress(roles[i]), _shares[i]);
+          emit MintFeeShares(getFeeAddress(roles[i]), _shares[i], _feeType, roles[i]);
         }
       }
     }
-  }
-
-  function _mintFeeShares(
-    address _address,
-    uint256 _sharesAmount,
-    FeeType _feeType,
-    FeeRole _feeRole
-  ) private {
-    _mintShares(_address, _sharesAmount);
-    emit MintFeeShares(_address, _sharesAmount, _feeType, _feeRole);
   }
 
   function _processStakeRewardsFee(uint256 _amount) private {
