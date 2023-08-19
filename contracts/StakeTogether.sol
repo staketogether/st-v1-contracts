@@ -646,15 +646,14 @@ contract StakeTogether is
     FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    require(_allocations.length == 4, 'IL');
-
+    require(_allocations.length == 4, 'IL'); // IL = Invalid Length
     uint256 sum = 0;
     for (uint256 i = 0; i < _allocations.length; i++) {
       fees[_feeType].allocations[FeeRole(i)] = _allocations[i];
       sum += _allocations[i];
     }
 
-    require(sum == 1 ether, 'SI');
+    require(sum == 1 ether, 'SI'); // SI = Sum Invalid
 
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
@@ -666,9 +665,8 @@ contract StakeTogether is
     uint256[4] memory allocatedShares;
     FeeRole[4] memory roles = getFeesRoles();
 
-    uint256 amount = fees[_feeType].mathType == FeeMath.FIXED ? fees[_feeType].value : _sharesAmount;
     uint256 feeValue = fees[_feeType].value;
-    uint256 feeShares = MathUpgradeable.mulDiv(amount, feeValue, 1 ether);
+    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
@@ -677,7 +675,7 @@ contract StakeTogether is
       totalAllocatedShares += allocatedShares[i];
     }
 
-    allocatedShares[3] = amount - totalAllocatedShares;
+    allocatedShares[3] = _sharesAmount - totalAllocatedShares;
 
     uint length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
 
@@ -693,21 +691,25 @@ contract StakeTogether is
     }
   }
 
-  function _processStakeRewardsFee(uint256 _amount) private {
-    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
-    _distributeFees(FeeType.StakeRewards, sharesAmount, address(0));
-  }
-
   function _processStakeEntryFee(address _to, uint256 _amount) private {
     uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
     _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
   }
 
+  function _processStakeRewardsFee(uint256 _amount) private {
+    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
+    _distributeFees(FeeType.StakeRewards, sharesAmount, address(0));
+  }
+
   function _processStakePoolFee() private {
-    _distributeFees(FeeType.StakePool, 0, address(0));
+    uint256 sharesAmount = fees[FeeType.StakePool].value;
+    _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 
   function _processStakeValidatorFee() private {
-    _distributeFees(FeeType.StakeValidator, 0, address(0));
+    uint256 sharesAmount = fees[FeeType.StakeValidator].value;
+    _distributeFees(FeeType.StakeValidator, sharesAmount, address(0));
   }
+
+  // Todo: Implement Dynamic Shares
 }
