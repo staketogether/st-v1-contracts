@@ -271,6 +271,25 @@ contract Router is
     delete reportHistoric[_report.epoch];
     emit ExecuteReport(msg.sender, _hash, _report);
 
+    // Todo: implement optimized staking rewards
+
+    (uint256[4] memory _shares, uint256[4] memory _amounts) = stakeTogether.estimateFeePercentage(
+      IStakeTogether.FeeType.StakeRewards,
+      _report.profitAmount
+    );
+
+    StakeTogether.FeeRole[4] memory roles = stakeTogether.getFeesRoles();
+    for (uint i = 0; i < roles.length - 1; i++) {
+      if (_shares[i] > 0) {
+        stakeTogether.mintRewards{ value: _amounts[i] }(
+          stakeTogether.getFeeAddress(roles[i]),
+          _shares[i],
+          IStakeTogether.FeeType.StakeRewards,
+          roles[i]
+        );
+      }
+    }
+
     if (_report.merkleRoot != bytes32(0)) {
       airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
     }
