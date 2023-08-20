@@ -2216,7 +2216,7 @@ describe('Stake Together', function () {
       // console.log('Final Total Shares:', finalTotalShares.toString())
     })
 
-    it.only('Stake Rewards', async function () {
+    it('Stake Rewards', async function () {
       const users = [user1, user2]
       const referral = user4.address
       const depositAmount = ethers.parseEther('1')
