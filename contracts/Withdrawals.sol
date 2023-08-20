@@ -31,12 +31,12 @@ contract Withdrawals is
   ReentrancyGuardUpgradeable,
   IWithdrawals
 {
-  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
-  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  uint256 public version;
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
-  StakeTogether public stakeTogether;
-  Router public router;
+  uint256 public version; /// Contract version.
+  StakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  Router public router; /// Instance of the Router contract.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -81,6 +81,8 @@ contract Withdrawals is
     emit ReceiveEther(msg.value);
   }
 
+  /// @notice Allows the router to send ETH to the contract.
+  /// @dev This function can only be called by the router.
   function receiveWithdrawEther() external payable {
     require(msg.sender == address(router), 'ONLY_ROUTER');
     emit ReceiveWithdrawEther(msg.value);

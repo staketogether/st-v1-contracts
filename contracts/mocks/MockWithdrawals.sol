@@ -76,6 +76,8 @@ contract MockWithdrawals is
     emit ReceiveEther(msg.value);
   }
 
+  /// @notice Allows the router to send ETH to the contract.
+  /// @dev This function can only be called by the router.
   function receiveWithdrawEther() external payable {
     require(msg.sender == address(router), 'ONLY_ROUTER');
     emit ReceiveWithdrawEther(msg.value);

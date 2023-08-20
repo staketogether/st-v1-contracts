@@ -23,15 +23,15 @@ contract MockAirdrop is
   ReentrancyGuardUpgradeable,
   IAirdrop
 {
-  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
-  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  uint256 public version;
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); // Role allowing an account to perform upgrade operations.
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); // Role allowing an account to perform administrative operations.
+  uint256 public version; // The version of the contract.
 
-  StakeTogether public stakeTogether;
-  Router public router;
+  StakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
+  Router public router; // The reference to the Router contract for routing related operations.
 
-  mapping(uint256 => bytes32) public merkleRoots;
-  mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap;
+  mapping(uint256 => bytes32) public merkleRoots; // Stores the merkle roots for each epoch. This is used for claims verification.
+  mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap; // A nested mapping where the first key is the epoch and the second key is the user's index.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {

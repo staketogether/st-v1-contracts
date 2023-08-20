@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.18;
 
-import 'hardhat/console.sol';
-
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
@@ -649,6 +647,11 @@ contract StakeTogether is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
+  /// @notice Distributes fees according to their type, amount, and the destination.
+  /// @param _feeType The type of fee being distributed.
+  /// @param _sharesAmount The total shares amount for the fee.
+  /// @param _to The address to distribute the fees.
+  /// @dev This function computes how the fees are allocated to different roles.
   function _distributeFees(FeeType _feeType, uint256 _sharesAmount, address _to) private {
     uint256[4] memory allocatedShares;
     FeeRole[4] memory roles = getFeesRoles();
@@ -679,23 +682,34 @@ contract StakeTogether is
     }
   }
 
+  /// @notice Processes a stake entry and distributes the associated fees.
+  /// @param _to The address to receive the stake entry.
+  /// @param _amount The amount staked.
+  /// @dev Calls the distributeFees function internally.
   function _processStakeEntry(address _to, uint256 _amount) private {
     uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
     _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
   }
 
+  /// @notice Process staking rewards and distributes the rewards based on shares.
+  /// @param _sharesAmount The amount of shares related to the staking rewards.
+  /// @dev Requires the caller to be the router contract. This function will also emit the StakeRewards event.
   function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'OR'); // OR = Only Router
     _distributeFees(FeeType.StakeRewards, _sharesAmount, address(0));
     emit StakeRewards(msg.value, _sharesAmount);
   }
 
+  /// @notice Processes the staking pool fee and distributes it accordingly.
+  /// @dev Calculates the shares amount and then distributes the staking pool fee.
   function _processStakePool() private {
     uint256 amount = fees[FeeType.StakePool].value;
     uint256 sharesAmount = MathUpgradeable.mulDiv(amount, totalShares, totalSupply() - amount);
     _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 
+  /// @notice Transfers the staking validator fee to the operator role.
+  /// @dev Transfers the associated amount to the Operator's address.
   function _processStakeValidator() private {
     payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.StakeValidator].value);
   }
