@@ -142,7 +142,7 @@ contract Airdrop is
 
     _setClaimed(_epoch, _index);
 
-    stakeTogether.transferRewardsShares(_account, _sharesAmount);
+    stakeTogether.claimAirdropRewards(_account, _sharesAmount);
 
     emit Claim(_epoch, _index, _account, _sharesAmount, merkleProof);
   }

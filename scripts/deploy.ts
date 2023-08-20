@@ -104,11 +104,11 @@ export async function deployRouter(
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
-    minBlocksBeforeExecution: 600,
-    minReportOracleQuorum: 5,
-    reportOracleQuorum: 5,
+    reportDelay: 600,
+    minOracleQuorum: 5,
+    oracleQuorum: 5,
     oracleBlackListLimit: 3,
-    reportBlockFrequency: 1,
+    reportFrequency: 1,
   }
 
   // Cast the contract to the correct type

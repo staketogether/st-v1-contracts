@@ -129,11 +129,11 @@ describe('Router', function () {
       it('should allow owner to set configuration', async function () {
         const config = {
           bunkerMode: false,
-          minBlocksBeforeExecution: 600,
-          minReportOracleQuorum: 5,
+          reportDelay: 600,
+          minOracleQuorum: 5,
           oracleBlackListLimit: 3,
-          reportBlockFrequency: 1,
-          reportOracleQuorum: 5,
+          reportFrequency: 1,
+          oracleQuorum: 5,
         }
 
         // Set config by owner
@@ -141,31 +141,31 @@ describe('Router', function () {
 
         // Verify if the configuration was changed correctly
         const updatedConfig = await router.config()
-        expect(updatedConfig.minBlocksBeforeExecution).to.equal(config.minBlocksBeforeExecution)
+        expect(updatedConfig.reportDelay).to.equal(config.reportDelay)
       })
 
       it('should not allow non-owner to set configuration', async function () {
         const config = {
           bunkerMode: false,
-          minBlocksBeforeExecution: 600,
-          minReportOracleQuorum: 5,
+          reportDelay: 600,
+          minOracleQuorum: 5,
           oracleBlackListLimit: 3,
-          reportBlockFrequency: 1,
-          reportOracleQuorum: 5,
+          reportFrequency: 1,
+          oracleQuorum: 5,
         }
 
         // Attempt to set config by non-owner should fail
         await expect(router.connect(user1).setConfig(config)).to.be.reverted
       })
 
-      it('should enforce minBlocksBeforeExecution to be at least 300', async function () {
+      it('should enforce reportDelay to be at least 300', async function () {
         const config = {
           bunkerMode: false,
-          minBlocksBeforeExecution: 200,
-          minReportOracleQuorum: 5,
+          reportDelay: 200,
+          minOracleQuorum: 5,
           oracleBlackListLimit: 3,
-          reportBlockFrequency: 1,
-          reportOracleQuorum: 5,
+          reportFrequency: 1,
+          oracleQuorum: 5,
         }
 
         // Set config by owner
@@ -173,7 +173,7 @@ describe('Router', function () {
 
         // Verify if the configuration enforces the minimum value
         const updatedConfig = await router.config()
-        expect(updatedConfig.minBlocksBeforeExecution).to.equal(300)
+        expect(updatedConfig.reportDelay).to.equal(300)
       })
     })
   })
@@ -263,12 +263,12 @@ describe('Router', function () {
       await router.connect(owner).removeReportOracle(user2.address)
 
       const currentConfig = await router.config()
-      const currentQuorum = currentConfig.reportOracleQuorum
+      const currentQuorum = currentConfig.oracleQuorum
       const expectedNewQuorum = Math.floor((4 * 3) / 5) // 60% of total active oracles (4)
-      const minReportOracleQuorum = (await router.config()).minReportOracleQuorum
+      const minOracleQuorum = (await router.config()).minOracleQuorum
 
-      // If the newQuorum is lower than minReportOracleQuorum, use minReportOracleQuorum instead
-      const expectedQuorum = Math.max(expectedNewQuorum, Number(minReportOracleQuorum))
+      // If the newQuorum is lower than minOracleQuorum, use minOracleQuorum instead
+      const expectedQuorum = Math.max(expectedNewQuorum, Number(minOracleQuorum))
 
       expect(currentQuorum).to.equal(expectedQuorum)
     })
@@ -282,7 +282,7 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(owner.address)
 
       // Get the updated quorum after adding oracles
-      const updatedQuorumAfterAdd = (await router.config()).reportOracleQuorum
+      const updatedQuorumAfterAdd = (await router.config()).oracleQuorum
 
       // Removing 3 oracles (totalReportsOracle becomes 5)
       await router.connect(owner).removeReportOracle(user6.address)
@@ -290,14 +290,14 @@ describe('Router', function () {
       await router.connect(owner).removeReportOracle(user8.address)
 
       // Get the updated quorum after removing oracles
-      const updatedQuorumAfterRemove = (await router.config()).reportOracleQuorum
+      const updatedQuorumAfterRemove = (await router.config()).oracleQuorum
 
       const currentConfig = await router.config()
       const expectedNewQuorum = Math.floor((5 * 3) / 5) // 60% of total active oracles (5)
-      const minReportOracleQuorum = currentConfig.minReportOracleQuorum
+      const minOracleQuorum = currentConfig.minOracleQuorum
 
-      // If the newQuorum is lower than minReportOracleQuorum, use minReportOracleQuorum instead
-      const expectedQuorum = Math.max(expectedNewQuorum, Number(minReportOracleQuorum))
+      // If the newQuorum is lower than minOracleQuorum, use minOracleQuorum instead
+      const expectedQuorum = Math.max(expectedNewQuorum, Number(minOracleQuorum))
 
       // Verify that the current quorum matches the expected quorum after adding oracles
       expect(updatedQuorumAfterAdd).to.equal(expectedQuorum)
@@ -311,8 +311,8 @@ describe('Router', function () {
       await router.connect(owner).removeReportOracle(user2.address)
       await router.connect(owner).removeReportOracle(user3.address)
 
-      const currentQuorum = (await router.config()).reportOracleQuorum
-      const expectedNewQuorum = (await router.config()).minReportOracleQuorum
+      const currentQuorum = (await router.config()).oracleQuorum
+      const expectedNewQuorum = (await router.config()).minOracleQuorum
 
       expect(currentQuorum).to.equal(expectedNewQuorum)
     })
@@ -324,11 +324,11 @@ describe('Router', function () {
 
       const config = {
         bunkerMode: false,
-        minBlocksBeforeExecution: 600,
-        minReportOracleQuorum: 1, // Set minReportOracleQuorum to 1 for this test
+        reportDelay: 600,
+        minOracleQuorum: 1, // Set minOracleQuorum to 1 for this test
         oracleBlackListLimit: 3,
-        reportBlockFrequency: 1,
-        reportOracleQuorum: 5,
+        reportFrequency: 1,
+        oracleQuorum: 5,
       }
 
       // Set config by owner
@@ -338,20 +338,20 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user1.address)
 
       // Get the updated quorum after adding the oracle
-      const updatedQuorumAfterAdd = (await router.config()).reportOracleQuorum
+      const updatedQuorumAfterAdd = (await router.config()).oracleQuorum
 
       // Removing the oracle (totalReportsOracle becomes 0)
       await router.connect(owner).removeReportOracle(user1.address)
 
       // Get the updated quorum after removing the oracle
-      const updatedQuorumAfterRemove = (await router.config()).reportOracleQuorum
+      const updatedQuorumAfterRemove = (await router.config()).oracleQuorum
 
       const currentConfig = await router.config()
       const expectedNewQuorum = Math.floor((0 * 3) / 5) // 60% of total active oracles (0)
-      const minReportOracleQuorum = currentConfig.minReportOracleQuorum
+      const minOracleQuorum = currentConfig.minOracleQuorum
 
-      // If the newQuorum is lower than minReportOracleQuorum, use minReportOracleQuorum instead
-      const expectedQuorum = Math.max(expectedNewQuorum, Number(minReportOracleQuorum))
+      // If the newQuorum is lower than minOracleQuorum, use minOracleQuorum instead
+      const expectedQuorum = Math.max(expectedNewQuorum, Number(minOracleQuorum))
 
       // Verify that the current quorum matches the expected quorum after adding the oracle
       expect(updatedQuorumAfterAdd).to.equal(expectedQuorum)

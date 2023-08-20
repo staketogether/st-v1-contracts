@@ -335,7 +335,7 @@ contract StakeTogether is
       revert('DLR');
     }
 
-    _processStakeEntryFee(_to, msg.value);
+    _processStakeEntry(_to, msg.value);
 
     totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _referral);
@@ -439,7 +439,7 @@ contract StakeTogether is
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      _processStakePoolFee();
+      _processStakePool();
     }
     pools[_pool] = true;
     emit AddPool(_pool, _listed, msg.value);
@@ -570,7 +570,7 @@ contract StakeTogether is
     require(isValidatorOracle(msg.sender), 'OV');
     require(address(this).balance >= config.poolSize, 'NBP');
     require(!validators[_publicKey], 'VE');
-    _processStakeValidatorFee();
+    _processStakeValidator();
     _setBeaconBalance(beaconBalance + config.validatorSize);
     validators[_publicKey] = true;
     _nextValidatorOracle();
@@ -594,15 +594,15 @@ contract StakeTogether is
    ** REWARDS **
    *************/
 
-  function processStakeRewardsFee() external payable nonReentrant whenNotPaused {
+  function processStakeRewards() external payable nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'OR'); // OR = Only Router
-    _processStakeRewardsFee(msg.value);
+    _processStakeRewards(msg.value);
   }
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
-  function transferRewardsShares(address _account, uint256 _sharesAmount) external whenNotPaused {
+  function claimAirdropRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
     _transferShares(airdropFee, _account, _sharesAmount);
@@ -691,22 +691,22 @@ contract StakeTogether is
     }
   }
 
-  function _processStakeEntryFee(address _to, uint256 _amount) private {
+  function _processStakeEntry(address _to, uint256 _amount) private {
     uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
     _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
   }
 
-  function _processStakeRewardsFee(uint256 _amount) private {
+  function _processStakeRewards(uint256 _amount) private {
     uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
     _distributeFees(FeeType.StakeRewards, sharesAmount, address(0));
   }
 
-  function _processStakePoolFee() private {
+  function _processStakePool() private {
     uint256 sharesAmount = fees[FeeType.StakePool].value;
     _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 
-  function _processStakeValidatorFee() private {
+  function _processStakeValidator() private {
     uint256 sharesAmount = fees[FeeType.StakeValidator].value;
     _distributeFees(FeeType.StakeValidator, sharesAmount, address(0));
   }

@@ -270,7 +270,7 @@ describe('Stake Together', function () {
       console.log('totalSharesPre')
 
       const stakingRewards = ethers.parseEther('1')
-      await mockRouter.connect(user1).processStakeRewardsFee({
+      await mockRouter.connect(user1).processStakeRewards({
         value: stakingRewards,
       })
 
@@ -308,14 +308,14 @@ describe('Stake Together', function () {
     })
 
     // Todo: Revise Precision
-    it.skip('REVISE_THAT_should correctly process stake rewards fee through processStakeRewardsFee', async function () {
+    it.skip('REVISE_THAT_should correctly process stake rewards fee through processStakeRewards', async function () {
       const rewardAmount = ethers.parseEther('1')
 
       const weiBySharesPre = BigInt(await stakeTogether.weiByShares(rewardAmount))
 
       expect(weiBySharesPre).to.equal(rewardAmount)
 
-      await mockRouter.connect(user1).processStakeRewardsFee({
+      await mockRouter.connect(user1).processStakeRewards({
         value: rewardAmount,
       })
 
@@ -365,7 +365,7 @@ describe('Stake Together', function () {
 
       expect(preSharesValuation + rewardsSharesValuation).to.equal(postSharesValuation + 1n) // round up
 
-      await mockRouter.connect(user1).processStakeRewardsFee({
+      await mockRouter.connect(user1).processStakeRewards({
         value: rewardAmount,
       })
 
@@ -420,7 +420,7 @@ describe('Stake Together', function () {
       const rewardAmount = ethers.parseEther('5')
 
       await expect(
-        stakeTogether.connect(user1).processStakeRewardsFee({ value: rewardAmount }),
+        stakeTogether.connect(user1).processStakeRewards({ value: rewardAmount }),
       ).to.be.revertedWith('OR')
     })
 
@@ -452,7 +452,7 @@ describe('Stake Together', function () {
 
       const tx = await stakeTogether
         .connect(airdropFeeAddress)
-        .transferRewardsShares(user1.address, sharesAmount)
+        .claimAirdropRewards(user1.address, sharesAmount)
 
       const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
       const finalSharesAccount = await stakeTogether.shares(user1.address)
@@ -464,7 +464,7 @@ describe('Stake Together', function () {
       const sharesAmount = ethers.parseEther('10')
 
       await expect(
-        stakeTogether.connect(user2).transferRewardsShares(user1.address, sharesAmount),
+        stakeTogether.connect(user2).claimAirdropRewards(user1.address, sharesAmount),
       ).to.be.revertedWith('OA')
     })
   })

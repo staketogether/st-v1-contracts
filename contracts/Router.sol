@@ -46,13 +46,13 @@ contract Router is
   mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
   mapping(uint256 => bytes32[]) public reportHistoric;
   mapping(uint256 => bytes32) public consensusReport;
-  mapping(uint256 => bool) public invalidatedReports;
+  mapping(uint256 => bool) public revokedReports;
 
   uint256 public reportBlock;
   uint256 public lastConsensusEpoch;
   uint256 public lastExecutedEpoch;
 
-  mapping(bytes32 => uint256) public reportExecutionBlock;
+  mapping(bytes32 => uint256) public reportDelay;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -105,10 +105,10 @@ contract Router is
 
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
-    if (config.minBlocksBeforeExecution < 300) {
-      config.minBlocksBeforeExecution = 300;
+    if (config.reportDelay < 300) {
+      config.reportDelay = 300;
     } else {
-      config.minBlocksBeforeExecution = config.minBlocksBeforeExecution;
+      config.reportDelay = config.reportDelay;
     }
 
     emit SetConfig(_config);
@@ -152,15 +152,15 @@ contract Router is
   function _updateQuorum() private {
     uint256 newQuorum = MathUpgradeable.mulDiv(totalReportsOracle, 3, 5);
 
-    config.reportOracleQuorum = newQuorum < config.minReportOracleQuorum
-      ? config.minReportOracleQuorum
-      : newQuorum;
+    config.oracleQuorum = newQuorum < config.minOracleQuorum ? config.minOracleQuorum : newQuorum;
     emit UpdateReportOracleQuorum(newQuorum);
   }
 
   function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
     reportsOracleBlacklist[_oracle] = config.oracleBlackListLimit;
-    totalReportsOracle--;
+    if (totalReportsOracle > 0) {
+      totalReportsOracle--;
+    }
     emit BlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
   }
 
@@ -185,7 +185,17 @@ contract Router is
     revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _account);
   }
 
-  function _evaluateOracleConduct(address _oracle, bytes32 _reportHash, bool consensus) private {
+  function _evaluateOracles(uint256 _epoch, bytes32 _hash) private {
+    for (uint256 i = 0; i < reportHistoric[_epoch].length; i++) {
+      bytes32 reportHash = reportHistoric[_epoch][i];
+      address[] memory oracles = reports[_epoch][reportHash];
+      for (uint256 j = 0; j < oracles.length; j++) {
+        _evaluateConduct(oracles[j], reportHash, reportHash == _hash);
+      }
+    }
+  }
+
+  function _evaluateConduct(address _oracle, bytes32 _reportHash, bool consensus) private {
     if (consensus) {
       if (reportsOracleBlacklist[_oracle] > 0) {
         reportsOracleBlacklist[_oracle]--;
@@ -199,7 +209,9 @@ contract Router is
       if (blacklist) {
         reportsOracleBlacklist[_oracle] = config.oracleBlackListLimit;
         emit BlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
-        totalReportsOracle--;
+        if (totalReportsOracle > 0) {
+          totalReportsOracle--;
+        }
         _updateQuorum();
       }
     }
@@ -211,68 +223,66 @@ contract Router is
 
   function submitReport(
     uint256 _epoch,
-    bytes32 _hash,
-    Report calldata _report
-  ) external activeReportOracle nonReentrant whenNotPaused {
-    require(block.number < reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
-    require(_epoch > lastConsensusEpoch, 'EPOCH_LOWER_THAN_LAST_CONSENSUS');
-
-    validReport(_report, _hash);
-
-    if (block.number >= reportBlock + config.reportBlockFrequency) {
-      reportBlock += config.reportBlockFrequency;
-      emit SkipNextBlockInterval(_epoch, reportBlock);
-    }
-
-    reports[_epoch][_hash].push(msg.sender);
-    reportVotes[_epoch][_hash]++;
-    reportHistoric[_epoch].push(_hash);
-
-    if (consensusReport[_epoch] == bytes32(0)) {
-      if (reportVotes[_epoch][_hash] >= config.reportOracleQuorum) {
-        consensusReport[_epoch] = _hash;
-        emit ConsensusApprove(block.number, _epoch, _hash);
-        reportExecutionBlock[_hash] = block.number;
-        lastConsensusEpoch = _report.epoch;
-      } else {
-        emit ConsensusNotReached(block.number, _epoch, _hash);
-      }
-    }
-
-    emit SubmitReport(msg.sender, block.number, _epoch, _hash);
-  }
-
-  // Todo: simplify this function (too many operations, need economy of gas)
-  // Todo: split execute report into multiple operations
-  function executeReport(
-    bytes32 _hash,
     Report calldata _report
   ) external nonReentrant whenNotPaused activeReportOracle {
-    validReport(_report, _hash);
+    bytes32 hash = keccak256(abi.encode(_report));
+    require(block.number < reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
+    require(totalReportsOracle >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
+    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
+    require(keccak256(abi.encode(_report)) == hash, 'REPORT_HASH_MISMATCH');
+    require(stakeTogether.beaconBalance() - _report.lossAmount > 0, 'INVALID_BEACON_BALANCE');
 
-    for (uint256 i = 0; i < reportHistoric[_report.epoch].length; i++) {
-      bytes32 reportHash = reportHistoric[_report.epoch][i];
-      address[] memory oracles = reports[_report.epoch][reportHash];
-      for (uint256 j = 0; j < oracles.length; j++) {
-        _evaluateOracleConduct(oracles[j], reportHash, reportHash == _hash);
+    if (block.number >= reportBlock + config.reportFrequency) {
+      reportBlock += config.reportFrequency;
+      emit SkipNextReportFrequency(_epoch, reportBlock);
+    }
+
+    reports[_epoch][hash].push(msg.sender);
+    reportVotes[_epoch][hash]++;
+    reportHistoric[_epoch].push(hash);
+
+    if (consensusReport[_epoch] == bytes32(0)) {
+      if (reportVotes[_epoch][hash] >= config.oracleQuorum) {
+        consensusReport[_epoch] = hash;
+        lastConsensusEpoch = _report.epoch;
+        reportDelay[hash] = block.number;
+        emit ConsensusApprove(_report, hash);
+        _evaluateOracles(_epoch, hash);
+      } else {
+        emit ConsensusNotReached(_report, hash);
       }
     }
 
-    reportBlock += config.reportBlockFrequency;
-    executedReports[_report.epoch][_hash] = true;
+    emit SubmitReport(_report, hash);
+  }
+
+  function executeReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
+    bytes32 hash = keccak256(abi.encode(_report));
+    require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
+    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
+    require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
+    require(totalReportsOracle >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(block.number >= reportDelay[hash] + config.reportDelay, 'TOO_EARLY_TO_EXECUTE_REPORT');
+
+    reportBlock += config.reportFrequency;
+    executedReports[_report.epoch][hash] = true;
     lastExecutedEpoch = _report.epoch;
     delete reportHistoric[_report.epoch];
-    emit ExecuteReport(msg.sender, _hash, _report);
+    emit ExecuteReport(_report, hash);
 
-    // Todo: implement optimized staking rewards
+    // ACTIONS
+
+    if (_report.validatorsToRemove.length > 0) {
+      emit ValidatorsToRemove(_report.epoch, _report.validatorsToRemove);
+    }
 
     if (_report.merkleRoot != bytes32(0)) {
       airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
     }
 
-    // Todo: implement that
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewardsFee{ value: _report.profitAmount }();
+      stakeTogether.processStakeRewards{ value: _report.profitAmount }();
     }
 
     if (_report.lossAmount > 0) {
@@ -289,26 +299,16 @@ contract Router is
     }
 
     if (_report.routerExtraAmount > 0) {
-      payable(address(stakeTogether)).transfer(_report.routerExtraAmount);
-    }
-
-    if (_report.validatorsToRemove.length > 0) {
-      emit ValidatorsToRemove(_report.epoch, _report.validatorsToRemove);
-    }
-
-    if (_report.validatorsRemoved.length > 0) {
-      emit ValidatorsRemoved(_report.epoch, _report.validatorsRemoved);
+      payable(stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether)).transfer(
+        _report.routerExtraAmount
+      );
     }
   }
 
-  function invalidateConsensus(
-    uint256 _epoch,
-    bytes32 _hash
-  ) external onlyRole(ORACLE_REPORT_SENTINEL_ROLE) {
-    require(_epoch == lastConsensusEpoch, 'CAN_ONLY_INVALIDATE_CURRENT_EPOCH');
-    require(consensusReport[_epoch] == _hash, 'REPORT_NOT_CONSENSUS_OR_NOT_EXISTS');
-    invalidatedReports[_epoch] = true;
-    emit InvalidateConsensus(block.number, _epoch, _hash);
+  function revokeConsensus(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_REPORT_SENTINEL_ROLE) {
+    require(consensusReport[_epoch] == _hash, 'EPOCH_NOT_CONSENSUS');
+    revokedReports[_epoch] = true;
+    emit RevokeConsensus(block.number, _epoch, _hash);
   }
 
   function setLastConsensusEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
@@ -317,43 +317,10 @@ contract Router is
   }
 
   function isReadyToSubmit(uint256 _epoch) external view returns (bool) {
-    return
-      (_epoch > lastConsensusEpoch) && (!invalidatedReports[_epoch]) && (block.number >= reportBlock);
+    return (_epoch > lastConsensusEpoch) && (!revokedReports[_epoch]) && (block.number >= reportBlock);
   }
 
   function isReadyToExecute(uint256 _epoch, bytes32 _hash) external view returns (bool) {
-    return
-      (_epoch > lastConsensusEpoch) && (!invalidatedReports[_epoch]) && consensusReport[_epoch] == _hash;
-  }
-
-  /******************
-   ** AUDIT REPORT **
-   ******************/
-
-  function validReport(Report calldata _report, bytes32 _hash) public view returns (bool) {
-    // Todo: desabilitar report se não tiver quorum
-
-    require(!invalidatedReports[_report.epoch], 'REPORT_CONSENSUS_INVALIDATED');
-
-    require(
-      block.number >= reportExecutionBlock[_hash] + config.minBlocksBeforeExecution,
-      'MIN_BLOCKS_BEFORE_EXECUTION_NOT_REACHED'
-    );
-    require(consensusReport[_report.epoch] == _hash, 'REPORT_NOT_CONSENSUS');
-    require(!executedReports[_report.epoch][_hash], 'REPORT_ALREADY_EXECUTED');
-
-    require(keccak256(abi.encode(_report)) == _hash, 'REPORT_HASH_MISMATCH');
-
-    require(block.number < reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
-    require(_report.epoch <= lastConsensusEpoch, 'INVALID_EPOCH');
-
-    require(!executedReports[_report.epoch][keccak256(abi.encode(_report))], 'REPORT_ALREADY_EXECUTED');
-    require(_report.merkleRoot != bytes32(0), 'INVALID_MERKLE_ROOT');
-
-    require(_report.withdrawAmount <= withdrawals.totalSupply(), 'INVALID_WITHDRAWALS_AMOUNT');
-
-    require(stakeTogether.beaconBalance() - _report.lossAmount > 0, 'INVALID_BEACON_BALANCE');
-
-    return true;
+    return (_epoch > lastConsensusEpoch) && (!revokedReports[_epoch]) && consensusReport[_epoch] == _hash;
   }
 }

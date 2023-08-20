@@ -335,7 +335,7 @@ contract MockStakeTogether is
 
     uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
 
-    _processStakeEntryFee(_to, sharesAmount);
+    _processStakeEntry(_to, sharesAmount);
 
     totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _referral);
@@ -439,7 +439,7 @@ contract MockStakeTogether is
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      _processStakePoolFee();
+      _processStakePool();
     }
     pools[_pool] = true;
     emit AddPool(_pool, _listed, msg.value);
@@ -594,15 +594,15 @@ contract MockStakeTogether is
    ** REWARDS **
    *************/
 
-  function processStakeRewardsFee() external payable nonReentrant whenNotPaused {
+  function processStakeRewards() external payable nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'OR'); // OR = Only Router
-    _processStakeRewardsFee(msg.value);
+    _processStakeRewards(msg.value);
   }
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
-  function transferRewardsShares(address _account, uint256 _sharesAmount) external whenNotPaused {
+  function claimAirdropRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
     _transferShares(airdropFee, _account, _sharesAmount);
@@ -720,7 +720,7 @@ contract MockStakeTogether is
   /// @notice Processes the fees for the specified share amount.
   /// @param _to The address to which the shares are to be minted.
   /// @param sharesAmount The amount of shares to calculate the fees for.
-  function _processStakeEntryFee(address _to, uint256 sharesAmount) private {
+  function _processStakeEntry(address _to, uint256 sharesAmount) private {
     (uint256[4] memory _shares, ) = _estimateFee(FeeType.StakeEntry, sharesAmount);
 
     FeeRole[4] memory roles = getFeesRoles();
@@ -736,7 +736,7 @@ contract MockStakeTogether is
   }
 
   /// @notice Processes the Stake Rewards fees.
-  function _processStakeRewardsFee(uint256 _profitAmount) private {
+  function _processStakeRewards(uint256 _profitAmount) private {
     (uint256[4] memory _shares, ) = estimateFeePercentage(
       IStakeTogether.FeeType.StakeRewards,
       _profitAmount
@@ -756,7 +756,7 @@ contract MockStakeTogether is
   }
 
   /// @notice Processes the fees for Stake Pool.
-  function _processStakePoolFee() private {
+  function _processStakePool() private {
     (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakePool);
     FeeRole[4] memory roles = getFeesRoles();
     for (uint i = 0; i < roles.length - 1; i++) {
