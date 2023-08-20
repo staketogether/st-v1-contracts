@@ -472,13 +472,13 @@ contract StakeTogether is
   /// @param _delegations The array of delegations to validate.
   function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
     if (shares[_account] > 0) {
-      require(_delegations.length <= config.maxDelegations, 'MD');
+      require(_delegations.length <= config.maxDelegations, 'MD'); // MD = Max Delegations
       uint256 delegationShares = 0;
       for (uint i = 0; i < _delegations.length; i++) {
-        require(pools[_delegations[i].pool], 'PNF');
-        delegationShares += _delegations[i].shares;
+        require(pools[_delegations[i].pool], 'PNF'); // PNF = Pool Not Found
+        delegationShares += _delegations[i].percentage;
       }
-      require(delegationShares == shares[_account], 'IS');
+      require(delegationShares == 1 ether, 'IPS'); // IPS = Invalid Percentage Sum
     }
   }
 

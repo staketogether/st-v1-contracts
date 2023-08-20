@@ -22,7 +22,7 @@ interface IStakeTogether {
   /// @notice Represents a delegation, including the pool address and shares.
   struct Delegation {
     address pool; /// Address of the delegated pool.
-    uint256 shares; /// Number of shares in the delegation.
+    uint256 percentage; /// Number of percentage in the delegation.
   }
 
   /// @notice Toggleable features for the protocol.
