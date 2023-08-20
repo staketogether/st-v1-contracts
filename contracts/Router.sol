@@ -271,8 +271,6 @@ contract Router is
     delete reportHistoric[_report.epoch];
     emit ExecuteReport(_report, hash);
 
-    // ACTIONS
-
     if (_report.validatorsToRemove.length > 0) {
       emit ValidatorsToRemove(_report.epoch, _report.validatorsToRemove);
     }
@@ -286,8 +284,7 @@ contract Router is
     }
 
     if (_report.lossAmount > 0) {
-      uint256 newBeaconBalance = stakeTogether.beaconBalance() - _report.lossAmount;
-      stakeTogether.setBeaconBalance(newBeaconBalance);
+      stakeTogether.setBeaconBalance(stakeTogether.beaconBalance() - _report.lossAmount);
     }
 
     if (_report.withdrawAmount > 0) {
