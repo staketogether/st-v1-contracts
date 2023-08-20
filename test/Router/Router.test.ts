@@ -771,5 +771,56 @@ describe('Router', function () {
       const executeTx = await router.connect(user1).executeReport(report)
       await expect(executeTx).to.emit(router, 'ExecuteReport')
     })
+
+    it('should be interrupted by revoked consensus', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report.epoch, report)
+      }
+
+      const _hash = await router.getReportHash(report)
+
+      await router.connect(owner).revokeConsensusReport(report.epoch, _hash)
+
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('REVOKED_REPORT')
+    })
+  })
+
+  describe('Set Consensus', () => {
+    it('should set the last consensus epoch', async function () {
+      const newEpoch = 42
+
+      await router.connect(owner).grantRole(ADMIN_ROLE, owner.address)
+
+      await expect(router.connect(owner).setLastConsensusEpoch(newEpoch))
+        .to.emit(router, 'SetLastConsensusEpoch')
+        .withArgs(newEpoch)
+
+      expect(await router.lastConsensusEpoch()).to.equal(newEpoch)
+    })
+
+    it('should revert if called by non-admin', async function () {
+      const newEpoch = 42
+
+      await expect(router.connect(user1).setLastConsensusEpoch(newEpoch)).to.be.reverted
+    })
   })
 })

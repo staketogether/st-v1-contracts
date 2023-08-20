@@ -276,10 +276,10 @@ contract MockRouter is
     }
   }
 
-  function revokeConsensus(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
+  function revokeConsensusReport(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
     require(consensusReport[_epoch] == _hash, 'EPOCH_NOT_CONSENSUS');
     revokedReports[_epoch] = true;
-    emit RevokeConsensus(block.number, _epoch, _hash);
+    emit RevokeConsensusReport(block.number, _epoch, _hash);
   }
 
   function setLastConsensusEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {

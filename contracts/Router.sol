@@ -16,6 +16,8 @@ import './Withdrawals.sol';
 import './interfaces/IStakeTogether.sol';
 import './interfaces/IRouter.sol';
 
+import 'hardhat/console.sol';
+
 /// @custom:security-contact security@staketogether.app
 contract Router is
   Initializable,
@@ -190,12 +192,7 @@ contract Router is
     uint256 _epoch,
     Report calldata _report
   ) external nonReentrant whenNotPaused activeReportOracle {
-    bytes32 hash = keccak256(abi.encode(_report));
-    require(block.number > nextReportBlock, 'BLOCK_NUMBER_NOT_REACHED');
-    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
-    require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
-    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
-    require(!oracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
+    bytes32 hash = isReadyToSubmit(_epoch, _report);
 
     if (block.number >= nextReportBlock + config.reportFrequency) {
       nextReportBlock += config.reportFrequency;
@@ -221,24 +218,7 @@ contract Router is
   }
 
   function executeReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
-    bytes32 hash = keccak256(abi.encode(_report));
-    require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
-    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
-    require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
-    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
-    require(block.number >= reportDelayBlocks[hash] + config.reportDelayBlocks, 'TOO_EARLY_TO_EXECUTE');
-    require(
-      _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
-      'NOT_ENOUGH_BEACON_BALANCE'
-    );
-    require(
-      address(this).balance >=
-        (_report.profitAmount +
-          _report.withdrawAmount +
-          _report.withdrawRefundAmount +
-          _report.routerExtraAmount),
-      'NOT_ENOUGH_ETH'
-    );
+    bytes32 hash = isReadyToExecute(_report);
 
     nextReportBlock += config.reportFrequency;
     executedReports[_report.epoch][hash] = true;
@@ -276,10 +256,14 @@ contract Router is
     }
   }
 
-  function revokeConsensus(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
+  function getReportHash(Report calldata _report) external pure returns (bytes32) {
+    return keccak256(abi.encode(_report));
+  }
+
+  function revokeConsensusReport(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
     require(consensusReport[_epoch] == _hash, 'EPOCH_NOT_CONSENSUS');
     revokedReports[_epoch] = true;
-    emit RevokeConsensus(block.number, _epoch, _hash);
+    emit RevokeConsensusReport(block.number, _epoch, _hash);
   }
 
   function setLastConsensusEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
@@ -287,7 +271,35 @@ contract Router is
     emit SetLastConsensusEpoch(_epoch);
   }
 
-  // function isReadyToSubmit() { // Todo: extrair a lógica pra cá
+  function isReadyToSubmit(uint256 _epoch, Report calldata _report) public view returns (bytes32) {
+    bytes32 hash = keccak256(abi.encode(_report));
+    require(block.number > nextReportBlock, 'BLOCK_NUMBER_NOT_REACHED');
+    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
+    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
+    require(!oracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
+    return hash;
+  }
 
-  // function isReadyToExecute() { // Todo: extrair a lógica pra cá para ver publicamente
+  function isReadyToExecute(Report calldata _report) public view returns (bytes32) {
+    bytes32 hash = keccak256(abi.encode(_report));
+    require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
+    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
+    require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
+    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(block.number >= reportDelayBlocks[hash] + config.reportDelayBlocks, 'TOO_EARLY_TO_EXECUTE');
+    require(
+      _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
+      'NOT_ENOUGH_BEACON_BALANCE'
+    );
+    require(
+      address(this).balance >=
+        (_report.profitAmount +
+          _report.withdrawAmount +
+          _report.withdrawRefundAmount +
+          _report.routerExtraAmount),
+      'NOT_ENOUGH_ETH'
+    );
+    return hash;
+  }
 }

@@ -31,7 +31,7 @@ interface IRouter {
   event ExecuteReport(Report report, bytes32 hash);
   event ReceiveEther(uint256 amount);
   event RemoveReportOracle(address indexed oracle);
-  event RevokeConsensus(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  event RevokeConsensusReport(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
   event SetConfig(Config config);
   event SetLastConsensusEpoch(uint256 epoch);
   event SetStakeTogether(address stakeTogether);
