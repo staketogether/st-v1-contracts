@@ -27,6 +27,9 @@ interface IWithdrawals {
   /// @param amount The amount being withdrawn
   event Withdraw(address indexed user, uint256 amount);
 
+  /// @notice Initialization function for Withdrawals contract.
+  function initialize() external;
+
   /// @notice Pauses withdrawals.
   /// @dev Only callable by the admin role.
   function pause() external;
@@ -35,11 +38,20 @@ interface IWithdrawals {
   /// @dev Only callable by the admin role.
   function unpause() external;
 
+  /// @notice Internal function to authorize an upgrade.
+  /// @param _newImplementation Address of the new contract implementation.
+  /// @dev Only callable by the upgrader role.
+  function _authorizeUpgrade(address _newImplementation) external;
+
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable;
 
+  /// @notice Allows the router to send ETH to the contract.
+  /// @dev This function can only be called by the router.
+  function receiveWithdrawEther() external payable;
+
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
-  /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
+  /// @dev Only callable by the admin role and requires that extra amount exists in the contract balance.
   function transferExtraAmount() external;
 
   /// @notice Sets the StakeTogether contract address.
@@ -47,9 +59,17 @@ interface IWithdrawals {
   /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external;
 
-  /**************
-   ** WITHDRAW **
-   **************/
+  /// @notice Sets the Router contract address.
+  /// @param _router The address of the router.
+  /// @dev Only callable by the admin role.
+  function setRouter(address _router) external;
+
+  /// @notice Hook that is called before any token transfer.
+  /// @param from Address transferring the tokens.
+  /// @param to Address receiving the tokens.
+  /// @param amount The amount of tokens to be transferred.
+  /// @dev This override ensures that transfers are paused when the contract is paused.
+  function _beforeTokenTransfer(address from, address to, uint256 amount) external;
 
   /// @notice Mints tokens to a specific address.
   /// @param _to Address to receive the minted tokens.

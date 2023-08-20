@@ -3,6 +3,7 @@
 pragma solidity ^0.8.18;
 
 /// @title Interface for the Airdrop functionality within the Stake Together protocol.
+/// @notice A contract that represents the Airdrop functionality.
 /// @custom:security-contact security@staketogether.app
 interface IAirdrop {
   /// @notice Emitted when a new Merkle root is added.
