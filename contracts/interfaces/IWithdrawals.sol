@@ -38,11 +38,6 @@ interface IWithdrawals {
   /// @dev Only callable by the admin role.
   function unpause() external;
 
-  /// @notice Internal function to authorize an upgrade.
-  /// @param _newImplementation Address of the new contract implementation.
-  /// @dev Only callable by the upgrader role.
-  function _authorizeUpgrade(address _newImplementation) external;
-
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable;
 
@@ -63,13 +58,6 @@ interface IWithdrawals {
   /// @param _router The address of the router.
   /// @dev Only callable by the admin role.
   function setRouter(address _router) external;
-
-  /// @notice Hook that is called before any token transfer.
-  /// @param from Address transferring the tokens.
-  /// @param to Address receiving the tokens.
-  /// @param amount The amount of tokens to be transferred.
-  /// @dev This override ensures that transfers are paused when the contract is paused.
-  function _beforeTokenTransfer(address from, address to, uint256 amount) external;
 
   /// @notice Mints tokens to a specific address.
   /// @param _to Address to receive the minted tokens.

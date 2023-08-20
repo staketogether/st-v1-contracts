@@ -245,11 +245,6 @@ interface IStakeTogether {
   /// @dev Only callable by the admin role.
   function unpause() external;
 
-  /// @notice Internal function to authorize an upgrade.
-  /// @dev Only callable by the upgrader role.
-  /// @param _newImplementation Address of the new contract implementation.
-  function _authorizeUpgrade(address _newImplementation) external;
-
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable;
 
