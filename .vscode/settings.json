@@ -1,40 +1,5 @@
 {
-  "typescript.preferences.importModuleSpecifier": "relative",
-  "editor.formatOnSave": true,
-  "editor.codeLens": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "editor.tabSize": 2,
-  "editor.wordWrap": "wordWrapColumn",
-  "editor.wordWrapColumn": 106,
-  "editor.rulers": [110],
-  "editor.wrappingIndent": "indent",
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "[typescript]": {
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": true,
-      "source.organizeImports": true
-    }
-  },
-  "[typescriptreact]": {
-    "editor.formatOnSave": true,
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": true,
-      "source.organizeImports": true
-    }
-  },
-  "javascript.preferences.importModuleSpecifier": "relative",
-  "typescript.tsserver.watchOptions": {
-    "watchFile": "useFsEvents"
-  },
-  "editor.accessibilitySupport": "off",
-  "[solidity]": {
-    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
-  },
-  "cSpell.enableFiletypes": ["solidity"],
-  "cSpell.words": ["LETH"],
   "slither.solcPath": "",
-  "slither.hiddenDetectors": []
+  "slither.hiddenDetectors": [],
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

@@ -12,16 +12,16 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
 
-import './Withdrawals.sol';
+import '../Withdrawals.sol';
 
-import './interfaces/IStakeTogether.sol';
-import './interfaces/IDepositContract.sol';
+import '../interfaces/IStakeTogether.sol';
+import '../interfaces/IDepositContract.sol';
 
+/// @custom:security-contact security@staketogether.app
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
-/// @custom:security-contact security@staketogether.app
-contract StakeTogether is
+contract MockStakeTogether is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -737,5 +737,17 @@ contract StakeTogether is
       fees[FeeType.ProcessStakeValidator].value
     );
     payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.ProcessStakeValidator].value);
+  }
+
+  /********************
+   ** MOCK FUNCTIONS **
+   ********************/
+
+  function initializeV2() external onlyRole(UPGRADER_ROLE) {
+    version = 2;
+  }
+
+  function mintWithdrawals(address account, uint256 amount) external {
+    withdrawals.mint(account, amount);
   }
 }

@@ -1,9 +1,23 @@
 {
   "version": "0.2",
-  "ignorePaths": ["*.*"],
+  "ignorePaths": [],
   "dictionaryDefinitions": [],
   "dictionaries": [],
-  "words": ["delegators", "pubkey", "Reentrancy", "struct", "unstake"],
+  "words": [
+    "IERC",
+    "Initializable",
+    "keccak",
+    "LETH",
+    "Merkle",
+    "nomicfoundation",
+    "Pausable",
+    "Reentrancy",
+    "struct",
+    "typechain",
+    "UPGRADER",
+    "UUPS",
+    "WLETH"
+  ],
   "ignoreWords": [],
   "import": []
 }
