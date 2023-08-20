@@ -232,14 +232,13 @@ contract MockRouter is
     }
 
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewards{ value: _report.profitAmount }();
+      stakeTogether.processStakeRewards{ value: _report.profitAmount }(_report.profitShares);
     }
 
     if (_report.lossAmount > 0 || _report.withdrawRefundAmount > 0) {
-      uint256 reduceAmount = _report.lossAmount + _report.withdrawRefundAmount;
-      stakeTogether.setBeaconBalance{ value: _report.withdrawRefundAmount }(
-        stakeTogether.beaconBalance() - reduceAmount
-      );
+      uint256 updatedBalance = stakeTogether.beaconBalance() -
+        (_report.lossAmount + _report.withdrawRefundAmount);
+      stakeTogether.setBeaconBalance{ value: _report.withdrawRefundAmount }(updatedBalance);
     }
 
     if (_report.withdrawAmount > 0) {
@@ -312,8 +311,8 @@ contract MockRouter is
     stakeTogether.setBeaconBalance(_amount);
   }
 
-  function processStakeRewards() external payable {
-    stakeTogether.processStakeRewards{ value: msg.value }();
+  function processStakeRewards(uint256 _sharesAmount) external payable {
+    stakeTogether.processStakeRewards{ value: msg.value }(_sharesAmount);
   }
 
   function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant {

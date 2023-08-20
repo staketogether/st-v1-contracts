@@ -429,6 +429,7 @@ contract MockStakeTogether is
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
+      require(msg.value == fees[FeeType.StakePool].value, 'IF'); // IF = Insufficient Funds
       _processStakePool();
     }
     pools[_pool] = true;
@@ -581,18 +582,13 @@ contract MockStakeTogether is
   }
 
   /*************
-   ** REWARDS **
+   ** Airdrop **
    *************/
-
-  function processStakeRewards() external payable nonReentrant whenNotPaused {
-    require(msg.sender == address(router), 'OR'); // OR = Only Router
-    _processStakeRewards(msg.value);
-  }
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
-  function claimAirdropRewards(address _account, uint256 _sharesAmount) external whenNotPaused {
+  function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
     require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
     _transferShares(airdropFee, _account, _sharesAmount);
@@ -686,18 +682,19 @@ contract MockStakeTogether is
     _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
   }
 
-  function _processStakeRewards(uint256 _amount) private {
-    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
-    _distributeFees(FeeType.StakeRewards, sharesAmount, address(0));
+  function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
+    require(msg.sender == address(router), 'OR'); // OR = Only Router
+    _distributeFees(FeeType.StakeRewards, _sharesAmount, address(0));
+    emit StakeRewards(msg.value, _sharesAmount);
   }
 
   function _processStakePool() private {
-    uint256 sharesAmount = fees[FeeType.StakePool].value;
+    uint256 sharesAmount = sharesByWei(fees[FeeType.StakePool].value);
     _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 
   function _processStakeValidator() private {
-    uint256 sharesAmount = fees[FeeType.StakeValidator].value;
+    uint256 sharesAmount = sharesByWei(fees[FeeType.StakeValidator].value);
     _distributeFees(FeeType.StakeValidator, sharesAmount, address(0));
   }
 

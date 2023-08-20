@@ -234,7 +234,7 @@ contract Router is
     }
 
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewards{ value: _report.profitAmount }();
+      stakeTogether.processStakeRewards{ value: _report.profitAmount }(_report.profitShares);
     }
 
     if (_report.lossAmount > 0 || _report.withdrawRefundAmount > 0) {

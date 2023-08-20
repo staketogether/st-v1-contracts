@@ -122,7 +122,12 @@ interface IStakeTogether {
   /// @param sharesAmount The amount of shares minted
   /// @param feeType The type of fee (e.g., StakeEntry, StakeRewards)
   /// @param feeRole The role associated with the fee
-  event MintFeeShares(address indexed to, uint256 sharesAmount, FeeType feeType, FeeRole feeRole);
+  event MintFeeShares(
+    address indexed to,
+    uint256 sharesAmount,
+    FeeType indexed feeType,
+    FeeRole indexed feeRole
+  );
 
   /// @notice Emitted when shares are minted
   /// @param to The address to mint to
@@ -187,6 +192,8 @@ interface IStakeTogether {
   /// @notice Emitted when the withdrawal credentials are set
   /// @param withdrawalCredentials The withdrawal credentials bytes
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
+
+  event StakeRewards(uint256 amount, uint256 sharesAmount);
 
   /// @notice Emitted when shares are transferred
   /// @param from The address transferring from

@@ -17,6 +17,7 @@ interface IRouter {
     uint256 epoch;
     bytes32 merkleRoot;
     uint256 profitAmount;
+    uint256 profitShares;
     uint256 lossAmount;
     uint256 withdrawAmount;
     uint256 withdrawRefundAmount;

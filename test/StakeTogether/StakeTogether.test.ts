@@ -233,120 +233,12 @@ describe('Stake Together', function () {
       expect(totalContractBalance).to.equal(ethers.parseEther('3') + initialBalance)
     })
 
-    // Todo: Revise Precision
-    it.skip('REVISE_THAT_should correctly process stake rewards fee through processStakeRewards', async function () {
-      const rewardAmount = ethers.parseEther('1')
-
-      const weiBySharesPre = BigInt(await stakeTogether.weiByShares(rewardAmount))
-
-      expect(weiBySharesPre).to.equal(rewardAmount)
-
-      await mockRouter.connect(user1).processStakeRewards({
-        value: rewardAmount,
-      })
-
-      let eventFilter = stakeTogether.filters.MintFeeShares()
-      let logs = await stakeTogether.queryFilter(eventFilter)
-
-      expect(logs.length).to.equal(3)
-
-      expect(logs[0].args).to.deep.equal([
-        '0x67d269191c92Caf3cD7723F116c85e6E9bf55933',
-        14850000000000000n,
-        1n,
-        0n,
-      ])
-
-      expect(logs[1].args).to.deep.equal([
-        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-        14850000000000000n,
-        1n,
-        1n,
-      ])
-
-      expect(logs[2].args).to.deep.equal([
-        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-        15300000000000000n,
-        1n,
-        2n,
-      ])
-
-      const totalBalancePos = BigInt(await ethers.provider.getBalance(stakeTogether))
-      const totalSharesPos = BigInt(await stakeTogether.totalShares())
-
-      const preSharesValue = BigInt(await stakeTogether.weiByShares(1000000000000000000n))
-      const rewardsSharesValue = BigInt(await stakeTogether.weiByShares(45000000000000000n))
-      const totalSharesValue = BigInt(await stakeTogether.weiByShares(1045000000000000000n))
-
-      const preSharesValuation = 1913875598086124402n
-      const rewardsSharesValuation = 86124401913875599n
-      const postSharesValuation = 2000000000000000000n
-
-      expect(totalBalancePos).to.equal(2000000000000000000n)
-      expect(totalSharesPos).to.equal(1045000000000000000n)
-
-      expect(preSharesValue).to.equal(preSharesValuation)
-      expect(rewardsSharesValue).to.equal(rewardsSharesValuation)
-      expect(totalSharesValue).to.equal(postSharesValuation)
-
-      expect(preSharesValuation + rewardsSharesValuation).to.equal(postSharesValuation + 1n) // round up
-
-      await mockRouter.connect(user1).processStakeRewards({
-        value: rewardAmount,
-      })
-
-      eventFilter = stakeTogether.filters.MintFeeShares()
-      logs = await stakeTogether.queryFilter(eventFilter)
-
-      expect(logs.length).to.equal(6)
-
-      expect(logs[3].args).to.deep.equal([
-        '0x67d269191c92Caf3cD7723F116c85e6E9bf55933',
-        10345499999999999n,
-        1n,
-        0n,
-      ])
-
-      expect(logs[4].args).to.deep.equal([
-        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-        10345499999999999n,
-        1n,
-        1n,
-      ])
-
-      expect(logs[5].args).to.deep.equal([
-        '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-        10658999999999999n,
-        1n,
-        2n,
-      ])
-
-      const totalBalancePos2 = BigInt(await ethers.provider.getBalance(stakeTogether))
-      const totalSharesPos2 = BigInt(await stakeTogether.totalShares())
-
-      const preSharesValue2 = BigInt(await stakeTogether.weiByShares(1000000000000000000n))
-      const rewardsSharesValue2 = BigInt(await stakeTogether.weiByShares(45000000000000000n))
-      const totalSharesValue2 = BigInt(await stakeTogether.weiByShares(1045000000000000000n))
-
-      const preSharesValuation2 = 2787197472940957875n
-      const rewardsSharesValuation2 = 125423886282343105n
-      const postSharesValuation2 = 2912621359223300979n
-
-      expect(totalBalancePos2).to.equal(3000000000000000000n)
-      expect(totalSharesPos2).to.equal(1076349999999999997n)
-
-      expect(preSharesValue2).to.equal(preSharesValuation2)
-      expect(rewardsSharesValue2).to.equal(rewardsSharesValuation2)
-      expect(totalSharesValue2).to.equal(postSharesValuation2)
-
-      expect(preSharesValuation2 + rewardsSharesValuation2).to.equal(postSharesValuation2 + 1n) // round up
-    })
-
     it('should fail to mint rewards if called directly on stakeTogether', async function () {
       const rewardAmount = ethers.parseEther('5')
+      const rewardShares = ethers.parseEther('5')
 
       await expect(
-        stakeTogether.connect(user1).processStakeRewards({ value: rewardAmount }),
+        stakeTogether.connect(user1).processStakeRewards(rewardShares, { value: rewardAmount }),
       ).to.be.revertedWith('OR')
     })
 
@@ -376,9 +268,7 @@ describe('Stake Together', function () {
 
       expect(initialSharesAirdrop).to.be.gte(sharesAmount)
 
-      const tx = await stakeTogether
-        .connect(airdropFeeAddress)
-        .claimAirdropRewards(user1.address, sharesAmount)
+      const tx = await stakeTogether.connect(airdropFeeAddress).claimAirdrop(user1.address, sharesAmount)
 
       const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
       const finalSharesAccount = await stakeTogether.shares(user1.address)
@@ -390,7 +280,7 @@ describe('Stake Together', function () {
       const sharesAmount = ethers.parseEther('10')
 
       await expect(
-        stakeTogether.connect(user2).claimAirdropRewards(user1.address, sharesAmount),
+        stakeTogether.connect(user2).claimAirdrop(user1.address, sharesAmount),
       ).to.be.revertedWith('OA')
     })
   })
@@ -2229,7 +2119,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
     })
 
-    it('StakeEntry', async function () {
+    it('Stake Entry', async function () {
       const users = [user1, user2]
       const referral = user4.address
       const depositAmount = ethers.parseEther('1')
@@ -2276,7 +2166,7 @@ describe('Stake Together', function () {
 
       // User 2
       const totalShares2 = await stakeTogether.totalShares()
-      const userShares2 = await stakeTogether.shares(user1.address)
+      const userShares2 = await stakeTogether.shares(user2.address)
       const userParticipation2 = (userShares2 * ethers.parseEther('1')) / totalShares2
       const userRewards2 = (sentEtherAmount * userParticipation2) / ethers.parseEther('1')
       const newUserShares2 = userShares2 / 2n
@@ -2303,11 +2193,16 @@ describe('Stake Together', function () {
 
       // Accounting User 2
 
+      // console.log('user')
+
       const userFinalBalance2 = await stakeTogether.balanceOf(user2.address)
       const userFinalShares2 = await stakeTogether.shares(user2.address)
 
       expect(userFinalBalance2).to.equal(liquidDepositAmount * 2n + (userRewards2 + 1n)) // round up
       expect(userFinalShares2).to.equal(newTotalUserShares2)
+
+      // console.log('User 2 Final Balance:', userFinalBalance2.toString())
+      // console.log('User 2 Final Shares:', userFinalShares2.toString())
 
       // Total Balances
 
@@ -2316,6 +2211,94 @@ describe('Stake Together', function () {
 
       expect(finalTotalBalance).to.equal(depositAmount * 4n + sentEtherAmount + initialBalance)
       expect(finalTotalShares).to.equal(totalSharesFee + totalUserShares + initialShares)
+
+      // console.log('Final Total Balance:', finalTotalBalance.toString())
+      // console.log('Final Total Shares:', finalTotalShares.toString())
+    })
+
+    it.only('Stake Rewards', async function () {
+      const users = [user1, user2]
+      const referral = user4.address
+      const depositAmount = ethers.parseEther('1')
+      const poolPercentage = ethers.parseEther('1')
+      const delegations = [{ pool: poolAddress, percentage: poolPercentage }]
+
+      let totalSharesFee = 0n
+      let totalUserShares = 0n
+      let totalShares = initialShares
+
+      for (const user of users) {
+        const stakeEntryFee = (depositAmount * 3n) / 1000n
+        const liquidDepositAmount = depositAmount - stakeEntryFee
+
+        totalSharesFee += stakeEntryFee
+        totalUserShares += liquidDepositAmount
+        totalShares += liquidDepositAmount
+
+        await stakeTogether.connect(user).depositPool(delegations, referral, { value: depositAmount })
+
+        const userBalance = await stakeTogether.balanceOf(user.address)
+
+        // console.log('userBalance Before', userBalance.toString())
+        expect(userBalance).to.equal(liquidDepositAmount)
+      }
+
+      const expectedTotalShares = await stakeTogether.totalShares()
+      const expectedTotalBalance = await ethers.provider.getBalance(stakeTogether)
+      const expectedInitialRatio = initialBalance / initialShares
+
+      expect(expectedTotalShares).to.equal(initialShares + totalUserShares + totalSharesFee)
+      expect(expectedTotalBalance).to.equal(initialBalance + totalUserShares + totalSharesFee)
+      expect(expectedInitialRatio).to.equal(1n)
+
+      // Process Stake Rewards
+
+      const rewardsAmount = ethers.parseEther('3')
+      const rewardsSharesAmount = (totalShares * ethers.parseEther('0.5261')) / ethers.parseEther('1')
+      // Calculated Off-Chain by Oracle with function to calculate the closest share amount
+
+      const tx1 = await mockRouter.connect(user1).processStakeRewards(rewardsSharesAmount, {
+        value: rewardsAmount,
+      })
+
+      await tx1.wait()
+
+      const events = await stakeTogether.queryFilter(stakeTogether.filters.MintFeeShares())
+
+      const specificFeeType = 1n
+
+      let totalNewShares = 0n
+
+      events.forEach((event) => {
+        const args = event.args
+        if (args && args.feeType === specificFeeType) {
+          totalNewShares += args[1]
+
+          // console.log(args[1])
+        }
+      })
+
+      const valuationNewShares = await stakeTogether.weiByShares(totalNewShares)
+
+      // console.log('valuationNewShares', valuationNewShares.toString())
+
+      const epsilon = 1000000000000000n
+      const expectedValue = ethers.parseEther('0.27')
+
+      const difference =
+        valuationNewShares > expectedValue
+          ? valuationNewShares - expectedValue
+          : expectedValue - valuationNewShares
+      const isApproxEqual = difference < epsilon
+
+      expect(isApproxEqual).to.be.true
+
+      const updatedTotalBalance = await ethers.provider.getBalance(stakeTogether)
+      expect(updatedTotalBalance).to.equal(
+        initialBalance + totalUserShares + totalSharesFee + rewardsAmount,
+      )
+
+      expect(updatedTotalBalance).to.equal(ethers.parseEther('6'))
     })
   })
 })

@@ -140,7 +140,7 @@ contract MockAirdrop is
 
     _setClaimed(_epoch, _index);
 
-    stakeTogether.claimAirdropRewards(_account, _sharesAmount);
+    stakeTogether.claimAirdrop(_account, _sharesAmount);
 
     emit Claim(_epoch, _index, _account, _sharesAmount, merkleProof);
   }
