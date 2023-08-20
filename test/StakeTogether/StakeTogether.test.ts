@@ -233,78 +233,6 @@ describe('Stake Together', function () {
       expect(totalContractBalance).to.equal(ethers.parseEther('3') + initialBalance)
     })
 
-    // Todo: fix this test
-    it.skip('should distribute profit equally among two depositors receiving by Staking Rewards', async function () {
-      const depositAmount = ethers.parseEther('1')
-      const poolAddress = user3.address // Example pool address
-
-      // Adding the pool
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      // Two users depositing 1 Ether each
-      const users = [user1, user2]
-      let totalEntryFees = 0n
-      const userBalancesBefore = []
-      for (const user of users) {
-        const fee = (depositAmount * 3n) / 1000n
-        totalEntryFees += fee
-        const shares = depositAmount - fee
-        userBalancesBefore.push(shares)
-        const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-        await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
-      }
-
-      const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
-      expect(prevContractBalance).to.equal(ethers.parseEther('2') + initialBalance)
-
-      // Checking the balance of each user
-      for (let i = 0; i < users.length; i++) {
-        const actualBalance = await stakeTogether.balanceOf(users[i].address)
-        console.log('User Balance Pre', actualBalance)
-      }
-
-      const preTotalShares = await stakeTogether.totalShares()
-
-      console.log('totalSharesPre')
-
-      const stakingRewards = ethers.parseEther('1')
-      await mockRouter.connect(user1).processStakeRewards({
-        value: stakingRewards,
-      })
-
-      const posTotalShares = await stakeTogether.totalShares()
-
-      const generatedShares = posTotalShares - preTotalShares
-
-      const totalSharesValuation = await stakeTogether.weiByShares(posTotalShares)
-      console.log('totalSharesValuation', totalSharesValuation)
-      expect(totalSharesValuation).to.equal(ethers.parseEther('4'))
-
-      const sharesValuation = await stakeTogether.weiByShares(generatedShares)
-      console.log('sharesValuation', sharesValuation, ethers.formatEther(sharesValuation))
-      expect(sharesValuation).to.equal(ethers.parseEther('0.09'))
-
-      const loss = sharesValuation - ethers.parseEther('0.09')
-      console.log('loss', loss)
-      expect(loss).to.equal(0n)
-
-      const userShares = 997000000000000000n
-      const userBalance = 1300081499592502038n
-
-      // Checking the balance of each user
-      for (let i = 0; i < users.length; i++) {
-        const actualBalance = await stakeTogether.balanceOf(users[i].address)
-        expect(actualBalance).to.be.equal(userBalance)
-
-        const actualShares = await stakeTogether.shares(users[i].address)
-        expect(actualShares).to.be.equal(userShares)
-      }
-
-      // Total balance in the contract should be 3 Ether + total fees
-      const totalContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
-      expect(totalContractBalance).to.equal(ethers.parseEther('3') + initialBalance)
-    })
-
     // Todo: Revise Precision
     it.skip('REVISE_THAT_should correctly process stake rewards fee through processStakeRewards', async function () {
       const rewardAmount = ethers.parseEther('1')
@@ -1942,30 +1870,21 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('SI')
     })
 
-    // it('should successfully set fee for StakeValidator (index 3)', async function () {
-    //   const feeValue = ethers.parseEther('0.1')
-    //   const allocations = [
-    //     ethers.parseEther('0.25'),
-    //     ethers.parseEther('0.25'),
-    //     ethers.parseEther('0.25'),
-    //     ethers.parseEther('0.25'),
-    //   ]
+    it('should successfully set fee for StakeValidator (index 3)', async function () {
+      const feeValue = ethers.parseEther('0.1')
+      const allocations = [
+        ethers.parseEther('0.25'),
+        ethers.parseEther('0.25'),
+        ethers.parseEther('0.25'),
+        ethers.parseEther('0.25'),
+      ]
 
-    //   const feeType = 3
+      const feeType = 3
 
-    //   const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, 0, allocations)
+      const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, 0, allocations)
 
-    //   await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, 0, allocations)
-
-    //   const [_sharesFixed, _amountsFixed] = await stakeTogether.estimateFeeFixed(feeType)
-
-    //   await stakeTogether.connect(owner).setFee(feeType, feeValue, 1, allocations)
-
-    //   const [_sharesPercentage, _amountsPercentage] = await stakeTogether.estimateFeePercentage(
-    //     feeType,
-    //     feeValue,
-    //   )
-    // })
+      await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, 0, allocations)
+    })
 
     describe('Revert', function () {
       beforeEach(async function () {
@@ -2297,6 +2216,106 @@ describe('Stake Together', function () {
       await expect(
         stakeTogether.connect(user1).decreaseAllowance(user2.address, subtractedValue),
       ).to.be.revertedWith('IA')
+    })
+  })
+
+  describe('Accounting', () => {
+    let poolAddress: string
+    let initialBalance = ethers.parseEther('1')
+    let initialShares = ethers.parseEther('1')
+
+    beforeEach(async function () {
+      poolAddress = user3.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+    })
+
+    it('StakeEntry', async function () {
+      const users = [user1, user2]
+      const referral = user4.address
+      const depositAmount = ethers.parseEther('1')
+      const poolPercentage = ethers.parseEther('1')
+      const delegations = [{ pool: poolAddress, percentage: poolPercentage }]
+
+      let totalSharesFee = 0n
+      let totalUserShares = 0n
+      let totalShares = initialShares
+
+      for (const user of users) {
+        const stakeEntryFee = (depositAmount * 3n) / 1000n
+        const liquidDepositAmount = depositAmount - stakeEntryFee
+
+        totalSharesFee += stakeEntryFee
+        totalUserShares += liquidDepositAmount
+        totalShares += liquidDepositAmount
+
+        await stakeTogether.connect(user).depositPool(delegations, referral, { value: depositAmount })
+
+        const userBalance = await stakeTogether.balanceOf(user.address)
+        expect(userBalance).to.equal(liquidDepositAmount)
+      }
+
+      const expectedTotalShares = await stakeTogether.totalShares()
+      const expectedTotalBalance = await ethers.provider.getBalance(stakeTogether)
+      const expectedInitialRatio = initialBalance / initialShares
+
+      expect(expectedTotalShares).to.equal(initialShares + totalUserShares + totalSharesFee)
+      expect(expectedTotalBalance).to.equal(initialBalance + totalUserShares + totalSharesFee)
+      expect(expectedInitialRatio).to.equal(1n)
+
+      // Send 3 Ether to the contract
+      const sentEtherAmount = ethers.parseEther('3')
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: sentEtherAmount })
+
+      // User 1
+      const totalShares1 = await stakeTogether.totalShares()
+      const userShares1 = await stakeTogether.shares(user1.address)
+      const userParticipation1 = (userShares1 * ethers.parseEther('1')) / totalShares1
+      const userRewards1 = (sentEtherAmount * userParticipation1) / ethers.parseEther('1')
+      const newUserShares1 = userShares1 / 2n
+      const newTotalUserShares1 = userShares1 + newUserShares1
+
+      // User 2
+      const totalShares2 = await stakeTogether.totalShares()
+      const userShares2 = await stakeTogether.shares(user1.address)
+      const userParticipation2 = (userShares2 * ethers.parseEther('1')) / totalShares2
+      const userRewards2 = (sentEtherAmount * userParticipation2) / ethers.parseEther('1')
+      const newUserShares2 = userShares2 / 2n
+      const newTotalUserShares2 = userShares2 + newUserShares2
+
+      // Deposits
+
+      await stakeTogether.connect(user1).depositPool(delegations, referral, { value: depositAmount })
+      await stakeTogether.connect(user2).depositPool(delegations, referral, { value: depositAmount })
+
+      const stakeEntryFee = (depositAmount * 3n) / 1000n
+      const liquidDepositAmount = depositAmount - stakeEntryFee
+
+      totalSharesFee += stakeEntryFee
+      totalUserShares += newUserShares1 + newUserShares2
+
+      // Accounting User 1
+
+      const userFinalBalance1 = await stakeTogether.balanceOf(user1.address)
+      const userFinalShares1 = await stakeTogether.shares(user1.address)
+
+      expect(userFinalBalance1).to.equal(liquidDepositAmount * 2n + (userRewards1 + 1n)) // round up
+      expect(userFinalShares1).to.equal(newTotalUserShares1)
+
+      // Accounting User 2
+
+      const userFinalBalance2 = await stakeTogether.balanceOf(user2.address)
+      const userFinalShares2 = await stakeTogether.shares(user2.address)
+
+      expect(userFinalBalance2).to.equal(liquidDepositAmount * 2n + (userRewards2 + 1n)) // round up
+      expect(userFinalShares2).to.equal(newTotalUserShares2)
+
+      // Total Balances
+
+      const finalTotalBalance = await ethers.provider.getBalance(stakeTogether)
+      const finalTotalShares = await stakeTogether.totalShares()
+
+      expect(finalTotalBalance).to.equal(depositAmount * 4n + sentEtherAmount + initialBalance)
+      expect(finalTotalShares).to.equal(totalSharesFee + totalUserShares + initialShares)
     })
   })
 })
