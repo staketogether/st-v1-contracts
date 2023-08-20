@@ -2290,4 +2290,39 @@ describe('Stake Together', function () {
       expect(updatedTotalBalance).to.equal(ethers.parseEther('6'))
     })
   })
+
+  describe('Accounting', () => {
+    let initialBalance = ethers.parseEther('1')
+    let initialShares = ethers.parseEther('1')
+
+    it('Stake Pool', async function () {
+      const depositAmount = ethers.parseEther('1')
+
+      await stakeTogether.connect(owner).addPool(user3.address, true, { value: depositAmount })
+
+      const balance = await ethers.provider.getBalance(stakeTogether)
+      expect(balance).to.equal(initialBalance + depositAmount)
+
+      const totalShares = await stakeTogether.totalShares()
+
+      expect(totalShares).to.equal(initialShares + depositAmount)
+
+      const sentEtherAmount = ethers.parseEther('1')
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: sentEtherAmount })
+
+      const balance2 = await ethers.provider.getBalance(stakeTogether)
+      expect(balance2).to.equal(initialBalance + depositAmount + depositAmount)
+
+      const totalShares2 = await stakeTogether.totalShares()
+      expect(totalShares2).to.equal(initialShares + depositAmount)
+
+      await stakeTogether.connect(owner).addPool(user4.address, true, { value: depositAmount })
+
+      const balance3 = await ethers.provider.getBalance(stakeTogether)
+      expect(balance3).to.equal(initialBalance + depositAmount + depositAmount + depositAmount)
+
+      const totalShares3 = await stakeTogether.totalShares()
+      expect(totalShares3).to.equal(initialShares + depositAmount + (depositAmount / 3n) * 2n - 1n)
+    })
+  })
 })

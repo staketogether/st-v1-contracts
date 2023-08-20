@@ -429,9 +429,9 @@ contract StakeTogether is
   function addPool(address _pool, bool _listed) external payable nonReentrant {
     require(_pool != address(0), 'ZA'); // ZA = Zero Address
     require(!pools[_pool], 'PE'); // PE = Pool Exists
-    if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
+    if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      require(msg.value == fees[FeeType.StakePool].value, 'IF'); // IF = Insufficient Funds
+      require(msg.value == fees[FeeType.StakePool].value, 'IV'); // IA = Invalid Value
       _processStakePool();
     }
     pools[_pool] = true;
