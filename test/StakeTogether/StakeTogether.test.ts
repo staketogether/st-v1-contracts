@@ -1372,23 +1372,24 @@ describe('Stake Together', function () {
       const beaconBalance = ethers.parseEther('10')
       await mockRouter.connect(owner).setBeaconBalance(beaconBalance)
 
-      const refundValue = ethers.parseEther('1')
+      const reduceAmount = ethers.parseEther('1')
+      const updatedBalance = beaconBalance - reduceAmount
       const initialBeaconBalance = await stakeTogether.beaconBalance()
 
       expect(initialBeaconBalance).to.equal(beaconBalance)
 
-      await expect(mockRouter.connect(user1).withdrawRefund({ value: refundValue }))
-        .to.emit(stakeTogether, 'WithdrawRefund')
-        .withArgs(mockRouterProxy, refundValue)
+      await expect(mockRouter.connect(user1).setBeaconBalance(updatedBalance, { value: updatedBalance }))
+        .to.emit(stakeTogether, 'SetBeaconBalance')
+        .withArgs(updatedBalance)
 
-      expect(await stakeTogether.beaconBalance()).to.equal(initialBeaconBalance - refundValue)
+      expect(await stakeTogether.beaconBalance()).to.equal(updatedBalance)
     })
 
     it('should reject withdrawal from addresses other than the router', async function () {
       const refundValue = ethers.parseEther('1')
 
       await expect(
-        stakeTogether.connect(user2).withdrawRefund({ value: refundValue }),
+        stakeTogether.connect(user2).setBeaconBalance(refundValue, { value: refundValue }),
       ).to.be.revertedWith('OR')
     })
   })

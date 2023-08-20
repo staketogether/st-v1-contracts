@@ -408,14 +408,6 @@ contract MockStakeTogether is
     withdrawals.mint(msg.sender, _amount);
   }
 
-  /// @notice Allows the router to withdraw a refund.
-  /// @dev Only callable by the router.
-  function withdrawRefund() external payable {
-    require(msg.sender == router, 'OR'); // OR = Only Router
-    _setBeaconBalance(beaconBalance - msg.value);
-    emit WithdrawRefund(msg.sender, msg.value);
-  }
-
   /// @notice Resets the daily limits for deposits and withdrawals.
   function _resetLimits() private {
     if (block.number > lastResetBlock + config.blocksPerDay) {
@@ -543,7 +535,7 @@ contract MockStakeTogether is
   /// @notice Sets the beacon balance to the specified amount.
   /// @param _amount The amount to set as the beacon balance.
   /// @dev Only the router address can call this function.
-  function setBeaconBalance(uint256 _amount) external {
+  function setBeaconBalance(uint256 _amount) external payable nonReentrant {
     require(msg.sender == address(router), 'OR'); // Only Router
     _setBeaconBalance(_amount);
   }

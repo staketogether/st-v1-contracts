@@ -205,11 +205,6 @@ interface IStakeTogether {
   /// @param withdrawType The type of withdrawal
   event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType);
 
-  /// @notice Emitted when a refund withdrawal is made
-  /// @param sender The address of the sender
-  /// @param amount The amount of the refund
-  event WithdrawRefund(address indexed sender, uint256 amount);
-
   /// @notice Emitted when the withdrawal limit is reached
   /// @param sender The address of the sender
   /// @param amount The amount withdrawn

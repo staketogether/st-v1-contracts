@@ -4,7 +4,7 @@ import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { BytesLike } from 'ethers'
 import { ethers, network, upgrades } from 'hardhat'
-import { MockRouter__factory, Router, StakeTogether } from '../../typechain'
+import { Airdrop, MockRouter__factory, Router, StakeTogether, Withdrawals } from '../../typechain'
 import connect from '../utils/connect'
 import { routerFixture } from './Router.fixture'
 
@@ -15,6 +15,10 @@ describe('Router', function () {
   let routerProxy: string
   let stakeTogether: StakeTogether
   let stakeTogetherProxy: string
+  let airdrop: Airdrop
+  let airdropProxy: string
+  let withdrawals: Withdrawals
+  let withdrawalsProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -36,6 +40,10 @@ describe('Router', function () {
     routerProxy = fixture.routerProxy
     stakeTogether = fixture.stakeTogether
     stakeTogetherProxy = fixture.stakeTogetherProxy
+    airdrop = fixture.airdrop
+    airdropProxy = fixture.airdropProxy
+    withdrawals = fixture.withdrawals
+    withdrawalsProxy = fixture.withdrawalsProxy
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -860,6 +868,91 @@ describe('Router', function () {
         const executeTx = await router.connect(user1).executeReport(report)
         await expect(executeTx).to.emit(router, 'ExecuteReport')
       }
+    })
+
+    it('should emit ValidatorsToRemove event if 100 validators are to be removed', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+      const validatorsToRemove = Array.from({ length: 100 }, (_, i) => ethers.hexlify(new Uint8Array(32)))
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 0n,
+        withdrawAmount: 100n,
+        withdrawRefundAmount: 0n,
+        routerExtraAmount: 55n,
+        validatorsToRemove: validatorsToRemove,
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report.epoch, report)
+      }
+
+      const delayBlocks = (await router.config()).reportDelayBlocks
+
+      for (let i = 0; i < delayBlocks; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
+
+      const executeTx = await router.connect(user1).executeReport(report)
+      await expect(executeTx)
+        .to.emit(router, 'ValidatorsToRemove')
+        .withArgs(report.epoch, validatorsToRemove)
+    })
+
+    it('should reach consensus and execute the report, adding Merkle root', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      const merkleRoot = ethers.keccak256('0x1234')
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: merkleRoot,
+        profitAmount: 1000n,
+        lossAmount: 0n,
+        withdrawAmount: 100n,
+        withdrawRefundAmount: 0n,
+        routerExtraAmount: 55n,
+        validatorsToRemove: [],
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report.epoch, report)
+      }
+
+      const delayBlocks = (await router.config()).reportDelayBlocks
+
+      for (let i = 0; i < delayBlocks; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
+
+      const stakeTogetherFee = await stakeTogether.getFeeAddress(2)
+
+      const stPreBalance = await ethers.provider.getBalance(stakeTogetherFee)
+
+      const executeTx = await router.connect(user1).executeReport(report)
+
+      const stPosBalance = await ethers.provider.getBalance(stakeTogetherFee)
+
+      await expect(executeTx).to.emit(airdrop, 'AddMerkleRoot')
+      await expect(executeTx).to.emit(stakeTogether, 'MintFeeShares')
+      await expect(executeTx).to.emit(withdrawals, 'ReceiveWithdrawEther')
+      expect(stPosBalance).to.equal(stPreBalance + report.routerExtraAmount)
     })
   })
 

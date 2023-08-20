@@ -237,16 +237,14 @@ contract Router is
       stakeTogether.processStakeRewards{ value: _report.profitAmount }();
     }
 
-    if (_report.lossAmount > 0) {
-      stakeTogether.setBeaconBalance(stakeTogether.beaconBalance() - _report.lossAmount);
+    if (_report.lossAmount > 0 || _report.withdrawRefundAmount > 0) {
+      uint256 updatedBalance = stakeTogether.beaconBalance() -
+        (_report.lossAmount + _report.withdrawRefundAmount);
+      stakeTogether.setBeaconBalance{ value: _report.withdrawRefundAmount }(updatedBalance);
     }
 
     if (_report.withdrawAmount > 0) {
       withdrawals.receiveWithdrawEther{ value: _report.withdrawAmount }();
-    }
-
-    if (_report.withdrawRefundAmount > 0) {
-      stakeTogether.withdrawRefund{ value: _report.withdrawRefundAmount }();
     }
 
     if (_report.routerExtraAmount > 0) {
