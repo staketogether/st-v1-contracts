@@ -1,5 +1,6 @@
 {
   "name": "st-contracts",
+  "version": "1.0.0",
   "license": "BUSL-1.1",
   "dependencies": {
     "@nomicfoundation/hardhat-ethers": "^3.0.4",

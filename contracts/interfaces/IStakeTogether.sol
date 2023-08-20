@@ -55,9 +55,9 @@ interface IStakeTogether {
   /// @notice Types of fees within the protocol.
   enum FeeType {
     StakeEntry, /// Fee for entering a stake.
-    StakeRewards, /// Fee for staking rewards.
+    ProcessStakeRewards, /// Fee for staking rewards.
     StakePool, /// Fee for pool staking.
-    StakeValidator /// Fee for validator staking.
+    ProcessStakeValidator /// Fee for validator staking.
   }
 
   /// @notice Types of mathematics used in fee calculation.
@@ -120,7 +120,7 @@ interface IStakeTogether {
   /// @notice Emitted when rewards are minted
   /// @param to The address to mint to
   /// @param sharesAmount The amount of shares minted
-  /// @param feeType The type of fee (e.g., StakeEntry, StakeRewards)
+  /// @param feeType The type of fee (e.g., StakeEntry, ProcessStakeRewards)
   /// @param feeRole The role associated with the fee
   event MintFeeShares(
     address indexed to,
@@ -138,6 +138,16 @@ interface IStakeTogether {
   /// @param index The index of the oracle
   /// @param account The address of the account
   event NextValidatorOracle(uint256 index, address indexed account);
+
+  /// @dev This event emits when rewards are processed for staking, indicating the amount and the number of shares.
+  /// @param amount The total amount of rewards that have been processed for staking.
+  /// @param sharesAmount The total number of shares associated with the processed staking rewards.
+  event ProcessStakeRewards(uint256 amount, uint256 sharesAmount);
+
+  /// @dev This event emits when a validator's stake has been processed.
+  /// @param account The address of the account whose stake as a validator has been processed.
+  /// @param amount The amount the account staked that has been processed.
+  event ProcessStakeValidator(address indexed account, uint256 amount);
 
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
@@ -192,8 +202,6 @@ interface IStakeTogether {
   /// @notice Emitted when the withdrawal credentials are set
   /// @param withdrawalCredentials The withdrawal credentials bytes
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
-
-  event StakeRewards(uint256 amount, uint256 sharesAmount);
 
   /// @notice Emitted when shares are transferred
   /// @param from The address transferring from

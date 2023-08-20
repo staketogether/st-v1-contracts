@@ -693,11 +693,11 @@ contract StakeTogether is
 
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
-  /// @dev Requires the caller to be the router contract. This function will also emit the StakeRewards event.
+  /// @dev Requires the caller to be the router contract. This function will also emit the ProcessStakeRewards event.
   function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'OR'); // OR = Only Router
-    _distributeFees(FeeType.StakeRewards, _sharesAmount, address(0));
-    emit StakeRewards(msg.value, _sharesAmount);
+    _distributeFees(FeeType.ProcessStakeRewards, _sharesAmount, address(0));
+    emit ProcessStakeRewards(msg.value, _sharesAmount);
   }
 
   /// @notice Processes the staking pool fee and distributes it accordingly.
@@ -711,6 +711,10 @@ contract StakeTogether is
   /// @notice Transfers the staking validator fee to the operator role.
   /// @dev Transfers the associated amount to the Operator's address.
   function _processStakeValidator() private {
-    payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.StakeValidator].value);
+    emit ProcessStakeValidator(
+      getFeeAddress(FeeRole.Operator),
+      fees[FeeType.ProcessStakeValidator].value
+    );
+    payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.ProcessStakeValidator].value);
   }
 }

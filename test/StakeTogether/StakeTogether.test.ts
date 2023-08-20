@@ -1749,7 +1749,7 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('SI')
     })
 
-    it('should successfully set fee for StakeValidator (index 3)', async function () {
+    it('should successfully set fee for ProcessStakeValidator (index 3)', async function () {
       const feeValue = ethers.parseEther('0.1')
       const allocations = [
         ethers.parseEther('0.25'),
