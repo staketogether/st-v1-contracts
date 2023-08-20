@@ -2,7 +2,8 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
-import { ethers, upgrades } from 'hardhat'
+import { BytesLike } from 'ethers'
+import { ethers, network, upgrades } from 'hardhat'
 import { MockRouter__factory, Router, StakeTogether } from '../../typechain'
 import connect from '../utils/connect'
 import { routerFixture } from './Router.fixture'
@@ -26,7 +27,7 @@ describe('Router', function () {
   let nullAddress: string
   let ADMIN_ROLE: string
   let ORACLE_REPORT_MANAGER_ROLE: string
-  let ORACLE_REPORT_SENTINEL_ROLE: string
+  let ORACLE_SENTINEL_ROLE: string
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -47,7 +48,7 @@ describe('Router', function () {
     nullAddress = fixture.nullAddress
     ADMIN_ROLE = fixture.ADMIN_ROLE
     ORACLE_REPORT_MANAGER_ROLE = fixture.ORACLE_REPORT_MANAGER_ROLE
-    ORACLE_REPORT_SENTINEL_ROLE = fixture.ORACLE_REPORT_SENTINEL_ROLE
+    ORACLE_SENTINEL_ROLE = fixture.ORACLE_SENTINEL_ROLE
   })
 
   describe('Upgrade', () => {
@@ -121,7 +122,7 @@ describe('Router', function () {
         const finalBalance = await ethers.provider.getBalance(routerProxy)
         expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
 
-        await expect(tx).to.emit(router, 'ReceiveEther').withArgs(user1.address, ethers.parseEther('1.0'))
+        await expect(tx).to.emit(router, 'ReceiveEther').withArgs(ethers.parseEther('1.0'))
       })
     })
 
@@ -129,7 +130,7 @@ describe('Router', function () {
       it('should allow owner to set configuration', async function () {
         const config = {
           bunkerMode: false,
-          reportDelay: 600,
+          reportDelayBlocks: 600,
           minOracleQuorum: 5,
           oracleBlackListLimit: 3,
           reportFrequency: 1,
@@ -141,13 +142,13 @@ describe('Router', function () {
 
         // Verify if the configuration was changed correctly
         const updatedConfig = await router.config()
-        expect(updatedConfig.reportDelay).to.equal(config.reportDelay)
+        expect(updatedConfig.reportDelayBlocks).to.equal(config.reportDelayBlocks)
       })
 
       it('should not allow non-owner to set configuration', async function () {
         const config = {
           bunkerMode: false,
-          reportDelay: 600,
+          reportDelayBlocks: 600,
           minOracleQuorum: 5,
           oracleBlackListLimit: 3,
           reportFrequency: 1,
@@ -158,10 +159,10 @@ describe('Router', function () {
         await expect(router.connect(user1).setConfig(config)).to.be.reverted
       })
 
-      it('should enforce reportDelay to be at least 300', async function () {
+      it('should enforce reportDelayBlocks to be at least 300', async function () {
         const config = {
           bunkerMode: false,
-          reportDelay: 200,
+          reportDelayBlocks: 200,
           minOracleQuorum: 5,
           oracleBlackListLimit: 3,
           reportFrequency: 1,
@@ -173,14 +174,14 @@ describe('Router', function () {
 
         // Verify if the configuration enforces the minimum value
         const updatedConfig = await router.config()
-        expect(updatedConfig.reportDelay).to.equal(300)
+        expect(updatedConfig.reportDelayBlocks).to.equal(300)
       })
     })
   })
 
   describe('Report Oracle', async function () {
     beforeEach(async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)
       await router.connect(owner).addReportOracle(user2.address)
     })
 
@@ -256,8 +257,19 @@ describe('Router', function () {
       // Total active oracles: 3 (user2, user3, user4)
     })
 
+    it('should update the quorum as expected min quorum', async function () {
+      await router.connect(owner).removeReportOracle(user2.address)
+      await router.connect(owner).removeReportOracle(user3.address)
+      await router.connect(owner).removeReportOracle(user4.address)
+
+      const currentQuorum = (await router.config()).oracleQuorum
+      const minOracleQuorum = (await router.config()).minOracleQuorum
+
+      expect(currentQuorum).to.equal(minOracleQuorum)
+    })
+
     it('should update the quorum as expected when total reports increase', async function () {
-      // Incrementing totalReportsOracle by adding another oracle (user5), totalReportsOracle becomes 4
+      // Incrementing totalOracles by adding another oracle (user5), totalOracles becomes 4
       await router.connect(owner).addReportOracle(user5.address)
 
       await router.connect(owner).removeReportOracle(user2.address)
@@ -274,7 +286,7 @@ describe('Router', function () {
     })
 
     it('should update the quorum as expected when adding and removing oracles', async function () {
-      // Adding 5 more oracles (totalReportsOracle becomes 8)
+      // Adding 5 more oracles (totalOracles becomes 8)
       await router.connect(owner).addReportOracle(user6.address)
       await router.connect(owner).addReportOracle(user7.address)
       await router.connect(owner).addReportOracle(user8.address)
@@ -284,10 +296,8 @@ describe('Router', function () {
       // Get the updated quorum after adding oracles
       const updatedQuorumAfterAdd = (await router.config()).oracleQuorum
 
-      // Removing 3 oracles (totalReportsOracle becomes 5)
+      // Removing 3 oracles (totalOracles becomes 5)
       await router.connect(owner).removeReportOracle(user6.address)
-      await router.connect(owner).removeReportOracle(user7.address)
-      await router.connect(owner).removeReportOracle(user8.address)
 
       // Get the updated quorum after removing oracles
       const updatedQuorumAfterRemove = (await router.config()).oracleQuorum
@@ -307,7 +317,7 @@ describe('Router', function () {
     })
 
     it('should update the quorum to minimum threshold when total reports decrease below minimum', async function () {
-      // Removing all oracles except one (user4), totalReportsOracle becomes 1
+      // Removing all oracles except one (user4), totalOracles becomes 1
       await router.connect(owner).removeReportOracle(user2.address)
       await router.connect(owner).removeReportOracle(user3.address)
 
@@ -324,7 +334,7 @@ describe('Router', function () {
 
       const config = {
         bunkerMode: false,
-        reportDelay: 600,
+        reportDelayBlocks: 600,
         minOracleQuorum: 1, // Set minOracleQuorum to 1 for this test
         oracleBlackListLimit: 3,
         reportFrequency: 1,
@@ -334,13 +344,13 @@ describe('Router', function () {
       // Set config by owner
       await connect(router, owner).setConfig(config)
 
-      // Adding 1 oracle (totalReportsOracle becomes 1)
+      // Adding 1 oracle (totalOracles becomes 1)
       await router.connect(owner).addReportOracle(user1.address)
 
       // Get the updated quorum after adding the oracle
       const updatedQuorumAfterAdd = (await router.config()).oracleQuorum
 
-      // Removing the oracle (totalReportsOracle becomes 0)
+      // Removing the oracle (totalOracles becomes 0)
       await router.connect(owner).removeReportOracle(user1.address)
 
       // Get the updated quorum after removing the oracle
@@ -363,7 +373,7 @@ describe('Router', function () {
 
   describe('unBlacklistReportOracle', async function () {
     beforeEach(async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)
       await router.connect(owner).addReportOracle(user2.address)
       await router.connect(owner).blacklistReportOracle(user2.address)
     })
@@ -399,7 +409,7 @@ describe('Router', function () {
     it('should add a sentinel when called by an admin', async function () {
       await router.connect(owner).addSentinel(user1.address)
 
-      const hasSentinelRole = await router.hasRole(ORACLE_REPORT_SENTINEL_ROLE, user1.address)
+      const hasSentinelRole = await router.hasRole(ORACLE_SENTINEL_ROLE, user1.address)
       expect(hasSentinelRole).to.be.true
     })
 
@@ -430,7 +440,7 @@ describe('Router', function () {
         await router.connect(owner).removeSentinel(user1.address)
 
         // Check if the sentinel no longer has the role
-        const hasSentinelRole = await router.hasRole(ORACLE_REPORT_SENTINEL_ROLE, user1.address)
+        const hasSentinelRole = await router.hasRole(ORACLE_SENTINEL_ROLE, user1.address)
         expect(hasSentinelRole).to.be.false
       })
 
@@ -445,6 +455,321 @@ describe('Router', function () {
         // Try to remove a sentinel without ADMIN_ROLE
         await expect(router.connect(user1).removeSentinel(user1.address)).to.be.reverted
       })
+    })
+  })
+
+  describe('Report Submit', function () {
+    type Report = {
+      epoch: bigint
+      merkleRoot: BytesLike
+      profitAmount: bigint
+      lossAmount: bigint
+      withdrawAmount: bigint
+      withdrawRefundAmount: bigint
+      routerExtraAmount: bigint
+      validatorsToRemove: BytesLike[]
+    }
+
+    let report: Report
+
+    it('should revert if send by a non oracle', async function () {
+      report = {
+        epoch: 1n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await expect(router.connect(user2).submitReport(report.epoch, report)).to.be.revertedWith(
+        'ONLY_ACTIVE_ORACLE',
+      )
+    })
+
+    it('should revert if block min quorum not achieved', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).addReportOracle(user1.address)
+
+      report = {
+        epoch: 1n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
+        'MIN_ORACLE_QUORUM_NOT_REACHED',
+      )
+    })
+
+    it('should revert if epoch less than last consensus', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).addReportOracle(user1.address)
+      await router.connect(owner).addReportOracle(user2.address)
+      await router.connect(owner).addReportOracle(user3.address)
+      await router.connect(owner).addReportOracle(user4.address)
+      await router.connect(owner).addReportOracle(user5.address)
+
+      const totalOracles = await router.totalOracles()
+
+      const minOracleQuorum = (await router.config()).minOracleQuorum
+
+      report = {
+        epoch: 0n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
+        'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS',
+      )
+    })
+
+    it('should execute a report', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).addReportOracle(user1.address)
+      await router.connect(owner).addReportOracle(user2.address)
+      await router.connect(owner).addReportOracle(user3.address)
+      await router.connect(owner).addReportOracle(user4.address)
+      await router.connect(owner).addReportOracle(user5.address)
+
+      const totalOracles = await router.totalOracles()
+
+      const minOracleQuorum = (await router.config()).minOracleQuorum
+
+      report = {
+        epoch: 1n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.not.reverted
+    })
+
+    it('should revert oracle already voted', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5, user6]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      const tx1 = await router.connect(user1).submitReport(report.epoch, report)
+      await expect(tx1).to.emit(router, 'SubmitReport')
+      await expect(tx1).to.emit(router, 'ConsensusNotReached')
+
+      await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
+        'ORACLE_ALREADY_VOTED',
+      )
+    })
+
+    it('should approve consensus', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5, user6]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      const tx1 = await router.connect(user1).submitReport(report.epoch, report)
+      await expect(tx1).to.emit(router, 'SubmitReport')
+      await expect(tx1).to.emit(router, 'ConsensusNotReached')
+
+      const tx2 = await router.connect(user2).submitReport(report.epoch, report)
+      await expect(tx2).to.emit(router, 'SubmitReport')
+      await expect(tx2).to.emit(router, 'ConsensusNotReached')
+
+      const tx3 = await router.connect(user3).submitReport(report.epoch, report)
+      await expect(tx3).to.emit(router, 'SubmitReport')
+      await expect(tx3).to.emit(router, 'ConsensusNotReached')
+
+      const tx4 = await router.connect(user4).submitReport(report.epoch, report)
+      await expect(tx4).to.emit(router, 'SubmitReport')
+      await expect(tx4).to.emit(router, 'ConsensusNotReached')
+
+      const tx5 = await router.connect(user5).submitReport(report.epoch, report)
+      await expect(tx5).to.emit(router, 'SubmitReport')
+      await expect(tx5).to.emit(router, 'ConsensusApprove')
+    })
+
+    it('should approve consensus', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5, user6]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      const tx1 = await router.connect(user1).submitReport(report.epoch, report)
+      await expect(tx1).to.emit(router, 'SubmitReport')
+      await expect(tx1).to.emit(router, 'ConsensusNotReached')
+
+      const tx2 = await router.connect(user2).submitReport(report.epoch, report)
+      await expect(tx2).to.emit(router, 'SubmitReport')
+      await expect(tx2).to.emit(router, 'ConsensusNotReached')
+
+      const tx3 = await router.connect(user3).submitReport(report.epoch, report)
+      await expect(tx3).to.emit(router, 'SubmitReport')
+      await expect(tx3).to.emit(router, 'ConsensusNotReached')
+
+      const tx4 = await router.connect(user4).submitReport(report.epoch, report)
+      await expect(tx4).to.emit(router, 'SubmitReport')
+      await expect(tx4).to.emit(router, 'ConsensusNotReached')
+
+      const tx5 = await router.connect(user5).submitReport(report.epoch, report)
+      await expect(tx5).to.emit(router, 'SubmitReport')
+      await expect(tx5).to.emit(router, 'ConsensusApprove')
+    })
+
+    it('should reach consensus and fail if execute early', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report.epoch, report)
+      }
+
+      const delayBlocks = (await router.config()).reportDelayBlocks - 100n
+
+      for (let i = 0; i < delayBlocks; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('TOO_EARLY_TO_EXECUTE')
+    })
+
+    it('should fail because of eth', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report.epoch, report)
+      }
+
+      const delayBlocks = (await router.config()).reportDelayBlocks
+
+      for (let i = 0; i < delayBlocks; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await expect(router.connect(user1).executeReport(report)).to.revertedWith(
+        'NOT_ENOUGH_BEACON_BALANCE',
+      )
+    })
+
+    it('should reach consensus and execute the report', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        lossAmount: 0n,
+        withdrawAmount: 100n,
+        withdrawRefundAmount: 0n,
+        routerExtraAmount: 55n,
+        validatorsToRemove: [],
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report.epoch, report)
+      }
+
+      const delayBlocks = (await router.config()).reportDelayBlocks
+
+      for (let i = 0; i < delayBlocks; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
+
+      const executeTx = await router.connect(user1).executeReport(report)
+      await expect(executeTx).to.emit(router, 'ExecuteReport')
     })
   })
 })

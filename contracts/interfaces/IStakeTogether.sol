@@ -135,9 +135,8 @@ interface IStakeTogether {
   event NextValidatorOracle(uint256 index, address indexed account);
 
   /// @notice Emitted when Ether is received
-  /// @param sender The address of the sender
   /// @param amount The amount of Ether received
-  event ReceiveEther(address indexed sender, uint amount);
+  event ReceiveEther(uint256 amount);
 
   /// @notice Emitted when a pool is removed
   /// @param pool The address of the pool

@@ -31,6 +31,7 @@ contract MockWithdrawals is
   uint256 public version;
 
   StakeTogether public stakeTogether;
+  Router public router;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -38,7 +39,7 @@ contract MockWithdrawals is
   }
 
   /// @notice Initialization function for Withdrawals contract.
-  function initialize() public initializer {
+  function initialize() external initializer {
     __ERC20_init('Stake Together Withdraw', 'stwETH');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -55,13 +56,13 @@ contract MockWithdrawals is
 
   /// @notice Pauses withdrawals.
   /// @dev Only callable by the admin role.
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
   /// @notice Unpauses withdrawals.
   /// @dev Only callable by the admin role.
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
@@ -72,7 +73,12 @@ contract MockWithdrawals is
 
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit ReceiveEther(msg.value);
+  }
+
+  function receiveWithdrawEther() external payable {
+    require(msg.sender == address(router), 'ONLY_ROUTER');
+    emit ReceiveWithdrawEther(msg.value);
   }
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
@@ -91,6 +97,15 @@ contract MockWithdrawals is
     require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
+  }
+
+  /// @notice Sets the Router contract address.
+  /// @param _router The address of the router.
+  /// @dev Only callable by the admin role.
+  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
+    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    router = Router(payable(_router));
+    emit SetRouter(_router);
   }
 
   /// @notice Hook that is called before any token transfer.

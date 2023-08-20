@@ -58,7 +58,7 @@ async function deployRouter(
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
-    reportDelay: 600,
+    reportDelayBlocks: 600,
     minOracleQuorum: 5,
     oracleQuorum: 5,
     oracleBlackListLimit: 3,
@@ -213,6 +213,7 @@ export async function configContracts(
   await airdrop.airdropContract.setRouter(router.proxyAddress)
 
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
+  await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
 
   await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 }

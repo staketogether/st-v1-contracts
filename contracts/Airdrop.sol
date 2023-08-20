@@ -73,7 +73,7 @@ contract Airdrop is
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role.
   receive() external payable nonReentrant {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit ReceiveEther(msg.value);
   }
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.

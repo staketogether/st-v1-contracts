@@ -28,7 +28,7 @@ contract Router is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
   bytes32 public constant ORACLE_REPORT_MANAGER_ROLE = keccak256('ORACLE_REPORT_MANAGER_ROLE');
-  bytes32 public constant ORACLE_REPORT_SENTINEL_ROLE = keccak256('ORACLE_REPORT_SENTINEL_ROLE');
+  bytes32 public constant ORACLE_SENTINEL_ROLE = keccak256('ORACLE_SENTINEL_ROLE');
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE');
   uint256 public version;
 
@@ -37,22 +37,22 @@ contract Router is
   Airdrop public airdrop;
   Config public config;
 
-  uint256 public totalReportsOracle;
-  mapping(address => bool) private reportsOracles;
-  mapping(address => uint256) public reportsOracleBlacklist;
+  uint256 public totalOracles;
+  mapping(address => bool) private oracles;
+  mapping(address => bool) public oraclesBlacklist;
+  mapping(uint256 => mapping(address => bool)) private oracleVotes;
 
   mapping(uint256 => mapping(bytes32 => address[])) public reports;
   mapping(uint256 => mapping(bytes32 => uint256)) public reportVotes;
-  mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
-  mapping(uint256 => bytes32[]) public reportHistoric;
   mapping(uint256 => bytes32) public consensusReport;
+  mapping(uint256 => mapping(bytes32 => bool)) public executedReports;
   mapping(uint256 => bool) public revokedReports;
 
-  uint256 public reportBlock;
+  uint256 public nextReportBlock;
   uint256 public lastConsensusEpoch;
   uint256 public lastExecutedEpoch;
 
-  mapping(bytes32 => uint256) public reportDelay;
+  mapping(bytes32 => uint256) public reportDelayBlocks;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -74,7 +74,8 @@ contract Router is
     airdrop = Airdrop(payable(_airdrop));
     withdrawals = Withdrawals(payable(_withdrawals));
 
-    reportBlock = 1;
+    totalOracles = 0;
+    nextReportBlock = 1;
     lastConsensusEpoch = 0;
     lastExecutedEpoch = 0;
   }
@@ -90,7 +91,7 @@ contract Router is
   function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   receive() external payable {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit ReceiveEther(msg.value);
   }
 
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
@@ -105,10 +106,10 @@ contract Router is
 
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
-    if (config.reportDelay < 300) {
-      config.reportDelay = 300;
+    if (config.reportDelayBlocks < 300) {
+      config.reportDelayBlocks = 300;
     } else {
-      config.reportDelay = config.reportDelay;
+      config.reportDelayBlocks = config.reportDelayBlocks;
     }
 
     emit SetConfig(_config);
@@ -124,97 +125,61 @@ contract Router is
   }
 
   function isReportOracle(address _oracle) public view returns (bool) {
-    return reportsOracles[_oracle] && reportsOracleBlacklist[_oracle] < config.oracleBlackListLimit;
+    return oracles[_oracle] && !oraclesBlacklist[_oracle];
   }
 
   function isReportOracleBlackListed(address _oracle) public view returns (bool) {
-    return reportsOracleBlacklist[_oracle] >= config.oracleBlackListLimit;
+    return oraclesBlacklist[_oracle];
   }
 
   function addReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(!reportsOracles[_oracle], 'REPORT_ORACLE_EXISTS');
+    require(!oracles[_oracle], 'REPORT_ORACLE_EXISTS');
     _grantRole(ORACLE_REPORT_ROLE, _oracle);
-    reportsOracles[_oracle] = true;
-    totalReportsOracle++;
+    oracles[_oracle] = true;
+    totalOracles++;
     emit AddReportOracle(_oracle);
     _updateQuorum();
   }
 
   function removeReportOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(reportsOracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(oracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
     _revokeRole(ORACLE_REPORT_ROLE, oracle);
-    reportsOracles[oracle] = false;
-    totalReportsOracle--;
+    oracles[oracle] = false;
+    totalOracles--;
     emit RemoveReportOracle(oracle);
     _updateQuorum();
   }
 
   function _updateQuorum() private {
-    uint256 newQuorum = MathUpgradeable.mulDiv(totalReportsOracle, 3, 5);
-
+    uint256 newQuorum = MathUpgradeable.mulDiv(totalOracles, 3, 5);
     config.oracleQuorum = newQuorum < config.minOracleQuorum ? config.minOracleQuorum : newQuorum;
     emit UpdateReportOracleQuorum(newQuorum);
   }
 
-  function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    reportsOracleBlacklist[_oracle] = config.oracleBlackListLimit;
-    if (totalReportsOracle > 0) {
-      totalReportsOracle--;
+  function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_SENTINEL_ROLE) {
+    oraclesBlacklist[_oracle] = true;
+    if (totalOracles > 0) {
+      totalOracles--;
     }
-    emit BlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
+    emit BlacklistReportOracle(_oracle);
   }
 
-  function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(reportsOracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
-    require(
-      reportsOracleBlacklist[_oracle] >= config.oracleBlackListLimit,
-      'REPORT_ORACLE_NOT_BLACKLISTED'
-    );
-    reportsOracleBlacklist[_oracle] = 0;
-    totalReportsOracle++;
-    emit UnBlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
+  function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_SENTINEL_ROLE) {
+    require(oracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(oraclesBlacklist[_oracle], 'REPORT_ORACLE_NOT_BLACKLISTED');
+    oraclesBlacklist[_oracle] = false;
+    totalOracles++;
+    emit UnBlacklistReportOracle(_oracle);
   }
 
   function addSentinel(address _account) external onlyRole(ADMIN_ROLE) {
-    require(!hasRole(ORACLE_REPORT_SENTINEL_ROLE, _account), 'SENTINEL_EXISTS');
-    grantRole(ORACLE_REPORT_SENTINEL_ROLE, _account);
+    require(!hasRole(ORACLE_SENTINEL_ROLE, _account), 'SENTINEL_EXISTS');
+    grantRole(ORACLE_SENTINEL_ROLE, _account);
   }
 
   function removeSentinel(address _account) external onlyRole(ADMIN_ROLE) {
-    require(hasRole(ORACLE_REPORT_SENTINEL_ROLE, _account), 'SENTINEL_NOT_EXISTS');
-    revokeRole(ORACLE_REPORT_SENTINEL_ROLE, _account);
-  }
-
-  function _evaluateOracles(uint256 _epoch, bytes32 _hash) private {
-    for (uint256 i = 0; i < reportHistoric[_epoch].length; i++) {
-      bytes32 reportHash = reportHistoric[_epoch][i];
-      address[] memory oracles = reports[_epoch][reportHash];
-      for (uint256 j = 0; j < oracles.length; j++) {
-        _evaluateConduct(oracles[j], reportHash, reportHash == _hash);
-      }
-    }
-  }
-
-  function _evaluateConduct(address _oracle, bytes32 _reportHash, bool consensus) private {
-    if (consensus) {
-      if (reportsOracleBlacklist[_oracle] > 0) {
-        reportsOracleBlacklist[_oracle]--;
-      }
-      emit RewardReportOracle(_oracle, reportsOracleBlacklist[_oracle], _reportHash);
-    } else {
-      reportsOracleBlacklist[_oracle]++;
-      bool blacklist = reportsOracleBlacklist[_oracle] >= config.oracleBlackListLimit;
-      emit PenalizeReportOracle(_oracle, reportsOracleBlacklist[_oracle], _reportHash, blacklist);
-
-      if (blacklist) {
-        reportsOracleBlacklist[_oracle] = config.oracleBlackListLimit;
-        emit BlacklistReportOracle(_oracle, reportsOracleBlacklist[_oracle]);
-        if (totalReportsOracle > 0) {
-          totalReportsOracle--;
-        }
-        _updateQuorum();
-      }
-    }
+    require(hasRole(ORACLE_SENTINEL_ROLE, _account), 'SENTINEL_NOT_EXISTS');
+    revokeRole(ORACLE_SENTINEL_ROLE, _account);
   }
 
   /************
@@ -226,29 +191,27 @@ contract Router is
     Report calldata _report
   ) external nonReentrant whenNotPaused activeReportOracle {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(block.number < reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
-    require(totalReportsOracle >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(block.number > nextReportBlock, 'BLOCK_NUMBER_NOT_REACHED');
+    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
     require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
-    require(keccak256(abi.encode(_report)) == hash, 'REPORT_HASH_MISMATCH');
-    require(stakeTogether.beaconBalance() - _report.lossAmount > 0, 'INVALID_BEACON_BALANCE');
+    require(!oracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
 
-    if (block.number >= reportBlock + config.reportFrequency) {
-      reportBlock += config.reportFrequency;
-      emit SkipNextReportFrequency(_epoch, reportBlock);
+    if (block.number >= nextReportBlock + config.reportFrequency) {
+      nextReportBlock += config.reportFrequency;
+      emit SkipNextReportFrequency(_epoch, nextReportBlock);
     }
 
     reports[_epoch][hash].push(msg.sender);
     reportVotes[_epoch][hash]++;
-    reportHistoric[_epoch].push(hash);
+    oracleVotes[_epoch][msg.sender] = true;
 
     if (consensusReport[_epoch] == bytes32(0)) {
       if (reportVotes[_epoch][hash] >= config.oracleQuorum) {
         consensusReport[_epoch] = hash;
         lastConsensusEpoch = _report.epoch;
-        reportDelay[hash] = block.number;
+        reportDelayBlocks[hash] = block.number;
         emit ConsensusApprove(_report, hash);
-        _evaluateOracles(_epoch, hash);
       } else {
         emit ConsensusNotReached(_report, hash);
       }
@@ -262,13 +225,24 @@ contract Router is
     require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
     require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
-    require(totalReportsOracle >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
-    require(block.number >= reportDelay[hash] + config.reportDelay, 'TOO_EARLY_TO_EXECUTE_REPORT');
+    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(block.number >= reportDelayBlocks[hash] + config.reportDelayBlocks, 'TOO_EARLY_TO_EXECUTE');
+    require(
+      _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
+      'NOT_ENOUGH_BEACON_BALANCE'
+    );
+    require(
+      address(this).balance >=
+        (_report.profitAmount +
+          _report.withdrawAmount +
+          _report.withdrawRefundAmount +
+          _report.routerExtraAmount),
+      'NOT_ENOUGH_ETH'
+    );
 
-    reportBlock += config.reportFrequency;
+    nextReportBlock += config.reportFrequency;
     executedReports[_report.epoch][hash] = true;
     lastExecutedEpoch = _report.epoch;
-    delete reportHistoric[_report.epoch];
     emit ExecuteReport(_report, hash);
 
     if (_report.validatorsToRemove.length > 0) {
@@ -288,7 +262,7 @@ contract Router is
     }
 
     if (_report.withdrawAmount > 0) {
-      payable(address(withdrawals)).transfer(_report.withdrawAmount);
+      withdrawals.receiveWithdrawEther{ value: _report.withdrawAmount }();
     }
 
     if (_report.withdrawRefundAmount > 0) {
@@ -302,7 +276,7 @@ contract Router is
     }
   }
 
-  function revokeConsensus(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_REPORT_SENTINEL_ROLE) {
+  function revokeConsensus(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
     require(consensusReport[_epoch] == _hash, 'EPOCH_NOT_CONSENSUS');
     revokedReports[_epoch] = true;
     emit RevokeConsensus(block.number, _epoch, _hash);
@@ -313,11 +287,7 @@ contract Router is
     emit SetLastConsensusEpoch(_epoch);
   }
 
-  function isReadyToSubmit(uint256 _epoch) external view returns (bool) {
-    return (_epoch > lastConsensusEpoch) && (!revokedReports[_epoch]) && (block.number >= reportBlock);
-  }
+  // function isReadyToSubmit() { // Todo: extrair a lógica pra cá
 
-  function isReadyToExecute(uint256 _epoch, bytes32 _hash) external view returns (bool) {
-    return (_epoch > lastConsensusEpoch) && (!revokedReports[_epoch]) && consensusReport[_epoch] == _hash;
-  }
+  // function isReadyToExecute() { // Todo: extrair a lógica pra cá para ver publicamente
 }

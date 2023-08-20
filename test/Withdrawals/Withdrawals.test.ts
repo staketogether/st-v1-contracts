@@ -122,9 +122,7 @@ describe('Withdrawals', function () {
       const finalBalance = await ethers.provider.getBalance(withdrawalsProxy)
       expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
 
-      await expect(tx)
-        .to.emit(withdrawals, 'ReceiveEther')
-        .withArgs(user1.address, ethers.parseEther('1.0'))
+      await expect(tx).to.emit(withdrawals, 'ReceiveEther').withArgs(ethers.parseEther('1.0'))
     })
   })
 

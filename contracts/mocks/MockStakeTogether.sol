@@ -130,7 +130,7 @@ contract MockStakeTogether is
   /// @notice Receive function to accept incoming ETH transfers.
   /// @dev Non-reentrant to prevent re-entrancy attacks.
   receive() external payable nonReentrant {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit ReceiveEther(msg.value);
   }
 
   /************
@@ -333,9 +333,7 @@ contract MockStakeTogether is
       revert('DLR');
     }
 
-    uint256 sharesAmount = MathUpgradeable.mulDiv(msg.value, totalShares, totalSupply() - msg.value);
-
-    _processStakeEntry(_to, sharesAmount);
+    _processStakeEntry(_to, msg.value);
 
     totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _referral);
@@ -546,7 +544,7 @@ contract MockStakeTogether is
   /// @param _amount The amount to set as the beacon balance.
   /// @dev Only the router address can call this function.
   function setBeaconBalance(uint256 _amount) external {
-    require(msg.sender == address(router), 'OR');
+    require(msg.sender == address(router), 'OR'); // Only Router
     _setBeaconBalance(_amount);
   }
 
@@ -570,7 +568,7 @@ contract MockStakeTogether is
     require(isValidatorOracle(msg.sender), 'OV');
     require(address(this).balance >= config.poolSize, 'NBP');
     require(!validators[_publicKey], 'VE');
-    _processStakeValidatorFees();
+    _processStakeValidator();
     _setBeaconBalance(beaconBalance + config.validatorSize);
     validators[_publicKey] = true;
     _nextValidatorOracle();
@@ -646,15 +644,14 @@ contract MockStakeTogether is
     FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    require(_allocations.length == 4, 'IL');
-
+    require(_allocations.length == 4, 'IL'); // IL = Invalid Length
     uint256 sum = 0;
     for (uint256 i = 0; i < _allocations.length; i++) {
       fees[_feeType].allocations[FeeRole(i)] = _allocations[i];
       sum += _allocations[i];
     }
 
-    require(sum == 1 ether, 'SI');
+    require(sum == 1 ether, 'SI'); // SI = Sum Invalid
 
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
@@ -662,40 +659,8 @@ contract MockStakeTogether is
     emit SetFee(_feeType, _value, _mathType, _allocations);
   }
 
-  /// @notice Estimates the fee percentage for a given fee type and amount.
-  /// @param _feeType The type of fee.
-  /// @param _amount The amount for which to estimate the fee.
-  /// @return _shares The shares of the fee.
-  /// @return _amounts The amounts of the fee.
-  function estimateFeePercentage(
-    FeeType _feeType,
-    uint256 _amount
-  ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
-    require(fees[_feeType].mathType == FeeMath.PERCENTAGE);
-    uint256 sharesAmount = sharesByWei(_amount);
-    return _estimateFee(_feeType, sharesAmount);
-  }
-
-  /// @notice Estimates the fixed fee for a given fee type.
-  /// @param _feeType The type of fee.
-  /// @return _shares The shares of the fee.
-  /// @return _amounts The amounts of the fee.
-  function estimateFeeFixed(
-    FeeType _feeType
-  ) public view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
-    require(fees[_feeType].mathType == FeeMath.FIXED);
-    return _estimateFee(_feeType, fees[_feeType].value);
-  }
-
-  /// @notice Internal function to estimate the fee for a given fee type and share amount.
-  /// @param _feeType The type of fee.
-  /// @param _sharesAmount The share amount for which to estimate the fee.
-  /// @return _shares The shares of the fee.
-  /// @return _amounts The amounts of the fee.
-  function _estimateFee(
-    FeeType _feeType,
-    uint256 _sharesAmount
-  ) private view returns (uint256[4] memory _shares, uint256[4] memory _amounts) {
+  function _distributeFees(FeeType _feeType, uint256 _sharesAmount, address _to) private {
+    uint256[4] memory allocatedShares;
     FeeRole[4] memory roles = getFeesRoles();
 
     uint256 feeValue = fees[_feeType].value;
@@ -704,90 +669,44 @@ contract MockStakeTogether is
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
       uint256 allocation = fees[_feeType].allocations[roles[i]];
-      _shares[i] = MathUpgradeable.mulDiv(feeShares, allocation, 1 ether);
-      totalAllocatedShares += _shares[i];
+      allocatedShares[i] = MathUpgradeable.mulDiv(feeShares, allocation, 1 ether);
+      totalAllocatedShares += allocatedShares[i];
     }
 
-    _shares[3] = _sharesAmount - totalAllocatedShares;
+    allocatedShares[3] = _sharesAmount - totalAllocatedShares;
 
-    for (uint256 i = 0; i < roles.length; i++) {
-      _amounts[i] = weiByShares(_shares[i]);
-    }
+    uint length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
 
-    return (_shares, _amounts);
-  }
-
-  /// @notice Processes the fees for the specified share amount.
-  /// @param _to The address to which the shares are to be minted.
-  /// @param sharesAmount The amount of shares to calculate the fees for.
-  function _processStakeEntry(address _to, uint256 sharesAmount) private {
-    (uint256[4] memory _shares, ) = _estimateFee(FeeType.StakeEntry, sharesAmount);
-
-    FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < roles.length; i++) {
-      if (_shares[i] > 0) {
-        if (roles[i] == FeeRole.Sender) {
-          _mintShares(_to, _shares[i]);
+    for (uint i = 0; i < length; i++) {
+      if (allocatedShares[i] > 0) {
+        if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
+          _mintShares(_to, allocatedShares[i]);
         } else {
-          _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeEntry, roles[i]);
+          _mintShares(getFeeAddress(roles[i]), allocatedShares[i]);
+          emit MintFeeShares(getFeeAddress(roles[i]), allocatedShares[i], _feeType, roles[i]);
         }
       }
     }
   }
 
-  /// @notice Processes the Stake Rewards fees.
-  function _processStakeRewards(uint256 _profitAmount) private {
-    (uint256[4] memory _shares, ) = estimateFeePercentage(
-      IStakeTogether.FeeType.StakeRewards,
-      _profitAmount
-    );
-
-    StakeTogether.FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < roles.length - 1; i++) {
-      if (_shares[i] > 0) {
-        _mintFeeShares(
-          getFeeAddress(roles[i]),
-          _shares[i],
-          IStakeTogether.FeeType.StakeRewards,
-          roles[i]
-        );
-      }
-    }
+  function _processStakeEntry(address _to, uint256 _amount) private {
+    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
+    _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
   }
 
-  /// @notice Processes the fees for Stake Pool.
+  function _processStakeRewards(uint256 _amount) private {
+    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
+    _distributeFees(FeeType.StakeRewards, sharesAmount, address(0));
+  }
+
   function _processStakePool() private {
-    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakePool);
-    FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < roles.length - 1; i++) {
-      _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakePool, roles[i]);
-    }
+    uint256 sharesAmount = fees[FeeType.StakePool].value;
+    _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 
-  /// @notice Processes the fees for Stake Validator.
-  function _processStakeValidatorFees() private {
-    (uint256[4] memory _shares, ) = estimateFeeFixed(FeeType.StakeValidator);
-    FeeRole[4] memory roles = getFeesRoles();
-    for (uint i = 0; i < _shares.length - 1; i++) {
-      if (_shares[i] > 0) {
-        _mintFeeShares(getFeeAddress(roles[i]), _shares[i], FeeType.StakeValidator, roles[i]);
-      }
-    }
-  }
-
-  /// @notice Internal function to mint rewards as shares to a given address.
-  /// @param _address Address to mint rewards to.
-  /// @param _sharesAmount Amount of reward shares to mint.
-  /// @param _feeType Type of fee associated with the minting.
-  /// @param _feeRole Role of the fee within the system.
-  function _mintFeeShares(
-    address _address,
-    uint256 _sharesAmount,
-    FeeType _feeType,
-    FeeRole _feeRole
-  ) private {
-    _mintShares(_address, _sharesAmount);
-    emit MintFeeShares(_address, _sharesAmount, _feeType, _feeRole);
+  function _processStakeValidator() private {
+    uint256 sharesAmount = fees[FeeType.StakeValidator].value;
+    _distributeFees(FeeType.StakeValidator, sharesAmount, address(0));
   }
 
   /********************

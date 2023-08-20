@@ -136,7 +136,7 @@ describe('Airdrop', function () {
       const finalBalance = await ethers.provider.getBalance(airdropProxy)
       expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
 
-      await expect(tx).to.emit(airdrop, 'ReceiveEther').withArgs(user1.address, ethers.parseEther('1.0'))
+      await expect(tx).to.emit(airdrop, 'ReceiveEther').withArgs(ethers.parseEther('1.0'))
     })
   })
 

@@ -55,7 +55,7 @@ async function deployRouter(
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
-    reportDelay: 600,
+    reportDelayBlocks: 600,
     minOracleQuorum: 5,
     oracleQuorum: 5,
     oracleBlackListLimit: 3,
@@ -190,8 +190,9 @@ export async function configContracts(
   await airdrop.airdropContract.setRouter(router.proxyAddress)
 
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
+  await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
 
-  // await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
+  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 }
 
 export async function routerFixture() {
@@ -217,6 +218,7 @@ export async function routerFixture() {
 
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
+
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
   const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
 
@@ -225,7 +227,7 @@ export async function routerFixture() {
   const UPGRADER_ROLE = await router.routerContract.UPGRADER_ROLE()
   const ADMIN_ROLE = await router.routerContract.ADMIN_ROLE()
   const ORACLE_REPORT_MANAGER_ROLE = await router.routerContract.ORACLE_REPORT_MANAGER_ROLE()
-  const ORACLE_REPORT_SENTINEL_ROLE = await router.routerContract.ORACLE_REPORT_SENTINEL_ROLE()
+  const ORACLE_SENTINEL_ROLE = await router.routerContract.ORACLE_SENTINEL_ROLE()
 
   return {
     provider,
@@ -246,6 +248,6 @@ export async function routerFixture() {
     UPGRADER_ROLE,
     ADMIN_ROLE,
     ORACLE_REPORT_MANAGER_ROLE,
-    ORACLE_REPORT_SENTINEL_ROLE,
+    ORACLE_SENTINEL_ROLE,
   }
 }

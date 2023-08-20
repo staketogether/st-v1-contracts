@@ -39,7 +39,7 @@ contract MockAirdrop is
   }
 
   /// @notice Initializes the contract with initial settings.
-  function initialize() public initializer {
+  function initialize() external initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -53,13 +53,13 @@ contract MockAirdrop is
 
   /// @notice Pauses all contract functionalities.
   /// @dev Only callable by the admin role.
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
   /// @notice Unpauses all contract functionalities.
   /// @dev Only callable by the admin role.
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
@@ -71,7 +71,7 @@ contract MockAirdrop is
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role.
   receive() external payable nonReentrant {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit ReceiveEther(msg.value);
   }
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.

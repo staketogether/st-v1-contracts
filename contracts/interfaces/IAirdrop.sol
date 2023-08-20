@@ -31,9 +31,8 @@ interface IAirdrop {
   event ClaimBatch(address indexed claimer, uint256 numClaims, uint256 totalAmount);
 
   /// @notice Emitted when ETH is received by the contract.
-  /// @param sender The address sending the ETH.
   /// @param amount The amount of ETH received.
-  event ReceiveEther(address indexed sender, uint amount);
+  event ReceiveEther(uint256 amount);
 
   /// @notice Emitted when the router address is set.
   /// @param router The address of the router.

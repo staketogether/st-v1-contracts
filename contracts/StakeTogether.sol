@@ -132,7 +132,7 @@ contract StakeTogether is
   /// @notice Receive function to accept incoming ETH transfers.
   /// @dev Non-reentrant to prevent re-entrancy attacks.
   receive() external payable nonReentrant {
-    emit ReceiveEther(msg.sender, msg.value);
+    emit ReceiveEther(msg.value);
   }
 
   /************
@@ -546,7 +546,7 @@ contract StakeTogether is
   /// @param _amount The amount to set as the beacon balance.
   /// @dev Only the router address can call this function.
   function setBeaconBalance(uint256 _amount) external {
-    require(msg.sender == address(router), 'OR');
+    require(msg.sender == address(router), 'OR'); // Only Router
     _setBeaconBalance(_amount);
   }
 

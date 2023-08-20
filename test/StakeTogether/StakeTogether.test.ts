@@ -117,9 +117,7 @@ describe('Stake Together', function () {
       const finalBalance = await ethers.provider.getBalance(stakeTogetherProxy)
       expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
 
-      await expect(tx)
-        .to.emit(stakeTogether, 'ReceiveEther')
-        .withArgs(user1.address, ethers.parseEther('1.0'))
+      await expect(tx).to.emit(stakeTogether, 'ReceiveEther').withArgs(ethers.parseEther('1.0'))
     })
 
     it('should correctly calculate balance and beaconBalance', async function () {
@@ -1250,8 +1248,6 @@ describe('Stake Together', function () {
       // console.log('sharesAmount', sharesAmount)
       // console.log('sharesFee', sharesFee)
 
-      const delegationShares = sharesAmount - sharesFee
-
       // console.log('delegationShares', delegationShares)
 
       const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
@@ -1302,7 +1298,6 @@ describe('Stake Together', function () {
       // Withdraw as Validator
       const withdrawAmount = ethers.parseEther('1')
       const withdrawShares = await stakeTogether.sharesByWei(withdrawAmount)
-      const delegationShares2 = userShares - withdrawShares
 
       const withdrawDelegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
       await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, withdrawDelegations)
