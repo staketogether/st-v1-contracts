@@ -802,6 +802,65 @@ describe('Router', function () {
 
       await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('REVOKED_REPORT')
     })
+
+    it('should reach consensus and execute three reports sequentially', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const reports = [
+        {
+          epoch: 2n,
+          merkleRoot: ethers.hexlify(new Uint8Array(32)),
+          profitAmount: 1000n,
+          lossAmount: 0n,
+          withdrawAmount: 100n,
+          withdrawRefundAmount: 0n,
+          routerExtraAmount: 55n,
+          validatorsToRemove: [],
+        },
+        {
+          epoch: 3n,
+          merkleRoot: ethers.hexlify(new Uint8Array(32)),
+          profitAmount: 1500n,
+          lossAmount: 0n,
+          withdrawAmount: 200n,
+          withdrawRefundAmount: 0n,
+          routerExtraAmount: 30n,
+          validatorsToRemove: [],
+        },
+        {
+          epoch: 4n,
+          merkleRoot: ethers.hexlify(new Uint8Array(32)),
+          profitAmount: 800n,
+          lossAmount: 0n,
+          withdrawAmount: 50n,
+          withdrawRefundAmount: 0n,
+          routerExtraAmount: 40n,
+          validatorsToRemove: [],
+        },
+      ]
+
+      for (const report of reports) {
+        for (const oracle of oracles) {
+          await router.connect(oracle).submitReport(report.epoch, report)
+        }
+
+        const delayBlocks = (await router.config()).reportDelayBlocks
+
+        for (let i = 0; i < delayBlocks; i++) {
+          await network.provider.send('evm_mine')
+        }
+
+        await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
+
+        const executeTx = await router.connect(user1).executeReport(report)
+        await expect(executeTx).to.emit(router, 'ExecuteReport')
+      }
+    })
   })
 
   describe('Set Consensus', () => {
