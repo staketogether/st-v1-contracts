@@ -156,7 +156,7 @@ describe('Stake Together', function () {
         totalFees += fee
         const shares = depositAmount - fee
         userBalancesBefore.push(shares)
-        const delegations = [{ pool: poolAddress, shares: shares }]
+        const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
         await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
       }
 
@@ -200,7 +200,7 @@ describe('Stake Together', function () {
         totalFees += fee
         const shares = depositAmount - fee
         userBalancesBefore.push(shares)
-        const delegations = [{ pool: poolAddress, shares: shares }]
+        const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
         await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
       }
 
@@ -252,7 +252,7 @@ describe('Stake Together', function () {
         totalEntryFees += fee
         const shares = depositAmount - fee
         userBalancesBefore.push(shares)
-        const delegations = [{ pool: poolAddress, shares: shares }]
+        const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
         await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
       }
 
@@ -435,7 +435,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(airdropFeeAddress)
@@ -550,7 +550,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -565,7 +565,7 @@ describe('Stake Together', function () {
 
       expect(emittedAddress1).to.equal(user1.address)
       expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
-      expect(emittedDelegations1[0].shares).to.equal(user1Delegations[0].shares)
+      expect(emittedDelegations1[0].percentage).to.equal(user1Delegations[0].percentage)
 
       eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
@@ -597,7 +597,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -653,7 +653,7 @@ describe('Stake Together', function () {
 
       const user1Shares = 1n + user1DepositAmount - fee // In this case we have to round up
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -667,7 +667,7 @@ describe('Stake Together', function () {
       const [emittedAddress1, emittedDelegations1] = event.args
       expect(emittedAddress1).to.equal(user1.address)
       expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
-      expect(emittedDelegations1[0].shares).to.equal(user1Delegations[0].shares)
+      expect(emittedDelegations1[0].percentage).to.equal(user1Delegations[0].percentage)
 
       eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
@@ -698,7 +698,7 @@ describe('Stake Together', function () {
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -717,7 +717,7 @@ describe('Stake Together', function () {
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
       const user2Shares = user2DepositAmount - fee2
-      const user2Delegations = [{ pool: poolAddress, shares: user2Shares }]
+      const user2Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
         stakeTogether
@@ -738,7 +738,7 @@ describe('Stake Together', function () {
 
       const fee1 = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee1
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -757,7 +757,7 @@ describe('Stake Together', function () {
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
       const user2Shares = user2DepositAmount - fee2
-      const user2Delegations = [{ pool: poolAddress, shares: user2Shares }]
+      const user2Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
         stakeTogether
@@ -781,7 +781,7 @@ describe('Stake Together', function () {
 
       const fee3 = (user3DepositAmount * 3n) / 1000n
       const user3Shares = user3DepositAmount - fee3
-      const user3Delegations = [{ pool: poolAddress, shares: user3Shares }]
+      const user3Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx3 = await stakeTogether
         .connect(user3)
@@ -817,11 +817,11 @@ describe('Stake Together', function () {
 
       const user1Shares = user1DepositAmount
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1.1') }]
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('IS')
+      ).to.be.revertedWith('IPS')
     })
 
     it('should revert if deposit feature is disabled', async function () {
@@ -849,7 +849,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: nonExistentPoolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: nonExistentPoolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
         stakeTogether
@@ -864,7 +864,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: nonExistentPoolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: nonExistentPoolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
@@ -878,11 +878,11 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const incorrectShares = user1DepositAmount - fee + 1n
 
-      const user1Delegations = [{ pool: poolAddress, shares: incorrectShares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') + 1n }]
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('IS')
+      ).to.be.revertedWith('IPS')
     })
 
     it('should fail when the number of delegations is greater than maxDelegations', async function () {
@@ -891,7 +891,10 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       const maxDelegations = 64
-      const user1Delegations = Array(maxDelegations + 1).fill({ pool: poolAddress, shares: 1 })
+      const user1Delegations = Array(maxDelegations + 1).fill({
+        pool: poolAddress,
+        percentage: ethers.parseEther('1'),
+      })
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
@@ -909,13 +912,13 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress1, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress1, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
         .depositPool(user1Delegations, user3, { value: user1DepositAmount })
 
-      const updatedDelegations = [{ pool: poolAddress2, shares: user1Shares }]
+      const updatedDelegations = [{ pool: poolAddress2, percentage: ethers.parseEther('1') }]
       await stakeTogether.connect(user1).updateDelegations(updatedDelegations)
 
       const user1Filter = stakeTogether.filters.UpdateDelegations(user1.address)
@@ -938,7 +941,7 @@ describe('Stake Together', function () {
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -950,8 +953,6 @@ describe('Stake Together', function () {
       // Withdraw
       const withdrawAmount = ethers.parseEther('40')
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
-
-      user1Delegations[0].shares -= sharesForWithdrawAmount
 
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations)
 
@@ -979,7 +980,7 @@ describe('Stake Together', function () {
 
       const user1Shares = 1n + user1DepositAmount - fee // In this case we have to round up
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -991,8 +992,6 @@ describe('Stake Together', function () {
       // Withdraw
       const withdrawAmount = ethers.parseEther('40') / 3n
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
-
-      user1Delegations[0].shares -= sharesForWithdrawAmount
 
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations)
 
@@ -1018,7 +1017,7 @@ describe('Stake Together', function () {
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -1042,7 +1041,7 @@ describe('Stake Together', function () {
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -1066,7 +1065,7 @@ describe('Stake Together', function () {
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -1076,7 +1075,7 @@ describe('Stake Together', function () {
 
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
 
-      user1Delegations[0].shares -= sharesForWithdrawAmount + 1n // round up
+      user1Delegations[0].percentage -= sharesForWithdrawAmount + 1n // round up
 
       await expect(
         stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
@@ -1114,8 +1113,8 @@ describe('Stake Together', function () {
       const fee = (depositAmount * 3n) / 1000n
       const user1Shares = depositAmount - fee
       const user2Shares = depositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
-      const user2Delegations = [{ pool: poolAddress, shares: user2Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
+      const user2Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether.connect(user1).depositPool(user1Delegations, referral, { value: depositAmount })
       await stakeTogether.connect(user2).depositPool(user2Delegations, referral, { value: depositAmount })
@@ -1124,13 +1123,13 @@ describe('Stake Together', function () {
       const withdrawAmount = ethers.parseEther('900')
       const sharesForWithdrawAmount1 = await stakeTogether.sharesByWei(withdrawAmount)
 
-      const user1Delegations1 = [{ pool: poolAddress, shares: user1Shares - sharesForWithdrawAmount1 }]
+      const user1Delegations1 = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations1)
 
       const withdrawAmount2 = ethers.parseEther('900')
       const sharesForWithdrawAmount2 = await stakeTogether.sharesByWei(withdrawAmount2)
 
-      const user2Delegations1 = [{ pool: poolAddress, shares: user2Shares - sharesForWithdrawAmount2 }]
+      const user2Delegations1 = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       // Expect a revert with the specific error message
       await expect(
@@ -1155,7 +1154,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -1255,7 +1254,7 @@ describe('Stake Together', function () {
 
       // console.log('delegationShares', delegationShares)
 
-      const delegations = [{ pool: poolAddress, shares: delegationShares }]
+      const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       // console.log('depositAmount', depositAmount)
       // console.log('delegations', delegations)
@@ -1272,7 +1271,7 @@ describe('Stake Together', function () {
 
       expect(emittedAddress1).to.equal(user1.address)
       expect(emittedDelegations1[0].pool).to.equal(delegations[0].pool)
-      expect(emittedDelegations1[0].shares).to.equal(delegations[0].shares)
+      expect(emittedDelegations1[0].percentage).to.equal(delegations[0].percentage)
 
       eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
@@ -1305,7 +1304,7 @@ describe('Stake Together', function () {
       const withdrawShares = await stakeTogether.sharesByWei(withdrawAmount)
       const delegationShares2 = userShares - withdrawShares
 
-      const withdrawDelegations = [{ pool: poolAddress, shares: delegationShares2 }]
+      const withdrawDelegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
       await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, withdrawDelegations)
 
       userShares = await stakeTogether.shares(user1)
@@ -1339,7 +1338,7 @@ describe('Stake Together', function () {
 
       expect(emittedAddress).to.equal(user1.address)
       expect(emittedDelegations[0].pool).to.equal(poolAddress)
-      expect(emittedDelegations[0].shares).to.equal(delegationShares2)
+      expect(emittedDelegations[0].percentage).to.equal(ethers.parseEther('1'))
 
       expect(await withdrawals.totalSupply()).to.equal(withdrawAmount)
       expect(await withdrawals.balanceOf(user1.address)).to.equal(withdrawAmount)
@@ -1360,7 +1359,7 @@ describe('Stake Together', function () {
 
       const delegationShares = sharesAmount - sharesFee
 
-      const delegations = [{ pool: poolAddress, shares: delegationShares }]
+      const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -1566,10 +1565,10 @@ describe('Stake Together', function () {
       expect(await stakeTogether.shares(user1.address)).to.equal(0)
 
       // Create delegations without deposit (shares remain zero)
-      const user1Delegations = [
-        { pool: poolAddress1, shares: 0n },
-        { pool: poolAddress2, shares: 0n },
-      ]
+      const user1Delegations: {
+        pool: string
+        percentage: bigint
+      }[] = []
 
       // Try to update delegations
       await expect(stakeTogether.connect(user1).updateDelegations(user1Delegations)).to.not.be.reverted // No error expected since shares are zero
@@ -1577,7 +1576,7 @@ describe('Stake Together', function () {
       // Confirm that no changes were made (since shares were zero, no validation is done)
       for (const delegation of user1Delegations) {
         expect(await stakeTogether.pools(delegation.pool)).to.be.true
-        expect(delegation.shares).to.equal(0)
+        expect(delegation.percentage).to.equal(0)
       }
     })
   })
@@ -1898,7 +1897,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await stakeTogether
         .connect(user1)
@@ -2012,7 +2011,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
 
@@ -2039,7 +2038,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
       await expect(
@@ -2056,7 +2055,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
       const user1Shares = await stakeTogether.shares(user1.address)
@@ -2074,7 +2073,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
 
@@ -2101,7 +2100,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
 
@@ -2119,7 +2118,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
 
@@ -2138,7 +2137,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
 
@@ -2174,7 +2173,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       await stakeTogether
         .connect(user1)
-        .depositPool([{ pool: poolAddress, shares: user1SharesAfterDeposit }], user3, {
+        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
           value: user1DepositAmount,
         })
 

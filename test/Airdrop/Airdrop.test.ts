@@ -224,7 +224,7 @@ describe('Airdrop', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, shares: user1Shares }]
+      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await mockStakeTogether
         .connect(user1)
