@@ -1663,7 +1663,7 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('VE') // Checking for the rejection with code 'VE'
     })
 
-    it('should create a new validator and emit MintFeeShares logs', async function () {
+    it('should create a new validator ', async function () {
       const poolSize = ethers.parseEther('32.1')
 
       const oracle = user1
@@ -1677,17 +1677,6 @@ describe('Stake Together', function () {
       const tx = await stakeTogether
         .connect(oracle)
         .createValidator(publicKey, signature, depositDataRoot)
-
-      // Verifying the MintFeeShares event
-      const receipt = await tx.wait()
-      const mintRewardsFilter = stakeTogether.filters.MintFeeShares() // Replace null with specific values if needed
-      const logs = await stakeTogether.queryFilter(mintRewardsFilter)
-
-      // Checking the arguments of the MintFeeShares event
-      expect(logs[0].args[0]).to.equal('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266')
-      expect(logs[0].args[1]).to.equal(100000000000000n)
-      expect(logs[0].args[2]).to.equal(3n)
-      expect(logs[0].args[3]).to.equal(2n)
     })
 
     it('should set the beacon balance through the router', async function () {

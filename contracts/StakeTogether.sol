@@ -691,10 +691,12 @@ contract StakeTogether is
   }
 
   function _processStakePool() private {
-    payable(getFeeAddress(FeeRole.StakeTogether)).transfer(fees[FeeType.StakePool].value);
+    uint256 amount = fees[FeeType.StakePool].value;
+    uint256 sharesAmount = MathUpgradeable.mulDiv(amount, totalShares, totalSupply() - amount);
+    _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 
   function _processStakeValidator() private {
-    payable(getFeeAddress(FeeRole.StakeTogether)).transfer(fees[FeeType.StakeValidator].value);
+    payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.StakeValidator].value);
   }
 }
