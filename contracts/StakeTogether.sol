@@ -445,7 +445,7 @@ contract StakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
-  function addPool(address _pool, bool _listed) external payable nonReentrant {
+  function addPool(address _pool, bool _listed) external payable nonReentrant whenNotPaused {
     require(_pool != address(0), 'ZA'); // ZA = Zero Address
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
@@ -459,7 +459,7 @@ contract StakeTogether is
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
-  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
+  function removePool(address _pool) external whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     require(pools[_pool], 'PNF');
     pools[_pool] = false;
     emit RemovePool(_pool);
@@ -660,7 +660,7 @@ contract StakeTogether is
       sum += _allocations[i];
     }
 
-    require(sum == 1 ether, 'SI'); // SI = Sum Invalid
+    require(sum == 1 ether, 'IS'); // IS = Invalid Sum
 
     fees[_feeType].value = _value;
     fees[_feeType].mathType = _mathType;
