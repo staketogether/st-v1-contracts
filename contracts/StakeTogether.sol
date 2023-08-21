@@ -584,8 +584,8 @@ contract StakeTogether is
     require(!validators[_publicKey], 'VE');
     _processStakeValidator();
     _setBeaconBalance(beaconBalance + config.validatorSize);
-    validators[_publicKey] = true;
     _nextValidatorOracle();
+    validators[_publicKey] = true;
     depositContract.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
