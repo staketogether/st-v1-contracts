@@ -1746,7 +1746,7 @@ describe('Stake Together', function () {
       const allocations = [250000, 250000, 250000, 250000]
       await expect(
         stakeTogether.connect(owner).setFee(2, feeValue, 0, [250000, 250000, 250000, 300000]),
-      ).to.be.revertedWith('SI')
+      ).to.be.revertedWith('IS')
     })
 
     it('should successfully set fee for ProcessStakeValidator (index 3)', async function () {
@@ -1803,6 +1803,7 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
+
       await stakeTogether
         .connect(user1)
         .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
