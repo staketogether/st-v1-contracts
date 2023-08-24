@@ -36,7 +36,6 @@ interface IStakeTogether {
   /// @notice Represents the fee structure.
   struct Fee {
     uint256 value; /// Value of the fee.
-    FeeMath mathType; /// Type of calculation for the fee (Fixed or Percentage).
     mapping(FeeRole => uint256) allocations; /// Allocation of fees among different roles.
   }
 
@@ -58,12 +57,6 @@ interface IStakeTogether {
     ProcessStakeRewards, /// Fee for staking rewards.
     StakePool, /// Fee for pool staking.
     ProcessStakeValidator /// Fee for validator staking.
-  }
-
-  /// @notice Types of mathematics used in fee calculation.
-  enum FeeMath {
-    FIXED, /// Fixed value fee.
-    PERCENTAGE /// Percentage value fee.
   }
 
   /// @notice Different roles that are used in fee allocation
@@ -178,9 +171,8 @@ interface IStakeTogether {
   /// @notice Emitted when a fee is set
   /// @param feeType The type of fee being set
   /// @param value The value of the fee
-  /// @param mathType The mathematical type of the fee
   /// @param allocations The allocations for the fee
-  event SetFee(FeeType indexed feeType, uint256 value, FeeMath mathType, uint256[] allocations);
+  event SetFee(FeeType indexed feeType, uint256 value, uint256[] allocations);
 
   /// @notice Emitted when a fee address is set
   /// @param role The role associated with the fee
@@ -407,15 +399,9 @@ interface IStakeTogether {
   /// @notice Sets the fee for a given fee type.
   /// @param _feeType The type of fee to set.
   /// @param _value The value of the fee.
-  /// @param _mathType The mathematical type of the fee.
   /// @param _allocations The allocations for the fee.
   /// @dev Only an admin can call this function.
-  function setFee(
-    FeeType _feeType,
-    uint256 _value,
-    FeeMath _mathType,
-    uint256[] calldata _allocations
-  ) external;
+  function setFee(FeeType _feeType, uint256 _value, uint256[] calldata _allocations) external;
 
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.

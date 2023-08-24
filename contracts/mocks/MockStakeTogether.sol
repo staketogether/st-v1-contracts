@@ -644,13 +644,11 @@ contract MockStakeTogether is
   /// @notice Sets the fee for a given fee type.
   /// @param _feeType The type of fee to set.
   /// @param _value The value of the fee.
-  /// @param _mathType The mathematical type of the fee.
   /// @param _allocations The allocations for the fee.
   /// @dev Only an admin can call this function.
   function setFee(
     FeeType _feeType,
     uint256 _value,
-    FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
     require(_allocations.length == 4, 'IL'); // IL = Invalid Length
@@ -663,9 +661,8 @@ contract MockStakeTogether is
     require(sum == 1 ether, 'SI'); // SI = Sum Invalid
 
     fees[_feeType].value = _value;
-    fees[_feeType].mathType = _mathType;
 
-    emit SetFee(_feeType, _value, _mathType, _allocations);
+    emit SetFee(_feeType, _value, _allocations);
   }
 
   /// @notice Distributes fees according to their type, amount, and the destination.

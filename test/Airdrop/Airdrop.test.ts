@@ -235,19 +235,25 @@ describe('Airdrop', function () {
       const index0 = 0n
       const index1 = 1n
 
+      // 1
       const values: [bigint, string, bigint][] = [
         [index0, user5.address, 50000000000000n],
         [index1, user2.address, 25000000000000n],
       ]
 
+      // 2
       const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
 
       const proof1 = tree.getProof([index0, user5.address, 50000000000000n])
+
       const proof2 = tree.getProof([index1, user2.address, 25000000000000n])
 
       await airdrop.connect(owner).setRouter(owner.address)
+
+      // 3
       await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
 
+      // 4
       await expect(airdrop.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1))
         .to.emit(airdrop, 'Claim')
         .withArgs(epoch, index0, user5.address, 50000000000000n, proof1)
@@ -282,6 +288,7 @@ describe('Airdrop', function () {
 
     it('should revert if the account address is zero', async function () {
       const epoch = 1
+
       const index0 = 0n
       const index1 = 1n
 

@@ -1732,20 +1732,20 @@ describe('Stake Together', function () {
     it('should only allow admin to set fee', async function () {
       const feeValue = ethers.parseEther('0.05')
       const allocations = [250000, 250000, 250000, 250000]
-      await expect(stakeTogether.connect(user1).setFee(0, feeValue, 0, allocations)).to.be.reverted
+      await expect(stakeTogether.connect(user1).setFee(0, feeValue, allocations)).to.be.reverted
     })
 
     it('should require allocations length to be 4', async function () {
       const feeValue = ethers.parseEther('0.05')
       const allocations = [250000, 250000, 250000, 250000]
-      await expect(stakeTogether.connect(owner).setFee(1, feeValue, 1, [250000])).to.be.revertedWith('IL')
+      await expect(stakeTogether.connect(owner).setFee(1, feeValue, [250000])).to.be.revertedWith('IL')
     })
 
     it('should require sum of allocations to be 1 ether', async function () {
       const feeValue = ethers.parseEther('0.05')
       const allocations = [250000, 250000, 250000, 250000]
       await expect(
-        stakeTogether.connect(owner).setFee(2, feeValue, 0, [250000, 250000, 250000, 300000]),
+        stakeTogether.connect(owner).setFee(2, feeValue, [250000, 250000, 250000, 300000]),
       ).to.be.revertedWith('IS')
     })
 
@@ -1760,37 +1760,32 @@ describe('Stake Together', function () {
 
       const feeType = 3
 
-      const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, 0, allocations)
+      const tx = await stakeTogether.connect(owner).setFee(feeType, feeValue, allocations)
 
-      await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, 0, allocations)
+      await expect(tx).to.emit(stakeTogether, 'SetFee').withArgs(feeType, feeValue, allocations)
     })
 
     describe('Revert', function () {
       beforeEach(async function () {
-        await stakeTogether.setFee(0n, ethers.parseEther('0.003'), 1n, [
+        await stakeTogether.setFee(0n, ethers.parseEther('0.003'), [
           ethers.parseEther('0.6'),
           0n,
           ethers.parseEther('0.4'),
           0n,
         ])
-        await stakeTogether.setFee(1n, ethers.parseEther('0.09'), 1n, [
+        await stakeTogether.setFee(1n, ethers.parseEther('0.09'), [
           ethers.parseEther('0.33'),
           ethers.parseEther('0.33'),
           ethers.parseEther('0.34'),
           0n,
         ])
-        await stakeTogether.setFee(2n, ethers.parseEther('1'), 0n, [
+        await stakeTogether.setFee(2n, ethers.parseEther('1'), [
           ethers.parseEther('0.4'),
           0n,
           ethers.parseEther('0.6'),
           0n,
         ])
-        await stakeTogether.setFee(3n, ethers.parseEther('0.01'), 0n, [
-          0n,
-          0n,
-          ethers.parseEther('1'),
-          0n,
-        ])
+        await stakeTogether.setFee(3n, ethers.parseEther('0.01'), [0n, 0n, ethers.parseEther('1'), 0n])
       })
     })
   })
