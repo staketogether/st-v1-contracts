@@ -502,10 +502,12 @@ contract StakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    // Todo: Validate if validator already exists
-    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
+    require(validatorsOracleIndices[_account] == 0, 'VE'); // VE = Validator Exists
+
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
+
+    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
     emit AddValidatorOracle(_account);
   }
 
