@@ -345,13 +345,14 @@ contract StakeTogether is
   /// @param _referral The referral address.
   function _depositBase(address _to, DepositType _depositType, address _referral) private {
     require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
+    require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
     require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
       emit DepositLimitReached(_to, msg.value);
-      revert('DLR');
+      revert('DLR'); // DLR = Deposit Limit Reached
     }
 
     _processStakeEntry(_to, msg.value);
