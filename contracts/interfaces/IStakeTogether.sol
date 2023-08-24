@@ -191,6 +191,10 @@ interface IStakeTogether {
   /// @param newValidatorSize The new size for the validator
   event SetValidatorSize(uint256 newValidatorSize);
 
+  /// @notice Emitted when the withdraw balance is set
+  /// @param amount The amount set for the withdraw balance
+  event SetWithdrawBalance(uint256 amount);
+
   /// @notice Emitted when the withdrawal credentials are set
   /// @param withdrawalCredentials The withdrawal credentials bytes
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
@@ -364,6 +368,11 @@ interface IStakeTogether {
   /// @param _amount The amount to set as the beacon balance.
   /// @dev Only the router address can call this function.
   function setBeaconBalance(uint256 _amount) external payable;
+
+  /// @notice Sets the pending withdraw balance to the specified amount.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  /// @dev Only the router address can call this function.
+  function setWithdrawBalance(uint256 _amount) external payable;
 
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The external key of the validator.

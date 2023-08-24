@@ -47,6 +47,8 @@ contract MockStakeTogether is
 
   bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
+  uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
+
   Config public config; /// Configuration settings for the protocol.
 
   mapping(address => uint256) public shares; /// Mapping of addresses to their shares.
@@ -153,7 +155,7 @@ contract MockStakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    return address(this).balance + beaconBalance;
+    return address(this).balance + beaconBalance - withdrawBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -345,13 +347,14 @@ contract MockStakeTogether is
   /// @param _referral The referral address.
   function _depositBase(address _to, DepositType _depositType, address _referral) private {
     require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
+    require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
     require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
       emit DepositLimitReached(_to, msg.value);
-      revert('DLR');
+      revert('DLR'); // DLR = Deposit Limit Reached
     }
 
     _processStakeEntry(_to, msg.value);
@@ -425,7 +428,7 @@ contract MockStakeTogether is
     require(_amount <= beaconBalance, 'IB'); // IB = Insufficient Balance
     _withdrawBase(_amount, WithdrawType.Validator);
     _updateDelegations(msg.sender, _delegations);
-    _setBeaconBalance(beaconBalance - _amount);
+    _setWithdrawBalance(withdrawBalance + _amount);
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -445,12 +448,12 @@ contract MockStakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
-  function addPool(address _pool, bool _listed) external payable nonReentrant {
+  function addPool(address _pool, bool _listed) external payable nonReentrant whenNotPaused {
     require(_pool != address(0), 'ZA'); // ZA = Zero Address
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      require(msg.value == fees[FeeType.StakePool].value, 'IV'); // IA = Invalid Value
+      require(msg.value == fees[FeeType.StakePool].value, 'IV'); // IV = Invalid Value
       _processStakePool();
     }
     pools[_pool] = true;
@@ -459,7 +462,7 @@ contract MockStakeTogether is
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
-  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
+  function removePool(address _pool) external whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     require(pools[_pool], 'PNF');
     pools[_pool] = false;
     emit RemovePool(_pool);
@@ -501,9 +504,12 @@ contract MockStakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
+    require(validatorsOracleIndices[_account] == 0, 'VE'); // VE = Validator Exists
+
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
+
+    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
     emit AddValidatorOracle(_account);
   }
 
@@ -569,6 +575,21 @@ contract MockStakeTogether is
     emit SetBeaconBalance(_amount);
   }
 
+  /// @notice Sets the pending withdraw balance to the specified amount.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  /// @dev Only the router address can call this function.
+  function setWithdrawBalance(uint256 _amount) external payable nonReentrant {
+    require(msg.sender == address(router), 'OR'); // Only Router
+    _setWithdrawBalance(_amount);
+  }
+
+  /// @notice Internal function to set the pending withdraw balance.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  function _setWithdrawBalance(uint256 _amount) private {
+    withdrawBalance = _amount;
+    emit SetWithdrawBalance(_amount);
+  }
+
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.
@@ -584,8 +605,8 @@ contract MockStakeTogether is
     require(!validators[_publicKey], 'VE');
     _processStakeValidator();
     _setBeaconBalance(beaconBalance + config.validatorSize);
-    validators[_publicKey] = true;
     _nextValidatorOracle();
+    validators[_publicKey] = true;
     depositContract.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
@@ -658,7 +679,7 @@ contract MockStakeTogether is
       sum += _allocations[i];
     }
 
-    require(sum == 1 ether, 'SI'); // SI = Sum Invalid
+    require(sum == 1 ether, 'IS'); // IS = Invalid Sum
 
     fees[_feeType].value = _value;
 

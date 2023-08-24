@@ -32,6 +32,7 @@ describe('Router', function () {
   let ADMIN_ROLE: string
   let ORACLE_REPORT_MANAGER_ROLE: string
   let ORACLE_SENTINEL_ROLE: string
+  let VALIDATOR_ORACLE_MANAGER_ROLE: string
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -57,6 +58,7 @@ describe('Router', function () {
     ADMIN_ROLE = fixture.ADMIN_ROLE
     ORACLE_REPORT_MANAGER_ROLE = fixture.ORACLE_REPORT_MANAGER_ROLE
     ORACLE_SENTINEL_ROLE = fixture.ORACLE_SENTINEL_ROLE
+    VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
   })
 
   describe('Upgrade', () => {
@@ -769,7 +771,7 @@ describe('Router', function () {
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
-        withdrawAmount: 100n,
+        withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
         routerExtraAmount: 55n,
         validatorsToRemove: [],
@@ -838,7 +840,7 @@ describe('Router', function () {
           profitAmount: 1000n,
           profitShares: 100n,
           lossAmount: 0n,
-          withdrawAmount: 100n,
+          withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
           routerExtraAmount: 55n,
           validatorsToRemove: [],
@@ -849,7 +851,7 @@ describe('Router', function () {
           profitAmount: 1500n,
           profitShares: 100n,
           lossAmount: 0n,
-          withdrawAmount: 200n,
+          withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
           routerExtraAmount: 30n,
           validatorsToRemove: [],
@@ -860,7 +862,7 @@ describe('Router', function () {
           profitAmount: 800n,
           profitShares: 100n,
           lossAmount: 0n,
-          withdrawAmount: 50n,
+          withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
           routerExtraAmount: 40n,
           validatorsToRemove: [],
@@ -900,7 +902,7 @@ describe('Router', function () {
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
-        withdrawAmount: 100n,
+        withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
         routerExtraAmount: 55n,
         validatorsToRemove: validatorsToRemove,
@@ -925,6 +927,46 @@ describe('Router', function () {
     })
 
     it('should reach consensus and execute the report, adding Merkle root', async function () {
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+
+      const poolSize = ethers.parseEther('32.1')
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      // Sending sufficient funds for pool size and validator size
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('32.1') })
+
+      // Creating the validator
+      const tx = await stakeTogether
+        .connect(oracle)
+        .createValidator(publicKey, signature, depositDataRoot)
+
+      // Deposit
+
+      const depositAmount = ethers.parseEther('2')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(delegations, referral, { value: depositAmount })
+      await tx1.wait()
+
+      const withdrawAmount = ethers.parseEther('0.1')
+
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations)
+
+      // Router
+
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       const oracles = [user1, user2, user3, user4, user5]
 

@@ -47,6 +47,8 @@ contract StakeTogether is
 
   bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
+  uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
+
   Config public config; /// Configuration settings for the protocol.
 
   mapping(address => uint256) public shares; /// Mapping of addresses to their shares.
@@ -105,6 +107,7 @@ contract StakeTogether is
 
     totalShares = 0;
     beaconBalance = 0;
+    withdrawBalance = 0;
     currentOracleIndex = 0;
 
     _mintShares(address(this), 1 ether);
@@ -153,7 +156,7 @@ contract StakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    return address(this).balance + beaconBalance;
+    return address(this).balance + beaconBalance - withdrawBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -423,10 +426,11 @@ contract StakeTogether is
     Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD'); // FD = Feature Disabled
-    require(_amount <= beaconBalance, 'IB'); // IB = Insufficient Balance
+    require(_amount <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
+    require(_amount > address(this).balance, 'WFP'); // Withdraw From Pool
     _withdrawBase(_amount, WithdrawType.Validator);
+    _setWithdrawBalance(withdrawBalance + _amount);
     _updateDelegations(msg.sender, _delegations);
-    _setBeaconBalance(beaconBalance - _amount);
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -571,6 +575,21 @@ contract StakeTogether is
   function _setBeaconBalance(uint256 _amount) private {
     beaconBalance = _amount;
     emit SetBeaconBalance(_amount);
+  }
+
+  /// @notice Sets the pending withdraw balance to the specified amount.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  /// @dev Only the router address can call this function.
+  function setWithdrawBalance(uint256 _amount) external payable nonReentrant {
+    require(msg.sender == address(router), 'OR'); // Only Router
+    _setWithdrawBalance(_amount);
+  }
+
+  /// @notice Internal function to set the pending withdraw balance.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  function _setWithdrawBalance(uint256 _amount) private {
+    withdrawBalance = _amount;
+    emit SetWithdrawBalance(_amount);
   }
 
   /// @notice Creates a new validator with the given parameters.

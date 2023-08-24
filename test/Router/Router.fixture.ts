@@ -223,6 +223,8 @@ export async function routerFixture() {
   const ADMIN_ROLE = await router.routerContract.ADMIN_ROLE()
   const ORACLE_REPORT_MANAGER_ROLE = await router.routerContract.ORACLE_REPORT_MANAGER_ROLE()
   const ORACLE_SENTINEL_ROLE = await router.routerContract.ORACLE_SENTINEL_ROLE()
+  const VALIDATOR_ORACLE_MANAGER_ROLE =
+    await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_MANAGER_ROLE()
 
   return {
     provider,
@@ -248,5 +250,6 @@ export async function routerFixture() {
     ADMIN_ROLE,
     ORACLE_REPORT_MANAGER_ROLE,
     ORACLE_SENTINEL_ROLE,
+    VALIDATOR_ORACLE_MANAGER_ROLE,
   }
 }

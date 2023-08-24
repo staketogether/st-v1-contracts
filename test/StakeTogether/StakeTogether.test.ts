@@ -1183,7 +1183,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations),
-      ).to.be.revertedWith('IB')
+      ).to.be.revertedWith('IBB')
     })
 
     it('should allow the router to withdraw a refund', async function () {

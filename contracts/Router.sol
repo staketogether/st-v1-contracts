@@ -297,6 +297,7 @@ contract Router is
     }
 
     if (_report.withdrawAmount > 0) {
+      stakeTogether.setWithdrawBalance(stakeTogether.withdrawBalance() - _report.withdrawAmount);
       withdrawals.receiveWithdrawEther{ value: _report.withdrawAmount }();
     }
 
@@ -362,6 +363,7 @@ contract Router is
       _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
       'NOT_ENOUGH_BEACON_BALANCE'
     );
+    require(_report.withdrawAmount <= stakeTogether.withdrawBalance(), 'NOT_ENOUGH_WITHDRAW_BALANCE');
     require(
       address(this).balance >=
         (_report.profitAmount +

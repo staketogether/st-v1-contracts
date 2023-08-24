@@ -294,6 +294,7 @@ contract MockRouter is
     }
 
     if (_report.withdrawAmount > 0) {
+      stakeTogether.setWithdrawBalance(stakeTogether.withdrawBalance() - _report.withdrawAmount);
       withdrawals.receiveWithdrawEther{ value: _report.withdrawAmount }();
     }
 
@@ -380,6 +381,10 @@ contract MockRouter is
 
   function setBeaconBalance(uint256 _amount) external payable {
     stakeTogether.setBeaconBalance(_amount);
+  }
+
+  function setWithdrawBalance(uint256 _amount) external payable {
+    stakeTogether.setWithdrawBalance(_amount);
   }
 
   function processStakeRewards(uint256 _sharesAmount) external payable {
