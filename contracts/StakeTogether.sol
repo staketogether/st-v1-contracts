@@ -653,6 +653,7 @@ contract StakeTogether is
   /// @param _address The address to set.
   /// @dev Only an admin can call this function.
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
+    require(_address != address(0), 'ZA'); // ZA = Zero Address
     feesRole[_role] = _address;
     emit SetFeeAddress(_role, _address);
   }
