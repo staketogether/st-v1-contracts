@@ -331,6 +331,7 @@ contract Router is
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
     emit RevokeConsensusReport(_reportBlock);
+    _advanceNextReportBlock();
   }
 
   /// @notice Set the last epoch for which a consensus was executed.

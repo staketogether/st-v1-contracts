@@ -760,9 +760,38 @@ describe('Router', function () {
         await router.connect(oracle).submitReport(report)
       }
 
-      await router.connect(owner).revokeConsensusReport(reportBlock)
+      const tx = await router.connect(owner).revokeConsensusReport(reportBlock)
+      await tx.wait()
+      expect(tx).to.emit(router, 'RevokeConsensusReport')
 
-      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('REVOKED_REPORT')
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('REPORT_NOT_CONSENSUS')
+
+      await advanceBlocks(1000)
+
+      const report2 = {
+        epoch: 3n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 0n,
+        profitShares: 0n,
+        lossAmount: 0n,
+        withdrawAmount: 0n,
+        withdrawRefundAmount: 0n,
+        routerExtraAmount: 0n,
+        validatorsToRemove: [],
+      }
+
+      await router.connect(user1).submitReport(report2)
+      await router.connect(user2).submitReport(report2)
+      await router.connect(user3).submitReport(report2)
+      await router.connect(user4).submitReport(report2)
+      await router.connect(user5).submitReport(report2)
+
+      await advanceBlocks(300)
+
+      const tx2 = await router.connect(user1).executeReport(report2)
+      await tx.wait()
+
+      expect(tx2).to.emit(router, 'ExecuteReport')
     })
 
     it('should reach consensus and execute five reports sequentially', async function () {
