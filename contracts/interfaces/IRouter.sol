@@ -16,7 +16,7 @@ interface IRouter {
   struct Config {
     bool bunkerMode;
     uint256 reportFrequency;
-    uint256 reportDelayBlocks;
+    uint256 reportDelayBlock;
     uint256 oracleBlackListLimit;
     uint256 oracleQuorum;
   }
@@ -54,17 +54,17 @@ interface IRouter {
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusApprove(Report report, bytes32 hash);
+  event ConsensusApprove(uint256 reportBlock, Report report, bytes32 hash);
 
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusFail(Report report, bytes32 hash);
+  event ConsensusFail(uint256 reportBlock, Report report, bytes32 hash);
 
   /// @notice Emitted when a report is executed.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ExecuteReport(Report report, bytes32 hash);
+  event ExecuteReport(uint256 reportBlock, Report report, bytes32 hash);
 
   /// @notice Emitted when the contract receives ether.
   /// @param amount The amount of ether received.
@@ -90,7 +90,7 @@ interface IRouter {
 
   /// @notice Emitted when the last consensus block is set.
   /// @param epoch The block number set as the last consensus epoch.
-  event SetLastConsensusEpoch(uint256 epoch);
+  event SetLastExecutedEpoch(uint256 epoch);
 
   /// @notice Emitted when the StakeTogether address is set.
   /// @param stakeTogether The address of the StakeTogether contract.
@@ -146,12 +146,10 @@ interface IRouter {
 
   /// @notice Checks if an address is an active report oracle.
   /// @param _account Address of the oracle to be checked.
-  /// @return A boolean indicating if the address is an active report oracle.
-  function isReportOracle(address _account) external view returns (bool);
+  function isReportOracle(address _account) external returns (bool);
 
   /// @notice Checks if a report oracle is blacklisted.
   /// @param _account Address of the oracle to be checked.
-  /// @return A boolean indicating if the address is a blacklisted report oracle.
   function isReportOracleBlackListed(address _account) external view returns (bool);
 
   /// @notice Adds a new report oracle.
@@ -184,11 +182,7 @@ interface IRouter {
   /// @param _account Address of the sentinel account to be removed.
   function removeSentinel(address _account) external;
 
-  /// @notice Allows an active report oracle to submit a new report for a given epoch.
-  /// @dev Ensures report submission conditions are met.
-  /// @param _epoch The epoch for which the report is submitted.
-  /// @param _report The data structure containing report details.
-  function submitReport(uint256 _epoch, Report calldata _report) external;
+  function submitReport(Report calldata _report) external;
 
   /// @notice Allows an active report oracle to execute an approved report.
   /// @dev Executes the actions based on the consensus-approved report.
@@ -197,30 +191,26 @@ interface IRouter {
 
   /// @notice Computes and returns the hash of a given report.
   /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
   function getReportHash(Report calldata _report) external pure returns (bytes32);
 
-  /// @notice Revokes a consensus-approved report for a given epoch.
+  // @notice Revokes a consensus-approved report for a given epoch.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _epoch The epoch for which the report was approved.
+  /// @param _reportBlock The epoch for which the report was approved.
   /// @param _hash The hash of the report that needs to be revoked.
-  function revokeConsensusReport(uint256 _epoch, bytes32 _hash) external;
+  function revokeConsensusReport(uint256 _reportBlock, bytes32 _hash) external;
 
   /// @notice Set the last epoch for which a consensus was reached.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
   /// @param _epoch The last epoch for which consensus was reached.
-  function setLastConsensusBlock(uint256 _epoch) external;
+  function setLastExecutedEpoch(uint256 _epoch) external;
 
   /// @notice Validates if conditions to submit a report for an epoch are met.
   /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.
-  /// @param _epoch The epoch for which the report is to be submitted.
   /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
-  function isReadyToSubmit(uint256 _epoch, Report calldata _report) external view returns (bytes32);
+  function isReadyToSubmit(Report calldata _report) external view returns (bytes32);
 
   /// @notice Validates if conditions to execute a report are met.
   /// @dev Verifies conditions like revoked reports, executed reports, consensus reports, and beacon balance.
   /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
   function isReadyToExecute(Report calldata _report) external view returns (bytes32);
 }

@@ -108,14 +108,14 @@ contract Airdrop is
    **************/
 
   /// @notice Adds a new Merkle root for a given epoch.
-  /// @param _reportBlock The epoch number.
-  /// @param _merkleRoot The Merkle root.
+  /// @param _reportBlock The block number.
+  /// @param _root The Merkle root.
   /// @dev Only callable by the router.
-  function addMerkleRoot(uint256 _reportBlock, bytes32 _merkleRoot) external nonReentrant whenNotPaused {
+  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'ONLY_ROUTER');
-    require(merkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
-    merkleRoots[_epoch] = _merkleRoot;
-    emit AddMerkleRoot(_epoch, _merkleRoot);
+    require(merkleRoots[_reportBlock] == bytes32(0), 'ROOT_ALREADY_SET_FOR_BLOCK');
+    merkleRoots[_reportBlock] = _root;
+    emit AddMerkleRoot(_reportBlock, _root);
   }
 
   /// @notice Claims a reward for a specific epoch.
