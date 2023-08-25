@@ -134,14 +134,7 @@ contract Router is
   /// @param _config A struct containing various configuration parameters.
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
-    if (config.reportDelayBlock < 300) {
-      config.reportDelayBlock = 300;
-    } else {
-      config.reportDelayBlock = config.reportDelayBlock;
-    }
-
     require(config.reportDelayBlock < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
-
     emit SetConfig(_config);
   }
 
@@ -259,7 +252,6 @@ contract Router is
 
       uint remainingOracles = totalReportOracles - totalVotes[reportBlock];
       if ((config.oracleQuorum - reportVotesForBlock[reportBlock][hash]) > remainingOracles) {
-        emit ConsensusFail(reportBlock, _report, hash);
         emit ConsensusFail(reportBlock, _report, hash);
         _advanceNextReportBlock();
       }

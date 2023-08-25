@@ -174,24 +174,6 @@ describe('Router', function () {
         // Attempt to set config by non-owner should fail
         await expect(router.connect(user1).setConfig(config)).to.be.reverted
       })
-
-      it('should enforce reportDelayBlock to be at least 300', async function () {
-        const config = {
-          bunkerMode: false,
-          reportDelayBlock: 200,
-
-          oracleBlackListLimit: 3,
-          reportFrequency: 1000,
-          oracleQuorum: 5,
-        }
-
-        // Set config by owner
-        await router.connect(owner).setConfig(config)
-
-        // Verify if the configuration enforces the minimum value
-        const updatedConfig = await router.config()
-        expect(updatedConfig.reportDelayBlock).to.equal(300)
-      })
     })
   })
 
