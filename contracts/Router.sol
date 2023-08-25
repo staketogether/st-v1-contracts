@@ -112,7 +112,7 @@ contract Router is
 
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
-  receive() external payable {
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.value);
   }
 
