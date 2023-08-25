@@ -196,7 +196,7 @@ contract Router is
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _account Address of the oracle to be blacklisted.
   function blacklistReportOracle(address _account) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(reportOracles[_account], 'REPORT_ORACLE_EXISTS');
+    require(reportOracles[_account], 'REPORT_ORACLE_NOT_EXISTS');
     reportOraclesBlacklist[_account] = true;
     if (totalReportOracles > 0) {
       totalReportOracles--;
