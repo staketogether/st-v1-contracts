@@ -270,7 +270,10 @@ contract Router is
         emit ConsensusApprove(_report, hash);
       } else {
         emit ConsensusNotReached(_report, hash);
-        if (reportsBlockCount[currentBlockReport] >= config.oracleQuorum) {
+        uint256 remainingOracles = totalReportOracles - reportsBlockCount[_epoch];
+        bool canStillReachConsensus = (remainingOracles + reportVotes[_epoch][hash]) >=
+          config.oracleQuorum;
+        if (!canStillReachConsensus) {
           uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
           currentBlockReport = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
           emit AdvanceNextBlock(_epoch, currentBlockReport, intervalsPassed);
