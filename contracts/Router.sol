@@ -180,7 +180,6 @@ contract Router is
     reportOracles[_account] = true;
     totalReportOracles++;
     emit AddReportOracle(_account);
-    _updateQuorum();
   }
 
   /// @notice Removes an existing report oracle.
@@ -192,14 +191,6 @@ contract Router is
     reportOracles[_account] = false;
     totalReportOracles--;
     emit RemoveReportOracle(_account);
-    _updateQuorum();
-  }
-
-  /// @dev Updates the quorum required for oracle consensus.
-  function _updateQuorum() private {
-    uint256 newQuorum = MathUpgradeable.mulDiv(totalReportOracles, 3, 5);
-    config.oracleQuorum = newQuorum < config.minOracleQuorum ? config.minOracleQuorum : newQuorum;
-    emit UpdateReportOracleQuorum(newQuorum);
   }
 
   /// @notice Blacklists a report oracle.
@@ -276,7 +267,7 @@ contract Router is
         if (!canStillReachConsensus) {
           uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
           currentBlockReport = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
-          emit AdvanceNextBlock(_epoch, currentBlockReport, intervalsPassed);
+          emit AdvanceNextBlock(_epoch, currentBlockReport);
         }
       }
     }
@@ -292,7 +283,7 @@ contract Router is
 
     uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
     currentBlockReport = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
-    emit AdvanceNextBlock(_report.epoch, currentBlockReport, intervalsPassed);
+    emit AdvanceNextBlock(_report.epoch, currentBlockReport);
 
     executedReports[_report.epoch][hash] = true;
     lastExecutedEpoch = _report.epoch;
@@ -363,7 +354,7 @@ contract Router is
   function isReadyToSubmit(uint256 _epoch, Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
     require(block.number > currentBlockReport, 'BLOCK_NUMBER_NOT_REACHED');
-    require(totalReportOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(totalReportOracles >= config.oracleQuorum, 'ORACLE_QUORUM_NOT_REACHED');
     require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
     require(!reportOracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
@@ -382,7 +373,7 @@ contract Router is
     require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
     require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
-    require(totalReportOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(totalReportOracles >= config.oracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
     require(block.number >= reportDelayBlocks[hash] + config.reportDelayBlocks, 'TOO_EARLY_TO_EXECUTE');
     require(
       _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),

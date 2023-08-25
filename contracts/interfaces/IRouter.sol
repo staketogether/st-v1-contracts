@@ -19,7 +19,6 @@ interface IRouter {
     uint256 reportDelayBlocks;
     uint256 oracleBlackListLimit;
     uint256 oracleQuorum;
-    uint256 minOracleQuorum;
   }
 
   /// @dev Report structure used for reporting the state of the protocol at different epochs.
@@ -96,7 +95,7 @@ interface IRouter {
   /// @notice Emitted when the next report frequency is skipped.
   /// @param epoch The epoch for which the report frequency was skipped.
   /// @param blockNumber The block number at which the report frequency was skipped.
-  event AdvanceNextBlock(uint256 indexed epoch, uint256 indexed blockNumber, uint256 intervalsPassed);
+  event AdvanceNextBlock(uint256 indexed epoch, uint256 indexed blockNumber);
 
   /// @notice Emitted when a report is submitted.
   /// @param report The details of the submitted report.
@@ -106,10 +105,6 @@ interface IRouter {
   /// @notice Emitted when an oracle is unblacklisted.
   /// @param reportOracle The address of the oracle that was unblacklisted.
   event UnBlacklistReportOracle(address indexed reportOracle);
-
-  /// @notice Emitted when the oracle quorum is updated.
-  /// @param quorum The updated oracle quorum value.
-  event UpdateReportOracleQuorum(uint256 quorum);
 
   /// @notice Emitted when validators are set to be removed.
   /// @param epoch The epoch at which validators are set to be removed.

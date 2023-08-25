@@ -147,7 +147,7 @@ describe('Router', function () {
         const config = {
           bunkerMode: false,
           reportDelayBlocks: 300,
-          minOracleQuorum: 5,
+
           oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
@@ -165,7 +165,7 @@ describe('Router', function () {
         const config = {
           bunkerMode: false,
           reportDelayBlocks: 60,
-          minOracleQuorum: 5,
+
           oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
@@ -179,7 +179,7 @@ describe('Router', function () {
         const config = {
           bunkerMode: false,
           reportDelayBlocks: 200,
-          minOracleQuorum: 5,
+
           oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
@@ -261,129 +261,6 @@ describe('Router', function () {
       await expect(router.connect(owner).removeReportOracle(nonExistingOracle)).to.be.revertedWith(
         'REPORT_ORACLE_NOT_EXISTS',
       )
-    })
-  })
-
-  describe('_updateQuorum', function () {
-    beforeEach(async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      await router.connect(owner).addReportOracle(user2.address)
-      await router.connect(owner).addReportOracle(user3.address)
-      await router.connect(owner).addReportOracle(user4.address)
-      // Total active oracles: 3 (user2, user3, user4)
-    })
-
-    it('should update the quorum as expected min quorum', async function () {
-      await router.connect(owner).removeReportOracle(user2.address)
-      await router.connect(owner).removeReportOracle(user3.address)
-      await router.connect(owner).removeReportOracle(user4.address)
-
-      const currentQuorum = (await router.config()).oracleQuorum
-      const minOracleQuorum = (await router.config()).minOracleQuorum
-
-      expect(currentQuorum).to.equal(minOracleQuorum)
-    })
-
-    it('should update the quorum as expected when total reports increase', async function () {
-      // Incrementing totalOracles by adding another oracle (user5), totalOracles becomes 4
-      await router.connect(owner).addReportOracle(user5.address)
-
-      await router.connect(owner).removeReportOracle(user2.address)
-
-      const currentConfig = await router.config()
-      const currentQuorum = currentConfig.oracleQuorum
-      const expectedNewQuorum = Math.floor((4 * 3) / 5) // 60% of total active oracles (4)
-      const minOracleQuorum = (await router.config()).minOracleQuorum
-
-      // If the newQuorum is lower than minOracleQuorum, use minOracleQuorum instead
-      const expectedQuorum = Math.max(expectedNewQuorum, Number(minOracleQuorum))
-
-      expect(currentQuorum).to.equal(expectedQuorum)
-    })
-
-    it('should update the quorum as expected when adding and removing oracles', async function () {
-      // Adding 5 more oracles (totalOracles becomes 8)
-      await router.connect(owner).addReportOracle(user6.address)
-      await router.connect(owner).addReportOracle(user7.address)
-      await router.connect(owner).addReportOracle(user8.address)
-      await router.connect(owner).addReportOracle(user1.address)
-      await router.connect(owner).addReportOracle(owner.address)
-
-      // Get the updated quorum after adding oracles
-      const updatedQuorumAfterAdd = (await router.config()).oracleQuorum
-
-      // Removing 3 oracles (totalOracles becomes 5)
-      await router.connect(owner).removeReportOracle(user6.address)
-
-      // Get the updated quorum after removing oracles
-      const updatedQuorumAfterRemove = (await router.config()).oracleQuorum
-
-      const currentConfig = await router.config()
-      const expectedNewQuorum = Math.floor((5 * 3) / 5) // 60% of total active oracles (5)
-      const minOracleQuorum = currentConfig.minOracleQuorum
-
-      // If the newQuorum is lower than minOracleQuorum, use minOracleQuorum instead
-      const expectedQuorum = Math.max(expectedNewQuorum, Number(minOracleQuorum))
-
-      // Verify that the current quorum matches the expected quorum after adding oracles
-      expect(updatedQuorumAfterAdd).to.equal(expectedQuorum)
-
-      // Verify that the current quorum matches the expected quorum after removing oracles
-      expect(updatedQuorumAfterRemove).to.equal(expectedQuorum)
-    })
-
-    it('should update the quorum to minimum threshold when total reports decrease below minimum', async function () {
-      // Removing all oracles except one (user4), totalOracles becomes 1
-      await router.connect(owner).removeReportOracle(user2.address)
-      await router.connect(owner).removeReportOracle(user3.address)
-
-      const currentQuorum = (await router.config()).oracleQuorum
-      const expectedNewQuorum = (await router.config()).minOracleQuorum
-
-      expect(currentQuorum).to.equal(expectedNewQuorum)
-    })
-
-    it('should update the quorum as expected when having only 1 oracle and min quorum is 1', async function () {
-      await router.connect(owner).removeReportOracle(user2.address)
-      await router.connect(owner).removeReportOracle(user3.address)
-      await router.connect(owner).removeReportOracle(user4.address)
-
-      const config = {
-        bunkerMode: false,
-        reportDelayBlocks: 60,
-        minOracleQuorum: 1, // Set minOracleQuorum to 1 for this test
-        oracleBlackListLimit: 3,
-        reportFrequency: 1000,
-        oracleQuorum: 5,
-      }
-
-      // Set config by owner
-      await connect(router, owner).setConfig(config)
-
-      // Adding 1 oracle (totalOracles becomes 1)
-      await router.connect(owner).addReportOracle(user1.address)
-
-      // Get the updated quorum after adding the oracle
-      const updatedQuorumAfterAdd = (await router.config()).oracleQuorum
-
-      // Removing the oracle (totalOracles becomes 0)
-      await router.connect(owner).removeReportOracle(user1.address)
-
-      // Get the updated quorum after removing the oracle
-      const updatedQuorumAfterRemove = (await router.config()).oracleQuorum
-
-      const currentConfig = await router.config()
-      const expectedNewQuorum = Math.floor((0 * 3) / 5) // 60% of total active oracles (0)
-      const minOracleQuorum = currentConfig.minOracleQuorum
-
-      // If the newQuorum is lower than minOracleQuorum, use minOracleQuorum instead
-      const expectedQuorum = Math.max(expectedNewQuorum, Number(minOracleQuorum))
-
-      // Verify that the current quorum matches the expected quorum after adding the oracle
-      expect(updatedQuorumAfterAdd).to.equal(expectedQuorum)
-
-      // Verify that the current quorum matches the expected quorum after removing the oracle
-      expect(updatedQuorumAfterRemove).to.equal(expectedQuorum)
     })
   })
 
@@ -539,8 +416,6 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user5.address)
 
       const totalOracles = await router.totalReportOracles()
-
-      const minOracleQuorum = (await router.config()).minOracleQuorum
 
       report = {
         epoch: 0n,
@@ -769,6 +644,18 @@ describe('Router', function () {
     })
 
     it('should skip if consensus not achieved', async function () {
+      const config = {
+        bunkerMode: false,
+        reportDelayBlocks: 300,
+
+        oracleBlackListLimit: 3,
+        reportFrequency: 1000,
+        oracleQuorum: 3,
+      }
+
+      // Set config by owner
+      await connect(router, owner).setConfig(config)
+
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       const oracles = [user1, user2, user3, user4, user5]
 
@@ -777,7 +664,7 @@ describe('Router', function () {
       }
 
       const currentBlockReport = await router.currentBlockReport()
-      expect(currentBlockReport).to.equal(1035n)
+      expect(currentBlockReport).to.equal(1006n)
 
       report = {
         epoch: 2n,
@@ -791,15 +678,14 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
-      await advanceBlocks(1000)
+      await advanceBlocks(1100)
 
       await router.connect(user1).submitReport(report.epoch, report)
-      await router.connect(user2).submitReport(report.epoch, report)
 
       report = {
         epoch: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 10020n,
+        profitAmount: 10010n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
@@ -808,20 +694,17 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
-      await router.connect(user3).submitReport(report.epoch, report)
-      await router.connect(user4).submitReport(report.epoch, report)
-      const tx = await router.connect(user5).submitReport(report.epoch, report)
+      const tx = await router.connect(user2).submitReport(report.epoch, report)
       await tx.wait()
 
-      await expect(tx).to.emit(router, 'AdvanceNextBlock')
+      await expect(tx).to.emit(router, 'ConsensusNotReached')
 
-      const currentBlockReport2 = await router.currentBlockReport()
-      expect(currentBlockReport2).to.equal(2000n)
+      await advanceBlocks(1000)
 
       report = {
         epoch: 3n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 10020n,
+        profitAmount: 10010n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
@@ -831,7 +714,11 @@ describe('Router', function () {
       }
 
       await advanceBlocks(1000)
+
       await router.connect(user1).submitReport(report.epoch, report)
+      await router.connect(user2).submitReport(report.epoch, report)
+      const tx2 = await router.connect(user3).submitReport(report.epoch, report)
+      await expect(tx2).to.emit(router, 'ConsensusApproved')
     })
 
     it('should fail because of eth', async function () {
