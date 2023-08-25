@@ -347,8 +347,9 @@ contract MockStakeTogether is
   /// @param _referral The referral address.
   function _depositBase(address _to, DepositType _depositType, address _referral) private {
     require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
-    require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
+    require(msg.value > 0, 'ZA'); // ZA = Zero Amount
     require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
+    require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
 
     _resetLimits();
 
