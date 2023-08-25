@@ -605,16 +605,9 @@ contract StakeTogether is
     require(isValidatorOracle(msg.sender), 'OV');
     require(address(this).balance >= config.poolSize, 'NBP');
     require(!validators[_publicKey], 'VE');
-    _processStakeValidator();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    _nextValidatorOracle();
     validators[_publicKey] = true;
-    depositContract.deposit{ value: config.validatorSize }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
+    _nextValidatorOracle();
+    _setBeaconBalance(beaconBalance + config.validatorSize);
     emit CreateValidator(
       msg.sender,
       config.validatorSize,
@@ -623,6 +616,13 @@ contract StakeTogether is
       _signature,
       _depositDataRoot
     );
+    depositContract.deposit{ value: config.validatorSize }(
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+    _processStakeValidator();
   }
 
   /*************

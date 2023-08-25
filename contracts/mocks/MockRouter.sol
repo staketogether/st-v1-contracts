@@ -40,22 +40,22 @@ contract MockRouter is
   uint256 public totalReportOracles; /// Total number of reportOracles.
   mapping(address => bool) private reportOracles; /// Mapping to track oracle addresses.
   mapping(address => bool) public reportOraclesBlacklist; /// Mapping to track blacklisted reportOracles.
-  mapping(uint256 => mapping(address => bool)) private reportOracleVotes; /// Mapping to track oracle votes.
 
   mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports by epoch.
-  mapping(uint256 => mapping(address => bool)) reportBlocks; /// Mapping to track blocks for reports.
-  mapping(uint256 => uint256) public reportsBlockCount; /// Mapping to track block count for reports.
-  mapping(uint256 => mapping(bytes32 => uint256)) public reportVotes; /// Mapping to track votes for reports.
-  mapping(uint256 => bytes32) public consensusReport; /// Mapping to store consensus report by epoch.
+  mapping(uint256 => mapping(address => bool)) reportForBlock; /// Mapping to track blocks for reports.
+  mapping(uint256 => uint256) public totalVotes; // Mapping to track block report votes for reports.
+  mapping(uint256 => mapping(bytes32 => uint256)) public reportVotesForBlock; /// Mapping to track votes for reports.
+  mapping(uint256 => bytes32) public consensusReport; /// Mapping to store consensus report by block report.
   mapping(uint256 => mapping(bytes32 => bool)) public executedReports; /// Mapping to check if a report has been executed.
   mapping(uint256 => bool) public revokedReports; /// Mapping to check if a report has been revoked.
 
-  uint256 public currentBlockReport; /// The next block where a report is expected.
-  uint256 public lastConsensusEpoch; /// The last epoch where consensus was achieved.
-  uint256 public lastExecutedEpoch; /// The last epoch where a report was executed.
+  uint256 public reportBlock; /// The next block where a report is expected.
+  uint256 public lastConsensusBlock; /// The last block where consensus was achieved.
+  uint256 public lastExecutedBlock; /// The last block where a report was executed.
+  uint256 public lastExecutedEpoch; /// The last epoch where consensus was executed.
   bool public pendingExecution; /// Theres a report pending to be executed.
 
-  mapping(bytes32 => uint256) public reportDelayBlocks; /// Mapping to track the delay for reports.
+  mapping(uint256 => uint256) public reportDelayBlock; /// Mapping to track the delay for reports.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -66,11 +66,7 @@ contract MockRouter is
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(
-    address _airdrop,
-    address _withdrawals,
-    uint256 _reportFrequency
-  ) external initializer {
+  function initialize(address _airdrop, address _withdrawals) external initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -86,9 +82,11 @@ contract MockRouter is
     withdrawals = Withdrawals(payable(_withdrawals));
 
     totalReportOracles = 0;
-    currentBlockReport = block.number + _reportFrequency;
-    lastConsensusEpoch = 0;
-    lastExecutedEpoch = 0;
+    reportBlock = block.number;
+
+    lastConsensusBlock = 1;
+    lastExecutedBlock = 1;
+    lastExecutedEpoch = 1;
     pendingExecution = false;
   }
 
@@ -133,13 +131,13 @@ contract MockRouter is
   /// @param _config A struct containing various configuration parameters.
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
-    if (config.reportDelayBlocks < 300) {
-      config.reportDelayBlocks = 300;
+    if (config.reportDelayBlock < 300) {
+      config.reportDelayBlock = 300;
     } else {
-      config.reportDelayBlocks = config.reportDelayBlocks;
+      config.reportDelayBlock = config.reportDelayBlock;
     }
 
-    require(config.reportDelayBlocks < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
+    require(config.reportDelayBlock < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
 
     emit SetConfig(_config);
   }
@@ -233,36 +231,34 @@ contract MockRouter is
    ** REPORT **
    ************/
 
-  /// @notice Allows an active report oracle to submit a new report for a given epoch.
-  /// @dev Ensures report submission conditions are met.
-  /// @param _epoch The epoch for which the report is submitted.
-  /// @param _report The data structure containing report details.
-  function submitReport(
-    uint256 _epoch,
-    Report calldata _report
-  ) external nonReentrant whenNotPaused activeReportOracle {
-    bytes32 hash = isReadyToSubmit(_epoch, _report);
+  /// @notice Allows oracles to submit reports and attempts to achieve consensus.
+  /// @dev This function will count votes for each report, and if a consensus is reached or becomes impossible, appropriate events will be emitted.
+  /// It uses a combination of total votes and distinct report votes to determine consensus.
+  /// @param _report The report being submitted by the oracle.
+  function submitReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
+    bytes32 hash = isReadyToSubmit(_report);
 
-    if (block.number > currentBlockReport + config.reportFrequency) {
-      currentBlockReport += config.reportFrequency;
-      emit AdvanceNextBlock(_epoch, currentBlockReport);
-    }
+    reports[reportBlock][hash].push(msg.sender);
+    reportForBlock[reportBlock][msg.sender] = true;
+    reportVotesForBlock[reportBlock][hash]++;
+    totalVotes[reportBlock]++;
 
-    reports[_epoch][hash].push(msg.sender);
-    reportBlocks[currentBlockReport][msg.sender] = true;
-    reportsBlockCount[currentBlockReport]++;
-    reportVotes[_epoch][hash]++;
-    reportOracleVotes[_epoch][msg.sender] = true;
+    if (consensusReport[reportBlock] == bytes32(0)) {
+      if (totalVotes[reportBlock] >= config.oracleQuorum) {
+        if (reportVotesForBlock[reportBlock][hash] >= config.oracleQuorum) {
+          consensusReport[reportBlock] = hash;
+          lastConsensusBlock = reportBlock;
+          reportDelayBlock[reportBlock] = block.number;
+          pendingExecution = true;
+          emit ConsensusApprove(reportBlock, _report, hash);
+        }
+      }
 
-    if (consensusReport[_epoch] == bytes32(0)) {
-      if (reportVotes[_epoch][hash] >= config.oracleQuorum) {
-        consensusReport[_epoch] = hash;
-        lastConsensusEpoch = _report.epoch;
-        reportDelayBlocks[hash] = block.number;
-        pendingExecution = true;
-        emit ConsensusApprove(_report, hash);
-      } else {
-        emit ConsensusNotReached(_report, hash);
+      uint remainingOracles = totalReportOracles - totalVotes[reportBlock];
+      if ((config.oracleQuorum - reportVotesForBlock[reportBlock][hash]) > remainingOracles) {
+        emit ConsensusFail(reportBlock, _report, hash);
+        emit ConsensusFail(reportBlock, _report, hash);
+        _advanceNextReportBlock();
       }
     }
 
@@ -275,21 +271,21 @@ contract MockRouter is
   function executeReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToExecute(_report);
 
-    uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
-    currentBlockReport = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
-    emit AdvanceNextBlock(_report.epoch, currentBlockReport);
-
-    executedReports[_report.epoch][hash] = true;
+    executedReports[reportBlock][hash] = true;
+    lastExecutedBlock = reportBlock;
     lastExecutedEpoch = _report.epoch;
     pendingExecution = false;
-    emit ExecuteReport(_report, hash);
+    emit ExecuteReport(reportBlock, _report, hash);
+
+    uint256 currentReportBlock = reportBlock;
+    _advanceNextReportBlock();
 
     if (_report.validatorsToRemove.length > 0) {
-      emit ValidatorsToRemove(_report.epoch, _report.validatorsToRemove);
+      emit ValidatorsToRemove(currentReportBlock, _report.validatorsToRemove);
     }
 
     if (_report.merkleRoot != bytes32(0)) {
-      airdrop.addMerkleRoot(_report.epoch, _report.merkleRoot);
+      airdrop.addMerkleRoot(currentReportBlock, _report.merkleRoot);
     }
 
     if (_report.profitAmount > 0) {
@@ -314,6 +310,17 @@ contract MockRouter is
     }
   }
 
+  /// @notice Advances to the next report block based on the current block number and report frequency.
+  /// @dev Computes the next report block and updates the state variable 'reportBlock'.
+  /// @return The next report block number.
+  function _advanceNextReportBlock() private returns (uint256) {
+    uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
+    uint256 nextReportBlock = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
+    emit AdvanceNextBlock(reportBlock, nextReportBlock);
+    reportBlock = nextReportBlock;
+    return reportBlock;
+  }
+
   /// @notice Computes and returns the hash of a given report.
   /// @param _report The data structure containing report details.
   /// @return The keccak256 hash of the report.
@@ -321,39 +328,36 @@ contract MockRouter is
     return keccak256(abi.encode(_report));
   }
 
-  // @notice Revokes a consensus-approved report for a given epoch.
+  // @notice Revokes a consensus-approved report for a given report block.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _epoch The epoch for which the report was approved.
-  /// @param _hash The hash of the report that needs to be revoked.
-  function revokeConsensusReport(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(consensusReport[_epoch] == _hash, 'EPOCH_NOT_CONSENSUS');
-    revokedReports[_epoch] = true;
+  /// @param _reportBlock The report block for which the report was approved.
+  function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
+    require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
+    revokedReports[_reportBlock] = true;
     pendingExecution = false;
-    emit RevokeConsensusReport(block.number, _epoch, _hash);
+    emit RevokeConsensusReport(_reportBlock);
   }
 
-  /// @notice Set the last epoch for which a consensus was reached.
+  /// @notice Set the last epoch for which a consensus was executed.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
-  /// @param _epoch The last epoch for which consensus was reached.
-  function setLastConsensusEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
-    lastConsensusEpoch = _epoch;
-    emit SetLastConsensusEpoch(_epoch);
+  /// @param _epoch The last epoch for which consensus was executed.
+  function setLastExecutedEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
+    lastExecutedEpoch = _epoch;
+    emit SetLastExecutedEpoch(_epoch);
   }
 
-  /// @notice Validates if conditions to submit a report for an epoch are met.
-  /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.
-  /// @param _epoch The epoch for which the report is to be submitted.
+  /// @notice Validates if conditions to submit a report for an block report are met.
+  /// @dev Verifies conditions such as block number, consensus block report, executed reports, and oracle votes.
   /// @param _report The data structure containing report details.
   /// @return The keccak256 hash of the report.
-  function isReadyToSubmit(uint256 _epoch, Report calldata _report) public view returns (bytes32) {
+  function isReadyToSubmit(Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(block.number > currentBlockReport, 'BLOCK_NUMBER_NOT_REACHED');
     require(totalReportOracles >= config.oracleQuorum, 'ORACLE_QUORUM_NOT_REACHED');
-    require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
-    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
-    require(!reportOracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
-    require(!reportBlocks[currentBlockReport][msg.sender], 'ORACLE_ALREADY_REPORTED');
-    require(pendingExecution == false, 'PENDING_EXECUTION');
+    require(block.number > reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
+    require(_report.epoch > lastExecutedEpoch, 'EPOCH_SHOULD_BE_GREATER');
+    require(!executedReports[reportBlock][hash], 'REPORT_ALREADY_EXECUTED');
+    require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
+    require(!pendingExecution, 'PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
     return hash;
   }
@@ -364,11 +368,14 @@ contract MockRouter is
   /// @return The keccak256 hash of the report.
   function isReadyToExecute(Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
-    require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
-    require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
-    require(totalReportOracles >= config.oracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
-    require(block.number >= reportDelayBlocks[hash] + config.reportDelayBlocks, 'TOO_EARLY_TO_EXECUTE');
+    require(totalReportOracles >= config.oracleQuorum, 'ORACLE_QUORUM_NOT_REACHED');
+    require(!revokedReports[reportBlock], 'REVOKED_REPORT');
+    require(!executedReports[reportBlock][hash], 'REPORT_ALREADY_EXECUTED');
+    require(consensusReport[reportBlock] == hash, 'REPORT_NOT_CONSENSUS');
+    require(
+      block.number >= reportDelayBlock[reportBlock] + config.reportDelayBlock,
+      'TOO_EARLY_TO_EXECUTE'
+    );
     require(
       _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
       'NOT_ENOUGH_BEACON_BALANCE'
@@ -382,7 +389,7 @@ contract MockRouter is
           _report.routerExtraAmount),
       'NOT_ENOUGH_ETH'
     );
-    require(pendingExecution == true, 'NO_PENDING_EXECUTION');
+    require(pendingExecution, 'NO_PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
     return hash;
   }
