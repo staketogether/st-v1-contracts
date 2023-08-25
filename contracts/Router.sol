@@ -290,9 +290,9 @@ contract Router is
       stakeTogether.processStakeRewards{ value: _report.profitAmount }(_report.profitShares);
     }
 
-    if (_report.lossAmount > 0 || _report.withdrawRefundAmount > 0) {
+    if (_report.lossAmount > 0 || _report.withdrawAmount > 0 || _report.withdrawRefundAmount > 0) {
       uint256 updatedBalance = stakeTogether.beaconBalance() -
-        (_report.lossAmount + _report.withdrawRefundAmount);
+        (_report.lossAmount + _report.withdrawAmount + _report.withdrawRefundAmount);
       stakeTogether.setBeaconBalance{ value: _report.withdrawRefundAmount }(updatedBalance);
     }
 
