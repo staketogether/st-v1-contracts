@@ -10,6 +10,12 @@ import { routerFixture } from './Router.fixture'
 
 dotenv.config()
 
+async function advanceBlocks(blocks: number) {
+  for (let i = 0; i < blocks; i++) {
+    await ethers.provider.send('evm_mine')
+  }
+}
+
 describe('Router', function () {
   let router: Router
   let routerProxy: string
@@ -32,6 +38,7 @@ describe('Router', function () {
   let ADMIN_ROLE: string
   let ORACLE_REPORT_MANAGER_ROLE: string
   let ORACLE_SENTINEL_ROLE: string
+  let VALIDATOR_ORACLE_MANAGER_ROLE: string
 
   // Setting up the fixture before each test
   beforeEach(async function () {
@@ -57,6 +64,7 @@ describe('Router', function () {
     ADMIN_ROLE = fixture.ADMIN_ROLE
     ORACLE_REPORT_MANAGER_ROLE = fixture.ORACLE_REPORT_MANAGER_ROLE
     ORACLE_SENTINEL_ROLE = fixture.ORACLE_SENTINEL_ROLE
+    VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
   })
 
   describe('Upgrade', () => {
@@ -138,10 +146,10 @@ describe('Router', function () {
       it('should allow owner to set configuration', async function () {
         const config = {
           bunkerMode: false,
-          reportDelayBlocks: 600,
+          reportDelayBlocks: 300,
           minOracleQuorum: 5,
           oracleBlackListLimit: 3,
-          reportFrequency: 1,
+          reportFrequency: 1000,
           oracleQuorum: 5,
         }
 
@@ -156,10 +164,10 @@ describe('Router', function () {
       it('should not allow non-owner to set configuration', async function () {
         const config = {
           bunkerMode: false,
-          reportDelayBlocks: 600,
+          reportDelayBlocks: 60,
           minOracleQuorum: 5,
           oracleBlackListLimit: 3,
-          reportFrequency: 1,
+          reportFrequency: 1000,
           oracleQuorum: 5,
         }
 
@@ -173,7 +181,7 @@ describe('Router', function () {
           reportDelayBlocks: 200,
           minOracleQuorum: 5,
           oracleBlackListLimit: 3,
-          reportFrequency: 1,
+          reportFrequency: 1000,
           oracleQuorum: 5,
         }
 
@@ -342,10 +350,10 @@ describe('Router', function () {
 
       const config = {
         bunkerMode: false,
-        reportDelayBlocks: 600,
+        reportDelayBlocks: 60,
         minOracleQuorum: 1, // Set minOracleQuorum to 1 for this test
         oracleBlackListLimit: 3,
-        reportFrequency: 1,
+        reportFrequency: 1000,
         oracleQuorum: 5,
       }
 
@@ -515,6 +523,8 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
         'MIN_ORACLE_QUORUM_NOT_REACHED',
       )
@@ -528,7 +538,7 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user4.address)
       await router.connect(owner).addReportOracle(user5.address)
 
-      const totalOracles = await router.totalOracles()
+      const totalOracles = await router.totalReportOracles()
 
       const minOracleQuorum = (await router.config()).minOracleQuorum
 
@@ -544,6 +554,8 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
         'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS',
       )
@@ -557,9 +569,7 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user4.address)
       await router.connect(owner).addReportOracle(user5.address)
 
-      const totalOracles = await router.totalOracles()
-
-      const minOracleQuorum = (await router.config()).minOracleQuorum
+      const totalOracles = await router.totalReportOracles()
 
       report = {
         epoch: 1n,
@@ -573,10 +583,12 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.not.reverted
     })
 
-    it('should revert oracle already voted', async function () {
+    it('should revert oracle already voted on epoch', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       const oracles = [user1, user2, user3, user4, user5, user6]
 
@@ -596,12 +608,63 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       const tx1 = await router.connect(user1).submitReport(report.epoch, report)
       await expect(tx1).to.emit(router, 'SubmitReport')
       await expect(tx1).to.emit(router, 'ConsensusNotReached')
 
       await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
         'ORACLE_ALREADY_VOTED',
+      )
+    })
+
+    it('should revert oracle already voted on nextBlock report', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5, user6]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 100n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await advanceBlocks(1000)
+
+      const tx1 = await router.connect(user1).submitReport(report.epoch, report)
+      await expect(tx1).to.emit(router, 'SubmitReport')
+      await expect(tx1).to.emit(router, 'ConsensusNotReached')
+
+      report = {
+        epoch: 4n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 100n,
+        lossAmount: 500n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
+        'ORACLE_ALREADY_REPORTED',
+      )
+
+      await advanceBlocks(500)
+
+      await expect(router.connect(user1).submitReport(report.epoch, report)).to.be.revertedWith(
+        'ORACLE_ALREADY_REPORTED',
       )
     })
 
@@ -625,6 +688,8 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       const tx1 = await router.connect(user1).submitReport(report.epoch, report)
       await expect(tx1).to.emit(router, 'SubmitReport')
       await expect(tx1).to.emit(router, 'ConsensusNotReached')
@@ -644,18 +709,9 @@ describe('Router', function () {
       const tx5 = await router.connect(user5).submitReport(report.epoch, report)
       await expect(tx5).to.emit(router, 'SubmitReport')
       await expect(tx5).to.emit(router, 'ConsensusApprove')
-    })
 
-    it('should approve consensus', async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      const oracles = [user1, user2, user3, user4, user5, user6]
-
-      for (const oracle of oracles) {
-        await router.connect(owner).addReportOracle(oracle.address)
-      }
-
-      report = {
-        epoch: 2n,
+      const tempReport = {
+        epoch: 3n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
@@ -666,25 +722,15 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
-      const tx1 = await router.connect(user1).submitReport(report.epoch, report)
-      await expect(tx1).to.emit(router, 'SubmitReport')
-      await expect(tx1).to.emit(router, 'ConsensusNotReached')
+      await expect(router.connect(user1).submitReport(tempReport.epoch, tempReport)).to.be.revertedWith(
+        'ORACLE_ALREADY_REPORTED',
+      )
 
-      const tx2 = await router.connect(user2).submitReport(report.epoch, report)
-      await expect(tx2).to.emit(router, 'SubmitReport')
-      await expect(tx2).to.emit(router, 'ConsensusNotReached')
+      const currentBlockReport = await router.currentBlockReport()
 
-      const tx3 = await router.connect(user3).submitReport(report.epoch, report)
-      await expect(tx3).to.emit(router, 'SubmitReport')
-      await expect(tx3).to.emit(router, 'ConsensusNotReached')
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('TOO_EARLY_TO_EXECUTE')
 
-      const tx4 = await router.connect(user4).submitReport(report.epoch, report)
-      await expect(tx4).to.emit(router, 'SubmitReport')
-      await expect(tx4).to.emit(router, 'ConsensusNotReached')
-
-      const tx5 = await router.connect(user5).submitReport(report.epoch, report)
-      await expect(tx5).to.emit(router, 'SubmitReport')
-      await expect(tx5).to.emit(router, 'ConsensusApprove')
+      expect(currentBlockReport).to.equal(1035n)
     })
 
     it('should reach consensus and fail if execute early', async function () {
@@ -707,6 +753,8 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       for (const oracle of oracles) {
         await router.connect(oracle).submitReport(report.epoch, report)
       }
@@ -718,6 +766,72 @@ describe('Router', function () {
       }
 
       await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('TOO_EARLY_TO_EXECUTE')
+    })
+
+    it('should skip if consensus not achieved', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const currentBlockReport = await router.currentBlockReport()
+      expect(currentBlockReport).to.equal(1035n)
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await advanceBlocks(1000)
+
+      await router.connect(user1).submitReport(report.epoch, report)
+      await router.connect(user2).submitReport(report.epoch, report)
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 10020n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await router.connect(user3).submitReport(report.epoch, report)
+      await router.connect(user4).submitReport(report.epoch, report)
+      const tx = await router.connect(user5).submitReport(report.epoch, report)
+      await tx.wait()
+
+      await expect(tx).to.emit(router, 'AdvanceNextBlock')
+
+      const currentBlockReport2 = await router.currentBlockReport()
+      expect(currentBlockReport2).to.equal(2000n)
+
+      report = {
+        epoch: 3n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 10020n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+      }
+
+      await advanceBlocks(1000)
+      await router.connect(user1).submitReport(report.epoch, report)
     })
 
     it('should fail because of eth', async function () {
@@ -740,6 +854,8 @@ describe('Router', function () {
         validatorsToRemove: [],
       }
 
+      await advanceBlocks(1000)
+
       for (const oracle of oracles) {
         await router.connect(oracle).submitReport(report.epoch, report)
       }
@@ -753,42 +869,6 @@ describe('Router', function () {
       await expect(router.connect(user1).executeReport(report)).to.revertedWith(
         'NOT_ENOUGH_BEACON_BALANCE',
       )
-    })
-
-    it('should reach consensus and execute the report', async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      const oracles = [user1, user2, user3, user4, user5]
-
-      for (const oracle of oracles) {
-        await router.connect(owner).addReportOracle(oracle.address)
-      }
-
-      report = {
-        epoch: 2n,
-        merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 1000n,
-        profitShares: 100n,
-        lossAmount: 0n,
-        withdrawAmount: 100n,
-        withdrawRefundAmount: 0n,
-        routerExtraAmount: 55n,
-        validatorsToRemove: [],
-      }
-
-      for (const oracle of oracles) {
-        await router.connect(oracle).submitReport(report.epoch, report)
-      }
-
-      const delayBlocks = (await router.config()).reportDelayBlocks
-
-      for (let i = 0; i < delayBlocks; i++) {
-        await network.provider.send('evm_mine')
-      }
-
-      await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
-
-      const executeTx = await router.connect(user1).executeReport(report)
-      await expect(executeTx).to.emit(router, 'ExecuteReport')
     })
 
     it('should be interrupted by revoked consensus', async function () {
@@ -811,6 +891,8 @@ describe('Router', function () {
         routerExtraAmount: 300n,
         validatorsToRemove: [],
       }
+
+      await advanceBlocks(1000)
 
       for (const oracle of oracles) {
         await router.connect(oracle).submitReport(report.epoch, report)
@@ -838,7 +920,7 @@ describe('Router', function () {
           profitAmount: 1000n,
           profitShares: 100n,
           lossAmount: 0n,
-          withdrawAmount: 100n,
+          withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
           routerExtraAmount: 55n,
           validatorsToRemove: [],
@@ -849,7 +931,7 @@ describe('Router', function () {
           profitAmount: 1500n,
           profitShares: 100n,
           lossAmount: 0n,
-          withdrawAmount: 200n,
+          withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
           routerExtraAmount: 30n,
           validatorsToRemove: [],
@@ -860,7 +942,7 @@ describe('Router', function () {
           profitAmount: 800n,
           profitShares: 100n,
           lossAmount: 0n,
-          withdrawAmount: 50n,
+          withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
           routerExtraAmount: 40n,
           validatorsToRemove: [],
@@ -868,15 +950,15 @@ describe('Router', function () {
       ]
 
       for (const report of reports) {
+        await advanceBlocks(1000)
+
         for (const oracle of oracles) {
           await router.connect(oracle).submitReport(report.epoch, report)
         }
 
         const delayBlocks = (await router.config()).reportDelayBlocks
 
-        for (let i = 0; i < delayBlocks; i++) {
-          await network.provider.send('evm_mine')
-        }
+        await advanceBlocks(Number(delayBlocks.toString()))
 
         await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
 
@@ -900,11 +982,13 @@ describe('Router', function () {
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
-        withdrawAmount: 100n,
+        withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
         routerExtraAmount: 55n,
         validatorsToRemove: validatorsToRemove,
       }
+
+      await advanceBlocks(1000)
 
       for (const oracle of oracles) {
         await router.connect(oracle).submitReport(report.epoch, report)
@@ -925,6 +1009,44 @@ describe('Router', function () {
     })
 
     it('should reach consensus and execute the report, adding Merkle root', async function () {
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      // Sending sufficient funds for pool size and validator size
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('30.1') })
+
+      // Deposit
+
+      const depositAmount = ethers.parseEther('2')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(delegations, referral, { value: depositAmount })
+      await tx1.wait()
+
+      // Creating the validator
+      const tx = await stakeTogether
+        .connect(oracle)
+        .createValidator(publicKey, signature, depositDataRoot)
+
+      const withdrawAmount = ethers.parseEther('1.5')
+
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations)
+
+      // Router
+
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       const oracles = [user1, user2, user3, user4, user5]
 
@@ -933,6 +1055,8 @@ describe('Router', function () {
       for (const oracle of oracles) {
         await router.connect(owner).addReportOracle(oracle.address)
       }
+
+      await advanceBlocks(1000)
 
       report = {
         epoch: 2n,

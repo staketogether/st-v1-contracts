@@ -47,6 +47,8 @@ contract StakeTogether is
 
   bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
+  uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
+
   Config public config; /// Configuration settings for the protocol.
 
   mapping(address => uint256) public shares; /// Mapping of addresses to their shares.
@@ -105,6 +107,7 @@ contract StakeTogether is
 
     totalShares = 0;
     beaconBalance = 0;
+    withdrawBalance = 0;
     currentOracleIndex = 0;
 
     _mintShares(address(this), 1 ether);
@@ -153,7 +156,7 @@ contract StakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    return address(this).balance + beaconBalance;
+    return address(this).balance + beaconBalance - withdrawBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -345,13 +348,14 @@ contract StakeTogether is
   /// @param _referral The referral address.
   function _depositBase(address _to, DepositType _depositType, address _referral) private {
     require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
+    require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
     require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
 
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
       emit DepositLimitReached(_to, msg.value);
-      revert('DLR');
+      revert('DLR'); // DLR = Deposit Limit Reached
     }
 
     _processStakeEntry(_to, msg.value);
@@ -422,10 +426,11 @@ contract StakeTogether is
     Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD'); // FD = Feature Disabled
-    require(_amount <= beaconBalance, 'IB'); // IB = Insufficient Balance
+    require(_amount > address(this).balance, 'WFP'); // Withdraw From Pool
+    require(_amount <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
     _withdrawBase(_amount, WithdrawType.Validator);
+    _setWithdrawBalance(withdrawBalance + _amount);
     _updateDelegations(msg.sender, _delegations);
-    _setBeaconBalance(beaconBalance - _amount);
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -445,12 +450,12 @@ contract StakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
-  function addPool(address _pool, bool _listed) external payable nonReentrant {
+  function addPool(address _pool, bool _listed) external payable nonReentrant whenNotPaused {
     require(_pool != address(0), 'ZA'); // ZA = Zero Address
     require(!pools[_pool], 'PE'); // PE = Pool Exists
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      require(msg.value == fees[FeeType.StakePool].value, 'IV'); // IA = Invalid Value
+      require(msg.value == fees[FeeType.StakePool].value, 'IV'); // IV = Invalid Value
       _processStakePool();
     }
     pools[_pool] = true;
@@ -459,7 +464,7 @@ contract StakeTogether is
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
-  function removePool(address _pool) external onlyRole(POOL_MANAGER_ROLE) {
+  function removePool(address _pool) external whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     require(pools[_pool], 'PNF');
     pools[_pool] = false;
     emit RemovePool(_pool);
@@ -501,9 +506,12 @@ contract StakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
+    require(validatorsOracleIndices[_account] == 0, 'VE'); // VE = Validator Exists
+
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
+
+    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
     emit AddValidatorOracle(_account);
   }
 
@@ -569,6 +577,21 @@ contract StakeTogether is
     emit SetBeaconBalance(_amount);
   }
 
+  /// @notice Sets the pending withdraw balance to the specified amount.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  /// @dev Only the router address can call this function.
+  function setWithdrawBalance(uint256 _amount) external payable nonReentrant {
+    require(msg.sender == address(router), 'OR'); // Only Router
+    _setWithdrawBalance(_amount);
+  }
+
+  /// @notice Internal function to set the pending withdraw balance.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  function _setWithdrawBalance(uint256 _amount) private {
+    withdrawBalance = _amount;
+    emit SetWithdrawBalance(_amount);
+  }
+
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.
@@ -584,8 +607,8 @@ contract StakeTogether is
     require(!validators[_publicKey], 'VE');
     _processStakeValidator();
     _setBeaconBalance(beaconBalance + config.validatorSize);
-    validators[_publicKey] = true;
     _nextValidatorOracle();
+    validators[_publicKey] = true;
     depositContract.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
@@ -630,6 +653,7 @@ contract StakeTogether is
   /// @param _address The address to set.
   /// @dev Only an admin can call this function.
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
+    require(_address != address(0), 'ZA'); // ZA = Zero Address
     feesRole[_role] = _address;
     emit SetFeeAddress(_role, _address);
   }
@@ -644,13 +668,11 @@ contract StakeTogether is
   /// @notice Sets the fee for a given fee type.
   /// @param _feeType The type of fee to set.
   /// @param _value The value of the fee.
-  /// @param _mathType The mathematical type of the fee.
   /// @param _allocations The allocations for the fee.
   /// @dev Only an admin can call this function.
   function setFee(
     FeeType _feeType,
     uint256 _value,
-    FeeMath _mathType,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
     require(_allocations.length == 4, 'IL'); // IL = Invalid Length
@@ -660,12 +682,11 @@ contract StakeTogether is
       sum += _allocations[i];
     }
 
-    require(sum == 1 ether, 'SI'); // SI = Sum Invalid
+    require(sum == 1 ether, 'IS'); // IS = Invalid Sum
 
     fees[_feeType].value = _value;
-    fees[_feeType].mathType = _mathType;
 
-    emit SetFee(_feeType, _value, _mathType, _allocations);
+    emit SetFee(_feeType, _value, _allocations);
   }
 
   /// @notice Distributes fees according to their type, amount, and the destination.
