@@ -56,10 +56,10 @@ interface IRouter {
   /// @param hash The hash of the report for reference.
   event ConsensusApprove(Report report, bytes32 hash);
 
-  /// @notice Emitted when consensus is not reached for a report.
+  /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusNotReached(Report report, bytes32 hash);
+  event ConsensusFail(Report report, bytes32 hash);
 
   /// @notice Emitted when a report is executed.
   /// @param report The report details.
@@ -84,8 +84,12 @@ interface IRouter {
   /// @param config The updated configuration.
   event SetConfig(Config config);
 
-  /// @notice Emitted when the last consensus epoch is set.
-  /// @param epoch The epoch set as the last consensus epoch.
+  /// @notice Emitted when the last consensus block is set.
+  /// @param blockNumber The block number set as the last consensus epoch.
+  event SetLastConsensusBlock(uint256 blockNumber);
+
+  /// @notice Emitted when the last consensus block is set.
+  /// @param epoch The block number set as the last consensus epoch.
   event SetLastConsensusEpoch(uint256 epoch);
 
   /// @notice Emitted when the StakeTogether address is set.
@@ -93,9 +97,9 @@ interface IRouter {
   event SetStakeTogether(address stakeTogether);
 
   /// @notice Emitted when the next report frequency is skipped.
-  /// @param epoch The epoch for which the report frequency was skipped.
-  /// @param blockNumber The block number at which the report frequency was skipped.
-  event AdvanceNextBlock(uint256 indexed epoch, uint256 indexed blockNumber);
+  /// @param reportBlock The epoch for which the report frequency was skipped.
+  /// @param reportNextBlock The block number at which the report frequency was skipped.
+  event AdvanceNextBlock(uint256 indexed reportBlock, uint256 indexed reportNextBlock);
 
   /// @notice Emitted when a report is submitted.
   /// @param report The details of the submitted report.
@@ -107,9 +111,9 @@ interface IRouter {
   event UnBlacklistReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when validators are set to be removed.
-  /// @param epoch The epoch at which validators are set to be removed.
+  /// @param reportBlock The epoch at which validators are set to be removed.
   /// @param validatorsHash The list of hashes representing validators to be removed.
-  event ValidatorsToRemove(uint256 indexed epoch, bytes32[] validatorsHash);
+  event ValidatorsToRemove(uint256 indexed reportBlock, bytes32[] validatorsHash);
 
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
@@ -205,7 +209,7 @@ interface IRouter {
   /// @notice Set the last epoch for which a consensus was reached.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
   /// @param _epoch The last epoch for which consensus was reached.
-  function setLastConsensusEpoch(uint256 _epoch) external;
+  function setLastConsensusBlock(uint256 _epoch) external;
 
   /// @notice Validates if conditions to submit a report for an epoch are met.
   /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.

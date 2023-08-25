@@ -990,8 +990,8 @@ describe('Router', function () {
 
       await router.connect(owner).grantRole(ADMIN_ROLE, owner.address)
 
-      await expect(router.connect(owner).setLastConsensusEpoch(newEpoch))
-        .to.emit(router, 'SetLastConsensusEpoch')
+      await expect(router.connect(owner).setLastConsensusBlock(newEpoch))
+        .to.emit(router, 'setLastConsensusBlock')
         .withArgs(newEpoch)
 
       expect(await router.lastConsensusEpoch()).to.equal(newEpoch)
@@ -1000,7 +1000,7 @@ describe('Router', function () {
     it('should revert if called by non-admin', async function () {
       const newEpoch = 42
 
-      await expect(router.connect(user1).setLastConsensusEpoch(newEpoch)).to.be.reverted
+      await expect(router.connect(user1).setLastConsensusBlock(newEpoch)).to.be.reverted
     })
   })
 })

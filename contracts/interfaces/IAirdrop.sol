@@ -7,9 +7,9 @@ pragma solidity ^0.8.18;
 /// @custom:security-contact security@staketogether.app
 interface IAirdrop {
   /// @notice Emitted when a new Merkle root is added.
-  /// @param epoch The epoch number corresponding to the Merkle root.
+  /// @param reportBlock The epoch number corresponding to the Merkle root.
   /// @param merkleRoot The Merkle root.
-  event AddMerkleRoot(uint256 indexed epoch, bytes32 merkleRoot);
+  event AddMerkleRoot(uint256 indexed reportBlock, bytes32 merkleRoot);
 
   /// @notice Emitted when a claim is processed.
   /// @param epoch The epoch number related to the claim.

@@ -335,9 +335,9 @@ contract MockRouter is
   /// @notice Set the last epoch for which a consensus was reached.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
   /// @param _epoch The last epoch for which consensus was reached.
-  function setLastConsensusEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
+  function setLastConsensusBlock(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
     lastConsensusEpoch = _epoch;
-    emit SetLastConsensusEpoch(_epoch);
+    emit setLastConsensusBlock(_epoch);
   }
 
   /// @notice Validates if conditions to submit a report for an epoch are met.
