@@ -143,7 +143,7 @@ contract Router is
 
   /// @dev Modifier to ensure that the caller is an active report oracle.
   modifier activeReportOracle() {
-    require(isReportOracle(msg.sender) && !isReportOracleBlackListed(msg.sender), 'ONLY_ACTIVE_ORACLE');
+    require(isReportOracle(msg.sender), 'ONLY_ACTIVE_ORACLE');
     _;
   }
 
