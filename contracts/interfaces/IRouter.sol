@@ -96,7 +96,7 @@ interface IRouter {
   /// @notice Emitted when the next report frequency is skipped.
   /// @param epoch The epoch for which the report frequency was skipped.
   /// @param blockNumber The block number at which the report frequency was skipped.
-  event SkipNextReportFrequency(uint256 indexed epoch, uint256 indexed blockNumber);
+  event AdvanceNextBlock(uint256 indexed epoch, uint256 indexed blockNumber, uint256 intervalsPassed);
 
   /// @notice Emitted when a report is submitted.
   /// @param report The details of the submitted report.
@@ -120,7 +120,8 @@ interface IRouter {
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external;
+  /// @param _reportFrequency The frequency in which reports need to be generated.
+  function initialize(address _airdrop, address _withdrawals, uint256 _reportFrequency) external;
 
   /// @notice Pauses the contract functionalities.
   /// @dev Only the ADMIN_ROLE can pause the contract.

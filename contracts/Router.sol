@@ -46,14 +46,17 @@ contract Router is
   mapping(uint256 => mapping(address => bool)) private reportOracleVotes; /// Mapping to track oracle votes.
 
   mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports by epoch.
+  mapping(uint256 => mapping(address => bool)) reportBlocks; /// Mapping to track blocks for reports.
+  mapping(uint256 => uint256) public reportsBlockCount; /// Mapping to track block count for reports.
   mapping(uint256 => mapping(bytes32 => uint256)) public reportVotes; /// Mapping to track votes for reports.
   mapping(uint256 => bytes32) public consensusReport; /// Mapping to store consensus report by epoch.
   mapping(uint256 => mapping(bytes32 => bool)) public executedReports; /// Mapping to check if a report has been executed.
   mapping(uint256 => bool) public revokedReports; /// Mapping to check if a report has been revoked.
 
-  uint256 public nextReportBlock; /// The next block where a report is expected.
+  uint256 public currentBlockReport; /// The next block where a report is expected.
   uint256 public lastConsensusEpoch; /// The last epoch where consensus was achieved.
   uint256 public lastExecutedEpoch; /// The last epoch where a report was executed.
+  bool public pendingExecution; /// Theres a report pending to be executed.
 
   mapping(bytes32 => uint256) public reportDelayBlocks; /// Mapping to track the delay for reports.
 
@@ -66,7 +69,11 @@ contract Router is
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external initializer {
+  function initialize(
+    address _airdrop,
+    address _withdrawals,
+    uint256 _reportFrequency
+  ) external initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -82,9 +89,10 @@ contract Router is
     withdrawals = Withdrawals(payable(_withdrawals));
 
     totalReportOracles = 0;
-    nextReportBlock = 1;
+    currentBlockReport = block.number + _reportFrequency;
     lastConsensusEpoch = 0;
     lastExecutedEpoch = 0;
+    pendingExecution = false;
   }
 
   /// @notice Pauses the contract functionalities.
@@ -133,6 +141,8 @@ contract Router is
     } else {
       config.reportDelayBlocks = config.reportDelayBlocks;
     }
+
+    require(config.reportDelayBlocks < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
 
     emit SetConfig(_config);
   }
@@ -245,12 +255,9 @@ contract Router is
   ) external nonReentrant whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToSubmit(_epoch, _report);
 
-    if (block.number >= nextReportBlock + config.reportFrequency) {
-      nextReportBlock += config.reportFrequency;
-      emit SkipNextReportFrequency(_epoch, nextReportBlock);
-    }
-
     reports[_epoch][hash].push(msg.sender);
+    reportBlocks[currentBlockReport][msg.sender] = true;
+    reportsBlockCount[currentBlockReport]++;
     reportVotes[_epoch][hash]++;
     reportOracleVotes[_epoch][msg.sender] = true;
 
@@ -259,9 +266,15 @@ contract Router is
         consensusReport[_epoch] = hash;
         lastConsensusEpoch = _report.epoch;
         reportDelayBlocks[hash] = block.number;
+        pendingExecution = true;
         emit ConsensusApprove(_report, hash);
       } else {
         emit ConsensusNotReached(_report, hash);
+        if (reportsBlockCount[currentBlockReport] >= config.oracleQuorum) {
+          uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
+          currentBlockReport = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
+          emit AdvanceNextBlock(_epoch, currentBlockReport, intervalsPassed);
+        }
       }
     }
 
@@ -274,9 +287,13 @@ contract Router is
   function executeReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToExecute(_report);
 
-    nextReportBlock += config.reportFrequency;
+    uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
+    currentBlockReport = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
+    emit AdvanceNextBlock(_report.epoch, currentBlockReport, intervalsPassed);
+
     executedReports[_report.epoch][hash] = true;
     lastExecutedEpoch = _report.epoch;
+    pendingExecution = false;
     emit ExecuteReport(_report, hash);
 
     if (_report.validatorsToRemove.length > 0) {
@@ -323,6 +340,7 @@ contract Router is
   function revokeConsensusReport(uint256 _epoch, bytes32 _hash) external onlyRole(ORACLE_SENTINEL_ROLE) {
     require(consensusReport[_epoch] == _hash, 'EPOCH_NOT_CONSENSUS');
     revokedReports[_epoch] = true;
+    pendingExecution = false;
     emit RevokeConsensusReport(block.number, _epoch, _hash);
   }
 
@@ -341,11 +359,14 @@ contract Router is
   /// @return The keccak256 hash of the report.
   function isReadyToSubmit(uint256 _epoch, Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(block.number > nextReportBlock, 'BLOCK_NUMBER_NOT_REACHED');
+    require(block.number > currentBlockReport, 'BLOCK_NUMBER_NOT_REACHED');
     require(totalReportOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
     require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
     require(!reportOracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
+    require(!reportBlocks[currentBlockReport][msg.sender], 'ORACLE_ALREADY_REPORTED');
+    require(pendingExecution == false, 'PENDING_EXECUTION');
+    require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
     return hash;
   }
 
@@ -373,6 +394,8 @@ contract Router is
           _report.routerExtraAmount),
       'NOT_ENOUGH_ETH'
     );
+    require(pendingExecution == true, 'NO_PENDING_EXECUTION');
+    require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
     return hash;
   }
 }

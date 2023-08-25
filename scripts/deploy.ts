@@ -89,7 +89,12 @@ export async function deployRouter(
 ) {
   const RouterFactory = new Router__factory().connect(owner)
 
-  const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
+  const reportFrequency = 1_296_000n // 1 once a day
+  const router = await upgrades.deployProxy(RouterFactory, [
+    airdropContract,
+    withdrawalsContract,
+    reportFrequency,
+  ])
 
   await router.waitForDeployment()
   const proxyAddress = await router.getAddress()
@@ -106,7 +111,7 @@ export async function deployRouter(
     minOracleQuorum: 5,
     oracleQuorum: 5,
     oracleBlackListLimit: 3,
-    reportFrequency: 1,
+    reportFrequency: reportFrequency,
   }
 
   // Cast the contract to the correct type
