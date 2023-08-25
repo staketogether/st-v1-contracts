@@ -344,6 +344,7 @@ contract Router is
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
   /// @param _block The last epoch for which consensus was reached.
   function setLastConsensusBlock(uint256 _block) external onlyRole(ADMIN_ROLE) {
+    // Todo: check if can be removed
     lastConsensusBlock = _block;
     emit SetLastConsensusBlock(_block);
   }
