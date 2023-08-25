@@ -46,12 +46,7 @@ async function deployRouter(
 ) {
   const RouterFactory = new Router__factory().connect(owner)
 
-  const reportFrequency = 1000n
-  const router = await upgrades.deployProxy(RouterFactory, [
-    airdropContract,
-    withdrawalsContract,
-    reportFrequency,
-  ])
+  const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
 
   await router.waitForDeployment()
   const proxyAddress = await router.getAddress()
@@ -60,7 +55,7 @@ async function deployRouter(
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
-    reportDelayBlocks: 60,
+    reportDelayBlock: 60,
 
     oracleQuorum: 5,
     oracleBlackListLimit: 3,

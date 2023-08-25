@@ -9,7 +9,7 @@ interface IRouter {
   /// @dev Config structure used for configuring the reporting mechanism in StakeTogether protocol.
   /// @param bunkerMode A boolean flag to indicate whether the bunker mode is active or not.
   /// @param reportFrequency The frequency in which reports need to be generated.
-  /// @param reportDelayBlocks The number of blocks to delay before a report is considered.
+  /// @param reportDelayBlock The number of blocks to delay before a report is considered.
   /// @param oracleBlackListLimit The maximum number of oracles that can be blacklisted.
   /// @param oracleQuorum The quorum required among oracles for a report to be considered.
   /// @param minOracleQuorum The minimum required quorum among oracles for a report.
@@ -75,18 +75,12 @@ interface IRouter {
   event RemoveReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when a consensus report is revoked.
-  /// @param blockNumber The block number at which the consensus was revoked.
-  /// @param epoch The epoch for which the consensus was revoked.
-  /// @param hash The hash of the report for which the consensus was revoked.
-  event RevokeConsensusReport(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  /// @param reportBlock The block number at which the consensus was revoked.
+  event RevokeConsensusReport(uint256 reportBlock);
 
   /// @notice Emitted when the protocol configuration is updated.
   /// @param config The updated configuration.
   event SetConfig(Config config);
-
-  /// @notice Emitted when the last consensus block is set.
-  /// @param blockNumber The block number set as the last consensus epoch.
-  event SetLastConsensusBlock(uint256 blockNumber);
 
   /// @notice Emitted when the last consensus block is set.
   /// @param epoch The block number set as the last consensus epoch.
@@ -119,8 +113,7 @@ interface IRouter {
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  /// @param _reportFrequency The frequency in which reports need to be generated.
-  function initialize(address _airdrop, address _withdrawals, uint256 _reportFrequency) external;
+  function initialize(address _airdrop, address _withdrawals) external;
 
   /// @notice Pauses the contract functionalities.
   /// @dev Only the ADMIN_ROLE can pause the contract.
@@ -196,8 +189,7 @@ interface IRouter {
   // @notice Revokes a consensus-approved report for a given epoch.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _reportBlock The epoch for which the report was approved.
-  /// @param _hash The hash of the report that needs to be revoked.
-  function revokeConsensusReport(uint256 _reportBlock, bytes32 _hash) external;
+  function revokeConsensusReport(uint256 _reportBlock) external;
 
   /// @notice Set the last epoch for which a consensus was reached.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.

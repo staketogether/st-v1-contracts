@@ -26,12 +26,12 @@ contract MockWithdrawals is
   ReentrancyGuardUpgradeable,
   IWithdrawals
 {
-  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
-  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
-  uint256 public version;
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
-  StakeTogether public stakeTogether;
-  Router public router;
+  uint256 public version; /// Contract version.
+  StakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  Router public router; /// Instance of the Router contract.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {

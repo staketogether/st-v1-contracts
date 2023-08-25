@@ -46,10 +46,9 @@ contract Router is
 
   mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports by epoch.
   mapping(uint256 => mapping(address => bool)) reportForBlock; /// Mapping to track blocks for reports.
-  mapping(uint => uint) public distinctVotesForBlock; /// Mapping to track distinct votes for reports.
-  mapping(uint256 => uint256) public totalVotes; // Mapping to track epoch votes for reports.
+  mapping(uint256 => uint256) public totalVotes; // Mapping to track block report votes for reports.
   mapping(uint256 => mapping(bytes32 => uint256)) public reportVotesForBlock; /// Mapping to track votes for reports.
-  mapping(uint256 => bytes32) public consensusReport; /// Mapping to store consensus report by epoch.
+  mapping(uint256 => bytes32) public consensusReport; /// Mapping to store consensus report by block report.
   mapping(uint256 => mapping(bytes32 => bool)) public executedReports; /// Mapping to check if a report has been executed.
   mapping(uint256 => bool) public revokedReports; /// Mapping to check if a report has been revoked.
 
@@ -70,11 +69,7 @@ contract Router is
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(
-    address _airdrop,
-    address _withdrawals,
-    uint256 _reportFrequency
-  ) external initializer {
+  function initialize(address _airdrop, address _withdrawals) external initializer {
     __Pausable_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
@@ -90,7 +85,7 @@ contract Router is
     withdrawals = Withdrawals(payable(_withdrawals));
 
     totalReportOracles = 0;
-    reportBlock = _calculateNextReportBlock();
+    reportBlock = block.number;
 
     lastConsensusBlock = 1;
     lastExecutedBlock = 1;
@@ -239,6 +234,10 @@ contract Router is
    ** REPORT **
    ************/
 
+  /// @notice Allows oracles to submit reports and attempts to achieve consensus.
+  /// @dev This function will count votes for each report, and if a consensus is reached or becomes impossible, appropriate events will be emitted.
+  /// It uses a combination of total votes and distinct report votes to determine consensus.
+  /// @param _report The report being submitted by the oracle.
   function submitReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToSubmit(_report);
 
@@ -246,10 +245,6 @@ contract Router is
     reportForBlock[reportBlock][msg.sender] = true;
     reportVotesForBlock[reportBlock][hash]++;
     totalVotes[reportBlock]++;
-
-    if (reportVotesForBlock[reportBlock][hash] == 1) {
-      distinctVotesForBlock[reportBlock]++;
-    }
 
     if (consensusReport[reportBlock] == bytes32(0)) {
       if (totalVotes[reportBlock] >= config.oracleQuorum) {
@@ -263,12 +258,10 @@ contract Router is
       }
 
       uint remainingOracles = totalReportOracles - totalVotes[reportBlock];
-      if (
-        distinctVotesForBlock[reportBlock] > config.oracleQuorum ||
-        (config.oracleQuorum - distinctVotesForBlock[reportBlock] > remainingOracles)
-      ) {
+      if ((config.oracleQuorum - reportVotesForBlock[reportBlock][hash]) > remainingOracles) {
         emit ConsensusFail(reportBlock, _report, hash);
-        _calculateNextReportBlock();
+        emit ConsensusFail(reportBlock, _report, hash);
+        _advanceNextReportBlock();
       }
     }
 
@@ -287,14 +280,15 @@ contract Router is
     pendingExecution = false;
     emit ExecuteReport(reportBlock, _report, hash);
 
-    _calculateNextReportBlock();
+    uint256 currentReportBlock = reportBlock;
+    _advanceNextReportBlock();
 
     if (_report.validatorsToRemove.length > 0) {
-      emit ValidatorsToRemove(reportBlock, _report.validatorsToRemove);
+      emit ValidatorsToRemove(currentReportBlock, _report.validatorsToRemove);
     }
 
     if (_report.merkleRoot != bytes32(0)) {
-      airdrop.addMerkleRoot(reportBlock, _report.merkleRoot);
+      airdrop.addMerkleRoot(currentReportBlock, _report.merkleRoot);
     }
 
     if (_report.profitAmount > 0) {
@@ -319,7 +313,10 @@ contract Router is
     }
   }
 
-  function _calculateNextReportBlock() private returns (uint256) {
+  /// @notice Advances to the next report block based on the current block number and report frequency.
+  /// @dev Computes the next report block and updates the state variable 'reportBlock'.
+  /// @return The next report block number.
+  function _advanceNextReportBlock() private returns (uint256) {
     uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
     uint256 nextReportBlock = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
     emit AdvanceNextBlock(reportBlock, nextReportBlock);
@@ -334,30 +331,26 @@ contract Router is
     return keccak256(abi.encode(_report));
   }
 
-  // @notice Revokes a consensus-approved report for a given epoch.
+  // @notice Revokes a consensus-approved report for a given report block.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _reportBlock The epoch for which the report was approved.
-  /// @param _hash The hash of the report that needs to be revoked.
-  function revokeConsensusReport(
-    uint256 _reportBlock,
-    bytes32 _hash
-  ) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(consensusReport[_reportBlock] == _hash, 'EPOCH_NOT_CONSENSUS');
+  /// @param _reportBlock The report block for which the report was approved.
+  function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
+    require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
-    emit RevokeConsensusReport(block.number, _reportBlock, _hash);
+    emit RevokeConsensusReport(_reportBlock);
   }
 
-  /// @notice Set the last epoch for which a consensus was reached.
+  /// @notice Set the last epoch for which a consensus was executed.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
-  /// @param _epoch The last epoch for which consensus was reached.
+  /// @param _epoch The last epoch for which consensus was executed.
   function setLastExecutedEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
     lastExecutedEpoch = _epoch;
     emit SetLastExecutedEpoch(_epoch);
   }
 
-  /// @notice Validates if conditions to submit a report for an epoch are met.
-  /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.
+  /// @notice Validates if conditions to submit a report for an block report are met.
+  /// @dev Verifies conditions such as block number, consensus block report, executed reports, and oracle votes.
   /// @param _report The data structure containing report details.
   /// @return The keccak256 hash of the report.
   function isReadyToSubmit(Report calldata _report) public view returns (bytes32) {
