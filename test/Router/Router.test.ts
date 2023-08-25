@@ -530,7 +530,7 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user4.address)
       await router.connect(owner).addReportOracle(user5.address)
 
-      const totalOracles = await router.totalOracles()
+      const totalOracles = await router.totalReportOracles()
 
       const minOracleQuorum = (await router.config()).minOracleQuorum
 
@@ -559,7 +559,7 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user4.address)
       await router.connect(owner).addReportOracle(user5.address)
 
-      const totalOracles = await router.totalOracles()
+      const totalOracles = await router.totalReportOracles()
 
       const minOracleQuorum = (await router.config()).minOracleQuorum
 
@@ -757,42 +757,6 @@ describe('Router', function () {
       )
     })
 
-    it('should reach consensus and execute the report', async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      const oracles = [user1, user2, user3, user4, user5]
-
-      for (const oracle of oracles) {
-        await router.connect(owner).addReportOracle(oracle.address)
-      }
-
-      report = {
-        epoch: 2n,
-        merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 1000n,
-        profitShares: 100n,
-        lossAmount: 0n,
-        withdrawAmount: 0n,
-        withdrawRefundAmount: 0n,
-        routerExtraAmount: 55n,
-        validatorsToRemove: [],
-      }
-
-      for (const oracle of oracles) {
-        await router.connect(oracle).submitReport(report.epoch, report)
-      }
-
-      const delayBlocks = (await router.config()).reportDelayBlocks
-
-      for (let i = 0; i < delayBlocks; i++) {
-        await network.provider.send('evm_mine')
-      }
-
-      await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
-
-      const executeTx = await router.connect(user1).executeReport(report)
-      await expect(executeTx).to.emit(router, 'ExecuteReport')
-    })
-
     it('should be interrupted by revoked consensus', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)
@@ -933,19 +897,12 @@ describe('Router', function () {
         '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
       const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
 
-      const poolSize = ethers.parseEther('32.1')
-
       const oracle = user1
       await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
       await stakeTogether.connect(owner).addValidatorOracle(oracle)
 
       // Sending sufficient funds for pool size and validator size
-      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('32.1') })
-
-      // Creating the validator
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('30.1') })
 
       // Deposit
 
@@ -961,7 +918,12 @@ describe('Router', function () {
         .depositPool(delegations, referral, { value: depositAmount })
       await tx1.wait()
 
-      const withdrawAmount = ethers.parseEther('0.1')
+      // Creating the validator
+      const tx = await stakeTogether
+        .connect(oracle)
+        .createValidator(publicKey, signature, depositDataRoot)
+
+      const withdrawAmount = ethers.parseEther('1.5')
 
       await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations)
 

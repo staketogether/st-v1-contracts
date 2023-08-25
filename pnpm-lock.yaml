@@ -12,8 +12,8 @@ dependencies:
     specifier: ^4.9.3
     version: 4.9.3
   '@openzeppelin/hardhat-upgrades':
-    specifier: ^2.1.1
-    version: 2.1.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.1.1)(ethers@6.7.1)(hardhat@2.17.1)
+    specifier: ^2.2.1
+    version: 2.2.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.1.1)(ethers@6.7.1)(hardhat@2.17.1)
   '@openzeppelin/merkle-tree':
     specifier: ^1.0.5
     version: 1.0.5
@@ -1090,6 +1090,21 @@ packages:
     resolution: {integrity: sha512-jjaHAVRMrE4UuZNfDwjlLGDxTHWIOwTJS2ldnc278a0gevfXfPr8hxKEVBGFBE96kl2G3VHDZhUimw/+G3TG2A==}
     dev: false
 
+  /@openzeppelin/defender-admin-client@1.48.0(debug@4.3.4):
+    resolution: {integrity: sha512-MN29JD6jA3PgOxF2tG0aZbMIwOCieYWkK9UbHCq1UzGPrMgGV9NVMUyVdqpv7Ynplwsjp5ZTBDOyttwvTlchHg==}
+    dependencies:
+      '@openzeppelin/defender-base-client': 1.48.0(debug@4.3.4)
+      axios: 1.4.0(debug@4.3.4)
+      ethers: 5.7.2
+      lodash: 4.17.21
+      node-fetch: 2.6.12
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - utf-8-validate
+    dev: false
+
   /@openzeppelin/defender-base-client@1.48.0(debug@4.3.4):
     resolution: {integrity: sha512-HFO87s010hRrMjyh2xYOCEAkLe21BfIbho7n5/kikA6A1ZgXi7MsEiqnQv1zP4bxMJgxGZ5b3t4tt6fWrakbag==}
     dependencies:
@@ -1103,8 +1118,8 @@ packages:
       - encoding
     dev: false
 
-  /@openzeppelin/hardhat-upgrades@2.1.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.1.1)(ethers@6.7.1)(hardhat@2.17.1):
-    resolution: {integrity: sha512-t+tFpgQq3BOeatMzn4XddDMHX4R0hGbj/5FuKF2DkFscbpqEFVARMkrL0a1hX2zIZNz25bVuzB4rlmUA0RWV5w==}
+  /@openzeppelin/hardhat-upgrades@2.2.1(@nomicfoundation/hardhat-ethers@3.0.4)(@nomicfoundation/hardhat-verify@1.1.1)(ethers@6.7.1)(hardhat@2.17.1):
+    resolution: {integrity: sha512-Amlk2nhNpCfTCEovbqyarwBv4ZWmuiHHIcYfGy+FCSkkuSvQNVEJHoSl83Vgag+QhMtubdoggkYPqayxU46w1Q==}
     hasBin: true
     peerDependencies:
       '@nomicfoundation/hardhat-ethers': ^3.0.0
@@ -1117,18 +1132,22 @@ packages:
     dependencies:
       '@nomicfoundation/hardhat-ethers': 3.0.4(ethers@6.7.1)(hardhat@2.17.1)
       '@nomicfoundation/hardhat-verify': 1.1.1(hardhat@2.17.1)
+      '@openzeppelin/defender-admin-client': 1.48.0(debug@4.3.4)
       '@openzeppelin/defender-base-client': 1.48.0(debug@4.3.4)
-      '@openzeppelin/platform-deploy-client': 0.9.0(debug@4.3.4)
+      '@openzeppelin/platform-deploy-client': 0.10.0(debug@4.3.4)
       '@openzeppelin/upgrades-core': 1.28.0
       chalk: 4.1.2
       debug: 4.3.4(supports-color@8.1.1)
+      ethereumjs-util: 7.1.5
       ethers: 6.7.1
       hardhat: 2.17.1(ts-node@10.9.1)(typescript@5.1.6)
       proper-lockfile: 4.1.2
       undici: 5.23.0
     transitivePeerDependencies:
+      - bufferutil
       - encoding
       - supports-color
+      - utf-8-validate
     dev: false
 
   /@openzeppelin/merkle-tree@1.0.5:
@@ -1138,8 +1157,9 @@ packages:
       ethereum-cryptography: 1.2.0
     dev: false
 
-  /@openzeppelin/platform-deploy-client@0.9.0(debug@4.3.4):
-    resolution: {integrity: sha512-VepsNJu5B5xhrKMg//hROFljlxlNhlkcgLSKl8rqapKiRFN/dxXtSVmmpNmySrCFnbbV/6twfhuhYGAZiG7oAw==}
+  /@openzeppelin/platform-deploy-client@0.10.0(debug@4.3.4):
+    resolution: {integrity: sha512-jayQPeXqw4LnWIrNhNqgikJSre+n2NRrnEu76niSdVXc/faQkG3PmaHtRPJMFgsYxjjAiAfcMYyV95YBDuLexA==}
+    deprecated: '@openzeppelin/platform-deploy-client is deprecated. Please use @openzeppelin/defender-sdk-deploy-client'
     dependencies:
       '@ethersproject/abi': 5.7.0
       '@openzeppelin/defender-base-client': 1.48.0(debug@4.3.4)

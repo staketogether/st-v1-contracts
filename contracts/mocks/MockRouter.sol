@@ -37,10 +37,10 @@ contract MockRouter is
   Airdrop public airdrop; /// Instance of the Airdrop contract.
   Config public config; /// Configuration settings for the protocol.
 
-  uint256 public totalOracles; /// Total number of oracles.
-  mapping(address => bool) private oracles; /// Mapping to track oracle addresses.
-  mapping(address => bool) public oraclesBlacklist; /// Mapping to track blacklisted oracles.
-  mapping(uint256 => mapping(address => bool)) private oracleVotes; /// Mapping to track oracle votes.
+  uint256 public totalReportOracles; /// Total number of reportOracles.
+  mapping(address => bool) private reportOracles; /// Mapping to track oracle addresses.
+  mapping(address => bool) public reportOraclesBlacklist; /// Mapping to track blacklisted reportOracles.
+  mapping(uint256 => mapping(address => bool)) private reportOracleVotes; /// Mapping to track oracle votes.
 
   mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports by epoch.
   mapping(uint256 => mapping(bytes32 => uint256)) public reportVotes; /// Mapping to track votes for reports.
@@ -78,7 +78,7 @@ contract MockRouter is
     airdrop = Airdrop(payable(_airdrop));
     withdrawals = Withdrawals(payable(_withdrawals));
 
-    totalOracles = 0;
+    totalReportOracles = 0;
     nextReportBlock = 1;
     lastConsensusEpoch = 0;
     lastExecutedEpoch = 0;
@@ -148,24 +148,24 @@ contract MockRouter is
   /// @param _oracle Address of the oracle to be checked.
   /// @return A boolean indicating if the address is an active report oracle.
   function isReportOracle(address _oracle) public view returns (bool) {
-    return oracles[_oracle] && !oraclesBlacklist[_oracle];
+    return reportOracles[_oracle] && !reportOraclesBlacklist[_oracle];
   }
 
   /// @notice Checks if a report oracle is blacklisted.
   /// @param _oracle Address of the oracle to be checked.
   /// @return A boolean indicating if the address is a blacklisted report oracle.
   function isReportOracleBlackListed(address _oracle) public view returns (bool) {
-    return oraclesBlacklist[_oracle];
+    return reportOraclesBlacklist[_oracle];
   }
 
   /// @notice Adds a new report oracle.
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
   /// @param _oracle Address of the oracle to be added.
   function addReportOracle(address _oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(!oracles[_oracle], 'REPORT_ORACLE_EXISTS');
+    require(!reportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
     _grantRole(ORACLE_REPORT_ROLE, _oracle);
-    oracles[_oracle] = true;
-    totalOracles++;
+    reportOracles[_oracle] = true;
+    totalReportOracles++;
     emit AddReportOracle(_oracle);
     _updateQuorum();
   }
@@ -174,17 +174,17 @@ contract MockRouter is
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
   /// @param oracle Address of the oracle to be removed.
   function removeReportOracle(address oracle) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(oracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(reportOracles[oracle], 'REPORT_ORACLE_NOT_EXISTS');
     _revokeRole(ORACLE_REPORT_ROLE, oracle);
-    oracles[oracle] = false;
-    totalOracles--;
+    reportOracles[oracle] = false;
+    totalReportOracles--;
     emit RemoveReportOracle(oracle);
     _updateQuorum();
   }
 
   /// @dev Updates the quorum required for oracle consensus.
   function _updateQuorum() private {
-    uint256 newQuorum = MathUpgradeable.mulDiv(totalOracles, 3, 5);
+    uint256 newQuorum = MathUpgradeable.mulDiv(totalReportOracles, 3, 5);
     config.oracleQuorum = newQuorum < config.minOracleQuorum ? config.minOracleQuorum : newQuorum;
     emit UpdateReportOracleQuorum(newQuorum);
   }
@@ -193,9 +193,10 @@ contract MockRouter is
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _oracle Address of the oracle to be blacklisted.
   function blacklistReportOracle(address _oracle) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    oraclesBlacklist[_oracle] = true;
-    if (totalOracles > 0) {
-      totalOracles--;
+    require(reportOracles[_oracle], 'REPORT_ORACLE_EXISTS');
+    reportOraclesBlacklist[_oracle] = true;
+    if (totalReportOracles > 0) {
+      totalReportOracles--;
     }
     emit BlacklistReportOracle(_oracle);
   }
@@ -204,10 +205,10 @@ contract MockRouter is
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _oracle Address of the oracle to be removed from the blacklist.
   function unBlacklistReportOracle(address _oracle) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(oracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
-    require(oraclesBlacklist[_oracle], 'REPORT_ORACLE_NOT_BLACKLISTED');
-    oraclesBlacklist[_oracle] = false;
-    totalOracles++;
+    require(reportOracles[_oracle], 'REPORT_ORACLE_NOT_EXISTS');
+    require(reportOraclesBlacklist[_oracle], 'REPORT_ORACLE_NOT_BLACKLISTED');
+    reportOraclesBlacklist[_oracle] = false;
+    totalReportOracles++;
     emit UnBlacklistReportOracle(_oracle);
   }
 
@@ -248,7 +249,7 @@ contract MockRouter is
 
     reports[_epoch][hash].push(msg.sender);
     reportVotes[_epoch][hash]++;
-    oracleVotes[_epoch][msg.sender] = true;
+    reportOracleVotes[_epoch][msg.sender] = true;
 
     if (consensusReport[_epoch] == bytes32(0)) {
       if (reportVotes[_epoch][hash] >= config.oracleQuorum) {
@@ -287,9 +288,9 @@ contract MockRouter is
       stakeTogether.processStakeRewards{ value: _report.profitAmount }(_report.profitShares);
     }
 
-    if (_report.lossAmount > 0 || _report.withdrawRefundAmount > 0) {
+    if (_report.lossAmount > 0 || _report.withdrawAmount > 0 || _report.withdrawRefundAmount > 0) {
       uint256 updatedBalance = stakeTogether.beaconBalance() -
-        (_report.lossAmount + _report.withdrawRefundAmount);
+        (_report.lossAmount + _report.withdrawAmount + _report.withdrawRefundAmount);
       stakeTogether.setBeaconBalance{ value: _report.withdrawRefundAmount }(updatedBalance);
     }
 
@@ -338,10 +339,10 @@ contract MockRouter is
   function isReadyToSubmit(uint256 _epoch, Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
     require(block.number > nextReportBlock, 'BLOCK_NUMBER_NOT_REACHED');
-    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(totalReportOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
     require(_report.epoch > lastConsensusEpoch, 'EPOCH_NOT_GREATER_THAN_LAST_CONSENSUS');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
-    require(!oracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
+    require(!reportOracleVotes[_epoch][msg.sender], 'ORACLE_ALREADY_VOTED');
     return hash;
   }
 
@@ -354,12 +355,13 @@ contract MockRouter is
     require(!revokedReports[_report.epoch], 'REVOKED_REPORT');
     require(!executedReports[_report.epoch][hash], 'REPORT_ALREADY_EXECUTED');
     require(consensusReport[_report.epoch] == hash, 'REPORT_NOT_CONSENSUS');
-    require(totalOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
+    require(totalReportOracles >= config.minOracleQuorum, 'MIN_ORACLE_QUORUM_NOT_REACHED');
     require(block.number >= reportDelayBlocks[hash] + config.reportDelayBlocks, 'TOO_EARLY_TO_EXECUTE');
     require(
       _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
       'NOT_ENOUGH_BEACON_BALANCE'
     );
+    require(_report.withdrawAmount <= stakeTogether.withdrawBalance(), 'NOT_ENOUGH_WITHDRAW_BALANCE');
     require(
       address(this).balance >=
         (_report.profitAmount +

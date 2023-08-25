@@ -45,12 +45,12 @@ interface IRouter {
   }
 
   /// @notice Emitted when a new oracle is added for reporting.
-  /// @param oracle The address of the oracle that was added.
-  event AddReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was added.
+  event AddReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when an oracle is blacklisted.
-  /// @param oracle The address of the oracle that was blacklisted.
-  event BlacklistReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was blacklisted.
+  event BlacklistReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
@@ -72,8 +72,8 @@ interface IRouter {
   event ReceiveEther(uint256 amount);
 
   /// @notice Emitted when an oracle is removed from reporting.
-  /// @param oracle The address of the oracle that was removed.
-  event RemoveReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was removed.
+  event RemoveReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when a consensus report is revoked.
   /// @param blockNumber The block number at which the consensus was revoked.
@@ -104,8 +104,8 @@ interface IRouter {
   event SubmitReport(Report report, bytes32 hash);
 
   /// @notice Emitted when an oracle is unblacklisted.
-  /// @param oracle The address of the oracle that was unblacklisted.
-  event UnBlacklistReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was unblacklisted.
+  event UnBlacklistReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when the oracle quorum is updated.
   /// @param quorum The updated oracle quorum value.
@@ -145,34 +145,34 @@ interface IRouter {
   function setConfig(Config memory _config) external;
 
   /// @notice Checks if an address is an active report oracle.
-  /// @param _oracle Address of the oracle to be checked.
+  /// @param _account Address of the oracle to be checked.
   /// @return A boolean indicating if the address is an active report oracle.
-  function isReportOracle(address _oracle) external view returns (bool);
+  function isReportOracle(address _account) external view returns (bool);
 
   /// @notice Checks if a report oracle is blacklisted.
-  /// @param _oracle Address of the oracle to be checked.
+  /// @param _account Address of the oracle to be checked.
   /// @return A boolean indicating if the address is a blacklisted report oracle.
-  function isReportOracleBlackListed(address _oracle) external view returns (bool);
+  function isReportOracleBlackListed(address _account) external view returns (bool);
 
   /// @notice Adds a new report oracle.
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
-  /// @param _oracle Address of the oracle to be added.
-  function addReportOracle(address _oracle) external;
+  /// @param _account Address of the oracle to be added.
+  function addReportOracle(address _account) external;
 
   /// @notice Removes an existing report oracle.
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
-  /// @param oracle Address of the oracle to be removed.
-  function removeReportOracle(address oracle) external;
+  /// @param _account Address of the oracle to be removed.
+  function removeReportOracle(address _account) external;
 
   /// @notice Blacklists a report oracle.
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _oracle Address of the oracle to be blacklisted.
-  function blacklistReportOracle(address _oracle) external;
+  /// @param _account Address of the oracle to be blacklisted.
+  function blacklistReportOracle(address _account) external;
 
   /// @notice Removes a report oracle from the blacklist.
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _oracle Address of the oracle to be removed from the blacklist.
-  function unBlacklistReportOracle(address _oracle) external;
+  /// @param _account Address of the oracle to be removed from the blacklist.
+  function unBlacklistReportOracle(address _account) external;
 
   /// @notice Adds a new sentinel account.
   /// @dev Only an account with the ADMIN_ROLE can call this function.

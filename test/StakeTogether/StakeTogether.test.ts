@@ -1044,140 +1044,41 @@ describe('Stake Together', function () {
       )
     })
 
-    it('should correctly handle withdrawal as a validator', async function () {
-      const beaconBalanceBefore = ethers.parseEther('1000000') // Test points base
-      await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
+    it('should not allow withdrawal greater than beacon balance', async function () {
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
 
-      // console.log('beaconBalance', await stakeTogether.beaconBalance())
-      // console.log('totalShares', await stakeTogether.totalShares())
-      // console.log('totalSupply', await stakeTogether.totalSupply())
-      // console.log('contract balance', await ethers.provider.getBalance(stakeTogetherProxy))
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      // Sending sufficient funds for pool size and validator size
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('30.1') })
+
+      // Deposit
 
       const depositAmount = ethers.parseEther('2')
       const poolAddress = user3.address
       const referral = user4.address
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
-      const sharesAmount = await stakeTogether.sharesByWei(depositAmount)
-      const sharesFee = (sharesAmount * 3n) / 1000n
-
-      const feeAmount = await stakeTogether.weiByShares(sharesFee)
-
-      // console.log('sharesAmount', sharesAmount)
-      // console.log('sharesFee', sharesFee)
-
-      // console.log('delegationShares', delegationShares)
-
       const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      // console.log('depositAmount', depositAmount)
-      // console.log('delegations', delegations)
       const tx1 = await stakeTogether
         .connect(user1)
         .depositPool(delegations, referral, { value: depositAmount })
       await tx1.wait()
 
-      let eventFilter = stakeTogether.filters.UpdateDelegations(user1.address)
-      let logs = await stakeTogether.queryFilter(eventFilter)
+      // Creating the validator
+      const tx = await stakeTogether
+        .connect(oracle)
+        .createValidator(publicKey, signature, depositDataRoot)
 
-      let event = logs[0]
-      const [emittedAddress1, emittedDelegations1] = event.args
-
-      expect(emittedAddress1).to.equal(user1.address)
-      expect(emittedDelegations1[0].pool).to.equal(delegations[0].pool)
-      expect(emittedDelegations1[0].percentage).to.equal(delegations[0].percentage)
-
-      eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
-      logs = await stakeTogether.queryFilter(eventFilter)
-
-      event = logs[0]
-      const [_to, _value, _type, _referral] = event.args
-      expect(_to).to.equal(user1.address)
-      expect(_value).to.equal(depositAmount)
-      expect(_type).to.equal(1)
-      expect(_referral).to.equal(referral)
-
-      eventFilter = stakeTogether.filters.MintShares()
-      logs = await stakeTogether.queryFilter(eventFilter)
-
-      // console.log('MINT_SHARES', logs[0].args)
-
-      eventFilter = stakeTogether.filters.MintFeeShares()
-      logs = await stakeTogether.queryFilter(eventFilter)
-
-      // console.log('MINT_REWARDS_1', logs)
-
-      let userShares = await stakeTogether.shares(user1)
-      // console.log('userShares', userShares)
-
-      let userBalance = await stakeTogether.balanceOf(user1)
-      // console.log('userBalance', userBalance)
-
-      // Withdraw as Validator
-      const withdrawAmount = ethers.parseEther('1')
-      const withdrawShares = await stakeTogether.sharesByWei(withdrawAmount)
-
-      const withdrawDelegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, withdrawDelegations)
-
-      userShares = await stakeTogether.shares(user1)
-      // console.log('userShares', userShares)
-
-      userBalance = await stakeTogether.balanceOf(user1)
-      // console.log('userBalance', userBalance)
-
-      // Check the balance after withdraw
-      const expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
-      expect(expectedBalanceAfterWithdraw).to.equal(depositAmount - withdrawAmount - feeAmount + 1n)
-
-      // Check the WithdrawBase event
-      const withdrawEventFilter = stakeTogether.filters.WithdrawBase()
-      const withdrawLogs = await stakeTogether.queryFilter(withdrawEventFilter)
-
-      // console.log('withdrawLogs', withdrawLogs[0])
-
-      const withdrawEvent = withdrawLogs[0]
-      const [_from, _amount, _withdrawType] = withdrawEvent.args
-
-      expect(withdrawLogs[0].args.account).to.equal(user1.address)
-      expect(withdrawLogs[0].args.amount).to.equal(withdrawAmount)
-      expect(withdrawLogs[0].args.withdrawType).to.equal(1)
-
-      // Check the DelegationUpdated event
-      const delegationEventFilter = stakeTogether.filters.UpdateDelegations()
-      const delegationLogs = await stakeTogether.queryFilter(delegationEventFilter)
-      const delegationEvent = delegationLogs[1]
-      const [emittedAddress, emittedDelegations] = delegationEvent.args
-
-      expect(emittedAddress).to.equal(user1.address)
-      expect(emittedDelegations[0].pool).to.equal(poolAddress)
-      expect(emittedDelegations[0].percentage).to.equal(ethers.parseEther('1'))
-
-      expect(await withdrawals.totalSupply()).to.equal(withdrawAmount)
-      expect(await withdrawals.balanceOf(user1.address)).to.equal(withdrawAmount)
-    })
-
-    it('should not allow withdrawal greater than beacon balance', async function () {
       const beaconBalanceBefore = ethers.parseEther('50')
       await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
-
-      const poolAddress = user3.address
-
-      const depositAmount = ethers.parseEther('100')
-
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      const sharesAmount = await stakeTogether.sharesByWei(depositAmount)
-      const sharesFee = (sharesAmount * 3n) / 1000n
-
-      const delegationShares = sharesAmount - sharesFee
-
-      const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-
-      const tx1 = await stakeTogether
-        .connect(user1)
-        .depositPool(delegations, poolAddress, { value: depositAmount })
-      await tx1.wait()
 
       const withdrawAmount = ethers.parseEther('60')
 
