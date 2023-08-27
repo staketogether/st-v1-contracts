@@ -764,7 +764,7 @@ describe('Router', function () {
       await tx.wait()
       expect(tx).to.emit(router, 'RevokeConsensusReport')
 
-      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('REPORT_NOT_CONSENSUS')
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('NOT_ACTIVE_CONSENSUS')
 
       await advanceBlocks(1000)
 

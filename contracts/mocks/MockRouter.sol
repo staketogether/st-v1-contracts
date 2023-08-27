@@ -352,10 +352,10 @@ contract MockRouter is
   /// @return The keccak256 hash of the report.
   function isReadyToSubmit(Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(totalReportOracles >= config.oracleQuorum, 'ORACLE_QUORUM_NOT_REACHED');
+    require(totalReportOracles >= config.oracleQuorum, 'QUORUM_NOT_REACHED');
     require(block.number > reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
     require(_report.epoch > lastExecutedEpoch, 'EPOCH_SHOULD_BE_GREATER');
-    require(!executedReports[reportBlock][hash], 'REPORT_ALREADY_EXECUTED');
+    require(!executedReports[reportBlock][hash], 'ALREADY_EXECUTED');
     require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
     require(!pendingExecution, 'PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
@@ -368,10 +368,10 @@ contract MockRouter is
   /// @return The keccak256 hash of the report.
   function isReadyToExecute(Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(totalReportOracles >= config.oracleQuorum, 'ORACLE_QUORUM_NOT_REACHED');
+    require(totalReportOracles >= config.oracleQuorum, 'QUORUM_NOT_REACHED');
     require(!revokedReports[reportBlock], 'REVOKED_REPORT');
-    require(!executedReports[reportBlock][hash], 'REPORT_ALREADY_EXECUTED');
-    require(consensusReport[reportBlock] == hash, 'REPORT_NOT_CONSENSUS');
+    require(!executedReports[reportBlock][hash], 'ALREADY_EXECUTED');
+    require(consensusReport[reportBlock] == hash, 'NOT_ACTIVE_CONSENSUS');
     require(
       block.number >= reportDelayBlock[reportBlock] + config.reportDelayBlock,
       'TOO_EARLY_TO_EXECUTE'
