@@ -14,6 +14,8 @@ import {
   Withdrawals__factory,
 } from '../typechain'
 
+// TODO!: Remove Extra Roles Initializations on Mainnet Deploy (Only needed for testing on goerli)
+
 dotenv.config()
 
 const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
