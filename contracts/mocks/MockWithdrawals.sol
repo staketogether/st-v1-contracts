@@ -48,8 +48,6 @@ contract MockWithdrawals is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(UPGRADER_ROLE, msg.sender);
 
     version = 1;
   }
@@ -72,7 +70,7 @@ contract MockWithdrawals is
   function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   /// @notice Receive function to accept incoming ETH transfers.
-  receive() external payable {
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.value);
   }
 

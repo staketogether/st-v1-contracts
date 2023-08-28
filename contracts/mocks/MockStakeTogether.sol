@@ -94,9 +94,6 @@ contract MockStakeTogether is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(UPGRADER_ROLE, msg.sender);
-    _grantRole(POOL_MANAGER_ROLE, msg.sender);
 
     version = 1;
 
@@ -412,7 +409,7 @@ contract MockStakeTogether is
     Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD'); // FD = Feature Disabled
-    require(_amount <= address(this).balance, 'IPB'); // IPB = Insufficient Pool Balance
+    require(_amount <= address(this).balance, 'IPB'); // IB = Insufficient Pool Balance
     _withdrawBase(_amount, WithdrawType.Pool);
     _updateDelegations(msg.sender, _delegations);
     payable(msg.sender).transfer(_amount);

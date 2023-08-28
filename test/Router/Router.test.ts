@@ -586,7 +586,7 @@ describe('Router', function () {
 
       await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('TOO_EARLY_TO_EXECUTE')
 
-      expect(currentBlockReport).to.equal(35n)
+      expect(currentBlockReport).to.equal(49n)
     })
 
     it('should reach consensus and fail if execute early', async function () {
@@ -645,7 +645,7 @@ describe('Router', function () {
       }
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(35n)
+      expect(currentBlockReport).to.equal(49n)
 
       report = {
         epoch: 2n,

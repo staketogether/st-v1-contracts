@@ -23,6 +23,12 @@ async function deployAirdrop(owner: HardhatEthersSigner) {
 
   const airdropContract = airdrop as unknown as Airdrop
 
+  const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
+  const AIR_UPGRADER_ROLE = await airdropContract.UPGRADER_ROLE()
+
+  await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+  await airdropContract.connect(owner).grantRole(AIR_UPGRADER_ROLE, owner)
+
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
@@ -35,6 +41,12 @@ async function deployWithdrawals(owner: HardhatEthersSigner) {
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
   const withdrawalsContract = withdrawals as unknown as Withdrawals
+
+  const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
+  const WITHDRAW_UPGRADER_ROLE = await withdrawalsContract.UPGRADER_ROLE()
+
+  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
+  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
@@ -63,6 +75,14 @@ async function deployRouter(
   }
 
   const routerContract = router as unknown as Router
+
+  const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
+  const ROUTER_UPGRADER_ROLE = await routerContract.UPGRADER_ROLE()
+  const ROUTER_ORACLE_REPORT_MANAGER_ROLE = await routerContract.ORACLE_REPORT_MANAGER_ROLE()
+
+  await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
+  await routerContract.connect(owner).grantRole(ROUTER_UPGRADER_ROLE, owner)
+  await routerContract.connect(owner).grantRole(ROUTER_ORACLE_REPORT_MANAGER_ROLE, owner)
 
   await routerContract.setConfig(config)
 
@@ -101,6 +121,14 @@ async function deployStakeTogether(
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
+
+  const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
+  const ST_UPGRADER_ROLE = await stakeTogetherContract.UPGRADER_ROLE()
+  const ST_POOL_MANAGER_ROLE = await stakeTogetherContract.POOL_MANAGER_ROLE()
+
+  await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+  await stakeTogetherContract.connect(owner).grantRole(ST_UPGRADER_ROLE, owner)
+  await stakeTogetherContract.connect(owner).grantRole(ST_POOL_MANAGER_ROLE, owner)
 
   const config = {
     validatorSize: ethers.parseEther('32'),

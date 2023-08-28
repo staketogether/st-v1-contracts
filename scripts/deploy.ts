@@ -63,6 +63,12 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
 
   const airdropContract = airdrop as unknown as Airdrop
 
+  const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
+  const AIR_UPGRADER_ROLE = await airdropContract.UPGRADER_ROLE()
+
+  await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+  await airdropContract.connect(owner).grantRole(AIR_UPGRADER_ROLE, owner)
+
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
@@ -78,6 +84,12 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
   console.log(`Withdrawals\t Implementation\t\t ${implementationAddress}`)
 
   const withdrawalsContract = withdrawals as unknown as Withdrawals
+
+  const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
+  const WITHDRAW_UPGRADER_ROLE = await withdrawalsContract.UPGRADER_ROLE()
+
+  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
+  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
@@ -112,6 +124,14 @@ export async function deployRouter(
 
   // Cast the contract to the correct type
   const routerContract = router as unknown as Router
+
+  const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
+  const ROUTER_UPGRADER_ROLE = await routerContract.UPGRADER_ROLE()
+  const ROUTER_ORACLE_REPORT_MANAGER_ROLE = await routerContract.ORACLE_REPORT_MANAGER_ROLE()
+
+  await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
+  await routerContract.connect(owner).grantRole(ROUTER_UPGRADER_ROLE, owner)
+  await routerContract.connect(owner).grantRole(ROUTER_ORACLE_REPORT_MANAGER_ROLE, owner)
 
   // Set the configuration
   await routerContract.setConfig(config)
@@ -149,6 +169,14 @@ export async function deployStakeTogether(
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
+  const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
+  const ST_UPGRADER_ROLE = await stakeTogetherContract.UPGRADER_ROLE()
+  const ST_POOL_MANAGER_ROLE = await stakeTogetherContract.POOL_MANAGER_ROLE()
+
+  await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+  await stakeTogetherContract.connect(owner).grantRole(ST_UPGRADER_ROLE, owner)
+  await stakeTogetherContract.connect(owner).grantRole(ST_POOL_MANAGER_ROLE, owner)
+
   const config = {
     validatorSize: ethers.parseEther('32'),
     poolSize: ethers.parseEther('32'),
@@ -169,7 +197,7 @@ export async function deployStakeTogether(
   await stakeTogetherContract.setConfig(config)
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
+  await stakeTogetherContract.setFee(0n, ethers.parseEther('0.003'), [
     ethers.parseEther('0.6'),
     0n,
     ethers.parseEther('0.4'),
@@ -177,7 +205,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(1n, ethers.parseEther('0.09'), 1n, [
+  await stakeTogetherContract.setFee(1n, ethers.parseEther('0.09'), [
     ethers.parseEther('0.33'),
     ethers.parseEther('0.33'),
     ethers.parseEther('0.34'),
@@ -185,7 +213,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, ethers.parseEther('1'), 0n, [
+  await stakeTogetherContract.setFee(2n, ethers.parseEther('1'), [
     ethers.parseEther('0.4'),
     0n,
     ethers.parseEther('0.6'),
@@ -193,12 +221,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(3n, ethers.parseEther('0.01'), 0n, [
-    0n,
-    0n,
-    ethers.parseEther('1'),
-    0n,
-  ])
+  await stakeTogetherContract.setFee(3n, ethers.parseEther('0.01'), [0n, 0n, ethers.parseEther('1'), 0n])
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
