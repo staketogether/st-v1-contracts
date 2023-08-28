@@ -355,6 +355,14 @@ contract Router is
     require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
     require(!pendingExecution, 'PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
+
+    if (_report.profitAmount > 0) {
+      require(_report.lossAmount == 0, 'LOSS_MUST_BE_ZERO');
+    }
+    if (_report.lossAmount > 0) {
+      require(_report.profitAmount == 0, 'PROFIT_MUST_BE_ZERO');
+    }
+
     return hash;
   }
 
