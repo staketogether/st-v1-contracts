@@ -359,8 +359,10 @@ contract Router is
     if (_report.profitAmount > 0) {
       require(_report.lossAmount == 0, 'LOSS_MUST_BE_ZERO');
     }
+
     if (_report.lossAmount > 0) {
-      require(_report.profitAmount == 0, 'PROFIT_MUST_BE_ZERO');
+      require(_report.profitAmount == 0, 'PROFIT_A_MUST_BE_ZERO');
+      require(_report.profitShares == 0, 'PROFIT_S_MUST_BE_ZERO');
     }
 
     return hash;
