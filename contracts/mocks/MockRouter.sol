@@ -109,7 +109,7 @@ contract MockRouter is
 
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
-  receive() external payable {
+  receive() external payable nonReentrant {
     emit ReceiveEther(msg.value);
   }
 
@@ -131,14 +131,7 @@ contract MockRouter is
   /// @param _config A struct containing various configuration parameters.
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
-    if (config.reportDelayBlock < 300) {
-      config.reportDelayBlock = 300;
-    } else {
-      config.reportDelayBlock = config.reportDelayBlock;
-    }
-
     require(config.reportDelayBlock < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
-
     emit SetConfig(_config);
   }
 
@@ -257,7 +250,6 @@ contract MockRouter is
       uint remainingOracles = totalReportOracles - totalVotes[reportBlock];
       if ((config.oracleQuorum - reportVotesForBlock[reportBlock][hash]) > remainingOracles) {
         emit ConsensusFail(reportBlock, _report, hash);
-        emit ConsensusFail(reportBlock, _report, hash);
         _advanceNextReportBlock();
       }
     }
@@ -336,6 +328,7 @@ contract MockRouter is
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
     emit RevokeConsensusReport(_reportBlock);
+    _advanceNextReportBlock();
   }
 
   /// @notice Set the last epoch for which a consensus was executed.
@@ -359,6 +352,16 @@ contract MockRouter is
     require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
     require(!pendingExecution, 'PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
+
+    if (_report.profitAmount > 0) {
+      require(_report.lossAmount == 0, 'LOSS_MUST_BE_ZERO');
+    }
+
+    if (_report.lossAmount > 0) {
+      require(_report.profitAmount == 0, 'PROFIT_A_MUST_BE_ZERO');
+      require(_report.profitShares == 0, 'PROFIT_S_MUST_BE_ZERO');
+    }
+
     return hash;
   }
 
