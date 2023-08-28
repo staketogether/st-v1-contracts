@@ -412,7 +412,7 @@ contract StakeTogether is
     Delegation[] memory _delegations
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD'); // FD = Feature Disabled
-    require(_amount <= address(this).balance, 'IB'); // IB = Insufficient Balance
+    require(_amount <= address(this).balance, 'IPB'); // IB = Insufficient Pool Balance
     _withdrawBase(_amount, WithdrawType.Pool);
     _updateDelegations(msg.sender, _delegations);
     payable(msg.sender).transfer(_amount);
