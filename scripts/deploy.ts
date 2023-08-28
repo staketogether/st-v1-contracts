@@ -14,7 +14,7 @@ import {
   Withdrawals__factory,
 } from '../typechain'
 
-// TODO!: Remove Extra Roles Initializations on Mainnet Deploy (Only needed for testing on goerli)
+// TODO!: Before deploying on Mainnet, remove extra role initializations. (only necessary for testing)
 
 dotenv.config()
 
