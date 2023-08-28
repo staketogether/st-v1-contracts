@@ -427,7 +427,7 @@ contract MockStakeTogether is
   ) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD'); // FD = Feature Disabled
     require(_amount > address(this).balance, 'WFP'); // Withdraw From Pool
-    require(_amount <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
+    require(_amount + withdrawBalance <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
     _withdrawBase(_amount, WithdrawType.Validator);
     _setWithdrawBalance(withdrawBalance + _amount);
     _updateDelegations(msg.sender, _delegations);
