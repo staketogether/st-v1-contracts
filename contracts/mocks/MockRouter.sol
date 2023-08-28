@@ -164,6 +164,7 @@ contract MockRouter is
   /// @param _account Address of the oracle to be added.
   function addReportOracle(address _account) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
     require(!reportOracles[_account], 'REPORT_ORACLE_EXISTS');
+    require(!reportOraclesBlacklist[_account], 'REPORT_ORACLE_BLACKLISTED');
     _grantRole(ORACLE_REPORT_ROLE, _account);
     reportOracles[_account] = true;
     totalReportOracles++;
