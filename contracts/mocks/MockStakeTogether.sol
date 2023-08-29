@@ -477,22 +477,17 @@ contract MockStakeTogether is
   /// @param _account The address of the account to update delegations for.
   /// @param _delegations The array of delegations to update.
   function _updateDelegations(address _account, Delegation[] memory _delegations) private {
-    _validateDelegations(_account, _delegations);
-    emit UpdateDelegations(_account, _delegations);
-  }
-
-  /// @notice Validates delegations for a specific account.
-  /// @param _account The address of the account to validate delegations for.
-  /// @param _delegations The array of delegations to validate.
-  function _validateDelegations(address _account, Delegation[] memory _delegations) private view {
+    uint256 delegationShares = 0;
     if (shares[_account] > 0) {
       require(_delegations.length <= config.maxDelegations, 'MD'); // MD = Max Delegations
-      uint256 delegationShares = 0;
       for (uint i = 0; i < _delegations.length; i++) {
         require(pools[_delegations[i].pool], 'PNF'); // PNF = Pool Not Found
         delegationShares += _delegations[i].percentage;
       }
       require(delegationShares == 1 ether, 'IPS'); // IPS = Invalid Percentage Sum
+    }
+    if (delegationShares == 1 ether || _delegations.length == 0) {
+      emit UpdateDelegations(_account, _delegations);
     }
   }
 
