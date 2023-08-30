@@ -360,10 +360,13 @@ contract MockRouter is
     require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
     require(!pendingExecution, 'PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
-    require(
-      config.reportNoConsensusMargin <= totalReportOracles - config.oracleQuorum,
-      'MARGIN_TOO_HIGH'
-    );
+
+    if (config.reportNoConsensusMargin > 0) {
+      require(
+        config.reportNoConsensusMargin < totalReportOracles - config.oracleQuorum,
+        'INCREASE_ORACLES_TO_USE_MARGIN'
+      );
+    }
 
     if (_report.profitAmount > 0) {
       require(_report.lossAmount == 0, 'LOSS_MUST_BE_ZERO');

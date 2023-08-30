@@ -639,7 +639,7 @@ describe('Router', function () {
 
     it('should skip if consensus not achieved', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      const oracles = [user1, user2, user3, user4, user5, user6]
+      const oracles = [user1, user2, user3, user4, user5, user6, user7]
 
       for (const oracle of oracles) {
         await router.connect(owner).addReportOracle(oracle.address)
@@ -675,7 +675,9 @@ describe('Router', function () {
 
       await advanceBlocks(1100)
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith('MARGIN_TOO_HIGH')
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
+        'INCREASE_ORACLES_TO_USE_MARGIN',
+      )
 
       const config2 = {
         bunkerMode: false,
@@ -707,7 +709,9 @@ describe('Router', function () {
         accumulatedReports: 0n,
       }
 
-      const failTx = await router.connect(user5).submitReport(report)
+      await router.connect(user5).submitReport(report)
+
+      const failTx = await router.connect(user6).submitReport(report)
       await failTx.wait()
 
       await expect(failTx).to.emit(router, 'ConsensusFail')
@@ -723,6 +727,66 @@ describe('Router', function () {
       await router.connect(user3).submitReport(report)
       await router.connect(user4).submitReport(report)
       const txSuccess = await router.connect(user5).submitReport(report)
+      await txSuccess.wait()
+
+      await expect(txSuccess).to.emit(router, 'ConsensusApprove')
+    })
+
+    it('should prevent fake report', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5, user6, user7]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const config = {
+        bunkerMode: false,
+        reportDelayBlock: 300,
+        oracleBlackListLimit: 3,
+        reportFrequency: 1000,
+        oracleQuorum: 5,
+        reportNoConsensusMargin: 1,
+      }
+
+      await connect(router, owner).setConfig(config)
+
+      const report1 = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      const report2 = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 10010n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      await advanceBlocks(1000)
+
+      await router.connect(user1).submitReport(report1)
+      await router.connect(user2).submitReport(report1)
+      await router.connect(user3).submitReport(report1)
+      await router.connect(user4).submitReport(report1)
+      const tx = await router.connect(user5).submitReport(report2)
+      await expect(tx).to.not.emit(router, 'ConsensusFail')
+
+      const txSuccess = await router.connect(user6).submitReport(report1)
       await txSuccess.wait()
 
       await expect(txSuccess).to.emit(router, 'ConsensusApprove')
