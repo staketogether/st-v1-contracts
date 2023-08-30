@@ -12,7 +12,6 @@ interface IRouter {
   /// @param reportDelayBlock The number of blocks to delay before a report is considered.
   /// @param oracleBlackListLimit The maximum number of oracles that can be blacklisted.
   /// @param oracleQuorum The quorum required among oracles for a report to be considered.
-  /// @param minOracleQuorum The minimum required quorum among oracles for a report.
   struct Config {
     bool bunkerMode;
     uint256 reportFrequency;
@@ -176,6 +175,10 @@ interface IRouter {
   /// @param _account Address of the sentinel account to be removed.
   function removeSentinel(address _account) external;
 
+  /// @notice Submit a report for the current reporting block.
+  /// @dev Handles report submissions, checking for consensus or thresholds and preps next block if needed.
+  /// It uses a combination of total votes for report to determine consensus.
+  /// @param _report Data structure of the report.
   function submitReport(Report calldata _report) external;
 
   /// @notice Allows an active report oracle to execute an approved report.

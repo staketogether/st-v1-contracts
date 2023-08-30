@@ -226,10 +226,10 @@ contract Router is
    ** REPORT **
    ************/
 
-  /// @notice Allows oracles to submit reports and attempts to achieve consensus.
-  /// @dev This function will count votes for each report, and if a consensus is reached or becomes impossible, appropriate events will be emitted.
-  /// It uses a combination of total votes and distinct report votes to determine consensus.
-  /// @param _report The report being submitted by the oracle.
+  /// @notice Submit a report for the current reporting block.
+  /// @dev Handles report submissions, checking for consensus or thresholds and preps next block if needed.
+  /// It uses a combination of total votes for report to determine consensus.
+  /// @param _report Data structure of the report.
   function submitReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToSubmit(_report);
 
@@ -337,6 +337,8 @@ contract Router is
   /// @param _reportBlock The report block for which the report was approved.
   function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
     require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
+    require(!revokedReports[reportBlock], 'REPORT_ALREADY_REVOKED');
+    require(_reportBlock > lastExecutedBlock, 'REPORT_BLOCK_SHOULD_BE_GREATER');
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
     emit RevokeConsensusReport(_reportBlock);
