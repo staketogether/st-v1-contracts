@@ -102,10 +102,20 @@ async function deployStakeTogether(
   const depositAddress = await mockDepositContract.getAddress()
 
   function convertToWithdrawalAddress(eth1Address: string): string {
+    if (!ethers.isAddress(eth1Address)) {
+      throw new Error('Invalid ETH1 address format.')
+    }
+
     const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
-    const paddedAddress = address.padStart(64, '0')
+    const paddedAddress = address.padStart(62, '0')
     const withdrawalAddress = '0x01' + paddedAddress
     return withdrawalAddress
+  }
+
+  const withdrawalsCredentials = convertToWithdrawalAddress(routerContract)
+
+  if (withdrawalsCredentials.length !== 66) {
+    throw new Error('Withdrawals credentials are not the correct length')
   }
 
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
