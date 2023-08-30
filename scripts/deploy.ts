@@ -165,13 +165,13 @@ export async function deployStakeTogether(
 
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
 
-  const withdrawalsAddress = convertToWithdrawalAddress(withdrawalsContract)
+  const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     routerContract,
     withdrawalsContract,
     depositAddress,
-    withdrawalsAddress,
+    withdrawalsCredentialsAddress,
   ])
 
   await stakeTogether.waitForDeployment()
