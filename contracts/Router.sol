@@ -319,7 +319,7 @@ contract Router is
     return reportBlock;
   }
 
-  /// @notice Forces to advance to nextReportBlock.
+  /// @notice Force to advance to the next reportBlock.
   function forceNextReportBlock() external nonReentrant activeReportOracle {
     require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
     _advanceNextReportBlock();
