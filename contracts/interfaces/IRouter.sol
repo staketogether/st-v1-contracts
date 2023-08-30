@@ -183,7 +183,7 @@ interface IRouter {
   /// @param _report The data structure containing report details.
   function executeReport(Report calldata _report) external;
 
-  /// @notice Forces a consensus fail for the current report block.
+  /// @notice Forces to advance to nextReportBlock.
   function forceNextReportBlock() external;
 
   /// @notice Computes and returns the hash of a given report.
