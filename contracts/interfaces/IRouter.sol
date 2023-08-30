@@ -184,7 +184,7 @@ interface IRouter {
   function executeReport(Report calldata _report) external;
 
   /// @notice Forces a consensus fail for the current report block.
-  function forceConsensusFail() external;
+  function forceNextReportBlock() external;
 
   /// @notice Computes and returns the hash of a given report.
   /// @param _report The data structure containing report details.

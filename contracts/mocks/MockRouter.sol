@@ -316,7 +316,7 @@ contract MockRouter is
     return reportBlock;
   }
 
-  function forceConsensusFail() external nonReentrant activeReportOracle {
+  function forceNextReportBlock() external nonReentrant activeReportOracle {
     require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
     _advanceNextReportBlock();
   }

@@ -320,7 +320,7 @@ contract Router is
   }
 
   /// @notice Forces a consensus fail for the current report block.
-  function forceConsensusFail() external nonReentrant activeReportOracle {
+  function forceNextReportBlock() external nonReentrant activeReportOracle {
     require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
     _advanceNextReportBlock();
   }
