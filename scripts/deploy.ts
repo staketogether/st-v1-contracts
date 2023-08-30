@@ -179,9 +179,16 @@ export async function deployStakeTogether(
   await stakeTogetherContract.connect(owner).grantRole(ST_UPGRADER_ROLE, owner)
   await stakeTogetherContract.connect(owner).grantRole(ST_POOL_MANAGER_ROLE, owner)
 
+  const stakeEntry = ethers.parseEther('0.003')
+  const stakeRewardsFee = ethers.parseEther('0.09')
+  const stakePoolFee = ethers.parseEther('1')
+  const stakeValidatorFee = ethers.parseEther('0.01')
+
+  const poolSize = ethers.parseEther('32')
+
   const config = {
     validatorSize: ethers.parseEther('32'),
-    poolSize: ethers.parseEther('32.01'), // validator size + validator fee
+    poolSize: poolSize + stakeValidatorFee,
     minDepositAmount: ethers.parseEther('0.001'),
     minWithdrawAmount: ethers.parseEther('0.00001'),
     depositLimit: ethers.parseEther('1000'),
@@ -199,7 +206,7 @@ export async function deployStakeTogether(
   await stakeTogetherContract.setConfig(config)
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(0n, ethers.parseEther('0.003'), [
+  await stakeTogetherContract.setFee(0n, stakeEntry, [
     ethers.parseEther('0.6'),
     0n,
     ethers.parseEther('0.4'),
@@ -207,7 +214,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(1n, ethers.parseEther('0.09'), [
+  await stakeTogetherContract.setFee(1n, stakeRewardsFee, [
     ethers.parseEther('0.33'),
     ethers.parseEther('0.33'),
     ethers.parseEther('0.34'),
@@ -215,7 +222,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, ethers.parseEther('1'), [
+  await stakeTogetherContract.setFee(2n, stakePoolFee, [
     ethers.parseEther('0.4'),
     0n,
     ethers.parseEther('0.6'),
@@ -223,7 +230,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(3n, ethers.parseEther('0.01'), [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
