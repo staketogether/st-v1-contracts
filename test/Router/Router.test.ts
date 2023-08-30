@@ -732,6 +732,83 @@ describe('Router', function () {
       await expect(txSuccess).to.emit(router, 'ConsensusApprove')
     })
 
+    it('should skip if consensus not achieved with zero margin', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const config = {
+        bunkerMode: false,
+        reportDelayBlock: 300,
+
+        oracleBlackListLimit: 3,
+        reportFrequency: 1000,
+        oracleQuorum: 5,
+        reportNoConsensusMargin: 0,
+      }
+
+      await connect(router, owner).setConfig(config)
+
+      const currentBlockReport = await router.reportBlock()
+      expect(currentBlockReport).to.equal(49n)
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      await advanceBlocks(1100)
+
+      await router.connect(user1).submitReport(report)
+      await router.connect(user2).submitReport(report)
+      await router.connect(user3).submitReport(report)
+      await router.connect(user4).submitReport(report)
+
+      report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 10010n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      const failTx = await router.connect(user5).submitReport(report)
+      await failTx.wait()
+
+      await expect(failTx).to.emit(router, 'ConsensusFail')
+
+      await expect(router.connect(user5).submitReport(report)).to.be.revertedWith(
+        'BLOCK_NUMBER_NOT_REACHED',
+      )
+
+      await advanceBlocks(1000)
+
+      await router.connect(user1).submitReport(report)
+      await router.connect(user2).submitReport(report)
+      await router.connect(user3).submitReport(report)
+      await router.connect(user4).submitReport(report)
+      const txSuccess = await router.connect(user5).submitReport(report)
+      await txSuccess.wait()
+
+      await expect(txSuccess).to.emit(router, 'ConsensusApprove')
+    })
+
     it('should prevent fake report', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       const oracles = [user1, user2, user3, user4, user5, user6, user7]
