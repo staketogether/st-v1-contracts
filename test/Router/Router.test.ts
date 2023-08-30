@@ -176,6 +176,21 @@ describe('Router', function () {
         // Attempt to set config by non-owner should fail
         await expect(router.connect(user1).setConfig(config)).to.be.reverted
       })
+
+      it('should not allow non-owner to set configuration', async function () {
+        const config = {
+          bunkerMode: false,
+          reportDelayBlock: 60,
+
+          oracleBlackListLimit: 3,
+          reportFrequency: 1000,
+          oracleQuorum: 5,
+          reportNoConsensusMargin: 6,
+        }
+
+        // Attempt to set config by non-owner should fail
+        await expect(router.connect(owner).setConfig(config)).to.be.revertedWith('MARGIN_TOO_HIGH')
+      })
     })
   })
 

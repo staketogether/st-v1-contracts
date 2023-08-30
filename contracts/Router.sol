@@ -132,7 +132,7 @@ contract Router is
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
     require(config.reportDelayBlock < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
-    require(config.reportNoConsensusMargin < config.oracleQuorum, 'REPORT_NO_CONSENSUS_MARGIN_TOO_HIGH');
+    require(config.reportNoConsensusMargin < config.oracleQuorum, 'MARGIN_TOO_HIGH');
     emit SetConfig(_config);
   }
 
