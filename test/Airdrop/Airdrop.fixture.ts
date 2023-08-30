@@ -102,10 +102,20 @@ async function deployStakeTogether(
   const depositAddress = await mockDepositContract.getAddress()
 
   function convertToWithdrawalAddress(eth1Address: string): string {
+    if (!ethers.isAddress(eth1Address)) {
+      throw new Error('Invalid ETH1 address format.')
+    }
+
     const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
-    const paddedAddress = address.padStart(64, '0')
+    const paddedAddress = address.padStart(62, '0')
     const withdrawalAddress = '0x01' + paddedAddress
     return withdrawalAddress
+  }
+
+  const withdrawalsCredentials = convertToWithdrawalAddress(routerContract)
+
+  if (withdrawalsCredentials.length !== 66) {
+    throw new Error('Withdrawals credentials are not the correct length')
   }
 
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
@@ -133,9 +143,16 @@ async function deployStakeTogether(
   await stakeTogetherContract.connect(owner).grantRole(ST_UPGRADER_ROLE, owner)
   await stakeTogetherContract.connect(owner).grantRole(ST_POOL_MANAGER_ROLE, owner)
 
+  const stakeEntry = ethers.parseEther('0.003')
+  const stakeRewardsFee = ethers.parseEther('0.09')
+  const stakePoolFee = ethers.parseEther('1')
+  const stakeValidatorFee = ethers.parseEther('0.01')
+
+  const poolSize = ethers.parseEther('32')
+
   const config = {
     validatorSize: ethers.parseEther('32'),
-    poolSize: ethers.parseEther('32'),
+    poolSize: poolSize + stakeValidatorFee,
     minDepositAmount: ethers.parseEther('0.001'),
     minWithdrawAmount: ethers.parseEther('0.00001'),
     depositLimit: ethers.parseEther('1000'),
@@ -143,7 +160,7 @@ async function deployStakeTogether(
     blocksPerDay: 7200n,
     maxDelegations: 64n,
     feature: {
-      AddPool: true,
+      AddPool: false,
       Deposit: true,
       WithdrawPool: true,
       WithdrawValidator: true,
@@ -153,7 +170,7 @@ async function deployStakeTogether(
   await stakeTogetherContract.setConfig(config)
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(0n, ethers.parseEther('0.003'), [
+  await stakeTogetherContract.setFee(0n, stakeEntry, [
     ethers.parseEther('0.6'),
     0n,
     ethers.parseEther('0.4'),
@@ -161,7 +178,7 @@ async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(1n, ethers.parseEther('0.09'), [
+  await stakeTogetherContract.setFee(1n, stakeRewardsFee, [
     ethers.parseEther('0.33'),
     ethers.parseEther('0.33'),
     ethers.parseEther('0.34'),
@@ -169,7 +186,7 @@ async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, ethers.parseEther('1'), [
+  await stakeTogetherContract.setFee(2n, stakePoolFee, [
     ethers.parseEther('0.4'),
     0n,
     ethers.parseEther('0.6'),
@@ -177,7 +194,7 @@ async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(3n, ethers.parseEther('0.01'), [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
