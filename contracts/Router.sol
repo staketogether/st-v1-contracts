@@ -132,6 +132,7 @@ contract Router is
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
     require(config.reportDelayBlock < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
+    require(config.reportNoConsensusMargin < config.oracleQuorum, 'REPORT_NO_CONSENSUS_MARGIN_TOO_HIGH');
     emit SetConfig(_config);
   }
 
@@ -238,6 +239,8 @@ contract Router is
     totalVotes[reportBlock]++;
 
     if (consensusReport[reportBlock] == bytes32(0)) {
+      uint256 votesBeforeThreshold = totalReportOracles - config.reportNoConsensusMargin;
+
       if (totalVotes[reportBlock] >= config.oracleQuorum) {
         if (reportVotesForBlock[reportBlock][hash] >= config.oracleQuorum) {
           consensusReport[reportBlock] = hash;
@@ -248,8 +251,10 @@ contract Router is
         }
       }
 
-      uint remainingOracles = totalReportOracles - totalVotes[reportBlock];
-      if ((config.oracleQuorum - reportVotesForBlock[reportBlock][hash]) > remainingOracles) {
+      if (
+        totalVotes[reportBlock] >= votesBeforeThreshold &&
+        reportVotesForBlock[reportBlock][hash] < config.oracleQuorum
+      ) {
         emit ConsensusFail(reportBlock, _report, hash);
         _advanceNextReportBlock();
       }
@@ -314,6 +319,11 @@ contract Router is
     return reportBlock;
   }
 
+  function forceConsensusFail() external nonReentrant activeReportOracle {
+    require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
+    _advanceNextReportBlock();
+  }
+
   /// @notice Computes and returns the hash of a given report.
   /// @param _report The data structure containing report details.
   /// @return The keccak256 hash of the report.
@@ -353,6 +363,10 @@ contract Router is
     require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
     require(!pendingExecution, 'PENDING_EXECUTION');
     require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
+    require(
+      config.reportNoConsensusMargin <= totalReportOracles - config.oracleQuorum,
+      'MARGIN_TOO_HIGH'
+    );
 
     if (_report.profitAmount > 0) {
       require(_report.lossAmount == 0, 'LOSS_MUST_BE_ZERO');

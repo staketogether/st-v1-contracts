@@ -118,7 +118,7 @@ export async function deployRouter(
     bunkerMode: false,
     maxValidatorsToExit: 100,
     reportDelayBlock: 600,
-
+    reportNoConsensusMargin: 0,
     oracleQuorum: 5,
     oracleBlackListLimit: 3,
     reportFrequency: reportFrequency,

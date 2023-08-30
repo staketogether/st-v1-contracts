@@ -151,6 +151,7 @@ describe('Router', function () {
           oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
+          reportNoConsensusMargin: 0,
         }
 
         // Set config by owner
@@ -169,6 +170,7 @@ describe('Router', function () {
           oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
+          reportNoConsensusMargin: 0,
         }
 
         // Attempt to set config by non-owner should fail
@@ -344,6 +346,7 @@ describe('Router', function () {
       withdrawRefundAmount: bigint
       routerExtraAmount: bigint
       validatorsToRemove: BytesLike[]
+      accumulatedReports: bigint
     }
 
     let report: Report
@@ -359,6 +362,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await expect(router.connect(user2).submitReport(report)).to.be.revertedWith('ONLY_ACTIVE_ORACLE')
@@ -382,6 +386,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -409,6 +414,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -436,6 +442,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -461,6 +468,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -491,6 +499,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -508,6 +517,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
@@ -545,6 +555,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -576,6 +587,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await expect(router.connect(user1).submitReport(tempReport)).to.be.revertedWith(
@@ -607,6 +619,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -625,6 +638,13 @@ describe('Router', function () {
     })
 
     it('should skip if consensus not achieved', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5, user6]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
       const config = {
         bunkerMode: false,
         reportDelayBlock: 300,
@@ -632,17 +652,10 @@ describe('Router', function () {
         oracleBlackListLimit: 3,
         reportFrequency: 1000,
         oracleQuorum: 5,
+        reportNoConsensusMargin: 2,
       }
 
-      // Set config by owner
       await connect(router, owner).setConfig(config)
-
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      const oracles = [user1, user2, user3, user4, user5, user6]
-
-      for (const oracle of oracles) {
-        await router.connect(owner).addReportOracle(oracle.address)
-      }
 
       const currentBlockReport = await router.reportBlock()
       expect(currentBlockReport).to.equal(49n)
@@ -657,13 +670,29 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1100)
 
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith('MARGIN_TOO_HIGH')
+
+      const config2 = {
+        bunkerMode: false,
+        reportDelayBlock: 300,
+        oracleBlackListLimit: 3,
+        reportFrequency: 1000,
+        oracleQuorum: 5,
+        reportNoConsensusMargin: 1,
+      }
+
+      // Set config by owner
+      await connect(router, owner).setConfig(config2)
+
       await router.connect(user1).submitReport(report)
       await router.connect(user2).submitReport(report)
       await router.connect(user3).submitReport(report)
+      await router.connect(user4).submitReport(report)
 
       report = {
         epoch: 2n,
@@ -675,9 +704,10 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
-      const failTx = await router.connect(user4).submitReport(report)
+      const failTx = await router.connect(user5).submitReport(report)
       await failTx.wait()
 
       await expect(failTx).to.emit(router, 'ConsensusFail')
@@ -695,7 +725,7 @@ describe('Router', function () {
       const txSuccess = await router.connect(user5).submitReport(report)
       await txSuccess.wait()
 
-      expect(txSuccess).to.emit(router, 'ConsensusApproved')
+      await expect(txSuccess).to.emit(router, 'ConsensusApprove')
     })
 
     it('should fail because of eth', async function () {
@@ -716,6 +746,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -752,6 +783,7 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -778,6 +810,7 @@ describe('Router', function () {
         withdrawRefundAmount: 0n,
         routerExtraAmount: 0n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       await router.connect(user1).submitReport(report2)
@@ -813,6 +846,7 @@ describe('Router', function () {
           withdrawRefundAmount: 0n,
           routerExtraAmount: 55n,
           validatorsToRemove: [],
+          accumulatedReports: 0n,
         },
         {
           epoch: 3n,
@@ -824,6 +858,7 @@ describe('Router', function () {
           withdrawRefundAmount: 0n,
           routerExtraAmount: 30n,
           validatorsToRemove: [],
+          accumulatedReports: 0n,
         },
         {
           epoch: 4n,
@@ -835,6 +870,7 @@ describe('Router', function () {
           withdrawRefundAmount: 0n,
           routerExtraAmount: 40n,
           validatorsToRemove: [],
+          accumulatedReports: 0n,
         },
         {
           epoch: 5n,
@@ -846,6 +882,7 @@ describe('Router', function () {
           withdrawRefundAmount: 0n,
           routerExtraAmount: 40n,
           validatorsToRemove: [],
+          accumulatedReports: 0n,
         },
         {
           epoch: 6n,
@@ -857,6 +894,7 @@ describe('Router', function () {
           withdrawRefundAmount: 0n,
           routerExtraAmount: 40n,
           validatorsToRemove: [],
+          accumulatedReports: 0n,
         },
       ]
 
@@ -895,6 +933,7 @@ describe('Router', function () {
         withdrawRefundAmount: 0n,
         routerExtraAmount: 55n,
         validatorsToRemove: validatorsToRemove,
+        accumulatedReports: 0n,
       }
 
       await advanceBlocks(1000)
@@ -978,6 +1017,7 @@ describe('Router', function () {
         withdrawRefundAmount: 0n,
         routerExtraAmount: 55n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       for (const oracle of oracles) {
@@ -1025,12 +1065,13 @@ describe('Router', function () {
         withdrawRefundAmount: 100n,
         routerExtraAmount: 300n,
         validatorsToRemove: [],
+        accumulatedReports: 0n,
       }
 
       const contractHash = await router.getReportHash(report)
 
       expect(contractHash).to.be.equal(
-        '0x9ba292af0dcc0bee66d17d06254b1ffcdd5175dca3034f0bdd30890f8fca3c11',
+        '0xeb4f2918aaa5b9f83d6baa520d0a5f1f3f3236930558a3feddc607966e874bf6',
       )
     })
   })

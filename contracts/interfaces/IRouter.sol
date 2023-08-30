@@ -17,6 +17,7 @@ interface IRouter {
     bool bunkerMode;
     uint256 reportFrequency;
     uint256 reportDelayBlock;
+    uint256 reportNoConsensusMargin;
     uint256 oracleBlackListLimit;
     uint256 oracleQuorum;
   }
@@ -41,6 +42,7 @@ interface IRouter {
     uint256 withdrawRefundAmount;
     uint256 routerExtraAmount;
     bytes32[] validatorsToRemove;
+    uint256 accumulatedReports;
   }
   /// @notice Emitted when a new oracle is added for reporting.
   /// @param reportOracle The address of the oracle that was added.
