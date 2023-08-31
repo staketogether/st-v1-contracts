@@ -322,7 +322,8 @@ contract Router is
   /// @notice Force to advance to the next reportBlock.
   function forceNextReportBlock() external nonReentrant activeReportOracle {
     require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
-    _advanceNextReportBlock();
+    require(!pendingExecution, 'PENDING_EXECUTION');
+    _revokeConsensusReport(reportBlock);
   }
 
   /// @notice Computes and returns the hash of a given report.
@@ -336,6 +337,13 @@ contract Router is
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _reportBlock The report block for which the report was approved.
   function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
+    _revokeConsensusReport(_reportBlock);
+  }
+
+  /// @dev Internal function to handle the revoking of consensus reports.
+  /// Ensures that the report exists, hasn't been revoked, and the block number is greater than the last executed one.
+  /// @param _reportBlock The block number of the report to be revoked.
+  function _revokeConsensusReport(uint256 _reportBlock) private {
     require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
     require(!revokedReports[_reportBlock], 'REPORT_ALREADY_REVOKED');
     require(_reportBlock > lastExecutedBlock, 'REPORT_BLOCK_SHOULD_BE_GREATER');
