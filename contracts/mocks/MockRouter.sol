@@ -334,7 +334,7 @@ contract MockRouter is
   /// @param _reportBlock The report block for which the report was approved.
   function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
     require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
-    require(!revokedReports[reportBlock], 'REPORT_ALREADY_REVOKED');
+    require(!revokedReports[_reportBlock], 'REPORT_ALREADY_REVOKED');
     require(_reportBlock > lastExecutedBlock, 'REPORT_BLOCK_SHOULD_BE_GREATER');
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
