@@ -85,7 +85,7 @@ interface IStakeTogether {
   /// @notice Emitted when a validator is created
   /// @param creator The address of the creator
   /// @param amount The amount for the validator
-  /// @param publicKey The external key of the validator
+  /// @param publicKey The public key of the validator
   /// @param withdrawalCredentials The withdrawal credentials
   /// @param signature The signature
   /// @param depositDataRoot The deposit data root
@@ -369,7 +369,7 @@ interface IStakeTogether {
   function setWithdrawBalance(uint256 _amount) external payable;
 
   /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The external key of the validator.
+  /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.
   /// @param _depositDataRoot The deposit data root for the validator.
   /// @dev Only a valid validator oracle can call this function.
