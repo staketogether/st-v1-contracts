@@ -85,14 +85,14 @@ interface IStakeTogether {
   /// @notice Emitted when a validator is created
   /// @param creator The address of the creator
   /// @param amount The amount for the validator
-  /// @param externalKey The external key of the validator
+  /// @param publicKey The external key of the validator
   /// @param withdrawalCredentials The withdrawal credentials
   /// @param signature The signature
   /// @param depositDataRoot The deposit data root
   event CreateValidator(
     address indexed creator,
     uint256 amount,
-    bytes externalKey,
+    bytes publicKey,
     bytes withdrawalCredentials,
     bytes signature,
     bytes32 depositDataRoot
@@ -149,12 +149,6 @@ interface IStakeTogether {
   /// @notice Emitted when a pool is removed
   /// @param pool The address of the pool
   event RemovePool(address indexed pool);
-
-  /// @notice Emitted when a validator is removed
-  /// @param account The address of the account
-  /// @param epoch The epoch associated with the removal
-  /// @param externalKey The external key of the validator
-  event RemoveValidator(address indexed account, uint256 epoch, bytes externalKey);
 
   /// @notice Emitted when a validator oracle is removed
   /// @param account The address of the account
