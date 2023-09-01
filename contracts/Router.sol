@@ -319,32 +319,10 @@ contract Router is
     return reportBlock;
   }
 
-  /// @notice Force to advance to the next reportBlock.
-  function forceNextReportBlock() external nonReentrant activeReportOracle {
-    require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
-    require(!pendingExecution, 'PENDING_EXECUTION');
-    _revokeConsensusReport(reportBlock);
-  }
-
-  /// @notice Computes and returns the hash of a given report.
-  /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
-  function getReportHash(Report calldata _report) external pure returns (bytes32) {
-    return keccak256(abi.encode(_report));
-  }
-
-  // @notice Revokes a consensus-approved report for a given report block.
-  /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _reportBlock The report block for which the report was approved.
-  function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    _revokeConsensusReport(_reportBlock);
-  }
-
   /// @dev Internal function to handle the revoking of consensus reports.
   /// Ensures that the report exists, hasn't been revoked, and the block number is greater than the last executed one.
   /// @param _reportBlock The block number of the report to be revoked.
   function _revokeConsensusReport(uint256 _reportBlock) private {
-    require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
     require(!revokedReports[_reportBlock], 'REPORT_ALREADY_REVOKED');
     require(_reportBlock > lastExecutedBlock, 'REPORT_BLOCK_SHOULD_BE_GREATER');
     revokedReports[_reportBlock] = true;
@@ -353,12 +331,35 @@ contract Router is
     _advanceNextReportBlock();
   }
 
+  /// @notice Force to advance to the next reportBlock.
+  function forceNextReportBlock() external nonReentrant activeReportOracle {
+    require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
+    require(!pendingExecution, 'PENDING_EXECUTION');
+    _revokeConsensusReport(reportBlock);
+  }
+
+  // @notice Revokes a consensus-approved report for a given report block.
+  /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
+  /// @param _reportBlock The report block for which the report was approved.
+  function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
+    require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
+    require(pendingExecution, 'NO_PENDING_EXECUTION');
+    _revokeConsensusReport(_reportBlock);
+  }
+
   /// @notice Set the last epoch for which a consensus was executed.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
   /// @param _epoch The last epoch for which consensus was executed.
   function setLastExecutedEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
     lastExecutedEpoch = _epoch;
     emit SetLastExecutedEpoch(_epoch);
+  }
+
+  /// @notice Computes and returns the hash of a given report.
+  /// @param _report The data structure containing report details.
+  /// @return The keccak256 hash of the report.
+  function getReportHash(Report calldata _report) external pure returns (bytes32) {
+    return keccak256(abi.encode(_report));
   }
 
   /// @notice Validates if conditions to submit a report for an block report are met.
