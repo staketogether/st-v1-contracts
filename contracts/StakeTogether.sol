@@ -485,10 +485,10 @@ contract StakeTogether is
         delegationShares += _delegations[i].percentage;
       }
       require(delegationShares == 1 ether, 'IPS'); // IPS = Invalid Percentage Sum
+    } else {
+      require(_delegations.length == 0, 'SZL'); // SZL = Should Be Zero Length
     }
-    if (delegationShares == 1 ether || _delegations.length == 0) {
-      emit UpdateDelegations(_account, _delegations);
-    }
+    emit UpdateDelegations(_account, _delegations);
   }
 
   /***********************
