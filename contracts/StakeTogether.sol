@@ -477,14 +477,14 @@ contract StakeTogether is
   /// @param _account The address of the account to update delegations for.
   /// @param _delegations The array of delegations to update.
   function _updateDelegations(address _account, Delegation[] memory _delegations) private {
-    uint256 delegationShares = 0;
+    uint256 totalPercentage = 0;
     if (shares[_account] > 0) {
       require(_delegations.length <= config.maxDelegations, 'MD'); // MD = Max Delegations
       for (uint i = 0; i < _delegations.length; i++) {
         require(pools[_delegations[i].pool], 'PNF'); // PNF = Pool Not Found
-        delegationShares += _delegations[i].percentage;
+        totalPercentage += _delegations[i].percentage;
       }
-      require(delegationShares == 1 ether, 'IPS'); // IPS = Invalid Percentage Sum
+      require(totalPercentage == 1 ether, 'ITP'); // ITP = Invalid Total Percentage
     } else {
       require(_delegations.length == 0, 'SZL'); // SZL = Should Be Zero Length
     }
