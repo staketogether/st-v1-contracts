@@ -637,7 +637,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('IPS')
+      ).to.be.revertedWith('ITP')
     })
 
     it('should revert if deposit feature is disabled', async function () {
@@ -687,18 +687,17 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('PNF')
     })
 
-    it('should fail when total delegation shares do not match user shares', async function () {
+    it('should fail when total delegation shares do not match user percentage', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       await stakeTogether.connect(owner).addPool(poolAddress, true)
       const fee = (user1DepositAmount * 3n) / 1000n
-      const incorrectShares = user1DepositAmount - fee + 1n
 
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') + 1n }]
 
       await expect(
         stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('IPS')
+      ).to.be.revertedWith('ITP')
     })
 
     it('should fail when the number of delegations is greater than maxDelegations', async function () {
