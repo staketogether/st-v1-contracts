@@ -36,7 +36,6 @@ interface IStakeTogether {
   /// @notice Represents the fee structure.
   struct Fee {
     uint256 value; /// Value of the fee.
-    FeeMath mathType; /// Type of calculation for the fee (Fixed or Percentage).
     mapping(FeeRole => uint256) allocations; /// Allocation of fees among different roles.
   }
 
@@ -58,12 +57,6 @@ interface IStakeTogether {
     ProcessStakeRewards, /// Fee for staking rewards.
     StakePool, /// Fee for pool staking.
     ProcessStakeValidator /// Fee for validator staking.
-  }
-
-  /// @notice Types of mathematics used in fee calculation.
-  enum FeeMath {
-    FIXED, /// Fixed value fee.
-    PERCENTAGE /// Percentage value fee.
   }
 
   /// @notice Different roles that are used in fee allocation
@@ -92,14 +85,14 @@ interface IStakeTogether {
   /// @notice Emitted when a validator is created
   /// @param creator The address of the creator
   /// @param amount The amount for the validator
-  /// @param externalKey The external key of the validator
+  /// @param publicKey The public key of the validator
   /// @param withdrawalCredentials The withdrawal credentials
   /// @param signature The signature
   /// @param depositDataRoot The deposit data root
   event CreateValidator(
     address indexed creator,
     uint256 amount,
-    bytes externalKey,
+    bytes publicKey,
     bytes withdrawalCredentials,
     bytes signature,
     bytes32 depositDataRoot
@@ -157,12 +150,6 @@ interface IStakeTogether {
   /// @param pool The address of the pool
   event RemovePool(address indexed pool);
 
-  /// @notice Emitted when a validator is removed
-  /// @param account The address of the account
-  /// @param epoch The epoch associated with the removal
-  /// @param externalKey The external key of the validator
-  event RemoveValidator(address indexed account, uint256 epoch, bytes externalKey);
-
   /// @notice Emitted when a validator oracle is removed
   /// @param account The address of the account
   event RemoveValidatorOracle(address indexed account);
@@ -178,9 +165,8 @@ interface IStakeTogether {
   /// @notice Emitted when a fee is set
   /// @param feeType The type of fee being set
   /// @param value The value of the fee
-  /// @param mathType The mathematical type of the fee
   /// @param allocations The allocations for the fee
-  event SetFee(FeeType indexed feeType, uint256 value, FeeMath mathType, uint256[] allocations);
+  event SetFee(FeeType indexed feeType, uint256 value, uint256[] allocations);
 
   /// @notice Emitted when a fee address is set
   /// @param role The role associated with the fee
@@ -198,6 +184,10 @@ interface IStakeTogether {
   /// @notice Emitted when the validator size is set
   /// @param newValidatorSize The new size for the validator
   event SetValidatorSize(uint256 newValidatorSize);
+
+  /// @notice Emitted when the withdraw balance is set
+  /// @param amount The amount set for the withdraw balance
+  event SetWithdrawBalance(uint256 amount);
 
   /// @notice Emitted when the withdrawal credentials are set
   /// @param withdrawalCredentials The withdrawal credentials bytes
@@ -373,8 +363,13 @@ interface IStakeTogether {
   /// @dev Only the router address can call this function.
   function setBeaconBalance(uint256 _amount) external payable;
 
+  /// @notice Sets the pending withdraw balance to the specified amount.
+  /// @param _amount The amount to set as the pending withdraw balance.
+  /// @dev Only the router address can call this function.
+  function setWithdrawBalance(uint256 _amount) external payable;
+
   /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The external key of the validator.
+  /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.
   /// @param _depositDataRoot The deposit data root for the validator.
   /// @dev Only a valid validator oracle can call this function.
@@ -407,15 +402,9 @@ interface IStakeTogether {
   /// @notice Sets the fee for a given fee type.
   /// @param _feeType The type of fee to set.
   /// @param _value The value of the fee.
-  /// @param _mathType The mathematical type of the fee.
   /// @param _allocations The allocations for the fee.
   /// @dev Only an admin can call this function.
-  function setFee(
-    FeeType _feeType,
-    uint256 _value,
-    FeeMath _mathType,
-    uint256[] calldata _allocations
-  ) external;
+  function setFee(FeeType _feeType, uint256 _value, uint256[] calldata _allocations) external;
 
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.

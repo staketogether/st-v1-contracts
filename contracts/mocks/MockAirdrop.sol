@@ -30,8 +30,8 @@ contract MockAirdrop is
   StakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
   Router public router; // The reference to the Router contract for routing related operations.
 
-  mapping(uint256 => bytes32) public merkleRoots; // Stores the merkle roots for each epoch. This is used for claims verification.
-  mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap; // A nested mapping where the first key is the epoch and the second key is the user's index.
+  mapping(uint256 => bytes32) public merkleRoots; // Stores the merkle roots for block number. This is used for claims verification.
+  mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap; // A nested mapping where the first key is the block and the second key is the user's index.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -45,8 +45,6 @@ contract MockAirdrop is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(UPGRADER_ROLE, msg.sender);
 
     version = 1;
   }
@@ -105,66 +103,66 @@ contract MockAirdrop is
    ** AIRDROPS **
    **************/
 
-  /// @notice Adds a new Merkle root for a given epoch.
-  /// @param _epoch The epoch number.
-  /// @param merkleRoot The Merkle root.
+  /// @notice Adds a new Merkle root for a given blockNumber.
+  /// @param _reportBlock The block number.
+  /// @param _root The Merkle root.
   /// @dev Only callable by the router.
-  function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external nonReentrant whenNotPaused {
+  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
     require(msg.sender == address(router), 'ONLY_ROUTER');
-    require(merkleRoots[_epoch] == bytes32(0), 'MERKLE_ALREADY_SET_FOR_EPOCH');
-    merkleRoots[_epoch] = merkleRoot;
-    emit AddMerkleRoot(_epoch, merkleRoot);
+    require(merkleRoots[_reportBlock] == bytes32(0), 'ROOT_ALREADY_SET_FOR_BLOCK');
+    merkleRoots[_reportBlock] = _root;
+    emit AddMerkleRoot(_reportBlock, _root);
   }
 
-  /// @notice Claims a reward for a specific epoch.
-  /// @param _epoch The epoch number.
+  /// @notice Claims a reward for a specific block number.
+  /// @param _blockNumber The block report number.
   /// @param _index The index in the Merkle tree.
   /// @param _account The address claiming the reward.
   /// @param _sharesAmount The amount of shares to claim.
   /// @param merkleProof The Merkle proof required to claim the reward.
   /// @dev Verifies the Merkle proof and transfers the reward shares.
   function claim(
-    uint256 _epoch,
+    uint256 _blockNumber,
     uint256 _index,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
-    require(!isClaimed(_epoch, _index), 'ALREADY_CLAIMED');
-    require(merkleRoots[_epoch] != bytes32(0), 'MERKLE_ROOT_NOT_SET');
+    require(!isClaimed(_blockNumber, _index), 'ALREADY_CLAIMED');
+    require(merkleRoots[_blockNumber] != bytes32(0), 'MERKLE_ROOT_NOT_SET');
     require(_account != address(0), 'ZERO_ADDRESS');
     require(_sharesAmount > 0, 'ZERO_AMOUNT');
 
     bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_index, _account, _sharesAmount))));
-    require(MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_epoch], leaf), 'INVALID_PROOF');
+    require(MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_blockNumber], leaf), 'INVALID_PROOF');
 
-    _setClaimed(_epoch, _index);
+    _setClaimed(_blockNumber, _index);
 
     stakeTogether.claimAirdrop(_account, _sharesAmount);
 
-    emit Claim(_epoch, _index, _account, _sharesAmount, merkleProof);
+    emit Claim(_blockNumber, _index, _account, _sharesAmount, merkleProof);
   }
 
-  /// @notice Marks a reward as claimed for a specific index and epoch.
-  /// @param _epoch The epoch number.
+  /// @notice Marks a reward as claimed for a specific index and block number.
+  /// @param _blockNumber The block report number.
   /// @param _index The index in the Merkle tree.
   /// @dev This function is private and is used internally to update the claim status.
-  function _setClaimed(uint256 _epoch, uint256 _index) private {
+  function _setClaimed(uint256 _blockNumber, uint256 _index) private {
     uint256 claimedWordIndex = _index / 256;
     uint256 claimedBitIndex = _index % 256;
-    claimBitMap[_epoch][claimedWordIndex] =
-      claimBitMap[_epoch][claimedWordIndex] |
+    claimBitMap[_blockNumber][claimedWordIndex] =
+      claimBitMap[_blockNumber][claimedWordIndex] |
       (1 << claimedBitIndex);
   }
 
-  /// @notice Checks if a reward has been claimed for a specific index and epoch.
-  /// @param _epoch The epoch number.
+  /// @notice Checks if a reward has been claimed for a specific index and block number.
+  /// @param _blockNumber The block number.
   /// @param _index The index in the Merkle tree.
   /// @return Returns true if the reward has been claimed, false otherwise.
-  function isClaimed(uint256 _epoch, uint256 _index) public view returns (bool) {
+  function isClaimed(uint256 _blockNumber, uint256 _index) public view returns (bool) {
     uint256 claimedWordIndex = _index / 256;
     uint256 claimedBitIndex = _index % 256;
-    uint256 claimedWord = claimBitMap[_epoch][claimedWordIndex];
+    uint256 claimedWord = claimBitMap[_blockNumber][claimedWordIndex];
     uint256 mask = (1 << claimedBitIndex);
     return claimedWord & mask == mask;
   }

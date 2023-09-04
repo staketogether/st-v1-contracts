@@ -173,37 +173,38 @@ describe('Airdrop', function () {
 
   describe('addMerkleRoot', function () {
     it('should add a Merkle root if called by the router address', async function () {
-      const epoch = 1
+      const reportBlock = await mockRouter.reportBlock()
       const merkleRoot = ethers.keccak256('0x1234')
 
       await connect(airdrop, owner).setRouter(owner.address)
 
-      await expect(connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot))
+      await expect(connect(airdrop, owner).addMerkleRoot(reportBlock, merkleRoot))
         .to.emit(airdrop, 'AddMerkleRoot')
-        .withArgs(epoch, merkleRoot)
+        .withArgs(reportBlock, merkleRoot)
 
-      expect(await airdrop.merkleRoots(epoch)).to.equal(merkleRoot)
+      expect(await airdrop.merkleRoots(reportBlock)).to.equal(merkleRoot)
     })
 
     it('should fail if called by an address other than the router', async function () {
-      const epoch = 1
+      const reportBlock = await mockRouter.reportBlock()
       const merkleRoot = ethers.keccak256('0x1234')
 
-      await expect(connect(airdrop, user1).addMerkleRoot(epoch, merkleRoot)).to.be.revertedWith(
+      await expect(connect(airdrop, user1).addMerkleRoot(reportBlock, merkleRoot)).to.be.revertedWith(
         'ONLY_ROUTER',
       )
     })
 
-    it('should fail if Merkle root is already set for the epoch', async function () {
-      const epoch = 1
+    it('should fail if Merkle root is already set for the report block', async function () {
       const merkleRoot1 = ethers.keccak256('0x1234')
       const merkleRoot2 = ethers.keccak256('0x5678')
 
-      await connect(airdrop, owner).setRouter(owner.address)
-      await connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot1)
+      const reportBlock = await mockRouter.reportBlock()
 
-      await expect(connect(airdrop, owner).addMerkleRoot(epoch, merkleRoot2)).to.be.revertedWith(
-        'MERKLE_ALREADY_SET_FOR_EPOCH',
+      await connect(airdrop, owner).setRouter(owner.address)
+      await connect(airdrop, owner).addMerkleRoot(reportBlock, merkleRoot1)
+
+      await expect(connect(airdrop, owner).addMerkleRoot(reportBlock, merkleRoot2)).to.be.revertedWith(
+        'ROOT_ALREADY_SET_FOR_BLOCK',
       )
     })
   })
@@ -235,19 +236,25 @@ describe('Airdrop', function () {
       const index0 = 0n
       const index1 = 1n
 
+      // 1
       const values: [bigint, string, bigint][] = [
         [index0, user5.address, 50000000000000n],
         [index1, user2.address, 25000000000000n],
       ]
 
+      // 2
       const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
 
       const proof1 = tree.getProof([index0, user5.address, 50000000000000n])
+
       const proof2 = tree.getProof([index1, user2.address, 25000000000000n])
 
       await airdrop.connect(owner).setRouter(owner.address)
+
+      // 3
       await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
 
+      // 4
       await expect(airdrop.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1))
         .to.emit(airdrop, 'Claim')
         .withArgs(epoch, index0, user5.address, 50000000000000n, proof1)

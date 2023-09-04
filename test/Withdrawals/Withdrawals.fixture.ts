@@ -26,6 +26,12 @@ async function deployAirdrop(owner: HardhatEthersSigner) {
 
   const airdropContract = airdrop as unknown as Airdrop
 
+  const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
+  const AIR_UPGRADER_ROLE = await airdropContract.UPGRADER_ROLE()
+
+  await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+  await airdropContract.connect(owner).grantRole(AIR_UPGRADER_ROLE, owner)
+
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
@@ -38,6 +44,12 @@ async function deployWithdrawals(owner: HardhatEthersSigner) {
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
   const withdrawalsContract = withdrawals as unknown as Withdrawals
+
+  const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
+  const WITHDRAW_UPGRADER_ROLE = await withdrawalsContract.UPGRADER_ROLE()
+
+  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
+  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
@@ -58,14 +70,23 @@ async function deployRouter(
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
-    reportDelayBlocks: 600,
-    minOracleQuorum: 5,
+    reportDelayBlock: 60,
+
+    reportNoConsensusMargin: 0,
     oracleQuorum: 5,
     oracleBlackListLimit: 3,
-    reportFrequency: 1,
+    reportFrequency: 1000,
   }
 
   const routerContract = router as unknown as Router
+
+  const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
+  const ROUTER_UPGRADER_ROLE = await routerContract.UPGRADER_ROLE()
+  const ROUTER_ORACLE_REPORT_MANAGER_ROLE = await routerContract.ORACLE_REPORT_MANAGER_ROLE()
+
+  await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
+  await routerContract.connect(owner).grantRole(ROUTER_UPGRADER_ROLE, owner)
+  await routerContract.connect(owner).grantRole(ROUTER_ORACLE_REPORT_MANAGER_ROLE, owner)
 
   await routerContract.setConfig(config)
 
@@ -82,21 +103,31 @@ async function deployStakeTogether(
   const depositAddress = await mockDepositContract.getAddress()
 
   function convertToWithdrawalAddress(eth1Address: string): string {
+    if (!ethers.isAddress(eth1Address)) {
+      throw new Error('Invalid ETH1 address format.')
+    }
+
     const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
-    const paddedAddress = address.padStart(64, '0')
+    const paddedAddress = address.padStart(62, '0')
     const withdrawalAddress = '0x01' + paddedAddress
     return withdrawalAddress
   }
 
+  const withdrawalsCredentials = convertToWithdrawalAddress(routerContract)
+
+  if (withdrawalsCredentials.length !== 66) {
+    throw new Error('Withdrawals credentials are not the correct length')
+  }
+
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
 
-  const withdrawalsAddress = convertToWithdrawalAddress(withdrawalsContract)
+  const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     routerContract,
     withdrawalsContract,
     depositAddress,
-    withdrawalsAddress,
+    withdrawalsCredentialsAddress,
   ])
 
   await stakeTogether.waitForDeployment()
@@ -105,9 +136,24 @@ async function deployStakeTogether(
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
+  const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
+  const ST_UPGRADER_ROLE = await stakeTogetherContract.UPGRADER_ROLE()
+  const ST_POOL_MANAGER_ROLE = await stakeTogetherContract.POOL_MANAGER_ROLE()
+
+  await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+  await stakeTogetherContract.connect(owner).grantRole(ST_UPGRADER_ROLE, owner)
+  await stakeTogetherContract.connect(owner).grantRole(ST_POOL_MANAGER_ROLE, owner)
+
+  const stakeEntry = ethers.parseEther('0.003')
+  const stakeRewardsFee = ethers.parseEther('0.09')
+  const stakePoolFee = ethers.parseEther('1')
+  const stakeValidatorFee = ethers.parseEther('0.01')
+
+  const poolSize = ethers.parseEther('32')
+
   const config = {
     validatorSize: ethers.parseEther('32'),
-    poolSize: ethers.parseEther('32'),
+    poolSize: poolSize + stakeValidatorFee,
     minDepositAmount: ethers.parseEther('0.001'),
     minWithdrawAmount: ethers.parseEther('0.00001'),
     depositLimit: ethers.parseEther('1000'),
@@ -115,7 +161,7 @@ async function deployStakeTogether(
     blocksPerDay: 7200n,
     maxDelegations: 64n,
     feature: {
-      AddPool: true,
+      AddPool: false,
       Deposit: true,
       WithdrawPool: true,
       WithdrawValidator: true,
@@ -125,7 +171,7 @@ async function deployStakeTogether(
   await stakeTogetherContract.setConfig(config)
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(0n, ethers.parseEther('0.003'), 1n, [
+  await stakeTogetherContract.setFee(0n, stakeEntry, [
     ethers.parseEther('0.6'),
     0n,
     ethers.parseEther('0.4'),
@@ -133,7 +179,7 @@ async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(1n, ethers.parseEther('0.09'), 1n, [
+  await stakeTogetherContract.setFee(1n, stakeRewardsFee, [
     ethers.parseEther('0.33'),
     ethers.parseEther('0.33'),
     ethers.parseEther('0.34'),
@@ -141,7 +187,7 @@ async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, ethers.parseEther('1'), 0n, [
+  await stakeTogetherContract.setFee(2n, stakePoolFee, [
     ethers.parseEther('0.4'),
     0n,
     ethers.parseEther('0.6'),
@@ -149,12 +195,7 @@ async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(3n, ethers.parseEther('0.01'), 0n, [
-    0n,
-    0n,
-    ethers.parseEther('1'),
-    0n,
-  ])
+  await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
@@ -204,18 +245,18 @@ export async function configContracts(
     routerContract: Router
   },
 ) {
-  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(0, airdrop.proxyAddress)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(1, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(2, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(3, owner)
 
-  await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
-  await airdrop.airdropContract.setRouter(router.proxyAddress)
+  await airdrop.airdropContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+  await airdrop.airdropContract.connect(owner).setRouter(router.proxyAddress)
 
-  await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
-  await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
+  await withdrawals.withdrawalsContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+  await withdrawals.withdrawalsContract.connect(owner).setRouter(router.proxyAddress)
 
-  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
+  await router.routerContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
 }
 
 export async function withdrawalsFixture() {

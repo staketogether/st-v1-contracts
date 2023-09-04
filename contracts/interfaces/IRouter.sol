@@ -9,17 +9,16 @@ interface IRouter {
   /// @dev Config structure used for configuring the reporting mechanism in StakeTogether protocol.
   /// @param bunkerMode A boolean flag to indicate whether the bunker mode is active or not.
   /// @param reportFrequency The frequency in which reports need to be generated.
-  /// @param reportDelayBlocks The number of blocks to delay before a report is considered.
+  /// @param reportDelayBlock The number of blocks to delay before a report is considered.
   /// @param oracleBlackListLimit The maximum number of oracles that can be blacklisted.
   /// @param oracleQuorum The quorum required among oracles for a report to be considered.
-  /// @param minOracleQuorum The minimum required quorum among oracles for a report.
   struct Config {
     bool bunkerMode;
     uint256 reportFrequency;
-    uint256 reportDelayBlocks;
+    uint256 reportDelayBlock;
+    uint256 reportNoConsensusMargin;
     uint256 oracleBlackListLimit;
     uint256 oracleQuorum;
-    uint256 minOracleQuorum;
   }
 
   /// @dev Report structure used for reporting the state of the protocol at different epochs.
@@ -42,61 +41,59 @@ interface IRouter {
     uint256 withdrawRefundAmount;
     uint256 routerExtraAmount;
     bytes32[] validatorsToRemove;
+    uint256 accumulatedReports;
   }
-
   /// @notice Emitted when a new oracle is added for reporting.
-  /// @param oracle The address of the oracle that was added.
-  event AddReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was added.
+  event AddReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when an oracle is blacklisted.
-  /// @param oracle The address of the oracle that was blacklisted.
-  event BlacklistReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was blacklisted.
+  event BlacklistReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusApprove(Report report, bytes32 hash);
+  event ConsensusApprove(uint256 reportBlock, Report report, bytes32 hash);
 
-  /// @notice Emitted when consensus is not reached for a report.
+  /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusNotReached(Report report, bytes32 hash);
+  event ConsensusFail(uint256 reportBlock, Report report, bytes32 hash);
 
   /// @notice Emitted when a report is executed.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ExecuteReport(Report report, bytes32 hash);
+  event ExecuteReport(uint256 reportBlock, Report report, bytes32 hash);
 
   /// @notice Emitted when the contract receives ether.
   /// @param amount The amount of ether received.
   event ReceiveEther(uint256 amount);
 
   /// @notice Emitted when an oracle is removed from reporting.
-  /// @param oracle The address of the oracle that was removed.
-  event RemoveReportOracle(address indexed oracle);
+  /// @param reportOracle The address of the oracle that was removed.
+  event RemoveReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when a consensus report is revoked.
-  /// @param blockNumber The block number at which the consensus was revoked.
-  /// @param epoch The epoch for which the consensus was revoked.
-  /// @param hash The hash of the report for which the consensus was revoked.
-  event RevokeConsensusReport(uint256 indexed blockNumber, uint256 indexed epoch, bytes32 hash);
+  /// @param reportBlock The block number at which the consensus was revoked.
+  event RevokeConsensusReport(uint256 reportBlock);
 
   /// @notice Emitted when the protocol configuration is updated.
   /// @param config The updated configuration.
   event SetConfig(Config config);
 
-  /// @notice Emitted when the last consensus epoch is set.
-  /// @param epoch The epoch set as the last consensus epoch.
-  event SetLastConsensusEpoch(uint256 epoch);
+  /// @notice Emitted when the last consensus block is set.
+  /// @param epoch The block number set as the last consensus epoch.
+  event SetLastExecutedEpoch(uint256 epoch);
 
   /// @notice Emitted when the StakeTogether address is set.
   /// @param stakeTogether The address of the StakeTogether contract.
   event SetStakeTogether(address stakeTogether);
 
   /// @notice Emitted when the next report frequency is skipped.
-  /// @param epoch The epoch for which the report frequency was skipped.
-  /// @param blockNumber The block number at which the report frequency was skipped.
-  event SkipNextReportFrequency(uint256 indexed epoch, uint256 indexed blockNumber);
+  /// @param reportBlock The epoch for which the report frequency was skipped.
+  /// @param reportNextBlock The block number at which the report frequency was skipped.
+  event AdvanceNextBlock(uint256 indexed reportBlock, uint256 indexed reportNextBlock);
 
   /// @notice Emitted when a report is submitted.
   /// @param report The details of the submitted report.
@@ -104,17 +101,13 @@ interface IRouter {
   event SubmitReport(Report report, bytes32 hash);
 
   /// @notice Emitted when an oracle is unblacklisted.
-  /// @param oracle The address of the oracle that was unblacklisted.
-  event UnBlacklistReportOracle(address indexed oracle);
-
-  /// @notice Emitted when the oracle quorum is updated.
-  /// @param quorum The updated oracle quorum value.
-  event UpdateReportOracleQuorum(uint256 quorum);
+  /// @param reportOracle The address of the oracle that was unblacklisted.
+  event UnBlacklistReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when validators are set to be removed.
-  /// @param epoch The epoch at which validators are set to be removed.
+  /// @param reportBlock The epoch at which validators are set to be removed.
   /// @param validatorsHash The list of hashes representing validators to be removed.
-  event ValidatorsToRemove(uint256 indexed epoch, bytes32[] validatorsHash);
+  event ValidatorsToRemove(uint256 indexed reportBlock, bytes32[] validatorsHash);
 
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
@@ -145,34 +138,32 @@ interface IRouter {
   function setConfig(Config memory _config) external;
 
   /// @notice Checks if an address is an active report oracle.
-  /// @param _oracle Address of the oracle to be checked.
-  /// @return A boolean indicating if the address is an active report oracle.
-  function isReportOracle(address _oracle) external view returns (bool);
+  /// @param _account Address of the oracle to be checked.
+  function isReportOracle(address _account) external returns (bool);
 
   /// @notice Checks if a report oracle is blacklisted.
-  /// @param _oracle Address of the oracle to be checked.
-  /// @return A boolean indicating if the address is a blacklisted report oracle.
-  function isReportOracleBlackListed(address _oracle) external view returns (bool);
+  /// @param _account Address of the oracle to be checked.
+  function isReportOracleBlackListed(address _account) external view returns (bool);
 
   /// @notice Adds a new report oracle.
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
-  /// @param _oracle Address of the oracle to be added.
-  function addReportOracle(address _oracle) external;
+  /// @param _account Address of the oracle to be added.
+  function addReportOracle(address _account) external;
 
   /// @notice Removes an existing report oracle.
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
-  /// @param oracle Address of the oracle to be removed.
-  function removeReportOracle(address oracle) external;
+  /// @param _account Address of the oracle to be removed.
+  function removeReportOracle(address _account) external;
 
   /// @notice Blacklists a report oracle.
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _oracle Address of the oracle to be blacklisted.
-  function blacklistReportOracle(address _oracle) external;
+  /// @param _account Address of the oracle to be blacklisted.
+  function blacklistReportOracle(address _account) external;
 
   /// @notice Removes a report oracle from the blacklist.
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _oracle Address of the oracle to be removed from the blacklist.
-  function unBlacklistReportOracle(address _oracle) external;
+  /// @param _account Address of the oracle to be removed from the blacklist.
+  function unBlacklistReportOracle(address _account) external;
 
   /// @notice Adds a new sentinel account.
   /// @dev Only an account with the ADMIN_ROLE can call this function.
@@ -184,43 +175,41 @@ interface IRouter {
   /// @param _account Address of the sentinel account to be removed.
   function removeSentinel(address _account) external;
 
-  /// @notice Allows an active report oracle to submit a new report for a given epoch.
-  /// @dev Ensures report submission conditions are met.
-  /// @param _epoch The epoch for which the report is submitted.
-  /// @param _report The data structure containing report details.
-  function submitReport(uint256 _epoch, Report calldata _report) external;
+  /// @notice Submit a report for the current reporting block.
+  /// @dev Handles report submissions, checking for consensus or thresholds and preps next block if needed.
+  /// It uses a combination of total votes for report to determine consensus.
+  /// @param _report Data structure of the report.
+  function submitReport(Report calldata _report) external;
 
   /// @notice Allows an active report oracle to execute an approved report.
   /// @dev Executes the actions based on the consensus-approved report.
   /// @param _report The data structure containing report details.
   function executeReport(Report calldata _report) external;
 
+  /// @notice Forces to advance to nextReportBlock.
+  function forceNextReportBlock() external;
+
   /// @notice Computes and returns the hash of a given report.
   /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
   function getReportHash(Report calldata _report) external pure returns (bytes32);
 
-  /// @notice Revokes a consensus-approved report for a given epoch.
+  // @notice Revokes a consensus-approved report for a given epoch.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _epoch The epoch for which the report was approved.
-  /// @param _hash The hash of the report that needs to be revoked.
-  function revokeConsensusReport(uint256 _epoch, bytes32 _hash) external;
+  /// @param _reportBlock The epoch for which the report was approved.
+  function revokeConsensusReport(uint256 _reportBlock) external;
 
   /// @notice Set the last epoch for which a consensus was reached.
   /// @dev Only accounts with the ADMIN_ROLE can call this function.
   /// @param _epoch The last epoch for which consensus was reached.
-  function setLastConsensusEpoch(uint256 _epoch) external;
+  function setLastExecutedEpoch(uint256 _epoch) external;
 
   /// @notice Validates if conditions to submit a report for an epoch are met.
   /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.
-  /// @param _epoch The epoch for which the report is to be submitted.
   /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
-  function isReadyToSubmit(uint256 _epoch, Report calldata _report) external view returns (bytes32);
+  function isReadyToSubmit(Report calldata _report) external view returns (bytes32);
 
   /// @notice Validates if conditions to execute a report are met.
   /// @dev Verifies conditions like revoked reports, executed reports, consensus reports, and beacon balance.
   /// @param _report The data structure containing report details.
-  /// @return The keccak256 hash of the report.
   function isReadyToExecute(Report calldata _report) external view returns (bytes32);
 }

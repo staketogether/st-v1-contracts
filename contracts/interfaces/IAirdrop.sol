@@ -7,18 +7,18 @@ pragma solidity ^0.8.18;
 /// @custom:security-contact security@staketogether.app
 interface IAirdrop {
   /// @notice Emitted when a new Merkle root is added.
-  /// @param epoch The epoch number corresponding to the Merkle root.
+  /// @param reportBlock The block report number corresponding to the Merkle root.
   /// @param merkleRoot The Merkle root.
-  event AddMerkleRoot(uint256 indexed epoch, bytes32 merkleRoot);
+  event AddMerkleRoot(uint256 indexed reportBlock, bytes32 merkleRoot);
 
   /// @notice Emitted when a claim is processed.
-  /// @param epoch The epoch number related to the claim.
+  /// @param blockNumber The report block number related to the claim.
   /// @param index The index of the claim within the Merkle tree.
   /// @param account The address of the account making the claim.
   /// @param sharesAmount The amount of shares claimed.
   /// @param merkleProof The Merkle proof corresponding to the claim.
   event Claim(
-    uint256 indexed epoch,
+    uint256 indexed blockNumber,
     uint256 index,
     address indexed account,
     uint256 sharesAmount,
@@ -71,30 +71,30 @@ interface IAirdrop {
   /// @dev Only callable by the admin role.
   function setRouter(address _router) external;
 
-  /// @notice Adds a new Merkle root for a given epoch.
-  /// @param _epoch The epoch number.
-  /// @param merkleRoot The Merkle root.
+  /// @notice Adds a new Merkle root for a given block number.
+  /// @param _reportBlock The report block number.
+  /// @param _root The Merkle root.
   /// @dev Only callable by the router.
-  function addMerkleRoot(uint256 _epoch, bytes32 merkleRoot) external;
+  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external;
 
-  /// @notice Claims a reward for a specific epoch.
-  /// @param _epoch The epoch number.
+  /// @notice Claims a reward for a specific report block number.
+  /// @param _reportBlock The report block number.
   /// @param _index The index in the Merkle tree.
   /// @param _account The address claiming the reward.
   /// @param _sharesAmount The amount of shares to claim.
   /// @param merkleProof The Merkle proof required to claim the reward.
   /// @dev Verifies the Merkle proof and transfers the reward shares.
   function claim(
-    uint256 _epoch,
+    uint256 _reportBlock,
     uint256 _index,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external;
 
-  /// @notice Checks if a reward has been claimed for a specific index and epoch.
-  /// @param _epoch The epoch number.
+  /// @notice Checks if a reward has been claimed for a specific index and block number.
+  /// @param _reportBlock The block number.
   /// @param _index The index in the Merkle tree.
   /// @return Returns true if the reward has been claimed, false otherwise.
-  function isClaimed(uint256 _epoch, uint256 _index) external view returns (bool);
+  function isClaimed(uint256 _reportBlock, uint256 _index) external view returns (bool);
 }
