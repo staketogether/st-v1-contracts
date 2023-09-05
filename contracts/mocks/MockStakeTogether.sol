@@ -343,11 +343,11 @@ contract MockStakeTogether is
   /// @param _to The address to deposit to.
   /// @param _depositType The type of deposit (Pool or Donation).
   /// @param _referral The referral address.
-  function _depositBase(address _to, DepositType _depositType, address _referral) private {
+  function _depositBase(address _to, DepositType _depositType, address _pool, address _referral) private {
     require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
     require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
     require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
-
+    require(pools[_pool], 'PNF'); // PNF = Pool Not Found
     _resetLimits();
 
     if (msg.value + totalDeposited > config.depositLimit) {
@@ -358,35 +358,35 @@ contract MockStakeTogether is
     _processStakeEntry(_to, msg.value);
 
     totalDeposited += msg.value;
-    emit DepositBase(_to, msg.value, _depositType, _referral);
+    emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
   }
 
   /// @notice Deposits into the pool with specific delegations.
-  /// @param _delegations The array of delegations for the deposit.
+  /// @param _pool The address of the pool to deposit to.
   /// @param _referral The referral address.
-  function depositPool(
-    Delegation[] memory _delegations,
-    address _referral
-  ) external payable nonReentrant whenNotPaused {
-    _depositBase(msg.sender, DepositType.Pool, _referral);
-    _updateDelegations(msg.sender, _delegations);
+  function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
+    _depositBase(msg.sender, DepositType.Pool, _pool, _referral);
   }
 
   /// @notice Deposits a donation to the specified address.
   /// @param _to The address to deposit to.
   /// @param _referral The referral address.
-  function depositDonation(address _to, address _referral) external payable nonReentrant whenNotPaused {
-    _depositBase(_to, DepositType.Donation, _referral);
+  function depositDonation(
+    address _to,
+    address _pool,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
+    _depositBase(_to, DepositType.Donation, _pool, _referral);
   }
 
   /// @notice Withdraws the base amount with the specified withdrawal type.
   /// @param _amount The amount to withdraw.
   /// @param _withdrawType The type of withdrawal (Pool or Validator).
-  function _withdrawBase(uint256 _amount, WithdrawType _withdrawType) private {
+  function _withdrawBase(uint256 _amount, WithdrawType _withdrawType, address _pool) private {
     require(_amount > 0, 'ZA'); // ZA = Zero Amount
     require(_amount <= balanceOf(msg.sender), 'IAB'); // IAB = Insufficient Account Balance
     require(_amount >= config.minWithdrawAmount, 'MW'); // MW = Min Withdraw
-
+    require(pools[_pool], 'PNF'); // PNF = Pool Not Found
     _resetLimits();
 
     if (_amount + totalWithdrawn > config.withdrawalLimit) {
@@ -398,36 +398,28 @@ contract MockStakeTogether is
     _burnShares(msg.sender, sharesToBurn);
 
     totalWithdrawn += _amount;
-    emit WithdrawBase(msg.sender, _amount, _withdrawType);
+    emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawPool(
-    uint256 _amount,
-    Delegation[] memory _delegations
-  ) external nonReentrant whenNotPaused {
+  /// @param _pool The address of the pool to withdraw from.
+  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD'); // FD = Feature Disabled
     require(_amount <= address(this).balance, 'IPB'); // IB = Insufficient Pool Balance
-    _withdrawBase(_amount, WithdrawType.Pool);
-    _updateDelegations(msg.sender, _delegations);
+    _withdrawBase(_amount, WithdrawType.Pool, _pool);
     payable(msg.sender).transfer(_amount);
   }
 
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawValidator(
-    uint256 _amount,
-    Delegation[] memory _delegations
-  ) external nonReentrant whenNotPaused {
+  /// @param _pool The address of the pool to withdraw from.
+  function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD'); // FD = Feature Disabled
     require(_amount > address(this).balance, 'WFP'); // Withdraw From Pool
     require(_amount + withdrawBalance <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
-    _withdrawBase(_amount, WithdrawType.Validator);
+    _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
-    _updateDelegations(msg.sender, _delegations);
     withdrawals.mint(msg.sender, _amount);
   }
 

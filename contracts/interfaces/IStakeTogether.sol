@@ -102,8 +102,15 @@ interface IStakeTogether {
   /// @param to The address to deposit to
   /// @param amount The deposit amount
   /// @param depositType The type of deposit (Donation, Pool)
+  /// @param pool The address of the pool
   /// @param referral The address of the referral
-  event DepositBase(address indexed to, uint256 amount, DepositType depositType, address referral);
+  event DepositBase(
+    address indexed to,
+    uint256 amount,
+    DepositType depositType,
+    address pool,
+    address referral
+  );
 
   /// @notice Emitted when the deposit limit is reached
   /// @param sender The address of the sender
@@ -208,7 +215,8 @@ interface IStakeTogether {
   /// @param account The address withdrawing
   /// @param amount The withdrawal amount
   /// @param withdrawType The type of withdrawal
-  event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType);
+  /// @param pool The address of the pool
+  event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType, address pool);
 
   /// @notice Emitted when the withdrawal limit is reached
   /// @param sender The address of the sender
@@ -306,24 +314,25 @@ interface IStakeTogether {
   function decreaseAllowance(address _spender, uint256 _subtractedValue) external returns (bool);
 
   /// @notice Deposits into the pool with specific delegations.
-  /// @param _delegations The array of delegations for the deposit.
+  /// @param _pool the address of the pool.
   /// @param _referral The referral address.
-  function depositPool(Delegation[] memory _delegations, address _referral) external payable;
+  function depositPool(address _pool, address _referral) external payable;
 
   /// @notice Deposits a donation to the specified address.
   /// @param _to The address to deposit to.
+  /// @param _pool the address of the pool.
   /// @param _referral The referral address.
-  function depositDonation(address _to, address _referral) external payable;
+  function depositDonation(address _to, address _pool, address _referral) external payable;
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawPool(uint256 _amount, Delegation[] memory _delegations) external;
+  /// @param _pool the address of the pool.
+  function withdrawPool(uint256 _amount, address _pool) external;
 
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawValidator(uint256 _amount, Delegation[] memory _delegations) external;
+  /// @param _pool the address of the pool.
+  function withdrawValidator(uint256 _amount, address _pool) external;
 
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
