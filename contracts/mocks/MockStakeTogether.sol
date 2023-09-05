@@ -462,15 +462,8 @@ contract MockStakeTogether is
   /// @notice Updates delegations for the sender's address.
   /// @param _delegations The array of delegations to update.
   function updateDelegations(Delegation[] memory _delegations) external {
-    _updateDelegations(msg.sender, _delegations);
-  }
-
-  /// @notice Internal function to update delegations for a specific account.
-  /// @param _account The address of the account to update delegations for.
-  /// @param _delegations The array of delegations to update.
-  function _updateDelegations(address _account, Delegation[] memory _delegations) private {
     uint256 totalPercentage = 0;
-    if (shares[_account] > 0) {
+    if (shares[msg.sender] > 0) {
       require(_delegations.length <= config.maxDelegations, 'MD'); // MD = Max Delegations
       for (uint i = 0; i < _delegations.length; i++) {
         require(pools[_delegations[i].pool], 'PNF'); // PNF = Pool Not Found
@@ -480,7 +473,7 @@ contract MockStakeTogether is
     } else {
       require(_delegations.length == 0, 'SZL'); // SZL = Should Be Zero Length
     }
-    emit UpdateDelegations(_account, _delegations);
+    emit UpdateDelegations(msg.sender, _delegations);
   }
 
   /***********************
