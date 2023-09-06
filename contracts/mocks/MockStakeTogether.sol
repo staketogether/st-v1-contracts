@@ -355,10 +355,9 @@ contract MockStakeTogether is
       revert('DLR'); // DLR = Deposit Limit Reached
     }
 
-    _processStakeEntry(_to, msg.value);
-
-    totalDeposited += msg.value;
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
+    _processStakeEntry(_to, msg.value);
+    totalDeposited += msg.value;
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -394,11 +393,10 @@ contract MockStakeTogether is
       revert('WLR'); // WLR = Withdrawals Limit Reached
     }
 
+    emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
-
     totalWithdrawn += _amount;
-    emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
