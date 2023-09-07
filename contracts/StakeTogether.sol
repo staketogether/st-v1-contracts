@@ -576,8 +576,9 @@ contract StakeTogether is
     require(withdrawBalance > 0, 'WZB'); // WZA = Withdraw Zero Balance
 
     uint256 routerBalance = address(router).balance;
-    uint256 diffAmount = withdrawBalance - routerBalance;
+    require(routerBalance <= withdrawBalance, 'RBGTW'); // RBGTW = Router Balance Greater Than Withdraw Balance
 
+    uint256 diffAmount = withdrawBalance - routerBalance;
     require(address(this).balance >= diffAmount, 'NPB'); // NPB = Not Enough Pool Balance
 
     _setBeaconBalance(beaconBalance + diffAmount);
