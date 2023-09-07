@@ -567,6 +567,21 @@ contract StakeTogether is
     emit SetWithdrawBalance(_amount);
   }
 
+  /// @notice Initiates a transfer to anticipate a validator's withdrawal.
+  /// @dev Only a valid validator oracle can initiate this anticipation request.
+  /// This function also checks the balance constraints before processing.
+  function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
+    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    uint256 routerBalance = address(router).balance;
+    require(routerBalance < withdrawBalance, 'RBLTW'); // Router Balance Less Than Withdraw Balance
+
+    uint256 diffAmount = withdrawBalance - routerBalance;
+
+    _setBeaconBalance(beaconBalance + diffAmount);
+    emit AnticipateWithdrawValidator(msg.sender, diffAmount);
+    payable(router).transfer(diffAmount);
+  }
+
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.
@@ -577,9 +592,10 @@ contract StakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OV');
-    require(address(this).balance >= config.poolSize, 'NBP');
-    require(!validators[_publicKey], 'VE');
+    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance for Pool
+    require(!validators[_publicKey], 'VE'); // VE = Validator Exists
+    require(address(router).balance >= withdrawBalance, 'RBGTW'); // Router Balance Greater Than Withdraw Balance
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);

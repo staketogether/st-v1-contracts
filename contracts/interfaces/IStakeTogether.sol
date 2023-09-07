@@ -77,20 +77,25 @@ interface IStakeTogether {
   /// @param account The address of the account
   event AddValidatorOracle(address indexed account);
 
+  /// @notice Emitted when withdraw is prioritized
+  /// @param oracle The address of the oracle
+  /// @param amount The amount for the validator
+  event AnticipateWithdrawValidator(address indexed oracle, uint256 amount);
+
   /// @notice Emitted when shares are burned
   /// @param account The address of the account
   /// @param sharesAmount The amount of shares burned
   event BurnShares(address indexed account, uint256 sharesAmount);
 
   /// @notice Emitted when a validator is created
-  /// @param creator The address of the creator
+  /// @param oracle The address of the oracle
   /// @param amount The amount for the validator
   /// @param publicKey The public key of the validator
   /// @param withdrawalCredentials The withdrawal credentials
   /// @param signature The signature
   /// @param depositDataRoot The deposit data root
   event CreateValidator(
-    address indexed creator,
+    address indexed oracle,
     uint256 amount,
     bytes publicKey,
     bytes withdrawalCredentials,
@@ -376,6 +381,11 @@ interface IStakeTogether {
   /// @param _amount The amount to set as the pending withdraw balance.
   /// @dev Only the router address can call this function.
   function setWithdrawBalance(uint256 _amount) external payable;
+
+  /// @notice Initiates a transfer to anticipate a validator's withdrawal.
+  /// @dev Only a valid validator oracle can initiate this anticipation request.
+  /// This function also checks the balance constraints before processing.
+  function anticipateWithdrawValidator() external;
 
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
