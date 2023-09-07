@@ -1422,6 +1422,81 @@ describe('Stake Together', function () {
       expect(await stakeTogether.validators(publicKey)).to.be.true
     })
 
+    it('should cycle through oracles and ensure order of validator creation', async function () {
+      const oracle1 = user1
+      const oracle2 = user2
+      const oracle3 = user3
+      const oracle4 = user4
+      const oracle5 = user5
+
+      let incremented = BigInt(publicKey) + 1n
+      function incrementPublicKey() {
+        incremented = BigInt(incremented) + 1n
+        return '0x' + incremented.toString(16).padStart(64, '0')
+      }
+
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle1)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle2)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle3)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle4)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle5)
+
+      const validatorSize = ethers.parseEther('32')
+      const poolSize = ethers.parseEther('32.1') * 6n
+
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
+
+      await stakeTogether.connect(oracle1).createValidator(publicKey, signature, depositDataRoot)
+      let nextPublicKey = incrementPublicKey()
+
+      await expect(
+        stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NCO')
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle2).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      await expect(
+        stakeTogether.connect(oracle1).createValidator(nextPublicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NCO')
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      await expect(
+        stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NCO')
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle4).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      nextPublicKey = incrementPublicKey()
+      const tx = await stakeTogether
+        .connect(oracle1)
+        .createValidator(nextPublicKey, signature, depositDataRoot)
+
+      const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
+      await expect(tx)
+        .to.emit(stakeTogether, 'CreateValidator')
+        .withArgs(
+          oracle1.address,
+          validatorSize,
+          nextPublicKey,
+          withdrawalCredentials,
+          signature,
+          depositDataRoot,
+        )
+
+      const beaconBalance = await stakeTogether.beaconBalance()
+      expect(beaconBalance).to.equal(validatorSize * 6n)
+
+      expect(await stakeTogether.validators(nextPublicKey)).to.be.true
+    })
+
     it('should fail to create a validator by an invalid oracle', async function () {
       const invalidOracle = user2
 

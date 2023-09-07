@@ -593,6 +593,7 @@ contract StakeTogether is
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
     require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
     require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance for Pool
     require(!validators[_publicKey], 'VE'); // VE = Validator Exists
     require(address(router).balance >= withdrawBalance, 'RBGTW'); // Router Balance Greater Than Withdraw Balance
