@@ -918,6 +918,44 @@ describe('Router', function () {
       )
     })
 
+    it('should expire consensus after advancing many blocks with 5 oracles and only 4 reports', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)
+
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      const report = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 100n,
+        lossAmount: 0n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      for (let i = 0; i < oracles.length - 1; i++) {
+        await router.connect(oracles[i]).submitReport(report)
+      }
+
+      const initialReportBlock = await router.reportBlock()
+
+      await advanceBlocks(10000)
+
+      const tx = await router.connect(user1).forceNextReportBlock()
+      await tx.wait()
+
+      const finalReportBlock = await router.reportBlock()
+      expect(finalReportBlock).to.be.gt(initialReportBlock)
+    })
+
     it('should be interrupted by revoked consensus', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)
