@@ -1138,7 +1138,7 @@ describe('Router', function () {
 
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(delegations, referral, { value: depositAmount })
+        .depositPool(poolAddress, referral, { value: depositAmount })
       await tx1.wait()
 
       // Creating the validator
@@ -1148,7 +1148,7 @@ describe('Router', function () {
 
       const withdrawAmount = ethers.parseEther('1.5')
 
-      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations)
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress)
 
       // Router
 

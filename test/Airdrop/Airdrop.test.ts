@@ -229,7 +229,7 @@ describe('Airdrop', function () {
 
       const tx1 = await mockStakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
       const epoch = 1
