@@ -1202,6 +1202,143 @@ describe('Router', function () {
       expect(stPosBalance).to.equal(stPreBalance + report.routerExtraAmount)
     })
 
+    it('should anticipate the withdrawal ', async function () {
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+
+      let incremented = BigInt(publicKey) + 1n
+      function incrementPublicKey() {
+        incremented = BigInt(incremented) + 1n
+        return '0x' + incremented.toString(16).padStart(64, '0')
+      }
+
+      const oracle = user1
+      const oracle2 = user2
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle2)
+
+      // Sending sufficient funds for pool size and validator size
+
+      // Deposit
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(poolAddress, referral, { value: ethers.parseEther('33') })
+      await tx1.wait()
+
+      // Creating the validator
+      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+
+      const withdrawAmount = ethers.parseEther('1.5')
+
+      await expect(
+        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('WFP')
+
+      expect(await stakeTogether.withdrawBalance()).equal(0n)
+      expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('32'))
+
+      const withdrawAmount2 = 32891323235294117648n // liquid amount
+
+      expect(await stakeTogether.balanceOf(user1)).equal(withdrawAmount2)
+
+      await expect(
+        stakeTogether.connect(user1).withdrawValidator(withdrawAmount2, poolAddress),
+      ).to.be.revertedWith('IBB')
+
+      const tx2 = await stakeTogether
+        .connect(user2)
+        .depositPool(poolAddress, referral, { value: ethers.parseEther('40') })
+      await tx2.wait()
+
+      await stakeTogether
+        .connect(oracle2)
+        .createValidator(incrementPublicKey(), signature, depositDataRoot)
+
+      expect(await ethers.provider.getBalance(stakeTogetherProxy)).equal(9980000000000000000n)
+      expect(await stakeTogether.withdrawBalance()).equal(0n)
+      expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('64'))
+      expect(await ethers.provider.getBalance(router)).equal(0n)
+
+      await stakeTogether.connect(user2).withdrawValidator(ethers.parseEther('35'), poolAddress)
+
+      expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
+
+      await expect(stakeTogether.connect(user2).anticipateWithdrawValidator()).to.be.revertedWith('NCO')
+
+      await expect(stakeTogether.connect(user1).anticipateWithdrawValidator()).to.be.revertedWith('NPB')
+
+      expect(await ethers.provider.getBalance(router)).equal(0n)
+
+      const tx3 = await stakeTogether
+        .connect(user3)
+        .depositPool(poolAddress, referral, { value: ethers.parseEther('26') })
+      await tx3.wait()
+
+      expect(await ethers.provider.getBalance(stakeTogetherProxy)).equal(35980000000000000000n)
+      expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
+      expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('64'))
+      expect(await ethers.provider.getBalance(router)).equal(0n)
+
+      await stakeTogether.connect(user1).anticipateWithdrawValidator()
+
+      expect(await ethers.provider.getBalance(stakeTogetherProxy)).equal(980000000000000000n)
+      expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
+      expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('99'))
+      expect(await ethers.provider.getBalance(router)).equal(ethers.parseEther('35'))
+
+      // Router
+
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      const merkleRoot = ethers.keccak256('0x1234')
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      await advanceBlocks(1000)
+
+      report = {
+        epoch: 2n,
+        merkleRoot: merkleRoot,
+        profitAmount: 0n,
+        profitShares: 0n,
+        lossAmount: 0n,
+        withdrawAmount: ethers.parseEther('35'),
+        withdrawRefundAmount: 0n,
+        routerExtraAmount: 0n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      for (const oracle of oracles) {
+        await router.connect(oracle).submitReport(report)
+      }
+
+      const delayBlocks = (await router.config()).reportDelayBlock
+
+      for (let i = 0; i < delayBlocks; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      expect(await ethers.provider.getBalance(withdrawals)).equal(0n)
+
+      const executeTx = await router.connect(user1).executeReport(report)
+
+      await expect(executeTx).to.emit(airdrop, 'AddMerkleRoot')
+      await expect(executeTx).to.emit(withdrawals, 'ReceiveWithdrawEther')
+      expect(await ethers.provider.getBalance(withdrawals)).equal(ethers.parseEther('35'))
+    })
+
     it('should return the correct hash for the report', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)

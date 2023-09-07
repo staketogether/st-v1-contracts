@@ -110,6 +110,13 @@ contract MockRouter is
     emit ReceiveEther(msg.value);
   }
 
+  /// @notice Allows the Stake Together to send ETH to the contract.
+  /// @dev This function can only be called by the Stake Together.
+  function receiveWithdrawEther() external payable {
+    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER');
+    emit ReceiveWithdrawEther(msg.value);
+  }
+
   /// @notice Sets the address for the StakeTogether contract.
   /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
   /// @param _stakeTogether The address of the StakeTogether contract.

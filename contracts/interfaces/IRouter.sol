@@ -70,6 +70,10 @@ interface IRouter {
   /// @param amount The amount of ether received.
   event ReceiveEther(uint256 amount);
 
+  /// @notice Emitted when Ether is received from Stake Together
+  /// @param amount The amount of Ether received
+  event ReceiveWithdrawEther(uint256 amount);
+
   /// @notice Emitted when an oracle is removed from reporting.
   /// @param reportOracle The address of the oracle that was removed.
   event RemoveReportOracle(address indexed reportOracle);
@@ -126,6 +130,10 @@ interface IRouter {
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
   receive() external payable;
+
+  /// @notice Allows the Stake Together to send ETH to the contract.
+  /// @dev This function can only be called by the Stake Together.
+  function receiveWithdrawEther() external payable;
 
   /// @notice Sets the address for the StakeTogether contract.
   /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.

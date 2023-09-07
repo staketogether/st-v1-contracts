@@ -41,7 +41,7 @@ contract StakeTogether is
 
   uint256 public version; /// Contract version.
 
-  address public router; /// Address of the contract router.
+  Router public router; /// Address of the contract router.
   Withdrawals public withdrawals; /// Withdrawals contract instance.
   IDepositContract public depositContract; /// Deposit contract interface.
 
@@ -97,7 +97,7 @@ contract StakeTogether is
 
     version = 1;
 
-    router = _router;
+    router = Router(payable(_router));
     withdrawals = Withdrawals(payable(_withdrawals));
     depositContract = IDepositContract(_depositContract);
     withdrawalCredentials = _withdrawalCredentials;
@@ -481,7 +481,7 @@ contract StakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    require(validatorsOracleIndices[_account] == 0, 'VE'); // VE = Validator Exists
+    require(validatorsOracleIndices[_account] == 0, 'VOE'); // VOE =   Validator Oracle Exists
 
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
@@ -572,14 +572,18 @@ contract StakeTogether is
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
     require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
-    uint256 routerBalance = address(router).balance;
-    require(routerBalance < withdrawBalance, 'RBLTW'); // Router Balance Less Than Withdraw Balance
+    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
+    require(withdrawBalance > 0, 'WZB'); // WZA = Withdraw Zero Balance
 
+    uint256 routerBalance = address(router).balance;
     uint256 diffAmount = withdrawBalance - routerBalance;
+
+    require(address(this).balance >= diffAmount, 'NPB'); // NPB = Not Enough Pool Balance
 
     _setBeaconBalance(beaconBalance + diffAmount);
     emit AnticipateWithdrawValidator(msg.sender, diffAmount);
-    payable(router).transfer(diffAmount);
+
+    router.receiveWithdrawEther{ value: diffAmount }();
   }
 
   /// @notice Creates a new validator with the given parameters.
