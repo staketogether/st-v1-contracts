@@ -385,7 +385,6 @@ contract StakeTogether is
     require(_amount > 0, 'ZA'); // ZA = Zero Amount
     require(_amount <= balanceOf(msg.sender), 'IAB'); // IAB = Insufficient Account Balance
     require(_amount >= config.minWithdrawAmount, 'MW'); // MW = Min Withdraw
-    require(pools[_pool], 'PNF'); // PNF = Pool Not Found
     _resetLimits();
 
     if (_amount + totalWithdrawn > config.withdrawalLimit) {

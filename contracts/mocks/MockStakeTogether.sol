@@ -41,7 +41,7 @@ contract MockStakeTogether is
 
   uint256 public version; /// Contract version.
 
-  address public router; /// Address of the contract router.
+  Router public router; /// Address of the contract router.
   Withdrawals public withdrawals; /// Withdrawals contract instance.
   IDepositContract public depositContract; /// Deposit contract interface.
 
@@ -97,7 +97,7 @@ contract MockStakeTogether is
 
     version = 1;
 
-    router = _router;
+    router = Router(payable(_router));
     withdrawals = Withdrawals(payable(_withdrawals));
     depositContract = IDepositContract(_depositContract);
     withdrawalCredentials = _withdrawalCredentials;
@@ -385,7 +385,6 @@ contract MockStakeTogether is
     require(_amount > 0, 'ZA'); // ZA = Zero Amount
     require(_amount <= balanceOf(msg.sender), 'IAB'); // IAB = Insufficient Account Balance
     require(_amount >= config.minWithdrawAmount, 'MW'); // MW = Min Withdraw
-    require(pools[_pool], 'PNF'); // PNF = Pool Not Found
     _resetLimits();
 
     if (_amount + totalWithdrawn > config.withdrawalLimit) {
@@ -481,7 +480,7 @@ contract MockStakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    require(validatorsOracleIndices[_account] == 0, 'VE'); // VE = Validator Exists
+    require(validatorsOracleIndices[_account] == 0, 'VOE'); // VOE =   Validator Oracle Exists
 
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
@@ -572,14 +571,19 @@ contract MockStakeTogether is
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
     require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
+    require(withdrawBalance > 0, 'WZB'); // WZA = Withdraw Zero Balance
+
     uint256 routerBalance = address(router).balance;
-    require(routerBalance < withdrawBalance, 'BGTW'); // Balance Greater Than Withdraw Balance
+    require(routerBalance <= withdrawBalance, 'RBGTW'); // RBGTW = Router Balance Greater Than Withdraw Balance
 
     uint256 diffAmount = withdrawBalance - routerBalance;
+    require(address(this).balance >= diffAmount, 'NPB'); // NPB = Not Enough Pool Balance
 
     _setBeaconBalance(beaconBalance + diffAmount);
     emit AnticipateWithdrawValidator(msg.sender, diffAmount);
-    payable(router).transfer(diffAmount);
+
+    router.receiveWithdrawEther{ value: diffAmount }();
   }
 
   /// @notice Creates a new validator with the given parameters.
@@ -592,10 +596,11 @@ contract MockStakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OV'); // Only Validator
-    require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance Pool
+    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
+    require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance for Pool
     require(!validators[_publicKey], 'VE'); // VE = Validator Exists
-    require(!(withdrawBalance > config.poolSize && address(router).balance < withdrawBalance), 'EPWB'); // Exists Pending Withdraw Balance
+    require(address(router).balance >= withdrawBalance, 'RBGTW'); // Router Balance Greater Than Withdraw Balance
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);
