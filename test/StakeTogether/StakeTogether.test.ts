@@ -286,7 +286,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -311,7 +312,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -333,7 +335,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.001'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -599,7 +602,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.001'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -800,14 +804,15 @@ describe('Stake Together', function () {
       ).to.be.revertedWith('MW')
     })
 
-    it('should revert when trying to withdraw an amount that exceeds the limit', async function () {
+    it('should revert when trying to withdraw pool amount that exceeds the limit', async function () {
       const config = {
         validatorSize: ethers.parseEther('32'),
         poolSize: ethers.parseEther('32'),
         minDepositAmount: ethers.parseEther('0.1'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('10000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -828,27 +833,19 @@ describe('Stake Together', function () {
 
       // Deposit from user1 and user2
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      const fee = (depositAmount * 3n) / 1000n
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
       await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
 
       // Calculate shares for the first withdrawal
       const withdrawAmount = ethers.parseEther('900')
-      const sharesForWithdrawAmount1 = await stakeTogether.sharesByWei(withdrawAmount)
 
-      const user1Delegations1 = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
-
-      const withdrawAmount2 = ethers.parseEther('900')
-      const sharesForWithdrawAmount2 = await stakeTogether.sharesByWei(withdrawAmount2)
-
-      const user2Delegations1 = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       // Expect a revert with the specific error message
       await expect(
         stakeTogether.connect(user2).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('WLR')
+      ).to.be.revertedWith('WPLR')
 
       const blocksPerDay = 7200n
       for (let i = 0; i < blocksPerDay; i++) {
@@ -856,6 +853,84 @@ describe('Stake Together', function () {
       }
 
       await stakeTogether.connect(user2).withdrawPool(withdrawAmount, poolAddress)
+    })
+
+    it('should revert when trying to withdraw validator amount that exceeds the limit', async function () {
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.1'),
+        minWithdrawAmount: ethers.parseEther('0.0001'),
+        depositLimit: ethers.parseEther('10000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('40'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: true,
+          Deposit: true,
+          WithdrawPool: true,
+          WithdrawValidator: true,
+        },
+      }
+
+      // Set config by owner
+      await stakeTogether.connect(owner).setConfig(config)
+
+      // Deposits
+      const depositAmount = ethers.parseEther('40')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      // Deposit from user1 and user2
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
+      await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
+
+      // Calculate shares for the first withdrawal
+      const withdrawAmount = ethers.parseEther('38')
+
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const publicKey2 =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf94'
+      const publicKey3 =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf95'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+
+      const poolSize = ethers.parseEther('32.1')
+      const validatorSize = ethers.parseEther('32')
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('40') })
+
+      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).createValidator(publicKey2, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).createValidator(publicKey3, signature, depositDataRoot)
+
+      const beaconBalance = await stakeTogether.beaconBalance()
+      expect(beaconBalance).to.equal(validatorSize * 3n)
+
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress)
+
+      // Expect a revert with the specific error message
+      await expect(
+        stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('WVLR')
+
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await expect(stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress)).to.not
+        .reverted
     })
 
     it('should revert when trying to withdraw an amount greater than the balance', async function () {
@@ -889,7 +964,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -921,7 +997,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -1080,7 +1157,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {

@@ -57,7 +57,8 @@ contract MockStakeTogether is
 
   uint256 public lastResetBlock; /// Block number of the last reset.
   uint256 public totalDeposited; /// Total amount deposited.
-  uint256 public totalWithdrawn; /// Total amount withdrawn.
+  uint256 public totalWithdrawnPool; /// Total amount withdrawn pool.
+  uint256 public totalWithdrawnValidator; /// Total amount withdrawn validator.
 
   mapping(address => bool) public pools; /// Mapping of pool addresses.
 
@@ -350,14 +351,14 @@ contract MockStakeTogether is
     require(pools[_pool], 'PNF'); // PNF = Pool Not Found
     _resetLimits();
 
-    if (msg.value + totalDeposited > config.depositLimit) {
+    totalDeposited += msg.value;
+    if (totalDeposited > config.depositLimit) {
       emit DepositLimitReached(_to, msg.value);
       revert('DLR'); // DLR = Deposit Limit Reached
     }
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
     _processStakeEntry(_to, msg.value);
-    totalDeposited += msg.value;
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -387,15 +388,23 @@ contract MockStakeTogether is
     require(_amount >= config.minWithdrawAmount, 'MW'); // MW = Min Withdraw
     _resetLimits();
 
-    if (_amount + totalWithdrawn > config.withdrawalLimit) {
-      emit WithdrawalsLimitReached(msg.sender, _amount);
-      revert('WLR'); // WLR = Withdrawals Limit Reached
+    if (_withdrawType == WithdrawType.Pool) {
+      totalWithdrawnPool += _amount;
+      if (totalWithdrawnPool > config.withdrawalPoolLimit) {
+        emit WithdrawalsLimitReached(msg.sender, _amount, _withdrawType);
+        revert('WPLR'); // WPLR = Withdrawals Pool Limit Reached
+      }
+    } else {
+      totalWithdrawnValidator += _amount;
+      if (totalWithdrawnValidator > config.withdrawalValidatorLimit) {
+        emit WithdrawalsLimitReached(msg.sender, _amount, _withdrawType);
+        revert('WVLR'); // WVLR = Withdrawals Validator Limit Reached
+      }
     }
 
     emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
-    totalWithdrawn += _amount;
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
@@ -424,7 +433,8 @@ contract MockStakeTogether is
   function _resetLimits() private {
     if (block.number > lastResetBlock + config.blocksPerDay) {
       totalDeposited = 0;
-      totalWithdrawn = 0;
+      totalWithdrawnPool = 0;
+      totalWithdrawnValidator = 0;
       lastResetBlock = block.number;
     }
   }

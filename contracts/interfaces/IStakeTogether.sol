@@ -15,7 +15,8 @@ interface IStakeTogether {
     uint256 minWithdrawAmount; /// Minimum amount to withdraw.
     uint256 poolSize; /// Size of the pool.
     uint256 validatorSize; /// Size of the validator.
-    uint256 withdrawalLimit; /// Maximum amount of withdrawal.
+    uint256 withdrawalPoolLimit; /// Maximum amount of pool withdrawal.
+    uint256 withdrawalValidatorLimit; /// Maximum amount of validator withdrawal.
     Feature feature; /// Additional features configuration.
   }
 
@@ -226,7 +227,7 @@ interface IStakeTogether {
   /// @notice Emitted when the withdrawal limit is reached
   /// @param sender The address of the sender
   /// @param amount The amount withdrawn
-  event WithdrawalsLimitReached(address indexed sender, uint256 amount);
+  event WithdrawalsLimitReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
 
   /// @notice Stake Together Pool Initialization
   /// @param _router The address of the router.
