@@ -1904,7 +1904,7 @@ describe('Stake Together', function () {
       const nonce = await stakeTogether.nonces(user1.address)
       const deadline = ethers.MaxUint256
       const domain = {
-        name: 'Stake Together Pool',
+        name: 'Stake Together Protocol',
         version: '1',
         chainId: await network.provider.send('eth_chainId'),
         verifyingContract: stakeTogetherProxy,

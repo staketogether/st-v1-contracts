@@ -87,11 +87,11 @@ contract StakeTogether is
     address _depositContract,
     bytes memory _withdrawalCredentials
   ) public initializer {
-    __ERC20_init('Stake Together Pool', 'stpETH');
+    __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Pool');
+    __ERC20Permit_init('Stake Together Protocol');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
