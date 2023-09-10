@@ -585,7 +585,7 @@ contract StakeTogether is
     require(withdrawBalance > 0, 'WZB'); // WZA = Withdraw Zero Balance
 
     uint256 routerBalance = address(router).balance;
-    require(routerBalance <= withdrawBalance, 'RBGTW'); // RBGTW = Router Balance Greater Than Withdraw Balance
+    require(routerBalance <= withdrawBalance, 'RBG'); // RBG = Router Balance Greater Than Withdraw Balance
 
     uint256 diffAmount = withdrawBalance - routerBalance;
     require(address(this).balance >= diffAmount, 'NPB'); // NPB = Not Enough Pool Balance
@@ -610,7 +610,7 @@ contract StakeTogether is
     require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
     require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance for Pool
     require(!validators[_publicKey], 'VE'); // VE = Validator Exists
-    require(address(router).balance >= withdrawBalance, 'RBGTW'); // Router Balance Greater Than Withdraw Balance
+    require(address(router).balance >= withdrawBalance, 'RBL'); // Router Balance Lower Than Withdraw Balance
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);
