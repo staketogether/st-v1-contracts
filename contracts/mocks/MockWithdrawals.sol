@@ -40,11 +40,11 @@ contract MockWithdrawals is
 
   /// @notice Initialization function for Withdrawals contract.
   function initialize() external initializer {
-    __ERC20_init('Stake Together Withdraw', 'stwETH');
+    __ERC20_init('Stake Together Withdrawals', 'stwETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Withdraw');
+    __ERC20Permit_init('Stake Together Withdrawals');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);

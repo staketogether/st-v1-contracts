@@ -41,7 +41,7 @@ contract StakeTogether is
 
   uint256 public version; /// Contract version.
 
-  address public router; /// Address of the contract router.
+  Router public router; /// Address of the contract router.
   Withdrawals public withdrawals; /// Withdrawals contract instance.
   IDepositContract public depositContract; /// Deposit contract interface.
 
@@ -57,7 +57,8 @@ contract StakeTogether is
 
   uint256 public lastResetBlock; /// Block number of the last reset.
   uint256 public totalDeposited; /// Total amount deposited.
-  uint256 public totalWithdrawn; /// Total amount withdrawn.
+  uint256 public totalWithdrawnPool; /// Total amount withdrawn pool.
+  uint256 public totalWithdrawnValidator; /// Total amount withdrawn validator.
 
   mapping(address => bool) public pools; /// Mapping of pool addresses.
 
@@ -86,18 +87,18 @@ contract StakeTogether is
     address _depositContract,
     bytes memory _withdrawalCredentials
   ) public initializer {
-    __ERC20_init('Stake Together Pool', 'stpETH');
+    __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Pool');
+    __ERC20Permit_init('Stake Together Protocol');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
     version = 1;
 
-    router = _router;
+    router = Router(payable(_router));
     withdrawals = Withdrawals(payable(_withdrawals));
     depositContract = IDepositContract(_depositContract);
     withdrawalCredentials = _withdrawalCredentials;
@@ -343,91 +344,88 @@ contract StakeTogether is
   /// @param _to The address to deposit to.
   /// @param _depositType The type of deposit (Pool or Donation).
   /// @param _referral The referral address.
-  function _depositBase(address _to, DepositType _depositType, address _referral) private {
+  function _depositBase(address _to, DepositType _depositType, address _pool, address _referral) private {
     require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
     require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
     require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
-
+    require(pools[_pool], 'PNF'); // PNF = Pool Not Found
     _resetLimits();
 
-    if (msg.value + totalDeposited > config.depositLimit) {
+    totalDeposited += msg.value;
+    if (totalDeposited > config.depositLimit) {
       emit DepositLimitReached(_to, msg.value);
       revert('DLR'); // DLR = Deposit Limit Reached
     }
 
+    emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
     _processStakeEntry(_to, msg.value);
-
-    totalDeposited += msg.value;
-    emit DepositBase(_to, msg.value, _depositType, _referral);
   }
 
   /// @notice Deposits into the pool with specific delegations.
-  /// @param _delegations The array of delegations for the deposit.
+  /// @param _pool The address of the pool to deposit to.
   /// @param _referral The referral address.
-  function depositPool(
-    Delegation[] memory _delegations,
-    address _referral
-  ) external payable nonReentrant whenNotPaused {
-    _depositBase(msg.sender, DepositType.Pool, _referral);
-    _updateDelegations(msg.sender, _delegations);
+  function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
+    _depositBase(msg.sender, DepositType.Pool, _pool, _referral);
   }
 
   /// @notice Deposits a donation to the specified address.
   /// @param _to The address to deposit to.
   /// @param _referral The referral address.
-  function depositDonation(address _to, address _referral) external payable nonReentrant whenNotPaused {
-    _depositBase(_to, DepositType.Donation, _referral);
+  function depositDonation(
+    address _to,
+    address _pool,
+    address _referral
+  ) external payable nonReentrant whenNotPaused {
+    _depositBase(_to, DepositType.Donation, _pool, _referral);
   }
 
   /// @notice Withdraws the base amount with the specified withdrawal type.
   /// @param _amount The amount to withdraw.
   /// @param _withdrawType The type of withdrawal (Pool or Validator).
-  function _withdrawBase(uint256 _amount, WithdrawType _withdrawType) private {
+  function _withdrawBase(uint256 _amount, WithdrawType _withdrawType, address _pool) private {
     require(_amount > 0, 'ZA'); // ZA = Zero Amount
     require(_amount <= balanceOf(msg.sender), 'IAB'); // IAB = Insufficient Account Balance
     require(_amount >= config.minWithdrawAmount, 'MW'); // MW = Min Withdraw
-
     _resetLimits();
 
-    if (_amount + totalWithdrawn > config.withdrawalLimit) {
-      emit WithdrawalsLimitReached(msg.sender, _amount);
-      revert('WLR'); // WLR = Withdrawals Limit Reached
+    if (_withdrawType == WithdrawType.Pool) {
+      totalWithdrawnPool += _amount;
+      if (totalWithdrawnPool > config.withdrawalPoolLimit) {
+        emit WithdrawalsLimitReached(msg.sender, _amount, _withdrawType);
+        revert('WPLR'); // WPLR = Withdrawals Pool Limit Reached
+      }
+    } else {
+      totalWithdrawnValidator += _amount;
+      if (totalWithdrawnValidator > config.withdrawalValidatorLimit) {
+        emit WithdrawalsLimitReached(msg.sender, _amount, _withdrawType);
+        revert('WVLR'); // WVLR = Withdrawals Validator Limit Reached
+      }
     }
 
+    emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
     uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
-
-    totalWithdrawn += _amount;
-    emit WithdrawBase(msg.sender, _amount, _withdrawType);
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawPool(
-    uint256 _amount,
-    Delegation[] memory _delegations
-  ) external nonReentrant whenNotPaused {
+  /// @param _pool The address of the pool to withdraw from.
+  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawPool, 'FD'); // FD = Feature Disabled
     require(_amount <= address(this).balance, 'IPB'); // IB = Insufficient Pool Balance
-    _withdrawBase(_amount, WithdrawType.Pool);
-    _updateDelegations(msg.sender, _delegations);
+    _withdrawBase(_amount, WithdrawType.Pool, _pool);
     payable(msg.sender).transfer(_amount);
   }
 
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawValidator(
-    uint256 _amount,
-    Delegation[] memory _delegations
-  ) external nonReentrant whenNotPaused {
+  /// @param _pool The address of the pool to withdraw from.
+  function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
     require(config.feature.WithdrawValidator, 'FD'); // FD = Feature Disabled
     require(_amount > address(this).balance, 'WFP'); // Withdraw From Pool
     require(_amount + withdrawBalance <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
-    _withdrawBase(_amount, WithdrawType.Validator);
+    _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
-    _updateDelegations(msg.sender, _delegations);
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -435,7 +433,8 @@ contract StakeTogether is
   function _resetLimits() private {
     if (block.number > lastResetBlock + config.blocksPerDay) {
       totalDeposited = 0;
-      totalWithdrawn = 0;
+      totalWithdrawnPool = 0;
+      totalWithdrawnValidator = 0;
       lastResetBlock = block.number;
     }
   }
@@ -470,15 +469,8 @@ contract StakeTogether is
   /// @notice Updates delegations for the sender's address.
   /// @param _delegations The array of delegations to update.
   function updateDelegations(Delegation[] memory _delegations) external {
-    _updateDelegations(msg.sender, _delegations);
-  }
-
-  /// @notice Internal function to update delegations for a specific account.
-  /// @param _account The address of the account to update delegations for.
-  /// @param _delegations The array of delegations to update.
-  function _updateDelegations(address _account, Delegation[] memory _delegations) private {
     uint256 totalPercentage = 0;
-    if (shares[_account] > 0) {
+    if (shares[msg.sender] > 0) {
       require(_delegations.length <= config.maxDelegations, 'MD'); // MD = Max Delegations
       for (uint i = 0; i < _delegations.length; i++) {
         require(pools[_delegations[i].pool], 'PNF'); // PNF = Pool Not Found
@@ -488,7 +480,7 @@ contract StakeTogether is
     } else {
       require(_delegations.length == 0, 'SZL'); // SZL = Should Be Zero Length
     }
-    emit UpdateDelegations(_account, _delegations);
+    emit UpdateDelegations(msg.sender, _delegations);
   }
 
   /***********************
@@ -498,7 +490,7 @@ contract StakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    require(validatorsOracleIndices[_account] == 0, 'VE'); // VE = Validator Exists
+    require(validatorsOracleIndices[_account] == 0, 'VOE'); // VOE =   Validator Oracle Exists
 
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
@@ -584,6 +576,26 @@ contract StakeTogether is
     emit SetWithdrawBalance(_amount);
   }
 
+  /// @notice Initiates a transfer to anticipate a validator's withdrawal.
+  /// @dev Only a valid validator oracle can initiate this anticipation request.
+  /// This function also checks the balance constraints before processing.
+  function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
+    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
+    require(withdrawBalance > 0, 'WZB'); // WZA = Withdraw Zero Balance
+
+    uint256 routerBalance = address(router).balance;
+    require(routerBalance <= withdrawBalance, 'RBG'); // RBG = Router Balance Greater Than Withdraw Balance
+
+    uint256 diffAmount = withdrawBalance - routerBalance;
+    require(address(this).balance >= diffAmount, 'NPB'); // NPB = Not Enough Pool Balance
+
+    _setBeaconBalance(beaconBalance + diffAmount);
+    emit AnticipateWithdrawValidator(msg.sender, diffAmount);
+
+    router.receiveWithdrawEther{ value: diffAmount }();
+  }
+
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.
@@ -594,9 +606,11 @@ contract StakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OV');
-    require(address(this).balance >= config.poolSize, 'NBP');
-    require(!validators[_publicKey], 'VE');
+    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
+    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
+    require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance for Pool
+    require(!validators[_publicKey], 'VE'); // VE = Validator Exists
+    require(address(router).balance >= withdrawBalance, 'RBL'); // Router Balance Lower Than Withdraw Balance
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);

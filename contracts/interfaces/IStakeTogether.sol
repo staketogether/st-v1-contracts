@@ -15,7 +15,8 @@ interface IStakeTogether {
     uint256 minWithdrawAmount; /// Minimum amount to withdraw.
     uint256 poolSize; /// Size of the pool.
     uint256 validatorSize; /// Size of the validator.
-    uint256 withdrawalLimit; /// Maximum amount of withdrawal.
+    uint256 withdrawalPoolLimit; /// Maximum amount of pool withdrawal.
+    uint256 withdrawalValidatorLimit; /// Maximum amount of validator withdrawal.
     Feature feature; /// Additional features configuration.
   }
 
@@ -77,20 +78,25 @@ interface IStakeTogether {
   /// @param account The address of the account
   event AddValidatorOracle(address indexed account);
 
+  /// @notice Emitted when withdraw is prioritized
+  /// @param oracle The address of the oracle
+  /// @param amount The amount for the validator
+  event AnticipateWithdrawValidator(address indexed oracle, uint256 amount);
+
   /// @notice Emitted when shares are burned
   /// @param account The address of the account
   /// @param sharesAmount The amount of shares burned
   event BurnShares(address indexed account, uint256 sharesAmount);
 
   /// @notice Emitted when a validator is created
-  /// @param creator The address of the creator
+  /// @param oracle The address of the oracle
   /// @param amount The amount for the validator
   /// @param publicKey The public key of the validator
   /// @param withdrawalCredentials The withdrawal credentials
   /// @param signature The signature
   /// @param depositDataRoot The deposit data root
   event CreateValidator(
-    address indexed creator,
+    address indexed oracle,
     uint256 amount,
     bytes publicKey,
     bytes withdrawalCredentials,
@@ -102,8 +108,15 @@ interface IStakeTogether {
   /// @param to The address to deposit to
   /// @param amount The deposit amount
   /// @param depositType The type of deposit (Donation, Pool)
+  /// @param pool The address of the pool
   /// @param referral The address of the referral
-  event DepositBase(address indexed to, uint256 amount, DepositType depositType, address referral);
+  event DepositBase(
+    address indexed to,
+    uint256 amount,
+    DepositType depositType,
+    address pool,
+    address referral
+  );
 
   /// @notice Emitted when the deposit limit is reached
   /// @param sender The address of the sender
@@ -208,12 +221,13 @@ interface IStakeTogether {
   /// @param account The address withdrawing
   /// @param amount The withdrawal amount
   /// @param withdrawType The type of withdrawal
-  event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType);
+  /// @param pool The address of the pool
+  event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType, address pool);
 
   /// @notice Emitted when the withdrawal limit is reached
   /// @param sender The address of the sender
   /// @param amount The amount withdrawn
-  event WithdrawalsLimitReached(address indexed sender, uint256 amount);
+  event WithdrawalsLimitReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
 
   /// @notice Stake Together Pool Initialization
   /// @param _router The address of the router.
@@ -306,24 +320,25 @@ interface IStakeTogether {
   function decreaseAllowance(address _spender, uint256 _subtractedValue) external returns (bool);
 
   /// @notice Deposits into the pool with specific delegations.
-  /// @param _delegations The array of delegations for the deposit.
+  /// @param _pool the address of the pool.
   /// @param _referral The referral address.
-  function depositPool(Delegation[] memory _delegations, address _referral) external payable;
+  function depositPool(address _pool, address _referral) external payable;
 
   /// @notice Deposits a donation to the specified address.
   /// @param _to The address to deposit to.
+  /// @param _pool the address of the pool.
   /// @param _referral The referral address.
-  function depositDonation(address _to, address _referral) external payable;
+  function depositDonation(address _to, address _pool, address _referral) external payable;
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawPool(uint256 _amount, Delegation[] memory _delegations) external;
+  /// @param _pool the address of the pool.
+  function withdrawPool(uint256 _amount, address _pool) external;
 
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
-  /// @param _delegations The array of delegations for the withdrawal.
-  function withdrawValidator(uint256 _amount, Delegation[] memory _delegations) external;
+  /// @param _pool the address of the pool.
+  function withdrawValidator(uint256 _amount, address _pool) external;
 
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
@@ -367,6 +382,11 @@ interface IStakeTogether {
   /// @param _amount The amount to set as the pending withdraw balance.
   /// @dev Only the router address can call this function.
   function setWithdrawBalance(uint256 _amount) external payable;
+
+  /// @notice Initiates a transfer to anticipate a validator's withdrawal.
+  /// @dev Only a valid validator oracle can initiate this anticipation request.
+  /// This function also checks the balance constraints before processing.
+  function anticipateWithdrawValidator() external;
 
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.

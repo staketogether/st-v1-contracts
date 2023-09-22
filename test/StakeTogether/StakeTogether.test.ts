@@ -154,8 +154,7 @@ describe('Stake Together', function () {
         totalFees += fee
         const shares = depositAmount - fee
         userBalancesBefore.push(shares)
-        const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-        await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
+        await stakeTogether.connect(user).depositPool(poolAddress, nullAddress, { value: depositAmount })
       }
 
       const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
@@ -198,8 +197,7 @@ describe('Stake Together', function () {
         totalFees += fee
         const shares = depositAmount - fee
         userBalancesBefore.push(shares)
-        const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-        await stakeTogether.connect(user).depositPool(delegations, nullAddress, { value: depositAmount })
+        await stakeTogether.connect(user).depositPool(poolAddress, nullAddress, { value: depositAmount })
       }
 
       const prevContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
@@ -250,14 +248,9 @@ describe('Stake Together', function () {
       const referral = user4.address
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
-      const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-
       await stakeTogether
         .connect(airdropFeeAddress)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       const sharesAmount = ethers.parseEther('10')
 
@@ -293,7 +286,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -318,7 +312,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -340,7 +335,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.001'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -366,31 +362,20 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
-      let eventFilter = stakeTogether.filters.UpdateDelegations(user1.address)
+      let eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [emittedAddress1, emittedDelegations1] = event.args
-
-      expect(emittedAddress1).to.equal(user1.address)
-      expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
-      expect(emittedDelegations1[0].percentage).to.equal(user1Delegations[0].percentage)
-
-      eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
-      logs = await stakeTogether.queryFilter(eventFilter)
-
-      event = logs[0]
-      const [_to, _value, _type, _referral] = event.args
+      const [_to, _value, _type, _pool, _referral] = event.args
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(1)
+      expect(_pool).to.equal(poolAddress)
       expect(_referral).to.equal(referral)
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
@@ -413,11 +398,9 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
@@ -431,24 +414,33 @@ describe('Stake Together', function () {
     it('should correctly handle deposit donation', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const toAddress = user2.address
+      const poolAddress = user3.address
       const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
       const tx = await stakeTogether
         .connect(user1)
-        .depositDonation(toAddress, referral, { value: user1DepositAmount })
+        .depositDonation(toAddress, poolAddress, referral, { value: user1DepositAmount })
       await tx.wait()
 
-      let eventFilter = stakeTogether.filters.DepositBase(toAddress, undefined, undefined, undefined)
+      let eventFilter = stakeTogether.filters.DepositBase(
+        toAddress,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      )
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to, _value, _type, _referral] = event.args
+      const [_to, _value, _type, _pool, _referral] = event.args
       expect(_to).to.equal(toAddress)
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(0)
+      expect(_pool).to.equal(poolAddress)
       expect(_referral).to.equal(referral)
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
@@ -469,30 +461,20 @@ describe('Stake Together', function () {
 
       const user1Shares = 1n + user1DepositAmount - fee // In this case we have to round up
 
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
-      let eventFilter = stakeTogether.filters.UpdateDelegations(user1.address)
+      let eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [emittedAddress1, emittedDelegations1] = event.args
-      expect(emittedAddress1).to.equal(user1.address)
-      expect(emittedDelegations1[0].pool).to.equal(user1Delegations[0].pool)
-      expect(emittedDelegations1[0].percentage).to.equal(user1Delegations[0].percentage)
-
-      eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
-      logs = await stakeTogether.queryFilter(eventFilter)
-
-      event = logs[0]
-      const [_to, _value, _type, _referral] = event.args
+      const [_to, _value, _type, _pool, _referral] = event.args
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(1)
+      expect(_pool).to.equal(poolAddress)
       expect(_referral).to.equal(referral)
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
@@ -513,32 +495,27 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
       let eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to1, _value1, _type1, _referral1] = event.args
+      const [_to1, _value1, _type1, _pool, _referral1] = event.args
       expect(_to1).to.equal(user1.address)
       expect(_value1).to.equal(user1DepositAmount)
       expect(_type1).to.equal(1)
+      expect(_pool).to.equal(poolAddress)
       expect(_referral1).to.equal(referral)
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
-      const user2Shares = user2DepositAmount - fee2
-      const user2Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
-        stakeTogether
-          .connect(user2)
-          .depositPool(user2Delegations, referral, { value: user2DepositAmount }),
+        stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user2DepositAmount }),
       ).to.be.revertedWith('DLR')
     })
 
@@ -553,32 +530,27 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       const fee1 = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee1
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
       let eventFilter = stakeTogether.filters.DepositBase(user1.address, undefined, undefined)
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to1, _value1, _type1, _referral1] = event.args
+      const [_to1, _value1, _type1, _pool, _referral1] = event.args
       expect(_to1).to.equal(user1.address)
       expect(_value1).to.equal(user1DepositAmount)
       expect(_type1).to.equal(1)
+      expect(_pool).to.equal(poolAddress)
       expect(_referral1).to.equal(referral)
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
-      const user2Shares = user2DepositAmount - fee2
-      const user2Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
-        stakeTogether
-          .connect(user2)
-          .depositPool(user2Delegations, referral, { value: user2DepositAmount }),
+        stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user2DepositAmount }),
       ).to.be.revertedWith('DLR')
 
       for (let i = 0; i < 100; i++) {
@@ -586,9 +558,7 @@ describe('Stake Together', function () {
       }
 
       await expect(
-        stakeTogether
-          .connect(user2)
-          .depositPool(user2Delegations, referral, { value: user2DepositAmount }),
+        stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user2DepositAmount }),
       ).to.be.revertedWith('DLR')
 
       for (let i = 0; i < blocksPerDay; i++) {
@@ -596,22 +566,21 @@ describe('Stake Together', function () {
       }
 
       const fee3 = (user3DepositAmount * 3n) / 1000n
-      const user3Shares = user3DepositAmount - fee3
-      const user3Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
       const tx3 = await stakeTogether
         .connect(user3)
-        .depositPool(user3Delegations, referral, { value: user3DepositAmount })
+        .depositPool(poolAddress, referral, { value: user3DepositAmount })
       await tx3.wait()
 
       eventFilter = stakeTogether.filters.DepositBase(user3.address, undefined, undefined)
       logs = await stakeTogether.queryFilter(eventFilter)
 
       event = logs[0]
-      const [_to3, _value3, _type3, _referral3] = event.args
+      const [_to3, _value3, _type3, _pool3, _referral3] = event.args
       expect(_to3).to.equal(user3.address)
       expect(_value3).to.equal(user3DepositAmount)
       expect(_type3).to.equal(1)
+      expect(_pool3).to.equal(poolAddress)
       expect(_referral3).to.equal(referral)
     })
 
@@ -622,22 +591,8 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       await expect(
-        stakeTogether.connect(user1).depositPool([], referral, { value: user1DepositAmount }),
+        stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount }),
       ).to.be.revertedWith('MD')
-    })
-
-    it('should revert due to wrong shares value (without fee)', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      const user1Shares = user1DepositAmount
-
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1.1') }]
-
-      await expect(
-        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('ITP')
     })
 
     it('should revert if deposit feature is disabled', async function () {
@@ -647,7 +602,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.001'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -663,14 +619,11 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const nonExistentPoolAddress = nullAddress
       const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-
-      const user1Delegations = [{ pool: nonExistentPoolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
         stakeTogether
           .connect(user1)
-          .depositPool(user1Delegations, user3, { value: ethers.parseEther('100') }),
+          .depositPool(nonExistentPoolAddress, user3, { value: ethers.parseEther('100') }),
       ).to.be.revertedWith('FD')
     })
 
@@ -678,42 +631,12 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const nonExistentPoolAddress = nullAddress
       const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
-
-      const user1Delegations = [{ pool: nonExistentPoolAddress, percentage: ethers.parseEther('1') }]
 
       await expect(
-        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
+        stakeTogether
+          .connect(user1)
+          .depositPool(nonExistentPoolAddress, user3, { value: user1DepositAmount }),
       ).to.be.revertedWith('PNF')
-    })
-
-    it('should fail when total delegation shares do not match user percentage', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-      const fee = (user1DepositAmount * 3n) / 1000n
-
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') + 1n }]
-
-      await expect(
-        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('ITP')
-    })
-
-    it('should fail when the number of delegations is greater than maxDelegations', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
-
-      const maxDelegations = 64
-      const user1Delegations = Array(maxDelegations + 1).fill({
-        pool: poolAddress,
-        percentage: ethers.parseEther('1'),
-      })
-
-      await expect(
-        stakeTogether.connect(user1).depositPool(user1Delegations, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('MD')
     })
 
     it('should correctly transfer delegations to another pool', async function () {
@@ -724,25 +647,23 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress1, true)
       await stakeTogether.connect(owner).addPool(poolAddress2, true)
 
-      const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
+      const poolAddress = user3.address
 
-      const user1Delegations = [{ pool: poolAddress1, percentage: ethers.parseEther('1') }]
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
-
-      const updatedDelegations = [{ pool: poolAddress2, percentage: ethers.parseEther('1') }]
+      const updatedDelegations = [
+        { pool: poolAddress1, percentage: ethers.parseEther('0.5') },
+        { pool: poolAddress2, percentage: ethers.parseEther('0.5') },
+      ]
       await stakeTogether.connect(user1).updateDelegations(updatedDelegations)
 
       const user1Filter = stakeTogether.filters.UpdateDelegations(user1.address)
 
       const user1Logs = await stakeTogether.queryFilter(user1Filter)
 
-      expect(user1Logs.length).to.equal(2)
+      expect(user1Logs.length).to.equal(1)
 
-      expect(user1Logs[1].args[1][0][0]).to.equal(poolAddress2)
+      expect(user1Logs[0].args[1][0][0]).to.equal(poolAddress1)
     })
   })
 
@@ -758,9 +679,7 @@ describe('Stake Together', function () {
       const user1Shares = user1DepositAmount - fee
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       let expectedBalanceAfterDeposit = await stakeTogether.balanceOf(user1.address)
       expect(expectedBalanceAfterDeposit).to.equal(user1DepositAmount - fee)
@@ -769,7 +688,7 @@ describe('Stake Together', function () {
       const withdrawAmount = ethers.parseEther('40')
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
 
-      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations)
+      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
 
       let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
       expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount)
@@ -793,13 +712,7 @@ describe('Stake Together', function () {
 
       const fee = (user1DepositAmount * 3n) / 1000n
 
-      const user1Shares = 1n + user1DepositAmount - fee // In this case we have to round up
-
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       let expectedBalanceAfterDeposit = await stakeTogether.balanceOf(user1.address)
       expect(expectedBalanceAfterDeposit).to.equal(user1DepositAmount - fee + 1n) // round up
@@ -808,7 +721,7 @@ describe('Stake Together', function () {
       const withdrawAmount = ethers.parseEther('40') / 3n
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
 
-      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations)
+      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
 
       let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
       expect(expectedBalanceAfterWithdraw).to.equal(user1DepositAmount - fee - withdrawAmount + 1n)
@@ -831,19 +744,17 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, true)
 
       const fee = (user1DepositAmount * 3n) / 1000n
-      const user1Shares = user1DepositAmount - fee
+
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       // Withdraw
       const withdrawAmount = ethers.parseEther('0') // Attempting to withdraw 0
 
       // Expect a revert with the specific error message
       await expect(
-        stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
       ).to.be.revertedWith('ZA')
     })
 
@@ -858,16 +769,14 @@ describe('Stake Together', function () {
       const user1Shares = user1DepositAmount - fee
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       // Withdraw an amount greater than the balance
       const withdrawAmount = ethers.parseEther('101')
 
       // Expect a revert with the specific error message
       await expect(
-        stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
       ).to.be.revertedWith('IAB')
     })
 
@@ -882,9 +791,7 @@ describe('Stake Together', function () {
       const user1Shares = user1DepositAmount - fee
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       const withdrawAmount = ethers.parseEther('0.000001')
 
@@ -893,18 +800,19 @@ describe('Stake Together', function () {
       user1Delegations[0].percentage -= sharesForWithdrawAmount + 1n // round up
 
       await expect(
-        stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations),
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
       ).to.be.revertedWith('MW')
     })
 
-    it('should revert when trying to withdraw an amount that exceeds the limit', async function () {
+    it('should revert when trying to withdraw pool amount that exceeds the limit', async function () {
       const config = {
         validatorSize: ethers.parseEther('32'),
         poolSize: ethers.parseEther('32'),
         minDepositAmount: ethers.parseEther('0.1'),
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('10000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -925,38 +833,104 @@ describe('Stake Together', function () {
 
       // Deposit from user1 and user2
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      const fee = (depositAmount * 3n) / 1000n
-      const user1Shares = depositAmount - fee
-      const user2Shares = depositAmount - fee
-      const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-      const user2Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether.connect(user1).depositPool(user1Delegations, referral, { value: depositAmount })
-      await stakeTogether.connect(user2).depositPool(user2Delegations, referral, { value: depositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
+      await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
 
       // Calculate shares for the first withdrawal
       const withdrawAmount = ethers.parseEther('900')
-      const sharesForWithdrawAmount1 = await stakeTogether.sharesByWei(withdrawAmount)
 
-      const user1Delegations1 = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
-      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, user1Delegations1)
-
-      const withdrawAmount2 = ethers.parseEther('900')
-      const sharesForWithdrawAmount2 = await stakeTogether.sharesByWei(withdrawAmount2)
-
-      const user2Delegations1 = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
+      await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
 
       // Expect a revert with the specific error message
       await expect(
-        stakeTogether.connect(user2).withdrawPool(withdrawAmount, user2Delegations1),
-      ).to.be.revertedWith('WLR')
+        stakeTogether.connect(user2).withdrawPool(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('WPLR')
 
       const blocksPerDay = 7200n
       for (let i = 0; i < blocksPerDay; i++) {
         await network.provider.send('evm_mine')
       }
 
-      await stakeTogether.connect(user2).withdrawPool(withdrawAmount, user2Delegations1)
+      await stakeTogether.connect(user2).withdrawPool(withdrawAmount, poolAddress)
+    })
+
+    it('should revert when trying to withdraw validator amount that exceeds the limit', async function () {
+      const config = {
+        validatorSize: ethers.parseEther('32'),
+        poolSize: ethers.parseEther('32'),
+        minDepositAmount: ethers.parseEther('0.1'),
+        minWithdrawAmount: ethers.parseEther('0.0001'),
+        depositLimit: ethers.parseEther('10000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('40'),
+        blocksPerDay: 7200n,
+        maxDelegations: 64n,
+        feature: {
+          AddPool: true,
+          Deposit: true,
+          WithdrawPool: true,
+          WithdrawValidator: true,
+        },
+      }
+
+      // Set config by owner
+      await stakeTogether.connect(owner).setConfig(config)
+
+      // Deposits
+      const depositAmount = ethers.parseEther('40')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      // Deposit from user1 and user2
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
+      await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
+
+      // Calculate shares for the first withdrawal
+      const withdrawAmount = ethers.parseEther('38')
+
+      const publicKey =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93'
+      const publicKey2 =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf94'
+      const publicKey3 =
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf95'
+      const signature =
+        '0x967d1b93d655752e303b43905ac92321c048823e078cadcfee50eb35ede0beae1501a382a7c599d6e9b8a6fd177ab3d711c44b2115ac90ea1dc7accda6d0352093eaa5f2bc9f1271e1725b43b3a74476b9e749fc011de4a63d9e72cf033978ed'
+      const depositDataRoot = '0x4ef3924ceb993cbc51320f44cb28ffb50071deefd455ce61feabb7b6b2f1d0e8'
+
+      const poolSize = ethers.parseEther('32.1')
+      const validatorSize = ethers.parseEther('32')
+
+      const oracle = user1
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle)
+
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('40') })
+
+      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).createValidator(publicKey2, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).createValidator(publicKey3, signature, depositDataRoot)
+
+      const beaconBalance = await stakeTogether.beaconBalance()
+      expect(beaconBalance).to.equal(validatorSize * 3n)
+
+      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress)
+
+      // Expect a revert with the specific error message
+      await expect(
+        stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('WVLR')
+
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      await expect(stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress)).to.not
+        .reverted
     })
 
     it('should revert when trying to withdraw an amount greater than the balance', async function () {
@@ -971,19 +945,15 @@ describe('Stake Together', function () {
 
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
-      await stakeTogether
-        .connect(user2)
-        .depositPool(user1Delegations, referral, { value: user1DepositAmount })
+      await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
       const withdrawAmount = ethers.parseEther('150')
 
-      await expect(stakeTogether.connect(user1).withdrawPool(withdrawAmount, [])).to.be.revertedWith(
-        'IAB',
-      )
+      await expect(
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('IAB')
     })
 
     it('should revert when trying to withdraw from the pool disabled', async function () {
@@ -994,7 +964,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -1010,9 +981,12 @@ describe('Stake Together', function () {
 
       // Attempt to withdraw
       const withdrawAmount = ethers.parseEther('1')
+      const poolAddress = user3.address
 
       // Expect a revert with the specific error message 'FD'
-      await expect(stakeTogether.connect(user1).withdrawPool(withdrawAmount, [])).to.be.revertedWith('FD')
+      await expect(
+        stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('FD')
     })
 
     it('should revert when trying to withdraw from the validator disabled', async function () {
@@ -1023,7 +997,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -1037,10 +1012,11 @@ describe('Stake Together', function () {
       // Set config by owner
       await connect(stakeTogether, owner).setConfig(config)
       const withdrawAmount = ethers.parseEther('1')
+      const poolAddress = user3.address
 
-      await expect(stakeTogether.connect(user1).withdrawValidator(withdrawAmount, [])).to.be.revertedWith(
-        'FD',
-      )
+      await expect(
+        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
+      ).to.be.revertedWith('FD')
     })
 
     it('should not allow withdrawal greater than beacon balance', async function () {
@@ -1068,7 +1044,7 @@ describe('Stake Together', function () {
 
       const tx1 = await stakeTogether
         .connect(user1)
-        .depositPool(delegations, referral, { value: depositAmount })
+        .depositPool(poolAddress, referral, { value: depositAmount })
       await tx1.wait()
 
       // Creating the validator
@@ -1082,7 +1058,7 @@ describe('Stake Together', function () {
       const withdrawAmount = ethers.parseEther('60')
 
       await expect(
-        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, delegations),
+        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
       ).to.be.revertedWith('IBB')
     })
 
@@ -1181,7 +1157,8 @@ describe('Stake Together', function () {
         minDepositAmount: ethers.parseEther('0.1'), // Changing to a new value
         minWithdrawAmount: ethers.parseEther('0.0001'),
         depositLimit: ethers.parseEther('1000'),
-        withdrawalLimit: ethers.parseEther('1000'),
+        withdrawalPoolLimit: ethers.parseEther('1000'),
+        withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
         feature: {
@@ -1523,6 +1500,81 @@ describe('Stake Together', function () {
       expect(await stakeTogether.validators(publicKey)).to.be.true
     })
 
+    it('should cycle through oracles and ensure order of validator creation', async function () {
+      const oracle1 = user1
+      const oracle2 = user2
+      const oracle3 = user3
+      const oracle4 = user4
+      const oracle5 = user5
+
+      let incremented = BigInt(publicKey) + 1n
+      function incrementPublicKey() {
+        incremented = BigInt(incremented) + 1n
+        return '0x' + incremented.toString(16).padStart(64, '0')
+      }
+
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, owner)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle1)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle2)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle3)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle4)
+      await stakeTogether.connect(owner).addValidatorOracle(oracle5)
+
+      const validatorSize = ethers.parseEther('32')
+      const poolSize = ethers.parseEther('32.1') * 6n
+
+      await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
+
+      await stakeTogether.connect(oracle1).createValidator(publicKey, signature, depositDataRoot)
+      let nextPublicKey = incrementPublicKey()
+
+      await expect(
+        stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NCO')
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle2).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      await expect(
+        stakeTogether.connect(oracle1).createValidator(nextPublicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NCO')
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      await expect(
+        stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot),
+      ).to.be.revertedWith('NCO')
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle4).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      nextPublicKey = incrementPublicKey()
+      await stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot)
+
+      nextPublicKey = incrementPublicKey()
+      const tx = await stakeTogether
+        .connect(oracle1)
+        .createValidator(nextPublicKey, signature, depositDataRoot)
+
+      const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
+      await expect(tx)
+        .to.emit(stakeTogether, 'CreateValidator')
+        .withArgs(
+          oracle1.address,
+          validatorSize,
+          nextPublicKey,
+          withdrawalCredentials,
+          signature,
+          depositDataRoot,
+        )
+
+      const beaconBalance = await stakeTogether.beaconBalance()
+      expect(beaconBalance).to.equal(validatorSize * 6n)
+
+      expect(await stakeTogether.validators(nextPublicKey)).to.be.true
+    })
+
     it('should fail to create a validator by an invalid oracle', async function () {
       const invalidOracle = user2
 
@@ -1602,9 +1654,7 @@ describe('Stake Together', function () {
 
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await stakeTogether
-        .connect(user1)
-        .depositPool(user1Delegations, user3, { value: user1DepositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const totalShares = await stakeTogether.totalShares()
       expect(totalShares).to.equal(user1DepositAmount + initialBalance)
@@ -1698,11 +1748,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
 
       const sharesToTransfer = ethers.parseEther('2')
       const tx = await stakeTogether.connect(user1).transferShares(user2.address, sharesToTransfer)
@@ -1725,11 +1773,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
       await expect(
         stakeTogether.connect(user1).transferShares(nullAddress, ethers.parseEther('2')),
       ).to.be.revertedWith('ZA')
@@ -1742,11 +1788,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
       const user1Shares = await stakeTogether.shares(user1.address)
       await expect(
         stakeTogether.connect(user1).transferShares(user2.address, user1Shares + 10n),
@@ -1760,11 +1804,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
 
       const amountToTransfer = ethers.parseEther('2')
       const tx = await stakeTogether.connect(user1).transfer(user2.address, amountToTransfer)
@@ -1787,11 +1829,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
 
       await expect(
         stakeTogether.connect(user1).transfer(nullAddress, ethers.parseEther('2')),
@@ -1805,11 +1845,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
 
       const user1Balance = await stakeTogether.balanceOf(user1.address)
       await expect(
@@ -1824,11 +1862,9 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
 
       const amountToApprove = ethers.parseEther('50')
       const amountToTransfer = ethers.parseEther('20')
@@ -1860,17 +1896,15 @@ describe('Stake Together', function () {
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
       await stakeTogether.connect(owner).addPool(poolAddress, true)
-      await stakeTogether
-        .connect(user1)
-        .depositPool([{ pool: poolAddress, percentage: ethers.parseEther('1') }], user3, {
-          value: user1DepositAmount,
-        })
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
+        value: user1DepositAmount,
+      })
 
       const amountToApprove = ethers.parseEther('50')
       const nonce = await stakeTogether.nonces(user1.address)
       const deadline = ethers.MaxUint256
       const domain = {
-        name: 'Stake Together Pool',
+        name: 'Stake Together Protocol',
         version: '1',
         chainId: await network.provider.send('eth_chainId'),
         verifyingContract: stakeTogetherProxy,
@@ -2022,7 +2056,7 @@ describe('Stake Together', function () {
         totalUserShares += liquidDepositAmount
         totalShares += liquidDepositAmount
 
-        await stakeTogether.connect(user).depositPool(delegations, referral, { value: depositAmount })
+        await stakeTogether.connect(user).depositPool(poolAddress, referral, { value: depositAmount })
 
         const userBalance = await stakeTogether.balanceOf(user.address)
         expect(userBalance).to.equal(liquidDepositAmount)
@@ -2058,8 +2092,8 @@ describe('Stake Together', function () {
 
       // Deposits
 
-      await stakeTogether.connect(user1).depositPool(delegations, referral, { value: depositAmount })
-      await stakeTogether.connect(user2).depositPool(delegations, referral, { value: depositAmount })
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
+      await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
 
       const stakeEntryFee = (depositAmount * 3n) / 1000n
       const liquidDepositAmount = depositAmount - stakeEntryFee
@@ -2105,7 +2139,8 @@ describe('Stake Together', function () {
       const referral = user4.address
       const depositAmount = ethers.parseEther('1')
       const poolPercentage = ethers.parseEther('1')
-      const delegations = [{ pool: poolAddress, percentage: poolPercentage }]
+
+      const poolAddress = user3.address
 
       let totalSharesFee = 0n
       let totalUserShares = 0n
@@ -2119,7 +2154,7 @@ describe('Stake Together', function () {
         totalUserShares += liquidDepositAmount
         totalShares += liquidDepositAmount
 
-        await stakeTogether.connect(user).depositPool(delegations, referral, { value: depositAmount })
+        await stakeTogether.connect(user).depositPool(poolAddress, referral, { value: depositAmount })
 
         const userBalance = await stakeTogether.balanceOf(user.address)
 
