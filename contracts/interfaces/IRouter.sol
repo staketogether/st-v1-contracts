@@ -6,6 +6,108 @@ pragma solidity ^0.8.20;
 /// @notice This module includes configuration and reports related to the StakeTogether protocol.
 /// @custom:security-contact security@staketogether.app
 interface IRouter {
+  /// @notice Emitted when a report for a specific block has already been executed.
+  error AlreadyExecuted();
+
+  /// @notice Emitted when an oracle has already reported for a specific block.
+  error AlreadyReported();
+
+  /// @notice Emitted when the beacon's balance is not enough to cover the loss amount.
+  error BeaconBalanceTooLow();
+
+  /// @notice Emitted when the block number has not yet reached the expected value for reporting.
+  error BlockNumberNotReached();
+
+  /// @notice Emitted when the report configuration is not yet set.
+  error ConfigNotSet();
+
+  /// @notice Emitted when the consensus is not yet delayed.
+  error ConsensusNotDelayed();
+
+  /// @notice Emitted when trying to execute too early.
+  error EarlyExecution();
+
+  /// @notice Emitted when the epoch should be greater than the last executed epoch.
+  error EpochShouldBeGreater();
+
+  /// @notice Emitted when the report's profit amount A is not enough for execution.
+  error IncreaseOraclesToUseMargin();
+
+  /// @notice Emitted when ETH balance is not enough for transaction.
+  error InsufficientEthBalance();
+
+  /// @notice Emitted when the oracles' margin is too high.
+  error MarginTooHigh();
+
+  /// @notice Emitted when there's no active consensus for a report block.
+  error NoActiveConsensus();
+
+  /// @notice Emitted when there is no pending execution for consensus.
+  error NoPendingExecution();
+
+  /// @notice Emitted when the report block is not yet reached.
+  error OracleAlreadyReported();
+
+  /// @notice Emitted when an oracle is not in the report oracles list.
+  error OracleNotExists();
+
+  /// @notice Emitted when an oracle is already in the report oracles list.
+  error OracleExists();
+
+  /// @notice Emitted when an oracle is blacklisted.
+  error OracleBlacklisted();
+
+  /// @notice Emitted when an oracle is not blacklisted.
+  error OracleNotBlacklisted();
+
+  /// @notice Emitted when an oracle is active.
+  error OnlyActiveOracle();
+
+  /// @notice Emitted when an action is attempted by an address other than the stakeTogether contract.
+  error OnlyStakeTogether();
+
+  /// @notice Emitted when there is a pending execution for consensus.
+  error PendingExecution();
+
+  /// @notice Emitted when the report delay blocks are too high.
+  error ReportDelayBlocksTooHigh();
+
+  /// @notice Emitted when a report for a specific block has already been revoked.
+  error ReportRevoked();
+
+  /// Emits when the report block is not greater than the last executed epoch.
+  error ReportBlockShouldBeGreater();
+
+  /// @notice Emitted when there are not enough oracles to use the margin.
+  error RequiredMoreOracles();
+
+  /// @notice Emitted when the report's loss amount must be zero for execution.
+  error LossMustBeZero();
+
+  /// @notice Emitted when the report's profit amount A must be zero for execution.
+  error ProfitAmountMustBeZero();
+
+  /// @notice Emitted when the report's profit shares S must be zero for execution.
+  error ProfitSharesMustBeZero();
+
+  /// @notice Emitted when the quorum is not yet reached for consensus.
+  error QuorumNotReached();
+
+  /// @notice Emitted when a sentinel exists in the oracles list.
+  error SentinelExists();
+
+  /// @notice Emitted when a sentinel does not exist in the oracles list.
+  error SentinelNotExists();
+
+  /// @notice Emitted when trying to set the stakeTogether address that is already set.
+  error StakeTogetherAlreadySet();
+
+  /// @notice Emitted when the stakeTogether's withdraw balance is not enough.
+  error WithdrawBalanceTooLow();
+
+  /// @notice Thrown if the address trying to make a claim is the zero address.
+  error ZeroAddress();
+
   /// @dev Config structure used for configuring the reporting mechanism in StakeTogether protocol.
   /// @param bunkerMode A boolean flag to indicate whether the bunker mode is active or not.
   /// @param reportFrequency The frequency in which reports need to be generated.
