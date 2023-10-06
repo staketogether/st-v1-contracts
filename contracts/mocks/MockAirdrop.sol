@@ -78,7 +78,7 @@ contract MockAirdrop is
   /// @dev Only callable by the admin role.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance;
-    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
+    if (extraAmount == 0) revert NoExtraAmount();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     payable(stakeTogetherFee).transfer(extraAmount);
   }
@@ -87,7 +87,7 @@ contract MockAirdrop is
   /// @param _stakeTogether The address of the StakeTogether contract.
   /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
-    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
+    if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
@@ -96,7 +96,7 @@ contract MockAirdrop is
   /// @param _router The address of the router.
   /// @dev Only callable by the admin role.
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    if (address(router) != address(0)) revert RouterAlreadySet();
     router = Router(payable(_router));
     emit SetRouter(_router);
   }
@@ -110,8 +110,8 @@ contract MockAirdrop is
   /// @param _root The Merkle root.
   /// @dev Only callable by the router.
   function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
-    require(msg.sender == address(router), 'ONLY_ROUTER');
-    require(merkleRoots[_reportBlock] == bytes32(0), 'ROOT_ALREADY_SET_FOR_BLOCK');
+    if (msg.sender != address(router)) revert OnlyAllowRouter();
+    if (merkleRoots[_reportBlock] != bytes32(0)) revert MerkleRootAlreadySetForBlock();
     merkleRoots[_reportBlock] = _root;
     emit AddMerkleRoot(_reportBlock, _root);
   }
@@ -130,13 +130,13 @@ contract MockAirdrop is
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
-    require(!isClaimed(_blockNumber, _index), 'ALREADY_CLAIMED');
-    require(merkleRoots[_blockNumber] != bytes32(0), 'MERKLE_ROOT_NOT_SET');
-    require(_account != address(0), 'ZERO_ADDRESS');
-    require(_sharesAmount > 0, 'ZERO_AMOUNT');
+    if (isClaimed(_blockNumber, _index)) revert AlreadyClaimed();
+    if (merkleRoots[_blockNumber] == bytes32(0)) revert MerkleRootNotSet();
+    if (_account == address(0)) revert ZeroAddress();
+    if (_sharesAmount == 0) revert ZeroAmount();
 
     bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_index, _account, _sharesAmount))));
-    require(MerkleProof.verify(merkleProof, merkleRoots[_blockNumber], leaf), 'INVALID_PROOF');
+    if (!MerkleProof.verify(merkleProof, merkleRoots[_blockNumber], leaf)) revert InvalidProof();
 
     _setClaimed(_blockNumber, _index);
 
