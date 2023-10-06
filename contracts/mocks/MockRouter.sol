@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
 import '../Airdrop.sol';
 import '../StakeTogether.sol';
@@ -16,6 +16,9 @@ import '../Withdrawals.sol';
 import '../interfaces/IStakeTogether.sol';
 import '../interfaces/IRouter.sol';
 
+/// @title Router Contract for the StakeTogether platform.
+/// @dev This contract handles routing functionalities, is pausable, upgradable, and guards against reentrancy attacks.
+/// It also leverages access controls for administrative purposes. This contract should be initialized after deployment.
 /// @custom:security-contact security@staketogether.app
 contract MockRouter is
   Initializable,
@@ -316,8 +319,8 @@ contract MockRouter is
   /// @dev Computes the next report block and updates the state variable 'reportBlock'.
   /// @return The next report block number.
   function _advanceNextReportBlock() private returns (uint256) {
-    uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
-    uint256 nextReportBlock = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
+    uint256 intervalsPassed = Math.mulDiv(block.number, 1, config.reportFrequency);
+    uint256 nextReportBlock = Math.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
     emit AdvanceNextBlock(reportBlock, nextReportBlock);
     reportBlock = nextReportBlock;
     return reportBlock;

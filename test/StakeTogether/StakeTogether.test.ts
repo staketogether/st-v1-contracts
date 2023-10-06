@@ -1833,9 +1833,8 @@ describe('Stake Together', function () {
         value: user1DepositAmount,
       })
 
-      await expect(
-        stakeTogether.connect(user1).transfer(nullAddress, ethers.parseEther('2')),
-      ).to.be.revertedWith('ZA')
+      await expect(stakeTogether.connect(user1).transfer(nullAddress, ethers.parseEther('2'))).to.be
+        .reverted
     })
 
     it('should fail if _amount is greater than balance owned by _from', async function () {

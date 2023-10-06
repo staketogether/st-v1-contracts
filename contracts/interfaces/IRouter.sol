@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 /// @title StakeTogether Report Configuration
 /// @notice This module includes configuration and reports related to the StakeTogether protocol.

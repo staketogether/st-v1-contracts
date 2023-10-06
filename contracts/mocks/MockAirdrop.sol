@@ -1,19 +1,21 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
 import '../Router.sol';
 import '../StakeTogether.sol';
 
 import '../interfaces/IAirdrop.sol';
 
+/// @title Airdrop Contract for StakeTogether Protocol
+/// @notice This contract manages the Airdrop functionality for the StakeTogether protocol, providing methods to set and claim rewards.
 /// @custom:security-contact security@staketogether.app
 contract MockAirdrop is
   Initializable,
@@ -134,7 +136,7 @@ contract MockAirdrop is
     require(_sharesAmount > 0, 'ZERO_AMOUNT');
 
     bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_index, _account, _sharesAmount))));
-    require(MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_blockNumber], leaf), 'INVALID_PROOF');
+    require(MerkleProof.verify(merkleProof, merkleRoots[_blockNumber], leaf), 'INVALID_PROOF');
 
     _setClaimed(_blockNumber, _index);
 

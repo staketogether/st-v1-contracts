@@ -1,26 +1,26 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
 import '../Withdrawals.sol';
 
 import '../interfaces/IStakeTogether.sol';
 import '../interfaces/IDepositContract.sol';
 
-/// @custom:security-contact security@staketogether.app
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
+/// @custom:security-contact security@staketogether.app
 contract MockStakeTogether is
   Initializable,
   ERC20Upgradeable,
@@ -170,14 +170,14 @@ contract MockStakeTogether is
   /// @param _sharesAmount Amount of shares.
   /// @return Equivalent amount in wei.
   function weiByShares(uint256 _sharesAmount) public view returns (uint256) {
-    return MathUpgradeable.mulDiv(_sharesAmount, totalSupply(), totalShares, MathUpgradeable.Rounding.Up);
+    return Math.mulDiv(_sharesAmount, totalSupply(), totalShares, Math.Rounding.Ceil);
   }
 
   /// @notice Calculates the shares amount by wei.
   /// @param _amount Amount in wei.
   /// @return Equivalent amount in shares.
   function sharesByWei(uint256 _amount) public view returns (uint256) {
-    return MathUpgradeable.mulDiv(_amount, totalShares, totalSupply());
+    return Math.mulDiv(_amount, totalShares, totalSupply());
   }
 
   /// @notice Transfers an amount of wei to the specified address.
@@ -211,7 +211,7 @@ contract MockStakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
-  function _transfer(address _from, address _to, uint256 _amount) internal override {
+  function _update(address _from, address _to, uint256 _amount) internal override {
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -262,7 +262,7 @@ contract MockStakeTogether is
     address _spender,
     uint256 _amount
   ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
-    _approve(msg.sender, _spender, _amount);
+    _approve(msg.sender, _spender, _amount, true);
     return true;
   }
 
@@ -270,22 +270,26 @@ contract MockStakeTogether is
   /// @param _account Address of the token owner.
   /// @param _spender Address of the spender.
   /// @param _amount Amount of allowance to be set.
-  function _approve(address _account, address _spender, uint256 _amount) internal override {
+  function _approve(
+    address _account,
+    address _spender,
+    uint256 _amount,
+    bool emitEvent
+  ) internal override {
     require(_account != address(0), 'ZA'); // ZA = Zero Address
     require(_spender != address(0), 'ZA'); // ZA = Zero Address
     allowances[_account][_spender] = _amount;
-    emit Approval(_account, _spender, _amount);
+    if (emitEvent) {
+      emit Approval(_account, _spender, _amount);
+    }
   }
 
   /// @notice Increases the allowance granted to `_spender` by the caller.
   /// @param _spender Address of the spender.
   /// @param _addedValue The additional amount to increase the allowance by.
   /// @return A boolean value indicating whether the operation succeeded.
-  function increaseAllowance(
-    address _spender,
-    uint256 _addedValue
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
-    _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue);
+  function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
+    _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue, true);
     return true;
   }
 
@@ -293,13 +297,10 @@ contract MockStakeTogether is
   /// @param _spender Address of the spender.
   /// @param _subtractedValue The amount to subtract from the allowance.
   /// @return A boolean value indicating whether the operation succeeded.
-  function decreaseAllowance(
-    address _spender,
-    uint256 _subtractedValue
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
     require(currentAllowance >= _subtractedValue, 'IA'); // IA = Insufficient Allowance
-    _approve(msg.sender, _spender, currentAllowance - _subtractedValue);
+    _approve(msg.sender, _spender, currentAllowance - _subtractedValue, true);
     return true;
   }
 
@@ -311,7 +312,7 @@ contract MockStakeTogether is
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
       require(currentAllowance >= _amount, 'IA'); // IA = Insufficient Allowance
-      _approve(_account, _spender, currentAllowance - _amount);
+      _approve(_account, _spender, currentAllowance - _amount, true);
     }
   }
 
@@ -403,7 +404,7 @@ contract MockStakeTogether is
     }
 
     emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
-    uint256 sharesToBurn = MathUpgradeable.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
+    uint256 sharesToBurn = Math.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
   }
 
@@ -705,12 +706,12 @@ contract MockStakeTogether is
     FeeRole[4] memory roles = getFeesRoles();
 
     uint256 feeValue = fees[_feeType].value;
-    uint256 feeShares = MathUpgradeable.mulDiv(_sharesAmount, feeValue, 1 ether);
+    uint256 feeShares = Math.mulDiv(_sharesAmount, feeValue, 1 ether);
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
       uint256 allocation = fees[_feeType].allocations[roles[i]];
-      allocatedShares[i] = MathUpgradeable.mulDiv(feeShares, allocation, 1 ether);
+      allocatedShares[i] = Math.mulDiv(feeShares, allocation, 1 ether);
       totalAllocatedShares += allocatedShares[i];
     }
 
@@ -735,7 +736,7 @@ contract MockStakeTogether is
   /// @param _amount The amount staked.
   /// @dev Calls the distributeFees function internally.
   function _processStakeEntry(address _to, uint256 _amount) private {
-    uint256 sharesAmount = MathUpgradeable.mulDiv(_amount, totalShares, totalSupply() - _amount);
+    uint256 sharesAmount = Math.mulDiv(_amount, totalShares, totalSupply() - _amount);
     _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
   }
 
@@ -752,7 +753,7 @@ contract MockStakeTogether is
   /// @dev Calculates the shares amount and then distributes the staking pool fee.
   function _processStakePool() private {
     uint256 amount = fees[FeeType.StakePool].value;
-    uint256 sharesAmount = MathUpgradeable.mulDiv(amount, totalShares, totalSupply() - amount);
+    uint256 sharesAmount = Math.mulDiv(amount, totalShares, totalSupply() - amount);
     _distributeFees(FeeType.StakePool, sharesAmount, address(0));
   }
 

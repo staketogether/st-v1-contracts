@@ -1,19 +1,24 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 
+import '../Router.sol';
 import '../StakeTogether.sol';
 import '../interfaces/IWithdrawals.sol';
+import '../interfaces/IStakeTogether.sol';
 
+/// @title Withdrawals Contract for StakeTogether
+/// @notice The Withdrawals contract handles all withdrawal-related activities within the StakeTogether protocol.
+/// It allows users to withdraw their staked tokens and interact with the associated stake contracts.
 /// @custom:security-contact security@staketogether.app
 contract MockWithdrawals is
   Initializable,
@@ -113,12 +118,8 @@ contract MockWithdrawals is
   /// @param to Address receiving the tokens.
   /// @param amount The amount of tokens to be transferred.
   /// @dev This override ensures that transfers are paused when the contract is paused.
-  function _beforeTokenTransfer(
-    address from,
-    address to,
-    uint256 amount
-  ) internal override whenNotPaused {
-    super._beforeTokenTransfer(from, to, amount);
+  function _update(address from, address to, uint256 amount) internal override whenNotPaused {
+    super._update(from, to, amount);
   }
 
   /**************

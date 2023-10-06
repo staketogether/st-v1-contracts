@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 /// @title Interface for the Airdrop functionality within the Stake Together protocol.
 /// @notice A contract that represents the Airdrop functionality.
