@@ -19,10 +19,10 @@ interface IAirdrop {
   error MerkleRootAlreadySetForBlock();
 
   /// @notice This error is thrown when there is no extra ETH available for transfer.
-  error NoExtraAmount();
+  error NoExtraAmountAvailable();
 
   /// @notice This error is thrown when an action is performed by an address that is not the router.
-  error OnlyAllowRouter();
+  error OnlyRouterAllowed();
 
   /// @notice This error is thrown when trying to set the router address that is already set.
   error RouterAlreadySet();

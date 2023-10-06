@@ -6,6 +6,33 @@ pragma solidity ^0.8.20;
 /// @notice A contract that represent the validator withdrawal functionality
 /// @custom:security-contact security@staketogether.app
 interface IWithdrawals {
+  /// @notice This error is thrown when the sender has insufficient STW balance to perform a transaction.
+  error InsufficientStwBalance();
+
+  /// @notice This error is thrown when the contract has insufficient ETH balance to perform a transaction.
+  error InsufficientEthBalance();
+
+  /// @notice This error is thrown when there is no extra amount of ETH available to transfer.
+  error NoExtraAmountAvailable();
+
+  /// @notice This error is thrown when an action is attempted by an address other than the router.
+  error OnlyRouterAllowed();
+
+  /// @notice This error is thrown when an action is attempted by an address other than the stakeTogether contract.
+  error OnlyStakeTogetherContractAllowed();
+
+  /// @notice This error is thrown when trying to set the router contract that has already been set.
+  error RouterAlreadySet();
+
+  /// @notice This error is thrown when trying to set the stakeTogether address that has already been set.
+  error StakeTogetherAlreadySet();
+
+  /// @notice Thrown if the shares amount being claimed is zero.
+  error ZeroAmount();
+
+  /// @notice Thrown if the address trying to make a claim is the zero address.
+  error ZeroAddress();
+
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
   event ReceiveEther(uint256 amount);

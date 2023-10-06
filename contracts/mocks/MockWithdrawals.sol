@@ -82,7 +82,7 @@ contract MockWithdrawals is
   /// @notice Allows the router to send ETH to the contract.
   /// @dev This function can only be called by the router.
   function receiveWithdrawEther() external payable {
-    require(msg.sender == address(router), 'ONLY_ROUTER');
+    if (msg.sender != address(router)) revert OnlyRouterAllowed();
     emit ReceiveWithdrawEther(msg.value);
   }
 
@@ -90,7 +90,7 @@ contract MockWithdrawals is
   /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance - totalSupply();
-    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
+    if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     payable(stakeTogetherFee).transfer(extraAmount);
   }
@@ -99,7 +99,8 @@ contract MockWithdrawals is
   /// @param _stakeTogether The address of the new StakeTogether contract.
   /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
-    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
+    if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
+    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
     stakeTogether = StakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
@@ -108,7 +109,8 @@ contract MockWithdrawals is
   /// @param _router The address of the router.
   /// @dev Only callable by the admin role.
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
+    if (address(router) != address(0)) revert RouterAlreadySet();
+    if (address(_router) == address(0)) revert ZeroAddress();
     router = Router(payable(_router));
     emit SetRouter(_router);
   }
@@ -131,7 +133,7 @@ contract MockWithdrawals is
   /// @param _amount Amount of tokens to mint.
   /// @dev Only callable by the StakeTogether contract.
   function mint(address _to, uint256 _amount) public whenNotPaused {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER_CONTRACT');
+    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogetherContractAllowed();
     _mint(_to, _amount);
   }
 
@@ -139,9 +141,9 @@ contract MockWithdrawals is
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
   function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
-    require(address(this).balance >= _amount, 'INSUFFICIENT_ETH_BALANCE');
-    require(balanceOf(msg.sender) >= _amount, 'INSUFFICIENT_STW_BALANCE');
-    require(_amount > 0, 'ZERO_AMOUNT');
+    if (address(this).balance < _amount) revert InsufficientEthBalance();
+    if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
+    if (_amount <= 0) revert ZeroAmount();
     emit Withdraw(msg.sender, _amount);
     _burn(msg.sender, _amount);
     payable(msg.sender).transfer(_amount);

@@ -78,7 +78,7 @@ contract Airdrop is
   /// @dev Only callable by the admin role.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance;
-    if (extraAmount == 0) revert NoExtraAmount();
+    if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     payable(stakeTogetherFee).transfer(extraAmount);
   }
@@ -112,7 +112,7 @@ contract Airdrop is
   /// @param _root The Merkle root.
   /// @dev Only callable by the router.
   function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
-    if (msg.sender != address(router)) revert OnlyAllowRouter();
+    if (msg.sender != address(router)) revert OnlyRouterAllowed();
     if (merkleRoots[_reportBlock] != bytes32(0)) revert MerkleRootAlreadySetForBlock();
     merkleRoots[_reportBlock] = _root;
     emit AddMerkleRoot(_reportBlock, _root);
