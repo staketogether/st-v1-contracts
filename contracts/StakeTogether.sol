@@ -284,26 +284,6 @@ contract StakeTogether is
     }
   }
 
-  /// @notice Increases the allowance granted to `_spender` by the caller.
-  /// @param _spender Address of the spender.
-  /// @param _addedValue The additional amount to increase the allowance by.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function increaseAllowance(address _spender, uint256 _addedValue) public override returns (bool) {
-    _approve(msg.sender, _spender, allowances[msg.sender][_spender] + _addedValue, true);
-    return true;
-  }
-
-  /// @notice Decreases the allowance granted to `_spender` by the caller.
-  /// @param _spender Address of the spender.
-  /// @param _subtractedValue The amount to subtract from the allowance.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
-    uint256 currentAllowance = allowances[msg.sender][_spender];
-    if (currentAllowance < _subtractedValue) revert InsufficientAllowance();
-    _approve(msg.sender, _spender, currentAllowance - _subtractedValue, true);
-    return true;
-  }
-
   /// @notice Internal function to deduct the allowance for a given spender, if any.
   /// @param _account Address of the token owner.
   /// @param _spender Address of the spender.

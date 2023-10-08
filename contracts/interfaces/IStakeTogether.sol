@@ -415,18 +415,6 @@ interface IStakeTogether {
   /// @return A boolean value indicating whether the operation succeeded.
   function approve(address _spender, uint256 _amount) external returns (bool);
 
-  /// @notice Increases the allowance granted to `_spender` by the caller.
-  /// @param _spender Address of the spender.
-  /// @param _addedValue The additional amount to increase the allowance by.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function increaseAllowance(address _spender, uint256 _addedValue) external returns (bool);
-
-  /// @notice Decreases the allowance granted to `_spender` by the caller.
-  /// @param _spender Address of the spender.
-  /// @param _subtractedValue The amount to subtract from the allowance.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function decreaseAllowance(address _spender, uint256 _subtractedValue) external returns (bool);
-
   /// @notice Deposits into the pool with specific delegations.
   /// @param _pool the address of the pool.
   /// @param _referral The referral address.
