@@ -6,68 +6,77 @@ pragma solidity ^0.8.20;
 /// @notice This interface defines the essential structures and functions for the StakeTogether protocol.
 /// @custom:security-contact security@staketogether.app
 interface IStakeTogether {
-  /// @notice Thrown if the pool size is less than the validator size.
-  error InvalidSize();
-
-  /// @notice Thrown if the address is the zero address.
-  error ZeroAddress();
-
-  /// @notice Thrown if there are insufficient shares.
-  error InsufficientShares();
-
-  /// @notice Thrown if the allowance is insufficient.
-  error InsufficientAllowance();
+  /// @notice Thrown if the deposit limit is reached.
+  error DepositLimitReached();
 
   /// @notice Thrown if the feature is disabled.
   error FeatureDisabled();
 
-  /// @notice Thrown if there is zero supply.
-  error ZeroSupply();
-
-  /// @notice Thrown if the deposit amount is less than the minimum required.
-  error MinDeposit();
-
-  /// @notice Thrown if the pool is not found.
-  error PoolNotFound();
-
-  /// @notice Thrown if the deposit limit is reached.
-  error DepositLimitReached();
-
-  /// @notice Thrown if the withdrawal amount is zero.
-  error ZeroAmount();
+  /// @notice Thrown if there is insufficient beacon balance.
+  error InsufficientBeaconBalance();
 
   /// @notice Thrown if there are insufficient funds in the account.
   error InsufficientAccountBalance();
 
-  /// @notice Thrown if the withdrawal amount is less than the minimum required.
-  error MinimumWithdraw();
-
-  /// @notice Thrown if the withdrawal pool limit is reached.
-  error WithdrawalsPoolLimitReached();
-
-  /// @notice Thrown if the withdrawal validator limit is reached.
-  error WithdrawalsValidatorLimitWasReached();
+  /// @notice Thrown if the allowance is insufficient.
+  error InsufficientAllowance();
 
   /// @notice Thrown if there is insufficient pool balance.
   error InsufficientPoolBalance();
 
-  /// @notice Thrown if the amount is not greater than the pool balance.
-  error WithdrawFromPool();
+  /// @notice Thrown if there are insufficient shares.
+  error InsufficientShares();
 
-  /// @notice Thrown if there is insufficient beacon balance.
-  error InsufficientBeaconBalance();
+  /// @notice Thrown if the allocations length is invalid.
+  error InvalidLength();
 
-  /// @notice Thrown if the pool already exists.
-  error PoolExists();
+  /// @notice Thrown if the total percentage is invalid.
+  error InvalidSum();
 
   /// @notice Thrown if the value is invalid.
   error InvalidValue();
 
+  /// @notice Thrown if the pool size is less than the validator size.
+  error InvalidSize();
+
   /// @notice Thrown if the number of delegations exceeds the maximum limit.
   error MaxDelegations();
 
-  /// @notice Thrown if the total percentage is invalid.
-  error InvalidTotalPercentage();
+  /// @notice Thrown if the withdrawal amount is less than the minimum required.
+  error MinimumWithdraw();
+
+  /// @notice Thrown if the caller is not the airdrop.
+  error OnlyAirdrop();
+
+  /// @notice Thrown if the caller is not the router.
+  error OnlyRouter();
+
+  /// @notice Thrown if the caller is not a validator oracle.
+  error OnlyValidatorOracle();
+
+  /// @notice Thrown if the caller does not have the appropriate role.
+  error NotAuthorized();
+
+  /// @notice Thrown if the caller is not the current oracle.
+  error NotCurrentValidatorOracle();
+
+  /// @notice Thrown if there is not enough pool balance.
+  error NotEnoughPoolBalance();
+
+  /// @notice Thrown if there is not enough balance on pool.
+  error NotEnoughBalanceOnPool();
+
+  /// @notice Thrown if the pool is not found.
+  error PoolNotFound();
+
+  /// @notice Thrown if the pool already exists.
+  error PoolExists();
+
+  /// @notice Thrown if the router balance is greater than the withdrawal balance.
+  error RouterAlreadyHaveBalance();
+
+  /// @notice Thrown if the router balance is lower than the withdrawal balance.
+  error ShouldAnticipateWithdraw();
 
   /// @notice Thrown if the delegations length should be zero.
   error ShouldBeZeroLength();
@@ -78,44 +87,32 @@ interface IStakeTogether {
   /// @notice Thrown if the validator oracle is not found.
   error ValidatorOracleNotFound();
 
-  /// @notice Thrown if the caller does not have the appropriate role.
-  error NotAuthorized();
+  /// @notice Thrown if the withdrawal amount is zero.
+  error ZeroAmount();
 
-  /// @notice Thrown if the caller is not the router.
-  error OnlyRouter();
+  /// @notice Thrown if the address is the zero address.
+  error ZeroAddress();
 
-  /// @notice Thrown if the caller is not a validator oracle.
-  error OnlyValidatorOracle();
+  /// @notice Thrown if there is zero supply.
+  error ZeroSupply();
 
-  /// @notice Thrown if the caller is not the current oracle.
-  error NotCurrentValidatorOracle();
+  /// @notice Thrown if the deposit amount is less than the minimum required.
+  error MinDeposit();
+
+  /// @notice Thrown if the withdrawal pool limit is reached.
+  error WithdrawalsPoolLimitReached();
+
+  /// @notice Thrown if the withdrawal validator limit is reached.
+  error WithdrawalsValidatorLimitWasReached();
 
   /// @notice Thrown if the withdrawal balance is zero.
   error WithdrawZeroBalance();
 
-  /// @notice Thrown if the router balance is greater than the withdrawal balance.
-  error RouterAlreadyHaveBalance();
-
-  /// @notice Thrown if there is not enough pool balance.
-  error NotEnoughPoolBalance();
-
-  /// @notice Thrown if there is not enough balance on pool.
-  error NotEnoughBalanceOnPool();
+  /// @notice Thrown if the amount is not greater than the pool balance.
+  error WithdrawFromPool();
 
   /// @notice Thrown if the validator already exists.
   error ValidatorExists();
-
-  /// @notice Thrown if the router balance is lower than the withdrawal balance.
-  error ShouldAnticipateWithdraw();
-
-  /// @notice Thrown if the caller is not the airdrop.
-  error OnlyAirdrop();
-
-  /// @notice Thrown if the allocations length is invalid.
-  error InvalidLength();
-
-  /// @notice Thrown if the sum of allocations is not equal to 1 ether.
-  error InvalidSum();
 
   /// @notice Configuration for the StakeTogether protocol.
   struct Config {
