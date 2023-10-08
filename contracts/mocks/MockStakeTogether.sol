@@ -142,7 +142,7 @@ contract MockStakeTogether is
   /// @dev Only callable by the admin role.
   /// @param _config Configuration settings to be applied.
   function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
-    require(_config.poolSize >= config.validatorSize, 'IS'); // IS = Invalid Size
+    if (_config.poolSize < config.validatorSize) revert InvalidSize();
     config = _config;
     emit SetConfig(_config);
   }
@@ -235,9 +235,9 @@ contract MockStakeTogether is
     address _to,
     uint256 _sharesAmount
   ) private whenNotPaused nonReentrant {
-    require(_from != address(0), 'ZA'); // ZA = Zero Address
-    require(_to != address(0), 'ZA'); // ZA = Zero Address
-    require(_sharesAmount <= shares[_from], 'IS'); // IS = Insufficient Shares
+    if (_from == address(0)) revert ZeroAddress();
+    if (_to == address(0)) revert ZeroAddress();
+    if (_sharesAmount > shares[_from]) revert InsufficientShares();
     shares[_from] -= _sharesAmount;
     shares[_to] += _sharesAmount;
     emit TransferShares(_from, _to, _sharesAmount);
@@ -276,8 +276,8 @@ contract MockStakeTogether is
     uint256 _amount,
     bool emitEvent
   ) internal override {
-    require(_account != address(0), 'ZA'); // ZA = Zero Address
-    require(_spender != address(0), 'ZA'); // ZA = Zero Address
+    if (_account == address(0)) revert ZeroAddress();
+    if (_spender == address(0)) revert ZeroAddress();
     allowances[_account][_spender] = _amount;
     if (emitEvent) {
       emit Approval(_account, _spender, _amount);
@@ -299,7 +299,7 @@ contract MockStakeTogether is
   /// @return A boolean value indicating whether the operation succeeded.
   function decreaseAllowance(address _spender, uint256 _subtractedValue) public override returns (bool) {
     uint256 currentAllowance = allowances[msg.sender][_spender];
-    require(currentAllowance >= _subtractedValue, 'IA'); // IA = Insufficient Allowance
+    if (currentAllowance < _subtractedValue) revert InsufficientAllowance();
     _approve(msg.sender, _spender, currentAllowance - _subtractedValue, true);
     return true;
   }
@@ -311,7 +311,7 @@ contract MockStakeTogether is
   function _spendAllowance(address _account, address _spender, uint256 _amount) internal override {
     uint256 currentAllowance = allowances[_account][_spender];
     if (currentAllowance != ~uint256(0)) {
-      require(currentAllowance >= _amount, 'IA'); // IA = Insufficient Allowance
+      if (currentAllowance < _amount) revert InsufficientAllowance();
       _approve(_account, _spender, currentAllowance - _amount, true);
     }
   }
@@ -320,7 +320,7 @@ contract MockStakeTogether is
   /// @param _to Address to mint shares to.
   /// @param _sharesAmount Amount of shares to mint.
   function _mintShares(address _to, uint256 _sharesAmount) private whenNotPaused {
-    require(_to != address(0), 'ZA'); // ZA = Zero Address
+    if (_to == address(0)) revert ZeroAddress();
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
     emit MintShares(_to, _sharesAmount);
@@ -330,8 +330,8 @@ contract MockStakeTogether is
   /// @param _account Address to burn shares from.
   /// @param _sharesAmount Amount of shares to burn.
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
-    require(_account != address(0), 'ZA'); // ZA = Zero Address
-    require(_sharesAmount <= shares[_account], 'IS'); // IS = Insufficient Shares
+    if (_account == address(0)) revert ZeroAddress();
+    if (_sharesAmount > shares[_account]) revert InsufficientShares();
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
@@ -346,16 +346,17 @@ contract MockStakeTogether is
   /// @param _depositType The type of deposit (Pool or Donation).
   /// @param _referral The referral address.
   function _depositBase(address _to, DepositType _depositType, address _pool, address _referral) private {
-    require(config.feature.Deposit, 'FD'); // FD = Feature Disabled
-    require(totalSupply() > 0, 'ZS'); // ZS = Zero Supply
-    require(msg.value >= config.minDepositAmount, 'MD'); // MD = Min Deposit
-    require(pools[_pool], 'PNF'); // PNF = Pool Not Found
-    _resetLimits();
+    if (!config.feature.Deposit) revert FeatureDisabled();
+    if (totalSupply() == 0) revert ZeroSupply();
+    if (msg.value < config.minDepositAmount) revert MinDeposit();
+    if (!pools[_pool]) revert PoolNotFound();
 
+    _resetLimits();
     totalDeposited += msg.value;
+
     if (totalDeposited > config.depositLimit) {
-      emit DepositLimitReached(_to, msg.value);
-      revert('DLR'); // DLR = Deposit Limit Reached
+      emit DepositLimitWasReached(_to, msg.value);
+      revert DepositLimitReached();
     }
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
@@ -384,22 +385,23 @@ contract MockStakeTogether is
   /// @param _amount The amount to withdraw.
   /// @param _withdrawType The type of withdrawal (Pool or Validator).
   function _withdrawBase(uint256 _amount, WithdrawType _withdrawType, address _pool) private {
-    require(_amount > 0, 'ZA'); // ZA = Zero Amount
-    require(_amount <= balanceOf(msg.sender), 'IAB'); // IAB = Insufficient Account Balance
-    require(_amount >= config.minWithdrawAmount, 'MW'); // MW = Min Withdraw
+    if (_amount == 0) revert ZeroAmount();
+    if (_amount > balanceOf(msg.sender)) revert InsufficientAccountBalance();
+    if (_amount < config.minWithdrawAmount) revert MinimumWithdraw();
+
     _resetLimits();
 
     if (_withdrawType == WithdrawType.Pool) {
       totalWithdrawnPool += _amount;
       if (totalWithdrawnPool > config.withdrawalPoolLimit) {
-        emit WithdrawalsLimitReached(msg.sender, _amount, _withdrawType);
-        revert('WPLR'); // WPLR = Withdrawals Pool Limit Reached
+        emit WithdrawalsLimitWasReached(msg.sender, _amount, _withdrawType);
+        revert WithdrawalsPoolLimitReached();
       }
     } else {
       totalWithdrawnValidator += _amount;
       if (totalWithdrawnValidator > config.withdrawalValidatorLimit) {
-        emit WithdrawalsLimitReached(msg.sender, _amount, _withdrawType);
-        revert('WVLR'); // WVLR = Withdrawals Validator Limit Reached
+        emit WithdrawalsLimitWasReached(msg.sender, _amount, _withdrawType);
+        revert WithdrawalsValidatorLimitWasReached();
       }
     }
 
@@ -412,8 +414,8 @@ contract MockStakeTogether is
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
   function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.feature.WithdrawPool, 'FD'); // FD = Feature Disabled
-    require(_amount <= address(this).balance, 'IPB'); // IB = Insufficient Pool Balance
+    if (!config.feature.WithdrawPool) revert FeatureDisabled();
+    if (_amount > address(this).balance) revert InsufficientPoolBalance();
     _withdrawBase(_amount, WithdrawType.Pool, _pool);
     payable(msg.sender).transfer(_amount);
   }
@@ -422,9 +424,9 @@ contract MockStakeTogether is
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
   function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    require(config.feature.WithdrawValidator, 'FD'); // FD = Feature Disabled
-    require(_amount > address(this).balance, 'WFP'); // Withdraw From Pool
-    require(_amount + withdrawBalance <= beaconBalance, 'IBB'); // IB = Insufficient Beacon Balance
+    if (!config.feature.WithdrawValidator) revert FeatureDisabled();
+    if (_amount <= address(this).balance) revert WithdrawFromPool();
+    if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
     _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
     withdrawals.mint(msg.sender, _amount);
@@ -448,11 +450,11 @@ contract MockStakeTogether is
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
   function addPool(address _pool, bool _listed) external payable nonReentrant whenNotPaused {
-    require(_pool != address(0), 'ZA'); // ZA = Zero Address
-    require(!pools[_pool], 'PE'); // PE = Pool Exists
+    if (_pool == address(0)) revert ZeroAddress();
+    if (pools[_pool]) revert PoolExists();
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
-      require(config.feature.AddPool, 'FD'); // FD = Feature Disabled
-      require(msg.value == fees[FeeType.StakePool].value, 'IV'); // IV = Invalid Value
+      if (!config.feature.AddPool) revert FeatureDisabled();
+      if (msg.value != fees[FeeType.StakePool].value) revert InvalidValue();
       _processStakePool();
     }
     pools[_pool] = true;
@@ -462,7 +464,7 @@ contract MockStakeTogether is
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
   function removePool(address _pool) external whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
-    require(pools[_pool], 'PNF');
+    if (!pools[_pool]) revert PoolNotFound();
     pools[_pool] = false;
     emit RemovePool(_pool);
   }
@@ -472,14 +474,14 @@ contract MockStakeTogether is
   function updateDelegations(Delegation[] memory _delegations) external {
     uint256 totalPercentage = 0;
     if (shares[msg.sender] > 0) {
-      require(_delegations.length <= config.maxDelegations, 'MD'); // MD = Max Delegations
+      if (_delegations.length > config.maxDelegations) revert MaxDelegations();
       for (uint i = 0; i < _delegations.length; i++) {
-        require(pools[_delegations[i].pool], 'PNF'); // PNF = Pool Not Found
+        if (!pools[_delegations[i].pool]) revert PoolNotFound();
         totalPercentage += _delegations[i].percentage;
       }
-      require(totalPercentage == 1 ether, 'ITP'); // ITP = Invalid Total Percentage
+      if (totalPercentage != 1 ether) revert InvalidTotalPercentage();
     } else {
-      require(_delegations.length == 0, 'SZL'); // SZL = Should Be Zero Length
+      if (_delegations.length != 0) revert ShouldBeZeroLength();
     }
     emit UpdateDelegations(msg.sender, _delegations);
   }
@@ -491,7 +493,7 @@ contract MockStakeTogether is
   /// @notice Adds a new validator oracle by its address.
   /// @param _account The address of the validator oracle to add.
   function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    require(validatorsOracleIndices[_account] == 0, 'VOE'); // VOE =   Validator Oracle Exists
+    if (validatorsOracleIndices[_account] != 0) revert ValidatorOracleExists();
 
     validatorsOracle.push(_account);
     validatorsOracleIndices[_account] = validatorsOracle.length;
@@ -503,7 +505,7 @@ contract MockStakeTogether is
   /// @notice Removes a validator oracle by its address.
   /// @param _account The address of the validator oracle to remove.
   function removeValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
-    require(validatorsOracleIndices[_account] > 0, 'NF');
+    if (validatorsOracleIndices[_account] == 0) revert ValidatorOracleNotFound();
 
     uint256 index = validatorsOracleIndices[_account] - 1;
 
@@ -529,11 +531,10 @@ contract MockStakeTogether is
 
   /// @notice Forces the selection of the next validator oracle.
   function forceNextValidatorOracle() external {
-    require(
-      hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) ||
-        hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender),
-      'NA'
-    );
+    if (
+      !hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) &&
+      !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
+    ) revert NotAuthorized();
     _nextValidatorOracle();
   }
 
@@ -551,7 +552,7 @@ contract MockStakeTogether is
   /// @param _amount The amount to set as the beacon balance.
   /// @dev Only the router address can call this function.
   function setBeaconBalance(uint256 _amount) external payable nonReentrant {
-    require(msg.sender == address(router), 'OR'); // Only Router
+    if (msg.sender != address(router)) revert OnlyRouter();
     _setBeaconBalance(_amount);
   }
 
@@ -566,7 +567,7 @@ contract MockStakeTogether is
   /// @param _amount The amount to set as the pending withdraw balance.
   /// @dev Only the router address can call this function.
   function setWithdrawBalance(uint256 _amount) external payable nonReentrant {
-    require(msg.sender == address(router), 'OR'); // Only Router
+    if (msg.sender != address(router)) revert OnlyRouter();
     _setWithdrawBalance(_amount);
   }
 
@@ -581,15 +582,15 @@ contract MockStakeTogether is
   /// @dev Only a valid validator oracle can initiate this anticipation request.
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
-    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
-    require(withdrawBalance > 0, 'WZB'); // WZA = Withdraw Zero Balance
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotCurrentValidatorOracle();
+    if (withdrawBalance == 0) revert WithdrawZeroBalance();
 
     uint256 routerBalance = address(router).balance;
-    require(routerBalance <= withdrawBalance, 'RBG'); // RBG = Router Balance Greater Than Withdraw Balance
+    if (routerBalance > withdrawBalance) revert RouterAlreadyHaveBalance();
 
     uint256 diffAmount = withdrawBalance - routerBalance;
-    require(address(this).balance >= diffAmount, 'NPB'); // NPB = Not Enough Pool Balance
+    if (address(this).balance < diffAmount) revert NotEnoughPoolBalance();
 
     _setBeaconBalance(beaconBalance + diffAmount);
     emit AnticipateWithdrawValidator(msg.sender, diffAmount);
@@ -607,11 +608,12 @@ contract MockStakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    require(isValidatorOracle(msg.sender), 'OV'); // OV = Only Validator
-    require(msg.sender == validatorsOracle[currentOracleIndex], 'NCO'); // NCO = Not Current Oracle
-    require(address(this).balance >= config.poolSize, 'NBP'); // NBP = Not Enough Balance for Pool
-    require(!validators[_publicKey], 'VE'); // VE = Validator Exists
-    require(address(router).balance >= withdrawBalance, 'RBL'); // Router Balance Lower Than Withdraw Balance
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotCurrentValidatorOracle();
+    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
+    if (validators[_publicKey]) revert ValidatorExists();
+    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
+
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);
@@ -641,7 +643,7 @@ contract MockStakeTogether is
   /// @param _sharesAmount Amount of shares to claim as rewards.
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
     address airdropFee = getFeeAddress(FeeRole.Airdrop);
-    require(msg.sender == airdropFee, 'OA'); // OA = Only Airdrop
+    if (msg.sender != airdropFee) revert OnlyAirdrop();
     _transferShares(airdropFee, _account, _sharesAmount);
   }
 
@@ -660,7 +662,7 @@ contract MockStakeTogether is
   /// @param _address The address to set.
   /// @dev Only an admin can call this function.
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
-    require(_address != address(0), 'ZA'); // ZA = Zero Address
+    if (_address == address(0)) revert ZeroAddress();
     feesRole[_role] = _address;
     emit SetFeeAddress(_role, _address);
   }
@@ -682,14 +684,14 @@ contract MockStakeTogether is
     uint256 _value,
     uint256[] calldata _allocations
   ) external onlyRole(ADMIN_ROLE) {
-    require(_allocations.length == 4, 'IL'); // IL = Invalid Length
+    if (_allocations.length != 4) revert InvalidLength();
     uint256 sum = 0;
     for (uint256 i = 0; i < _allocations.length; i++) {
       fees[_feeType].allocations[FeeRole(i)] = _allocations[i];
       sum += _allocations[i];
     }
 
-    require(sum == 1 ether, 'IS'); // IS = Invalid Sum
+    if (sum != 1 ether) revert InvalidSum();
 
     fees[_feeType].value = _value;
 
@@ -742,9 +744,9 @@ contract MockStakeTogether is
 
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
-  /// @dev Requires the caller to be the router contract. This function will also emit the ProcessStakeRewards event.
+  /// @dev The caller should be the router contract. This function will also emit the ProcessStakeRewards event.
   function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
-    require(msg.sender == address(router), 'OR'); // OR = Only Router
+    if (msg.sender != address(router)) revert OnlyRouter();
     _distributeFees(FeeType.ProcessStakeRewards, _sharesAmount, address(0));
     emit ProcessStakeRewards(msg.value, _sharesAmount);
   }
