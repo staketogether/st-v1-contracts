@@ -10,6 +10,7 @@ import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
 import './interfaces/IStakeTogether.sol';
 import './interfaces/IStakeTogetherWrapper.sol';
@@ -65,10 +66,6 @@ contract StakeTogetherWrapper is
     _unpause();
   }
 
-  function _update(address from, address to, uint256 amount) internal override whenNotPaused {
-    super._update(from, to, amount);
-  }
-
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   /// @notice Receive function to accept incoming ETH transfers.
@@ -93,5 +90,71 @@ contract StakeTogetherWrapper is
     if (address(_stakeTogether) == address(0)) revert ZeroAddress();
     stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
+  }
+
+  /****************
+   ** ANTI-FRAUD **
+   ****************/
+
+  /// @notice Transfers an amount of wei from one address to another.
+  /// @param _from The address to transfer from.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+    if (stakeTogether.antiFraudList(_from)) revert ListedInAntiFraud();
+    if (stakeTogether.antiFraudList(_to)) revert ListedInAntiFraud();
+    super._update(_from, _to, _amount);
+  }
+
+  /*************
+   ** WRAPPER **
+   *************/
+
+  /// @notice Wraps the given amount of stpETH into wstpETH.
+  /// @dev Reverts if the sender is on the anti-fraud list, or if the _stpETH amount is zero.
+  /// @param _stpETH The amount of stpETH to wrap.
+  /// @return The amount of wstpETH minted.
+  function wrap(uint256 _stpETH) external nonReentrant whenNotPaused returns (uint256) {
+    if (_stpETH == 0) revert ZeroStpETHAmount();
+    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
+    uint256 wstpETH = stakeTogether.sharesByWei(_stpETH);
+    if (wstpETH == 0) revert ZeroWstpETHAmount();
+    _mint(msg.sender, wstpETH);
+    stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
+    emit Wrapped(msg.sender, _stpETH, wstpETH);
+    return wstpETH;
+  }
+
+  /// @notice Unwraps the given amount of wstpETH into stpETH.
+  /// @dev Reverts if the sender is on the anti-fraud list, or if the _wstpETH amount is zero.
+  /// @param _wstpETH The amount of wstpETH to unwrap.
+  /// @return The amount of stpETH received.
+  function unwrap(uint256 _wstpETH) external nonReentrant whenNotPaused returns (uint256) {
+    if (_wstpETH == 0) revert ZeroWstpETHAmount();
+    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
+    uint256 stpETH = stakeTogether.weiByShares(_wstpETH);
+    if (stpETH == 0) revert ZeroStpETHAmount();
+    _burn(msg.sender, _wstpETH);
+    stakeTogether.transfer(msg.sender, stpETH);
+    emit Unwrapped(msg.sender, _wstpETH, stpETH);
+    return stpETH;
+  }
+
+  /// @notice Calculates the current exchange rate of stpETH per wstpETH.
+  /// @dev Returns zero if the total supply of wstpETH is zero.
+  /// @return The current rate of stpETH per wstpETH.
+  function stpEthPerWstpETH() public view returns (uint256) {
+    if (totalSupply() == 0) return 0;
+    uint256 stpETHBalance = stakeTogether.balanceOf(address(this));
+    return Math.mulDiv(stpETHBalance, 1 ether, totalSupply());
+  }
+
+  /// @notice Calculates the current exchange rate of wstpETH per stpETH.
+  /// @dev Returns zero if the balance of stpETH is zero.
+  /// @return The current rate of wstpETH per stpETH.
+  function wstpETHPerStpETH() public view returns (uint256) {
+    uint256 stpETHBalance = stakeTogether.balanceOf(address(this));
+    if (stpETHBalance == 0) return 0;
+    return Math.mulDiv(totalSupply(), 1 ether, stpETHBalance);
   }
 }

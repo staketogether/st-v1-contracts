@@ -12,6 +12,9 @@ interface IAirdrop {
   /// @notice Thrown if the Merkle Proof verification fails.
   error InvalidProof();
 
+  /// @notice Thrown if the listed in anti-fraud.
+  error ListedInAntiFraud();
+
   /// @notice Thrown if the Merkle Root is not set for a given block number.
   error MerkleRootNotSet();
 

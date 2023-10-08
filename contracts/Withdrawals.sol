@@ -114,13 +114,18 @@ contract Withdrawals is
     emit SetRouter(_router);
   }
 
-  /// @notice Hook that is called before any token transfer.
-  /// @param from Address transferring the tokens.
-  /// @param to Address receiving the tokens.
-  /// @param amount The amount of tokens to be transferred.
-  /// @dev This override ensures that transfers are paused when the contract is paused.
-  function _update(address from, address to, uint256 amount) internal override whenNotPaused {
-    super._update(from, to, amount);
+  /****************
+   ** ANTI-FRAUD **
+   ****************/
+
+  /// @notice Transfers an amount of wei from one address to another.
+  /// @param _from The address to transfer from.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+    if (stakeTogether.antiFraudList(_from)) revert ListedInAntiFraud();
+    if (stakeTogether.antiFraudList(_to)) revert ListedInAntiFraud();
+    super._update(_from, _to, _amount);
   }
 
   /**************

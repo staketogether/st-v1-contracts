@@ -9,12 +9,10 @@ import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 
-import '../Airdrop.sol';
-import '../StakeTogether.sol';
-import '../Withdrawals.sol';
-
-import '../interfaces/IStakeTogether.sol';
+import '../interfaces/IAirdrop.sol';
 import '../interfaces/IRouter.sol';
+import '../interfaces/IStakeTogether.sol';
+import '../interfaces/IWithdrawals.sol';
 
 /// @title Router Contract for the StakeTogether platform.
 /// @dev This contract handles routing functionalities, is pausable, upgradable, and guards against reentrancy attacks.

@@ -216,6 +216,8 @@ contract StakeTogether is
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+    if (antiFraudList[_from]) revert ListedInAntiFraud();
+    if (antiFraudList[_to]) revert ListedInAntiFraud();
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);

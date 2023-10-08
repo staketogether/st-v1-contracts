@@ -9,15 +9,14 @@ import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import '../Router.sol';
-import '../StakeTogether.sol';
-
 import '../interfaces/IAirdrop.sol';
+import '../interfaces/IRouter.sol';
+import '../interfaces/IStakeTogether.sol';
 
 /// @title Airdrop Contract for StakeTogether Protocol
 /// @notice This contract manages the Airdrop functionality for the StakeTogether protocol, providing methods to set and claim rewards.
 /// @custom:security-contact security@staketogether.org
-contract MockAirdrop is
+contract Airdrop is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
@@ -132,6 +131,7 @@ contract MockAirdrop is
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
+    if (stakeTogether.antiFraudList(_account)) revert ListedInAntiFraud();
     if (isClaimed(_blockNumber, _index)) revert AlreadyClaimed();
     if (merkleRoots[_blockNumber] == bytes32(0)) revert MerkleRootNotSet();
     if (_account == address(0)) revert ZeroAddress();

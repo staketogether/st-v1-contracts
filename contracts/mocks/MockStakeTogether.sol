@@ -12,10 +12,10 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 
-import '../Withdrawals.sol';
-
-import '../interfaces/IStakeTogether.sol';
 import '../interfaces/IDepositContract.sol';
+import '../interfaces/IRouter.sol';
+import '../interfaces/IStakeTogether.sol';
+import '../interfaces/IWithdrawals.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
@@ -216,6 +216,8 @@ contract MockStakeTogether is
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+    if (antiFraudList[_from]) revert ListedInAntiFraud();
+    if (antiFraudList[_to]) revert ListedInAntiFraud();
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);

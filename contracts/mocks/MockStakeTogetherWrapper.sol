@@ -10,16 +10,16 @@ import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
-import '../interfaces/IRouter.sol';
 import '../interfaces/IStakeTogether.sol';
-import '../interfaces/IWithdrawals.sol';
+import '../interfaces/IStakeTogetherWrapper.sol';
 
-/// @title Withdrawals Contract for StakeTogether
-/// @notice The Withdrawals contract handles all withdrawal-related activities within the StakeTogether protocol.
-/// It allows users to withdraw their staked tokens and interact with the associated stake contracts.
+/// @title StakeTogether Wrapper Pool Contract
+/// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
+/// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 /// @custom:security-contact security@staketogether.org
-contract MockWithdrawals is
+contract MockStakeTogetherWrapper is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -28,27 +28,25 @@ contract MockWithdrawals is
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IWithdrawals
+  IStakeTogetherWrapper
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
   uint256 public version; /// Contract version.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  IRouter public router; /// Instance of the Router contract.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
 
-  /// @notice Initialization function for Withdrawals contract.
-  function initialize() external initializer {
-    __ERC20_init('Stake Together Withdrawals', 'stwETH');
+  function initialize() public initializer {
+    __ERC20_init('Wrapped Stake Together Protocol', 'wstpETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Withdrawals');
+    __ERC20Permit_init('Wrapped Stake Together Protocol');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -56,33 +54,23 @@ contract MockWithdrawals is
     version = 1;
   }
 
-  /// @notice Pauses withdrawals.
+  /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
-  function pause() external onlyRole(ADMIN_ROLE) {
+  function pause() public onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
-  /// @notice Unpauses withdrawals.
+  /// @notice Unpauses the contract, allowing actions to resume.
   /// @dev Only callable by the admin role.
-  function unpause() external onlyRole(ADMIN_ROLE) {
+  function unpause() public onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
-  /// @notice Internal function to authorize an upgrade.
-  /// @param _newImplementation Address of the new contract implementation.
-  /// @dev Only callable by the upgrader role.
-  function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+  function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable nonReentrant {
     emit ReceiveEther(msg.value);
-  }
-
-  /// @notice Allows the router to send ETH to the contract.
-  /// @dev This function can only be called by the router.
-  function receiveWithdrawEther() external payable {
-    if (msg.sender != address(router)) revert OnlyRouter();
-    emit ReceiveWithdrawEther(msg.value);
   }
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
@@ -104,16 +92,6 @@ contract MockWithdrawals is
     emit SetStakeTogether(_stakeTogether);
   }
 
-  /// @notice Sets the Router contract address.
-  /// @param _router The address of the router.
-  /// @dev Only callable by the admin role.
-  function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    if (address(router) != address(0)) revert RouterAlreadySet();
-    if (address(_router) == address(0)) revert ZeroAddress();
-    router = IRouter(payable(_router));
-    emit SetRouter(_router);
-  }
-
   /****************
    ** ANTI-FRAUD **
    ****************/
@@ -128,38 +106,56 @@ contract MockWithdrawals is
     super._update(_from, _to, _amount);
   }
 
-  /**************
-   ** WITHDRAW **
-   **************/
+  /*************
+   ** WRAPPER **
+   *************/
 
-  /// @notice Mints tokens to a specific address.
-  /// @param _to Address to receive the minted tokens.
-  /// @param _amount Amount of tokens to mint.
-  /// @dev Only callable by the StakeTogether contract.
-  function mint(address _to, uint256 _amount) public whenNotPaused {
-    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
-    _mint(_to, _amount);
-  }
-
-  /// @notice Withdraws the specified amount of ETH, burning tokens in exchange.
-  /// @param _amount Amount of ETH to withdraw.
-  /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
-  function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
+  /// @notice Wraps the given amount of stpETH into wstpETH.
+  /// @dev Reverts if the sender is on the anti-fraud list, or if the _stpETH amount is zero.
+  /// @param _stpETH The amount of stpETH to wrap.
+  /// @return The amount of wstpETH minted.
+  function wrap(uint256 _stpETH) external nonReentrant whenNotPaused returns (uint256) {
+    if (_stpETH == 0) revert ZeroStpETHAmount();
     if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
-    if (address(this).balance < _amount) revert InsufficientEthBalance();
-    if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
-    if (_amount <= 0) revert ZeroAmount();
-    emit Withdraw(msg.sender, _amount);
-    _burn(msg.sender, _amount);
-    payable(msg.sender).transfer(_amount);
+    uint256 wstpETH = stakeTogether.sharesByWei(_stpETH);
+    if (wstpETH == 0) revert ZeroWstpETHAmount();
+    _mint(msg.sender, wstpETH);
+    stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
+    emit Wrapped(msg.sender, _stpETH, wstpETH);
+    return wstpETH;
   }
 
-  /// @notice Checks if the contract is ready to withdraw the specified amount.
-  /// @param _amount Amount of ETH to check.
-  /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
-  function isWithdrawReady(uint256 _amount) public view returns (bool) {
-    if (stakeTogether.antiFraudList(msg.sender)) return false;
-    return address(this).balance >= _amount;
+  /// @notice Unwraps the given amount of wstpETH into stpETH.
+  /// @dev Reverts if the sender is on the anti-fraud list, or if the _wstpETH amount is zero.
+  /// @param _wstpETH The amount of wstpETH to unwrap.
+  /// @return The amount of stpETH received.
+  function unwrap(uint256 _wstpETH) external nonReentrant whenNotPaused returns (uint256) {
+    if (_wstpETH == 0) revert ZeroWstpETHAmount();
+    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
+    uint256 stpETH = stakeTogether.weiByShares(_wstpETH);
+    if (stpETH == 0) revert ZeroStpETHAmount();
+    _burn(msg.sender, _wstpETH);
+    stakeTogether.transfer(msg.sender, stpETH);
+    emit Unwrapped(msg.sender, _wstpETH, stpETH);
+    return stpETH;
+  }
+
+  /// @notice Calculates the current exchange rate of stpETH per wstpETH.
+  /// @dev Returns zero if the total supply of wstpETH is zero.
+  /// @return The current rate of stpETH per wstpETH.
+  function stpEthPerWstpETH() public view returns (uint256) {
+    if (totalSupply() == 0) return 0;
+    uint256 stpETHBalance = stakeTogether.balanceOf(address(this));
+    return Math.mulDiv(stpETHBalance, 1 ether, totalSupply());
+  }
+
+  /// @notice Calculates the current exchange rate of wstpETH per stpETH.
+  /// @dev Returns zero if the balance of stpETH is zero.
+  /// @return The current rate of wstpETH per stpETH.
+  function wstpETHPerStpETH() public view returns (uint256) {
+    uint256 stpETHBalance = stakeTogether.balanceOf(address(this));
+    if (stpETHBalance == 0) return 0;
+    return Math.mulDiv(totalSupply(), 1 ether, stpETHBalance);
   }
 
   /********************
