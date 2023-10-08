@@ -12,14 +12,17 @@ interface IWithdrawals {
   /// @notice This error is thrown when the contract has insufficient ETH balance to perform a transaction.
   error InsufficientEthBalance();
 
+  /// @notice Thrown if the listed in anti-fraud.
+  error ListedInAntiFraud();
+
   /// @notice This error is thrown when there is no extra amount of ETH available to transfer.
   error NoExtraAmountAvailable();
 
   /// @notice This error is thrown when an action is attempted by an address other than the router.
-  error OnlyRouterAllowed();
+  error OnlyRouter();
 
   /// @notice This error is thrown when an action is attempted by an address other than the stakeTogether contract.
-  error OnlyStakeTogetherContractAllowed();
+  error OnlyStakeTogether();
 
   /// @notice This error is thrown when trying to set the router contract that has already been set.
   error RouterAlreadySet();

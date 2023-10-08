@@ -82,7 +82,7 @@ contract Withdrawals is
   /// @notice Allows the router to send ETH to the contract.
   /// @dev This function can only be called by the router.
   function receiveWithdrawEther() external payable {
-    if (msg.sender != address(router)) revert OnlyRouterAllowed();
+    if (msg.sender != address(router)) revert OnlyRouter();
     emit ReceiveWithdrawEther(msg.value);
   }
 
@@ -133,7 +133,7 @@ contract Withdrawals is
   /// @param _amount Amount of tokens to mint.
   /// @dev Only callable by the StakeTogether contract.
   function mint(address _to, uint256 _amount) public whenNotPaused {
-    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogetherContractAllowed();
+    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
     _mint(_to, _amount);
   }
 
@@ -141,6 +141,7 @@ contract Withdrawals is
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
   function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
+    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
     if (_amount <= 0) revert ZeroAmount();
@@ -153,6 +154,7 @@ contract Withdrawals is
   /// @param _amount Amount of ETH to check.
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
   function isWithdrawReady(uint256 _amount) public view returns (bool) {
+    if (stakeTogether.antiFraudList(msg.sender)) return false;
     return address(this).balance >= _amount;
   }
 }

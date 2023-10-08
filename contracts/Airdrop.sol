@@ -112,7 +112,7 @@ contract Airdrop is
   /// @param _root The Merkle root.
   /// @dev Only callable by the router.
   function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
-    if (msg.sender != address(router)) revert OnlyRouterAllowed();
+    if (msg.sender != address(router)) revert OnlyRouter();
     if (merkleRoots[_reportBlock] != bytes32(0)) revert MerkleRootAlreadySetForBlock();
     merkleRoots[_reportBlock] = _root;
     emit AddMerkleRoot(_reportBlock, _root);

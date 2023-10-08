@@ -75,6 +75,9 @@ interface IStakeTogether {
   /// @notice Thrown if the pool already exists.
   error PoolExists();
 
+  /// @notice Thrown if the listed in anti-fraud.
+  error ListedInAntiFraud();
+
   /// @notice Thrown if the router balance is greater than the withdrawal balance.
   error RouterAlreadyHaveBalance();
 
@@ -281,6 +284,11 @@ interface IStakeTogether {
   /// @notice Emitted when the beacon balance is set
   /// @param amount The amount set for the beacon balance
   event SetBeaconBalance(uint256 amount);
+
+  /// @notice Emitted when a user's anti-fraud status is changed
+  /// @param account The address of the account
+  /// @param isListed The new anti-fraud status of the account (true if listed, false otherwise)
+  event SetAntiFraudStatus(address indexed account, bool isListed);
 
   /// @notice Emitted when the configuration is set
   /// @param config The configuration struct

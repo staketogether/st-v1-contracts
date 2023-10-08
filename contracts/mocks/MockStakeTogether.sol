@@ -38,6 +38,8 @@ contract MockStakeTogether is
   bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE'); /// Role for managing validator oracles.
   bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
   bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for sentinel functionality in validator oracle management.
+  bytes32 public constant ANTI_FRAUD_MANAGER_ROLE = keccak256('ANTI_FRAUD_MANAGER_ROLE'); // Role for  anti-fraud managers.
+  bytes32 public constant ANTI_FRAUD_SENTINEL_ROLE = keccak256('ANTI_FRAUD_SENTINEL_ROLE'); // Role for sentinel functionality in anti-fraud management.
 
   uint256 public version; /// Contract version.
 
@@ -70,6 +72,8 @@ contract MockStakeTogether is
 
   mapping(FeeRole => address payable) private feesRole; /// Mapping of fee roles to addresses.
   mapping(FeeType => Fee) private fees; /// Mapping of fee types to fee details.
+
+  mapping(address => bool) public antiFraudList; /// Mapping of anti-fraud addresses.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -328,6 +332,7 @@ contract MockStakeTogether is
   function _depositBase(address _to, DepositType _depositType, address _pool, address _referral) private {
     if (!config.feature.Deposit) revert FeatureDisabled();
     if (totalSupply() == 0) revert ZeroSupply();
+    if (antiFraudList[_to]) revert ListedInAntiFraud();
     if (msg.value < config.minDepositAmount) revert MinDeposit();
     if (!pools[_pool]) revert PoolNotFound();
 
@@ -365,6 +370,7 @@ contract MockStakeTogether is
   /// @param _amount The amount to withdraw.
   /// @param _withdrawType The type of withdrawal (Pool or Validator).
   function _withdrawBase(uint256 _amount, WithdrawType _withdrawType, address _pool) private {
+    if (antiFraudList[msg.sender]) revert ListedInAntiFraud();
     if (_amount == 0) revert ZeroAmount();
     if (_amount > balanceOf(msg.sender)) revert InsufficientAccountBalance();
     if (_amount < config.minWithdrawAmount) revert MinimumWithdraw();
@@ -420,6 +426,23 @@ contract MockStakeTogether is
       totalWithdrawnValidator = 0;
       lastResetBlock = block.number;
     }
+  }
+
+  /****************
+   ** ANTI-FRAUD **
+   ****************/
+
+  function addToAntiFraud(address account) public {
+    if (!hasRole(ANTI_FRAUD_SENTINEL_ROLE, msg.sender) && !hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender))
+      revert NotAuthorized();
+    antiFraudList[account] = true;
+    emit SetAntiFraudStatus(account, true);
+  }
+
+  function removeFromAntiFraud(address account) public {
+    if (!hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender)) revert NotAuthorized();
+    antiFraudList[account] = false;
+    emit SetAntiFraudStatus(account, false);
   }
 
   /***********

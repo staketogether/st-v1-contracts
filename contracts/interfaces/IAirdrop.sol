@@ -22,7 +22,7 @@ interface IAirdrop {
   error NoExtraAmountAvailable();
 
   /// @notice This error is thrown when an action is performed by an address that is not the router.
-  error OnlyRouterAllowed();
+  error OnlyRouter();
 
   /// @notice This error is thrown when trying to set the router address that is already set.
   error RouterAlreadySet();
