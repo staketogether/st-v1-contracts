@@ -35,8 +35,8 @@ contract MockWithdrawals is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
   uint256 public version; /// Contract version.
-  StakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  Router public router; /// Instance of the Router contract.
+  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IRouter public router; /// Instance of the Router contract.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -101,7 +101,7 @@ contract MockWithdrawals is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (address(_stakeTogether) == address(0)) revert ZeroAddress();
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -111,7 +111,7 @@ contract MockWithdrawals is
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     if (address(router) != address(0)) revert RouterAlreadySet();
     if (address(_router) == address(0)) revert ZeroAddress();
-    router = Router(payable(_router));
+    router = IRouter(payable(_router));
     emit SetRouter(_router);
   }
 

@@ -35,9 +35,9 @@ contract MockRouter is
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE'); /// Role for reporting as an oracle.
   uint256 public version; /// Contract version.
 
-  StakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  Withdrawals public withdrawals; /// Instance of the Withdrawals contract.
-  Airdrop public airdrop; /// Instance of the Airdrop contract.
+  IAirdrop public airdrop; /// Instance of the Airdrop contract.
+  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
 
   uint256 public totalReportOracles; /// Total number of reportOracles.
@@ -78,8 +78,8 @@ contract MockRouter is
 
     version = 1;
 
-    airdrop = Airdrop(payable(_airdrop));
-    withdrawals = Withdrawals(payable(_withdrawals));
+    airdrop = IAirdrop(payable(_airdrop));
+    withdrawals = IWithdrawals(payable(_withdrawals));
 
     totalReportOracles = 0;
     reportBlock = block.number;
@@ -126,7 +126,7 @@ contract MockRouter is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (address(_stakeTogether) == address(0)) revert ZeroAddress();
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 

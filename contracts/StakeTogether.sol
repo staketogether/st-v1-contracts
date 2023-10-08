@@ -12,10 +12,10 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 
-import './Withdrawals.sol';
-
-import './interfaces/IStakeTogether.sol';
 import './interfaces/IDepositContract.sol';
+import './interfaces/IRouter.sol';
+import './interfaces/IStakeTogether.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
@@ -43,9 +43,9 @@ contract StakeTogether is
 
   uint256 public version; /// Contract version.
 
-  Router public router; /// Address of the contract router.
-  Withdrawals public withdrawals; /// Withdrawals contract instance.
   IDepositContract public depositContract; /// Deposit contract interface.
+  IRouter public router; /// Address of the contract router.
+  IWithdrawals public withdrawals; /// Withdrawals contract instance.
 
   bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
@@ -102,9 +102,9 @@ contract StakeTogether is
 
     version = 1;
 
-    router = Router(payable(_router));
-    withdrawals = Withdrawals(payable(_withdrawals));
     depositContract = IDepositContract(_depositContract);
+    router = IRouter(payable(_router));
+    withdrawals = IWithdrawals(payable(_withdrawals));
     withdrawalCredentials = _withdrawalCredentials;
 
     totalShares = 0;
@@ -432,17 +432,20 @@ contract StakeTogether is
    ** ANTI-FRAUD **
    ****************/
 
-  function addToAntiFraud(address account) public {
+  function addToAntiFraud(address _account) public {
     if (!hasRole(ANTI_FRAUD_SENTINEL_ROLE, msg.sender) && !hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender))
       revert NotAuthorized();
-    antiFraudList[account] = true;
-    emit SetAntiFraudStatus(account, true);
+    if (_account == address(0)) revert ZeroAddress();
+    antiFraudList[_account] = true;
+    emit SetAntiFraudStatus(_account, true);
   }
 
-  function removeFromAntiFraud(address account) public {
+  function removeFromAntiFraud(address _account) public {
     if (!hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender)) revert NotAuthorized();
-    antiFraudList[account] = false;
-    emit SetAntiFraudStatus(account, false);
+    if (_account == address(0)) revert ZeroAddress();
+    if (!antiFraudList[_account]) revert NotInAntiFraudList();
+    antiFraudList[_account] = false;
+    emit SetAntiFraudStatus(_account, false);
   }
 
   /***********

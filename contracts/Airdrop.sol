@@ -9,10 +9,9 @@ import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-import './Router.sol';
-import './StakeTogether.sol';
-
 import './interfaces/IAirdrop.sol';
+import './interfaces/IRouter.sol';
+import './interfaces/IStakeTogether.sol';
 
 /// @title Airdrop Contract for StakeTogether Protocol
 /// @notice This contract manages the Airdrop functionality for the StakeTogether protocol, providing methods to set and claim rewards.
@@ -29,8 +28,8 @@ contract Airdrop is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); // Role allowing an account to perform administrative operations.
   uint256 public version; // The version of the contract.
 
-  StakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
-  Router public router; // The reference to the Router contract for routing related operations.
+  IRouter public router; // The reference to the Router contract for routing related operations.
+  IStakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
 
   mapping(uint256 => bytes32) public merkleRoots; // Stores the merkle roots for block number. This is used for claims verification.
   mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap; // A nested mapping where the first key is the block and the second key is the user's index.
@@ -89,7 +88,7 @@ contract Airdrop is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (address(_stakeTogether) == address(0)) revert ZeroAddress();
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -99,7 +98,7 @@ contract Airdrop is
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     if (address(router) != address(0)) revert RouterAlreadySet();
     if (address(_router) == address(0)) revert ZeroAddress();
-    router = Router(payable(_router));
+    router = IRouter(payable(_router));
     emit SetRouter(_router);
   }
 

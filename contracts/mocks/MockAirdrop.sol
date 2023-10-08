@@ -29,8 +29,8 @@ contract MockAirdrop is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); // Role allowing an account to perform administrative operations.
   uint256 public version; // The version of the contract.
 
-  StakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
-  Router public router; // The reference to the Router contract for routing related operations.
+  IRouter public router; // The reference to the Router contract for routing related operations.
+  IStakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
 
   mapping(uint256 => bytes32) public merkleRoots; // Stores the merkle roots for block number. This is used for claims verification.
   mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap; // A nested mapping where the first key is the block and the second key is the user's index.
@@ -78,7 +78,7 @@ contract MockAirdrop is
   /// @dev Only callable by the admin role.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance;
-    if (extraAmount == 0) revert NoExtraAmountAvailable();
+    if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     payable(stakeTogetherFee).transfer(extraAmount);
   }
@@ -88,7 +88,8 @@ contract MockAirdrop is
   /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -97,7 +98,8 @@ contract MockAirdrop is
   /// @dev Only callable by the admin role.
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     if (address(router) != address(0)) revert RouterAlreadySet();
-    router = Router(payable(_router));
+    if (address(_router) == address(0)) revert ZeroAddress();
+    router = IRouter(payable(_router));
     emit SetRouter(_router);
   }
 

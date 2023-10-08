@@ -60,6 +60,9 @@ interface IStakeTogether {
   /// @notice Thrown if the caller does not have the appropriate role.
   error NotAuthorized();
 
+  /// @notice Thrown if the account is not in anti-fraud list.
+  error NotInAntiFraudList();
+
   /// @notice Thrown if the caller is not the current oracle.
   error NotCurrentValidatorOracle();
 
@@ -385,6 +388,16 @@ interface IStakeTogether {
   /// @return Balance value of the given account.
   function balanceOf(address _account) external view returns (uint256);
 
+  /// @notice Retrieves the current balance of the beacon.
+  /// @dev This function returns the current stored value within the beacon.
+  /// @return The balance held within the beacon in uint256 format.
+  function beaconBalance() external view returns (uint256);
+
+  /// @notice Retrieves the available balance for withdrawal.
+  /// @dev This function returns the balance that is currently available for withdrawal.
+  /// @return The available balance for withdrawal in uint256 format.
+  function withdrawBalance() external view returns (uint256);
+
   /// @notice Calculates the wei amount by shares.
   /// @param _sharesAmount Amount of shares.
   /// @return Equivalent amount in wei.
@@ -447,6 +460,24 @@ interface IStakeTogether {
   /// @param _pool the address of the pool.
   function withdrawValidator(uint256 _amount, address _pool) external;
 
+  /// @notice Adds an address to the anti-fraud list.
+  /// @dev Callable only by accounts with the ANTI_FRAUD_SENTINEL_ROLE or ANTI_FRAUD_MANAGER_ROLE.
+  /// Reverts if the provided address is the zero address or if the sender is not authorized.
+  /// @param _account The address to be added to the anti-fraud list.
+  function addToAntiFraud(address _account) external;
+
+  /// @notice Removes an address from the anti-fraud list.
+  /// @dev Callable only by accounts with the ANTI_FRAUD_MANAGER_ROLE.
+  /// Reverts if the provided address is the zero address, not in the anti-fraud list, or if the sender is not authorized.
+  /// @param _account The address to be removed from the anti-fraud list.
+  function removeFromAntiFraud(address _account) external;
+
+  /// @notice Checks if an address is on the anti-fraud list.
+  /// @dev Returns true if the address is on the anti-fraud list, false otherwise.
+  /// @param _account The address to be checked.
+  /// @return A boolean indicating whether the address is on the anti-fraud list.
+  function antiFraudList(address _account) external view returns (bool);
+
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
@@ -475,10 +506,6 @@ interface IStakeTogether {
 
   /// @notice Forces the selection of the next validator oracle.
   function forceNextValidatorOracle() external;
-
-  /****************
-   ** VALIDATORS **
-   ****************/
 
   /// @notice Sets the beacon balance to the specified amount.
   /// @param _amount The amount to set as the beacon balance.

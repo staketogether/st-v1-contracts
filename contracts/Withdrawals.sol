@@ -11,10 +11,9 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 
-import './Router.sol';
-import './StakeTogether.sol';
-import './interfaces/IWithdrawals.sol';
+import './interfaces/IRouter.sol';
 import './interfaces/IStakeTogether.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @title Withdrawals Contract for StakeTogether
 /// @notice The Withdrawals contract handles all withdrawal-related activities within the StakeTogether protocol.
@@ -35,8 +34,8 @@ contract Withdrawals is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
   uint256 public version; /// Contract version.
-  StakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  Router public router; /// Instance of the Router contract.
+  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IRouter public router; /// Instance of the Router contract.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -101,7 +100,7 @@ contract Withdrawals is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (address(_stakeTogether) == address(0)) revert ZeroAddress();
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -111,7 +110,7 @@ contract Withdrawals is
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     if (address(router) != address(0)) revert RouterAlreadySet();
     if (address(_router) == address(0)) revert ZeroAddress();
-    router = Router(payable(_router));
+    router = IRouter(payable(_router));
     emit SetRouter(_router);
   }
 
