@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
@@ -19,7 +19,7 @@ import '../interfaces/IStakeTogether.sol';
 /// @title Withdrawals Contract for StakeTogether
 /// @notice The Withdrawals contract handles all withdrawal-related activities within the StakeTogether protocol.
 /// It allows users to withdraw their staked tokens and interact with the associated stake contracts.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 contract MockWithdrawals is
   Initializable,
   ERC20Upgradeable,

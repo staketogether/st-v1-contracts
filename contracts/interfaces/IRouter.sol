@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
 /// @title StakeTogether Report Configuration
 /// @notice This module includes configuration and reports related to the StakeTogether protocol.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 interface IRouter {
   /// @notice Emitted when a report for a specific block has already been executed.
   error AlreadyExecuted();

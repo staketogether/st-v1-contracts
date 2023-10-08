@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
 /// @title StakeTogether Interface
 /// @notice This interface defines the essential structures and functions for the StakeTogether protocol.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 interface IStakeTogether {
   /// @notice Thrown if the deposit limit is reached.
   error DepositLimitReached();

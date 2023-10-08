@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
@@ -19,7 +19,7 @@ import '../interfaces/IRouter.sol';
 /// @title Router Contract for the StakeTogether platform.
 /// @dev This contract handles routing functionalities, is pausable, upgradable, and guards against reentrancy attacks.
 /// It also leverages access controls for administrative purposes. This contract should be initialized after deployment.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 contract MockRouter is
   Initializable,
   PausableUpgradeable,

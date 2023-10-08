@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
@@ -20,7 +20,7 @@ import '../interfaces/IDepositContract.sol';
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 contract MockStakeTogether is
   Initializable,
   ERC20Upgradeable,

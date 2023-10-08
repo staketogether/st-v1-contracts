@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.20;
 
@@ -16,7 +16,7 @@ import '../interfaces/IAirdrop.sol';
 
 /// @title Airdrop Contract for StakeTogether Protocol
 /// @notice This contract manages the Airdrop functionality for the StakeTogether protocol, providing methods to set and claim rewards.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 contract MockAirdrop is
   Initializable,
   PausableUpgradeable,

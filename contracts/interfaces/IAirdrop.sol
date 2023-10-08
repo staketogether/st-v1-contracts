@@ -1,10 +1,10 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
 /// @title Interface for the Airdrop functionality within the Stake Together protocol.
 /// @notice A contract that represents the Airdrop functionality.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 interface IAirdrop {
   /// @notice Thrown if a claim has already been made for a given block and index.
   error AlreadyClaimed();
