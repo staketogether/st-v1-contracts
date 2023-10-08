@@ -46,7 +46,7 @@ interface IStakeTogether {
   error MaxDelegations();
 
   /// @notice Thrown if the withdrawal amount is less than the minimum required.
-  error MinimumWithdraw();
+  error LessThanMinimumWithdraw();
 
   /// @notice Thrown if the caller is not the airdrop.
   error OnlyAirdrop();
@@ -103,7 +103,7 @@ interface IStakeTogether {
   error ZeroSupply();
 
   /// @notice Thrown if the deposit amount is less than the minimum required.
-  error MinDeposit();
+  error LessThanMinimumDeposit();
 
   /// @notice Thrown if the withdrawal pool limit is reached.
   error WithdrawalsPoolLimitReached();

@@ -333,7 +333,7 @@ contract MockStakeTogether is
     if (!config.feature.Deposit) revert FeatureDisabled();
     if (totalSupply() == 0) revert ZeroSupply();
     if (antiFraudList[_to]) revert ListedInAntiFraud();
-    if (msg.value < config.minDepositAmount) revert MinDeposit();
+    if (msg.value < config.minDepositAmount) revert LessThanMinimumDeposit();
     if (!pools[_pool]) revert PoolNotFound();
 
     _resetLimits();
@@ -373,7 +373,7 @@ contract MockStakeTogether is
     if (antiFraudList[msg.sender]) revert ListedInAntiFraud();
     if (_amount == 0) revert ZeroAmount();
     if (_amount > balanceOf(msg.sender)) revert InsufficientAccountBalance();
-    if (_amount < config.minWithdrawAmount) revert MinimumWithdraw();
+    if (_amount < config.minWithdrawAmount) revert LessThanMinimumWithdraw();
 
     _resetLimits();
 
