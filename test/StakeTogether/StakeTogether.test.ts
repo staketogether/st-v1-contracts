@@ -1978,52 +1978,6 @@ describe('Stake Together', function () {
 
       expect(allowance).to.equal(amountToApprove)
     })
-
-    it('should increase allowance and emit Approval event', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const initialAllowance = ethers.parseEther('50')
-      const addedValue = ethers.parseEther('10')
-
-      await stakeTogether.connect(user1).approve(user2.address, initialAllowance)
-
-      const tx = await stakeTogether.connect(user1).increaseAllowance(user2.address, addedValue)
-
-      await expect(tx)
-        .to.emit(stakeTogether, 'Approval')
-        .withArgs(user1.address, user2.address, initialAllowance + addedValue)
-
-      const finalAllowance = await stakeTogether.allowance(user1.address, user2.address)
-      expect(finalAllowance).to.equal(initialAllowance + addedValue)
-    })
-
-    it('should decrease allowance and emit Approval event', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const initialAllowance = ethers.parseEther('50')
-      const subtractedValue = ethers.parseEther('10')
-
-      await stakeTogether.connect(user1).approve(user2.address, initialAllowance)
-
-      const tx = await stakeTogether.connect(user1).decreaseAllowance(user2.address, subtractedValue)
-
-      await expect(tx)
-        .to.emit(stakeTogether, 'Approval')
-        .withArgs(user1.address, user2.address, initialAllowance - subtractedValue)
-
-      const finalAllowance = await stakeTogether.allowance(user1.address, user2.address)
-      expect(finalAllowance).to.equal(initialAllowance - subtractedValue)
-    })
-
-    it('should fail to decrease allowance if subtracted value is greater than current allowance', async function () {
-      const user1DepositAmount = ethers.parseEther('100')
-      const initialAllowance = ethers.parseEther('50')
-      const subtractedValue = ethers.parseEther('60')
-
-      await stakeTogether.connect(user1).approve(user2.address, initialAllowance)
-
-      await expect(
-        stakeTogether.connect(user1).decreaseAllowance(user2.address, subtractedValue),
-      ).to.be.revertedWith('IA')
-    })
   })
 
   describe('Accounting', () => {

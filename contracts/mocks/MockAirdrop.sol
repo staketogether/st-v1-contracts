@@ -16,7 +16,7 @@ import '../interfaces/IStakeTogether.sol';
 /// @title Airdrop Contract for StakeTogether Protocol
 /// @notice This contract manages the Airdrop functionality for the StakeTogether protocol, providing methods to set and claim rewards.
 /// @custom:security-contact security@staketogether.org
-contract Airdrop is
+contract MockAirdrop is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
