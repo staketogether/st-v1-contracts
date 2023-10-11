@@ -16,7 +16,7 @@ import { airdropFixture } from './Airdrop.fixture'
 
 dotenv.config()
 
-describe.only('Airdrop', function () {
+describe('Airdrop', function () {
   let airdrop: Airdrop
   let airdropProxy: string
   let mockStakeTogether: MockStakeTogether
