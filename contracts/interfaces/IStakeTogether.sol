@@ -472,11 +472,10 @@ interface IStakeTogether {
   /// @param _account The address to be removed from the anti-fraud list.
   function removeFromAntiFraud(address _account) external;
 
-  /// @notice Checks if an address is on the anti-fraud list.
-  /// @dev Returns true if the address is on the anti-fraud list, false otherwise.
+  /// @notice Check if an address is listed in the anti-fraud list.
   /// @param _account The address to be checked.
-  /// @return A boolean indicating whether the address is on the anti-fraud list.
-  function antiFraudList(address _account) external view returns (bool);
+  /// @return true if the address is in the anti-fraud list, false otherwise.
+  function isListedInAntiFraud(address _account) external view returns (bool);
 
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.

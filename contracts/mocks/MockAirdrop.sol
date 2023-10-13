@@ -131,7 +131,7 @@ contract MockAirdrop is
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
-    if (stakeTogether.antiFraudList(_account)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(_account)) revert ListedInAntiFraud();
     if (isClaimed(_blockNumber, _index)) revert AlreadyClaimed();
     if (merkleRoots[_blockNumber] == bytes32(0)) revert MerkleRootNotSet();
     if (_account == address(0)) revert ZeroAddress();

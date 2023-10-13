@@ -118,13 +118,42 @@ contract MockWithdrawals is
    ** ANTI-FRAUD **
    ****************/
 
+  /// @notice Transfers an amount of wei to the specified address.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  /// @return True if the transfer was successful.
+  function transfer(
+    address _to,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    _transfer(msg.sender, _to, _amount);
+    return true;
+  }
+
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
+  function transferFrom(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
+    if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
+    return true;
+  }
+
   /// @notice Transfers an amount of wei from one address to another.
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
-    if (stakeTogether.antiFraudList(_from)) revert ListedInAntiFraud();
-    if (stakeTogether.antiFraudList(_to)) revert ListedInAntiFraud();
     super._update(_from, _to, _amount);
   }
 
@@ -145,7 +174,7 @@ contract MockWithdrawals is
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
   function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
-    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
     if (_amount <= 0) revert ZeroAmount();
@@ -158,7 +187,7 @@ contract MockWithdrawals is
   /// @param _amount Amount of ETH to check.
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
   function isWithdrawReady(uint256 _amount) public view returns (bool) {
-    if (stakeTogether.antiFraudList(msg.sender)) return false;
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) return false;
     return address(this).balance >= _amount;
   }
 

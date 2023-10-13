@@ -73,7 +73,7 @@ contract MockStakeTogether is
   mapping(FeeRole => address payable) private feesRole; /// Mapping of fee roles to addresses.
   mapping(FeeType => Fee) private fees; /// Mapping of fee types to fee details.
 
-  mapping(address => bool) public antiFraudList; /// Mapping of anti-fraud addresses.
+  mapping(address => bool) private antiFraudList; /// Mapping of anti-fraud addresses.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -216,8 +216,8 @@ contract MockStakeTogether is
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
-    if (antiFraudList[_from]) revert ListedInAntiFraud();
-    if (antiFraudList[_to]) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -434,6 +434,9 @@ contract MockStakeTogether is
    ** ANTI-FRAUD **
    ****************/
 
+  /// @notice Adds an address to the anti-fraud list.
+  /// @dev Only a user with the ANTI_FRAUD_SENTINEL_ROLE or ANTI_FRAUD_MANAGER_ROLE can add addresses.
+  /// @param _account The address to be added to the anti-fraud list.
   function addToAntiFraud(address _account) public {
     if (!hasRole(ANTI_FRAUD_SENTINEL_ROLE, msg.sender) && !hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender))
       revert NotAuthorized();
@@ -442,12 +445,22 @@ contract MockStakeTogether is
     emit SetAntiFraudStatus(_account, true);
   }
 
+  /// @notice Removes an address from the anti-fraud list.
+  /// @dev Only a user with the ANTI_FRAUD_MANAGER_ROLE can remove addresses.
+  /// @param _account The address to be removed from the anti-fraud list.
   function removeFromAntiFraud(address _account) public {
     if (!hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender)) revert NotAuthorized();
     if (_account == address(0)) revert ZeroAddress();
     if (!antiFraudList[_account]) revert NotInAntiFraudList();
     antiFraudList[_account] = false;
     emit SetAntiFraudStatus(_account, false);
+  }
+
+  /// @notice Check if an address is listed in the anti-fraud list.
+  /// @param _account The address to be checked.
+  /// @return true if the address is in the anti-fraud list, false otherwise.
+  function isListedInAntiFraud(address _account) public view returns (bool) {
+    return antiFraudList[_account];
   }
 
   /***********

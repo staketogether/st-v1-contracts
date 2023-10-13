@@ -96,13 +96,42 @@ contract StakeTogetherWrapper is
    ** ANTI-FRAUD **
    ****************/
 
+  /// @notice Transfers an amount of wei to the specified address.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  /// @return True if the transfer was successful.
+  function transfer(
+    address _to,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IStakeTogetherWrapper) returns (bool) {
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    _transfer(msg.sender, _to, _amount);
+    return true;
+  }
+
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
+  function transferFrom(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) public override(ERC20Upgradeable, IStakeTogetherWrapper) returns (bool) {
+    if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    _spendAllowance(_from, msg.sender, _amount);
+    _transfer(_from, _to, _amount);
+    return true;
+  }
+
   /// @notice Transfers an amount of wei from one address to another.
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
-    if (stakeTogether.antiFraudList(_from)) revert ListedInAntiFraud();
-    if (stakeTogether.antiFraudList(_to)) revert ListedInAntiFraud();
     super._update(_from, _to, _amount);
   }
 
@@ -116,7 +145,7 @@ contract StakeTogetherWrapper is
   /// @return The amount of wstpETH minted.
   function wrap(uint256 _stpETH) external nonReentrant whenNotPaused returns (uint256) {
     if (_stpETH == 0) revert ZeroStpETHAmount();
-    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 wstpETH = stakeTogether.sharesByWei(_stpETH);
     if (wstpETH == 0) revert ZeroWstpETHAmount();
     _mint(msg.sender, wstpETH);
@@ -131,7 +160,7 @@ contract StakeTogetherWrapper is
   /// @return The amount of stpETH received.
   function unwrap(uint256 _wstpETH) external nonReentrant whenNotPaused returns (uint256) {
     if (_wstpETH == 0) revert ZeroWstpETHAmount();
-    if (stakeTogether.antiFraudList(msg.sender)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 stpETH = stakeTogether.weiByShares(_wstpETH);
     if (stpETH == 0) revert ZeroStpETHAmount();
     _burn(msg.sender, _wstpETH);

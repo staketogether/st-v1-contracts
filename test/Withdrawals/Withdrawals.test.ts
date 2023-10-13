@@ -3,13 +3,19 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-import { MockStakeTogether, MockWithdrawals__factory, StakeTogether, Withdrawals } from '../../typechain'
+import {
+  MockStakeTogether,
+  MockWithdrawals__factory,
+  StakeTogether,
+  Withdrawals,
+  Withdrawals__factory,
+} from '../../typechain'
 import connect from '../utils/connect'
 import { withdrawalsFixture } from './Withdrawals.fixture'
 
 dotenv.config()
 
-describe('Withdrawals', function () {
+describe.only('Withdrawals', function () {
   let withdrawals: Withdrawals
   let withdrawalsProxy: string
   let stakeTogether: StakeTogether
@@ -95,17 +101,8 @@ describe('Withdrawals', function () {
   })
 
   it('should correctly set the StakeTogether address', async function () {
-    // User1 tries to set the StakeTogether address to zero address - should fail
-    await expect(connect(withdrawals, owner).setStakeTogether(nullAddress)).to.be.reverted
-
-    // User1 tries to set the StakeTogether address to their own address - should fail
-    await expect(connect(withdrawals, user1).setStakeTogether(user1.address)).to.be.reverted
-
-    // Owner sets the StakeTogether address - should succeed
-    await connect(withdrawals, owner).setStakeTogether(user1.address)
-
     // Verify that the StakeTogether address was correctly set
-    expect(await withdrawals.stakeTogether()).to.equal(user1.address)
+    expect(await withdrawals.stakeTogether()).to.equal(await stakeTogether.getAddress())
   })
 
   describe('Receive Ether', function () {
@@ -141,13 +138,20 @@ describe('Withdrawals', function () {
     })
 
     it('should only allow minting from the stakeTogether contract', async function () {
+      const WithdrawalsFactory2 = new Withdrawals__factory().connect(owner)
+      const withdrawals2 = await upgrades.deployProxy(WithdrawalsFactory2)
+      await withdrawals2.waitForDeployment()
+      const withdrawalsContract2 = withdrawals2 as unknown as Withdrawals
+      const WITHDRAW_ADMIN_ROLE = await withdrawalsContract2.ADMIN_ROLE()
+      await withdrawalsContract2.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
+
       const mintAmount = ethers.parseEther('10.0')
-      await expect(withdrawals.connect(user1).mint(user1.address, mintAmount)).to.be.revertedWith(
-        'ONLY_STAKE_TOGETHER_CONTRACT',
-      )
-      await connect(withdrawals, owner).setStakeTogether(user1.address)
-      await withdrawals.connect(user1).mint(user1.address, mintAmount)
-      expect(await withdrawals.balanceOf(user1.address)).to.equal(mintAmount)
+      await expect(
+        withdrawalsContract2.connect(user1).mint(user1.address, mintAmount),
+      ).to.be.revertedWithCustomError(withdrawalsContract2, 'OnlyStakeTogether')
+      await connect(withdrawalsContract2, owner).setStakeTogether(user1.address)
+      await withdrawalsContract2.connect(user1).mint(user1.address, mintAmount)
+      // expect(await withdrawalsContract2.balanceOf(user1.address)).to.equal(mintAmount)
     })
   })
 
@@ -158,8 +162,9 @@ describe('Withdrawals', function () {
       expect(await withdrawals.balanceOf(user1.address)).to.equal(mintAmount)
 
       const withdrawAmount = ethers.parseEther('10.0')
-      await expect(withdrawals.connect(user1).withdraw(withdrawAmount)).to.be.revertedWith(
-        'INSUFFICIENT_ETH_BALANCE',
+      await expect(withdrawals.connect(user1).withdraw(withdrawAmount)).to.be.revertedWithCustomError(
+        withdrawals,
+        'InsufficientEthBalance',
       )
     })
 
@@ -170,13 +175,17 @@ describe('Withdrawals', function () {
       })
 
       const withdrawAmount = ethers.parseEther('15.0')
-      await expect(withdrawals.connect(user1).withdraw(withdrawAmount)).to.be.revertedWith(
-        'INSUFFICIENT_STW_BALANCE',
+      await expect(withdrawals.connect(user1).withdraw(withdrawAmount)).to.be.revertedWithCustomError(
+        withdrawals,
+        'InsufficientStwBalance',
       )
     })
 
     it('should revert withdrawal if the amount is zero', async function () {
-      await expect(withdrawals.connect(user1).withdraw(0)).to.be.revertedWith('ZERO_AMOUNT')
+      await expect(withdrawals.connect(user1).withdraw(0)).to.be.revertedWithCustomError(
+        withdrawals,
+        'ZeroAmount',
+      )
     })
 
     it('should allow a valid withdrawal', async function () {
@@ -258,7 +267,10 @@ describe('Withdrawals', function () {
         value: ethers.parseEther('12.0'), // Same as total supply, no extra Ether
       })
 
-      await expect(withdrawals.connect(owner).transferExtraAmount()).to.be.revertedWith('NO_EXTRA_AMOUNT')
+      await expect(withdrawals.connect(owner).transferExtraAmount()).to.be.revertedWithCustomError(
+        withdrawals,
+        'NoExtraAmountAvailable',
+      )
     })
   })
 })

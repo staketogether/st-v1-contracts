@@ -16,7 +16,7 @@ async function advanceBlocks(blocks: number) {
   }
 }
 
-describe.only('Router', function () {
+describe('Router', function () {
   let router: Router
   let routerProxy: string
   let stakeTogether: StakeTogether

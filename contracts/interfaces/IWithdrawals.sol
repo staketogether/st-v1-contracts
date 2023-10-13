@@ -104,4 +104,17 @@ interface IWithdrawals {
   /// @param _amount Amount of ETH to check.
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
   function isWithdrawReady(uint256 _amount) external view returns (bool);
+
+  /// @notice Transfers an amount of wei to the specified address.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  /// @return True if the transfer was successful.
+  function transfer(address _to, uint256 _amount) external returns (bool);
+
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
+  function transferFrom(address _from, address _to, uint256 _amount) external returns (bool);
 }
