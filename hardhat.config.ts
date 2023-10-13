@@ -1,6 +1,6 @@
 import '@nomicfoundation/hardhat-toolbox'
 import '@openzeppelin/hardhat-upgrades'
-
+import 'hardhat-gas-reporter'
 import { HardhatUserConfig } from 'hardhat/config'
 
 import dotenv from 'dotenv'
@@ -80,9 +80,14 @@ const config: HardhatUserConfig = {
       ],
     },
   },
-
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY as string,
+  },
+  gasReporter: {
+    currency: 'USD',
+    gasPrice: 5,
+    enabled: process.env.REPORT_GAS ? true : false,
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY as string,
   },
 }
 
