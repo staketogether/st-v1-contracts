@@ -631,7 +631,7 @@ describe('Router', function () {
         'EarlyExecution',
       )
 
-      expect(currentBlockReport).to.equal(10n)
+      expect(currentBlockReport).to.equal(52n)
     })
 
     it('should reach consensus and fail if execute early', async function () {
@@ -694,7 +694,7 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(10n)
+      expect(currentBlockReport).to.equal(52n)
 
       report = {
         epoch: 2n,
@@ -791,7 +791,7 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(10n)
+      expect(currentBlockReport).to.equal(52n)
 
       report = {
         epoch: 2n,
@@ -1339,7 +1339,7 @@ describe('Router', function () {
 
       await expect(
         stakeTogether.connect(user2).anticipateWithdrawValidator(),
-      ).to.be.revertedWithCustomError(stakeTogether, 'NotCurrentValidatorOracle')
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       await expect(
         stakeTogether.connect(user1).anticipateWithdrawValidator(),

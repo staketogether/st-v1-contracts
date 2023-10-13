@@ -64,7 +64,7 @@ interface IStakeTogether {
   error NotInAntiFraudList();
 
   /// @notice Thrown if the caller is not the current oracle.
-  error NotCurrentValidatorOracle();
+  error NotIsCurrentValidatorOracle();
 
   /// @notice Thrown if there is not enough pool balance.
   error NotEnoughPoolBalance();

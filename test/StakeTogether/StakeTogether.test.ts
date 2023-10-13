@@ -237,7 +237,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).processStakeRewards(rewardShares, { value: rewardAmount }),
-      ).to.be.revertedWith('OR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'OnlyRouter')
     })
 
     it('should claim rewards and emit ClaimRewards event', async function () {
@@ -274,7 +274,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user2).claimAirdrop(user1.address, sharesAmount),
-      ).to.be.revertedWith('OA')
+      ).to.be.revertedWithCustomError(stakeTogether, 'OnlyAirdrop')
     })
   })
 
@@ -348,7 +348,10 @@ describe('Stake Together', function () {
       }
 
       // Attempt to set config by owner should fail
-      await expect(stakeTogether.setConfig(invalidConfig)).to.be.revertedWith('IS')
+      await expect(stakeTogether.setConfig(invalidConfig)).to.be.revertedWithCustomError(
+        stakeTogether,
+        'InvalidSize',
+      )
     })
   })
 
@@ -516,7 +519,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user2DepositAmount }),
-      ).to.be.revertedWith('DLR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'DepositLimitReached')
     })
 
     it('should correctly handle deposit and reset deposit limit after a day', async function () {
@@ -551,7 +554,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user2DepositAmount }),
-      ).to.be.revertedWith('DLR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'DepositLimitReached')
 
       for (let i = 0; i < 100; i++) {
         await network.provider.send('evm_mine')
@@ -559,7 +562,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: user2DepositAmount }),
-      ).to.be.revertedWith('DLR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'DepositLimitReached')
 
       for (let i = 0; i < blocksPerDay; i++) {
         await network.provider.send('evm_mine')
@@ -592,7 +595,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount }),
-      ).to.be.revertedWith('MD')
+      ).to.be.revertedWithCustomError(stakeTogether, 'LessThanMinimumDeposit')
     })
 
     it('should revert if deposit feature is disabled', async function () {
@@ -624,7 +627,7 @@ describe('Stake Together', function () {
         stakeTogether
           .connect(user1)
           .depositPool(nonExistentPoolAddress, user3, { value: ethers.parseEther('100') }),
-      ).to.be.revertedWith('FD')
+      ).to.be.revertedWithCustomError(stakeTogether, 'FeatureDisabled')
     })
 
     it('should fail when trying to delegate to a non-existent pool', async function () {
@@ -636,7 +639,7 @@ describe('Stake Together', function () {
         stakeTogether
           .connect(user1)
           .depositPool(nonExistentPoolAddress, user3, { value: user1DepositAmount }),
-      ).to.be.revertedWith('PNF')
+      ).to.be.revertedWithCustomError(stakeTogether, 'PoolNotFound')
     })
 
     it('should correctly transfer delegations to another pool', async function () {
@@ -755,7 +758,7 @@ describe('Stake Together', function () {
       // Expect a revert with the specific error message
       await expect(
         stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('ZA')
+      ).to.be.revertedWithCustomError(stakeTogether, 'ZeroAmount')
     })
 
     it('should revert when trying to withdraw an amount greater than the balance', async function () {
@@ -777,7 +780,7 @@ describe('Stake Together', function () {
       // Expect a revert with the specific error message
       await expect(
         stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('IAB')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientAccountBalance')
     })
 
     it('should revert when trying to withdraw an amount less than the minimum ', async function () {
@@ -801,7 +804,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('MW')
+      ).to.be.revertedWithCustomError(stakeTogether, 'LessThanMinimumWithdraw')
     })
 
     it('should revert when trying to withdraw pool amount that exceeds the limit', async function () {
@@ -845,7 +848,7 @@ describe('Stake Together', function () {
       // Expect a revert with the specific error message
       await expect(
         stakeTogether.connect(user2).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('WPLR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'WithdrawalsPoolLimitReached')
 
       const blocksPerDay = 7200n
       for (let i = 0; i < blocksPerDay; i++) {
@@ -922,7 +925,7 @@ describe('Stake Together', function () {
       // Expect a revert with the specific error message
       await expect(
         stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('WVLR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'WithdrawalsValidatorLimitWasReached')
 
       const blocksPerDay = 7200n
       for (let i = 0; i < blocksPerDay; i++) {
@@ -953,7 +956,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('IAB')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientAccountBalance')
     })
 
     it('should revert when trying to withdraw from the pool disabled', async function () {
@@ -986,7 +989,7 @@ describe('Stake Together', function () {
       // Expect a revert with the specific error message 'FD'
       await expect(
         stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('FD')
+      ).to.be.revertedWithCustomError(stakeTogether, 'FeatureDisabled')
     })
 
     it('should revert when trying to withdraw from the validator disabled', async function () {
@@ -1016,7 +1019,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('FD')
+      ).to.be.revertedWithCustomError(stakeTogether, 'FeatureDisabled')
     })
 
     it('should not allow withdrawal greater than beacon balance', async function () {
@@ -1059,7 +1062,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('IBB')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientBeaconBalance')
     })
 
     it('should allow the router to withdraw a refund', async function () {
@@ -1084,7 +1087,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user2).setBeaconBalance(refundValue, { value: refundValue }),
-      ).to.be.revertedWith('OR')
+      ).to.be.revertedWithCustomError(stakeTogether, 'OnlyRouter')
     })
   })
 
@@ -1135,7 +1138,10 @@ describe('Stake Together', function () {
 
     it('should reject adding a pool with zero address', async function () {
       // Attempt to add the pool with a zero address and expect failure
-      await expect(stakeTogether.connect(owner).addPool(nullAddress, true)).to.be.revertedWith('ZA')
+      await expect(stakeTogether.connect(owner).addPool(nullAddress, true)).to.be.revertedWithCustomError(
+        stakeTogether,
+        'ZeroAddress',
+      )
     })
 
     it('should reject adding a pool with an existing address', async function () {
@@ -1146,7 +1152,9 @@ describe('Stake Together', function () {
       await stakeTogether.connect(owner).addPool(poolAddress, isListed)
 
       // Attempt to add the pool again and expect failure
-      await expect(stakeTogether.connect(owner).addPool(poolAddress, isListed)).to.be.revertedWith('PE')
+      await expect(
+        stakeTogether.connect(owner).addPool(poolAddress, isListed),
+      ).to.be.revertedWithCustomError(stakeTogether, 'PoolExists')
     })
 
     it('should reject adding a pool when AddPool feature is disabled', async function () {
@@ -1175,7 +1183,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address
       await expect(
         stakeTogether.connect(user1).addPool(poolAddress, true, { value: ethers.parseEther('1') }),
-      ).to.be.revertedWith('FD')
+      ).to.be.revertedWithCustomError(stakeTogether, 'FeatureDisabled')
     })
 
     it('should correctly add pool with a specific value and mark as unlisted', async function () {
@@ -1240,9 +1248,9 @@ describe('Stake Together', function () {
       expect(await stakeTogether.pools(nonExistingPoolAddress)).to.be.false
 
       // Attempt to remove the non-existing pool and expect a revert with 'PNF'
-      await expect(stakeTogether.connect(owner).removePool(nonExistingPoolAddress)).to.be.revertedWith(
-        'PNF',
-      )
+      await expect(
+        stakeTogether.connect(owner).removePool(nonExistingPoolAddress),
+      ).to.be.revertedWithCustomError(stakeTogether, 'PoolNotFound')
     })
 
     it('should handle the scenario where shares are equal to zero', async function () {
@@ -1366,7 +1374,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(owner).removeValidatorOracle(nonExistingOracleAddress),
-      ).to.be.revertedWith('NF')
+      ).to.be.revertedWithCustomError(stakeTogether, 'ValidatorOracleNotFound')
     })
 
     it('should correctly remove an oracle address that is not the last in the list', async function () {
@@ -1530,21 +1538,21 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot),
-      ).to.be.revertedWith('NCO')
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
       await stakeTogether.connect(oracle2).createValidator(nextPublicKey, signature, depositDataRoot)
 
       await expect(
         stakeTogether.connect(oracle1).createValidator(nextPublicKey, signature, depositDataRoot),
-      ).to.be.revertedWith('NCO')
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
       await stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot)
 
       await expect(
         stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot),
-      ).to.be.revertedWith('NCO')
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
       await stakeTogether.connect(oracle4).createValidator(nextPublicKey, signature, depositDataRoot)
@@ -1580,7 +1588,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(invalidOracle).createValidator(publicKey, signature, depositDataRoot),
-      ).to.be.revertedWith('OV')
+      ).to.be.revertedWithCustomError(stakeTogether, 'OnlyValidatorOracle')
     })
 
     it('should fail to create a validator when the contract balance is less than pool size', async function () {
@@ -1593,7 +1601,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
-      ).to.be.revertedWith('NBP') // Checking for the rejection with code 'NBP'
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotEnoughBalanceOnPool')
     })
 
     it('should fail to create a validator with an existing public key', async function () {
@@ -1612,7 +1620,7 @@ describe('Stake Together', function () {
       // Attempting to create a second validator with the same public key
       await expect(
         stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
-      ).to.be.revertedWith('VE') // Checking for the rejection with code 'VE'
+      ).to.be.revertedWithCustomError(stakeTogether, 'ValidatorExists')
     })
 
     it('should create a new validator ', async function () {
@@ -1639,7 +1647,9 @@ describe('Stake Together', function () {
 
     it('should fail to set the beacon balance by non-router address', async function () {
       const beaconBalance = ethers.parseEther('10')
-      await expect(stakeTogether.connect(user1).setBeaconBalance(beaconBalance)).to.be.revertedWith('OR')
+      await expect(
+        stakeTogether.connect(user1).setBeaconBalance(beaconBalance),
+      ).to.be.revertedWithCustomError(stakeTogether, 'OnlyRouter')
     })
   })
 
@@ -1688,7 +1698,9 @@ describe('Stake Together', function () {
     it('should require allocations length to be 4', async function () {
       const feeValue = ethers.parseEther('0.05')
       const allocations = [250000, 250000, 250000, 250000]
-      await expect(stakeTogether.connect(owner).setFee(1, feeValue, [250000])).to.be.revertedWith('IL')
+      await expect(
+        stakeTogether.connect(owner).setFee(1, feeValue, [250000]),
+      ).to.be.revertedWithCustomError(stakeTogether, 'InvalidLength')
     })
 
     it('should require sum of allocations to be 1 ether', async function () {
@@ -1696,7 +1708,7 @@ describe('Stake Together', function () {
       const allocations = [250000, 250000, 250000, 250000]
       await expect(
         stakeTogether.connect(owner).setFee(2, feeValue, [250000, 250000, 250000, 300000]),
-      ).to.be.revertedWith('IS')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InvalidSum')
     })
 
     it('should successfully set fee for ProcessStakeValidator (index 3)', async function () {
@@ -1778,7 +1790,7 @@ describe('Stake Together', function () {
       })
       await expect(
         stakeTogether.connect(user1).transferShares(nullAddress, ethers.parseEther('2')),
-      ).to.be.revertedWith('ZA')
+      ).to.be.revertedWithCustomError(stakeTogether, 'ZeroAddress')
     })
 
     it('should fail if _sharesAmount is greater than shares owned by _from', async function () {
@@ -1794,7 +1806,7 @@ describe('Stake Together', function () {
       const user1Shares = await stakeTogether.shares(user1.address)
       await expect(
         stakeTogether.connect(user1).transferShares(user2.address, user1Shares + 10n),
-      ).to.be.revertedWith('IS')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientShares')
     })
 
     it('should successfully transfer amount and emit Transfer event', async function () {
@@ -1851,7 +1863,7 @@ describe('Stake Together', function () {
       const user1Balance = await stakeTogether.balanceOf(user1.address)
       await expect(
         stakeTogether.connect(user1).transfer(user2.address, user1Balance + 1n),
-      ).to.be.revertedWith('IS')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientShares')
     })
 
     it('should transfer from one address to another using an approved spender and emit Transfer event', async function () {
@@ -1964,9 +1976,9 @@ describe('Stake Together', function () {
     it('should fail to approve if _spender address is zero', async function () {
       const amountToApprove = ethers.parseEther('50')
 
-      await expect(stakeTogether.connect(user1).approve(nullAddress, amountToApprove)).to.be.revertedWith(
-        'ZA',
-      )
+      await expect(
+        stakeTogether.connect(user1).approve(nullAddress, amountToApprove),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ZeroAddress')
     })
 
     it('should return correct allowance', async function () {

@@ -604,7 +604,7 @@ contract MockStakeTogether is
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotCurrentValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
     if (withdrawBalance == 0) revert WithdrawZeroBalance();
 
     uint256 routerBalance = address(router).balance;
@@ -630,7 +630,7 @@ contract MockStakeTogether is
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotCurrentValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
     if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
     if (validators[_publicKey]) revert ValidatorExists();
     if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
