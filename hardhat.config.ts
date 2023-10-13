@@ -86,7 +86,7 @@ const config: HardhatUserConfig = {
   gasReporter: {
     currency: 'USD',
     gasPrice: 5,
-    enabled: process.env.GAS_REPORTER ? true : false,
+    enabled: process.env.GAS_REPORTER === 'true' ? true : false,
     coinmarketcap: process.env.COINMARKETCAP_API_KEY as string,
   },
 }

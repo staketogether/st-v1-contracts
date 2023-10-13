@@ -1,72 +1,30 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
-import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { checkVariables } from '../test/utils/env'
 import {
   Airdrop,
   Airdrop__factory,
+  MockDepositContract__factory,
+  MockRouter__factory,
+  MockStakeTogether,
+  MockStakeTogether__factory,
   Router,
-  Router__factory,
   StakeTogether,
   StakeTogetherWrapper,
   StakeTogetherWrapper__factory,
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from '../typechain'
+} from '../../typechain'
 
-// TODO!: Before deploying on Mainnet, remove extra role initializations. (only necessary for testing)
+import { checkVariables } from '../utils/env'
 
-dotenv.config()
-
-const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
-
-export async function deploy() {
-  checkVariables()
-
-  const [owner] = await ethers.getSigners()
-
-  // DEPLOY
-
-  const airdrop = await deployAirdrop(owner)
-  const withdrawals = await deployWithdrawals(owner)
-  const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
-
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
-  const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
-
-  // CONFIG
-
-  await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
-
-  // LOG
-
-  console.log('\n🔷 All ST V2 Contracts Deployed!\n')
-
-  verifyContracts(
-    airdrop.proxyAddress,
-    airdrop.implementationAddress,
-    router.proxyAddress,
-    router.implementationAddress,
-    stakeTogether.proxyAddress,
-    stakeTogether.implementationAddress,
-    stakeTogetherWrapper.proxyAddress,
-    stakeTogetherWrapper.implementationAddress,
-    withdrawals.proxyAddress,
-    withdrawals.implementationAddress,
-  )
-}
-
-export async function deployAirdrop(owner: HardhatEthersSigner) {
+async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)
   const airdrop = await upgrades.deployProxy(AirdropFactory)
   await airdrop.waitForDeployment()
   const proxyAddress = await airdrop.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  console.log(`Airdrop\t\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Airdrop\t\t\t Implementation\t\t ${implementationAddress}`)
 
   const airdropContract = airdrop as unknown as Airdrop
 
@@ -79,16 +37,13 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
-export async function deployWithdrawals(owner: HardhatEthersSigner) {
+async function deployWithdrawals(owner: HardhatEthersSigner) {
   const WithdrawalsFactory = new Withdrawals__factory().connect(owner)
 
   const withdrawals = await upgrades.deployProxy(WithdrawalsFactory)
   await withdrawals.waitForDeployment()
   const proxyAddress = await withdrawals.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  console.log(`Withdrawals\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Withdrawals\t\t Implementation\t\t ${implementationAddress}`)
 
   const withdrawalsContract = withdrawals as unknown as Withdrawals
 
@@ -101,35 +56,49 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
 
-export async function deployRouter(
+async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
+  const STWrapperFactory = new StakeTogetherWrapper__factory().connect(owner)
+
+  const stWrapper = await upgrades.deployProxy(STWrapperFactory)
+  await stWrapper.waitForDeployment()
+  const proxyAddress = await stWrapper.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+
+  const stWrapperContract = stWrapper as unknown as StakeTogetherWrapper
+
+  const ST_WRAPPER_ADMIN_ROLE = await stWrapperContract.ADMIN_ROLE()
+  const ST_WRAPPER_UPGRADER_ROLE = await stWrapperContract.UPGRADER_ROLE()
+
+  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_ADMIN_ROLE, owner)
+  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_UPGRADER_ROLE, owner)
+
+  return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
+}
+
+async function deployRouter(
   owner: HardhatEthersSigner,
   airdropContract: string,
   withdrawalsContract: string,
 ) {
-  const RouterFactory = new Router__factory().connect(owner)
+  const RouterFactory = new MockRouter__factory().connect(owner)
 
-  const reportFrequency = 1_296_000n // 1 once a day
   const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
 
   await router.waitForDeployment()
   const proxyAddress = await router.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`Router\t\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Router\t\t\t Implementation\t\t ${implementationAddress}`)
-
-  // Create the configuration
   const config = {
     bunkerMode: false,
     maxValidatorsToExit: 100,
-    reportDelayBlock: 600,
+    reportDelayBlock: 60,
+
     reportNoConsensusMargin: 0,
     oracleQuorum: 5,
     oracleBlackListLimit: 3,
-    reportFrequency: reportFrequency,
+    reportFrequency: 1000,
   }
 
-  // Cast the contract to the correct type
   const routerContract = router as unknown as Router
 
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
@@ -140,17 +109,20 @@ export async function deployRouter(
   await routerContract.connect(owner).grantRole(ROUTER_UPGRADER_ROLE, owner)
   await routerContract.connect(owner).grantRole(ROUTER_ORACLE_REPORT_MANAGER_ROLE, owner)
 
-  // Set the configuration
   await routerContract.setConfig(config)
 
   return { proxyAddress, implementationAddress, routerContract }
 }
 
-export async function deployStakeTogether(
+async function deployStakeTogether(
   owner: HardhatEthersSigner,
   routerContract: string,
   withdrawalsContract: string,
 ) {
+  const MockDepositContractFactory = new MockDepositContract__factory().connect(owner)
+  const mockDepositContract = await MockDepositContractFactory.deploy()
+  const depositAddress = await mockDepositContract.getAddress()
+
   function convertToWithdrawalAddress(eth1Address: string): string {
     if (!ethers.isAddress(eth1Address)) {
       throw new Error('Invalid ETH1 address format.')
@@ -182,9 +154,6 @@ export async function deployStakeTogether(
   await stakeTogether.waitForDeployment()
   const proxyAddress = await stakeTogether.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
 
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
@@ -252,29 +221,27 @@ export async function deployStakeTogether(
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
-  return { proxyAddress, implementationAddress, stakeTogetherContract }
-}
+  // Upgrade ST Mock
 
-async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
-  const STWrapperFactory = new StakeTogetherWrapper__factory().connect(owner)
+  const MockStakeTogetherFactory = new MockStakeTogether__factory(owner)
 
-  const stWrapper = await upgrades.deployProxy(STWrapperFactory)
-  await stWrapper.waitForDeployment()
-  const proxyAddress = await stWrapper.getAddress()
-  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+  const mockStakeTogether = await upgrades.upgradeProxy(proxyAddress, MockStakeTogetherFactory)
 
-  console.log(`StakeTogetherWrapper\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`StakeTogetherWrapper\t Implementation\t\t ${implementationAddress}`)
+  await mockStakeTogether.waitForDeployment()
 
-  const stWrapperContract = stWrapper as unknown as StakeTogetherWrapper
+  await mockStakeTogether.initializeV2()
 
-  const ST_WRAPPER_ADMIN_ROLE = await stWrapperContract.ADMIN_ROLE()
-  const ST_WRAPPER_UPGRADER_ROLE = await stWrapperContract.UPGRADER_ROLE()
+  const mockProxyAddress = await mockStakeTogether.getAddress()
 
-  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_ADMIN_ROLE, owner)
-  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_UPGRADER_ROLE, owner)
+  const mockStakeTogetherContract = mockStakeTogether as unknown as MockStakeTogether
 
-  return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
+  return {
+    proxyAddress,
+    implementationAddress,
+    stakeTogetherContract,
+    mockProxyAddress,
+    mockStakeTogetherContract,
+  }
 }
 
 export async function configContracts(
@@ -305,49 +272,78 @@ export async function configContracts(
     routerContract: Router
   },
 ) {
-  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(0, airdrop.proxyAddress)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(1, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(2, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(3, owner)
 
-  await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
-  await airdrop.airdropContract.setRouter(router.proxyAddress)
+  await airdrop.airdropContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+  await airdrop.airdropContract.connect(owner).setRouter(router.proxyAddress)
 
-  await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
-  await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
+  await withdrawals.withdrawalsContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+  await withdrawals.withdrawalsContract.connect(owner).setRouter(router.proxyAddress)
 
-  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
+  await router.routerContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
 
-  await stakeTogetherWrapper.stakeTogetherWrapperContract.setStakeTogether(stakeTogether.proxyAddress)
+  await stakeTogetherWrapper.stakeTogetherWrapperContract
+    .connect(owner)
+    .setStakeTogether(stakeTogether.proxyAddress)
 }
 
-async function verifyContracts(
-  airdropProxy: string,
-  airdropImplementation: string,
-  routerProxy: string,
-  routerImplementation: string,
-  stakeTogetherProxy: string,
-  stakeTogetherImplementation: string,
-  stakeTogetherWrapperProxy: string,
-  stakeTogetherWrapperImplementation: string,
-  withdrawalsProxy: string,
-  withdrawalsImplementation: string,
-) {
-  console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
+export async function stakeTogetherWrapperFixture() {
+  checkVariables()
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperImplementation}`)
+  const provider = ethers.provider
+
+  let owner: HardhatEthersSigner
+  let user1: HardhatEthersSigner
+  let user2: HardhatEthersSigner
+  let user3: HardhatEthersSigner
+  let user4: HardhatEthersSigner
+  let user5: HardhatEthersSigner
+  let user6: HardhatEthersSigner
+  let user7: HardhatEthersSigner
+  let user8: HardhatEthersSigner
+
+  let nullAddress: string = '0x0000000000000000000000000000000000000000'
+
+  ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
+
+  // DEPLOY
+
+  const airdrop = await deployAirdrop(owner)
+  const withdrawals = await deployWithdrawals(owner)
+  const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
+
+  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
+
+  await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
+
+  const UPGRADER_ROLE = await withdrawals.withdrawalsContract.UPGRADER_ROLE()
+  const ADMIN_ROLE = await withdrawals.withdrawalsContract.ADMIN_ROLE()
+
+  return {
+    provider,
+    owner,
+    user1,
+    user2,
+    user3,
+    user4,
+    user5,
+    user6,
+    user7,
+    user8,
+    nullAddress,
+    withdrawals: withdrawals.withdrawalsContract,
+    withdrawalsProxy: withdrawals.proxyAddress,
+    stakeTogether: stakeTogether.stakeTogetherContract,
+    stakeTogetherProxy: stakeTogether.proxyAddress,
+    stakeTogetherWrapper: stakeTogetherWrapper.stakeTogetherWrapperContract,
+    stakeTogetherWrapperProxy: stakeTogetherWrapper.proxyAddress,
+    mockStakeTogether: stakeTogether.mockStakeTogetherContract,
+    mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
+    UPGRADER_ROLE,
+    ADMIN_ROLE,
+  }
 }
-
-deploy().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
