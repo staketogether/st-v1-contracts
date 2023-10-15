@@ -2468,6 +2468,16 @@ describe('Stake Together', function () {
       expect(isListed).to.equal(false)
     })
 
+    it('should fail if the address is not in the anti-fraud list', async function () {
+      const innocentAddress = user3.address
+      const ANTI_FRAUD_MANAGER_ROLE = await stakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+
+      await expect(
+        stakeTogether.connect(owner).removeFromAntiFraud(innocentAddress),
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotInAntiFraudList')
+    })
+
     it('should return true if an address is in the anti-fraud list', async function () {
       const suspectAddress = user2.address
       const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
