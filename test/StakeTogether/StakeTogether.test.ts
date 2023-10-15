@@ -1957,6 +1957,182 @@ describe('Stake Together', function () {
       const newUser2Balance = await stakeTogether.balanceOf(user3.address)
       expect(newUser2Balance).to.equal(amountToApprove)
     })
+
+    it('should successfully transfer when neither sender nor receiver is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const transferAmount = ethers.parseEther('10')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      const tx = await stakeTogether.connect(user1).transfer(user2.address, transferAmount)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Transfer')
+        .withArgs(user1.address, user2.address, transferAmount)
+
+      const user1BalanceAfterTransfer = await stakeTogether.balanceOf(user1.address)
+      const user2BalanceAfterTransfer = await stakeTogether.balanceOf(user2.address)
+
+      expect(user1BalanceAfterTransfer).to.equal(user1DepositAmount - transferAmount - fee)
+      expect(user2BalanceAfterTransfer).to.equal(transferAmount)
+    })
+
+    it('should fail transfer when sender is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const transferAmount = ethers.parseEther('10')
+      const poolAddress = user3.address
+      const fee = (user1DepositAmount * 3n) / 1000n
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      await expect(
+        stakeTogether.connect(user1).transfer(user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ListedInAntiFraud')
+    })
+
+    it('should fail transfer when receiver is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const transferAmount = ethers.parseEther('10')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(user2.address)
+
+      await expect(
+        stakeTogether.connect(user1).transfer(user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ListedInAntiFraud')
+    })
+
+    it('should fail transferFrom when the _from address is in the anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const transferAmount = ethers.parseEther('10')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      await stakeTogether.connect(user1).approve(owner.address, transferAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      await expect(
+        stakeTogether.connect(owner).transferFrom(user1.address, user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ListedInAntiFraud')
+    })
+
+    it('should fail transferFrom when the _to address is in the anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const transferAmount = ethers.parseEther('10')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      await stakeTogether.connect(user1).approve(owner.address, transferAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(user2.address)
+
+      await expect(
+        stakeTogether.connect(owner).transferFrom(user1.address, user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ListedInAntiFraud')
+    })
+
+    it('should successfully transferFrom when neither _from nor _to is in the anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const transferAmount = ethers.parseEther('10')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      await stakeTogether.connect(user1).approve(owner.address, transferAmount)
+
+      const tx = await stakeTogether
+        .connect(owner)
+        .transferFrom(user1.address, user2.address, transferAmount)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'Transfer')
+        .withArgs(user1.address, user2.address, transferAmount)
+    })
+
+    it('should fail to transfer shares when sender is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const sharesToTransfer = ethers.parseEther('2')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      await expect(
+        stakeTogether.connect(user1).transferShares(user2.address, sharesToTransfer),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ListedInAntiFraud')
+    })
+
+    it('should fail to transfer shares when recipient is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const sharesToTransfer = ethers.parseEther('2')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(user2.address)
+
+      await expect(
+        stakeTogether.connect(user1).transferShares(user2.address, sharesToTransfer),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ListedInAntiFraud')
+    })
+
+    it('should successfully transfer shares when neither sender nor recipient is in the anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const sharesToTransfer = ethers.parseEther('2')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
+
+      const tx = await stakeTogether.connect(user1).transferShares(user2.address, sharesToTransfer)
+
+      await expect(tx)
+        .to.emit(stakeTogether, 'TransferShares')
+        .withArgs(user1.address, user2.address, sharesToTransfer)
+
+      const user1SharesAfterTransfer = await stakeTogether.shares(user1.address)
+      const user2SharesAfterTransfer = await stakeTogether.shares(user2.address)
+      const user1SharesAfterDeposit = user1DepositAmount - (user1DepositAmount * 3n) / 1000n
+
+      expect(user1SharesAfterTransfer).to.equal(user1SharesAfterDeposit - sharesToTransfer)
+      expect(user2SharesAfterTransfer).to.equal(sharesToTransfer)
+    })
   })
 
   describe('Shares', function () {
@@ -2218,6 +2394,111 @@ describe('Stake Together', function () {
 
       const totalShares3 = await stakeTogether.totalShares()
       expect(totalShares3).to.equal(initialShares + depositAmount + (depositAmount / 3n) * 2n - 1n)
+    })
+  })
+
+  describe('Anti-Fraud', () => {
+    it('should fail to add an address to anti-fraud list without the necessary role', async function () {
+      const addressToAdd = user2.address
+
+      await expect(
+        stakeTogether.connect(user2).addToAntiFraud(addressToAdd),
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotAuthorized')
+    })
+
+    it('should fail to add zero address to anti-fraud list', async function () {
+      const zeroAddress = nullAddress
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await expect(
+        stakeTogether.connect(owner).addToAntiFraud(zeroAddress),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ZeroAddress')
+    })
+
+    it('should successfully add an address to anti-fraud list', async function () {
+      const addressToAdd = user2.address
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await expect(stakeTogether.connect(owner).addToAntiFraud(addressToAdd))
+        .to.emit(stakeTogether, 'SetAntiFraudStatus')
+        .withArgs(addressToAdd, true)
+
+      const isListed = await stakeTogether.isListedInAntiFraud(addressToAdd)
+      expect(isListed).to.equal(true)
+    })
+
+    it('should fail to remove an address from anti-fraud list without the necessary role', async function () {
+      const addressToRemove = user2.address
+
+      await expect(
+        stakeTogether.connect(user1).removeFromAntiFraud(addressToRemove),
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotAuthorized')
+    })
+
+    it('should fail to remove zero address from anti-fraud list', async function () {
+      const zeroAddress = nullAddress
+      const ANTI_FRAUD_MANAGER_ROLE = await stakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+
+      await expect(
+        stakeTogether.connect(owner).removeFromAntiFraud(zeroAddress),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ZeroAddress')
+    })
+
+    it('should successfully remove an address from anti-fraud list', async function () {
+      const addressToRemove = user2.address
+      const ANTI_FRAUD_MANAGER_ROLE = await stakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(addressToRemove)
+
+      await expect(stakeTogether.connect(owner).removeFromAntiFraud(addressToRemove))
+        .to.emit(stakeTogether, 'SetAntiFraudStatus')
+        .withArgs(addressToRemove, false)
+
+      const isListed = await stakeTogether.isListedInAntiFraud(addressToRemove)
+      expect(isListed).to.equal(false)
+    })
+
+    it('should return true if an address is in the anti-fraud list', async function () {
+      const suspectAddress = user2.address
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(suspectAddress)
+
+      const isListed = await stakeTogether.isListedInAntiFraud(suspectAddress)
+      expect(isListed).to.equal(true)
+    })
+
+    it('should return false if an address is not in the anti-fraud list', async function () {
+      const innocentAddress = user3.address
+
+      const isNotListed = await stakeTogether.isListedInAntiFraud(innocentAddress)
+      expect(isNotListed).to.equal(false)
+    })
+
+    it('should return false after an address is removed from the anti-fraud list', async function () {
+      const suspectAddress = user2.address
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      const ANTI_FRAUD_MANAGER_ROLE = await stakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+
+      await stakeTogether.connect(owner).addToAntiFraud(suspectAddress)
+      await stakeTogether.connect(owner).removeFromAntiFraud(suspectAddress)
+
+      const isListed = await stakeTogether.isListedInAntiFraud(suspectAddress)
+      expect(isListed).to.equal(false)
     })
   })
 })
