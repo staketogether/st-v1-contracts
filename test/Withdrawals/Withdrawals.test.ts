@@ -105,6 +105,24 @@ describe('Withdrawals', function () {
     expect(await withdrawals.stakeTogether()).to.equal(await stakeTogether.getAddress())
   })
 
+  it('should correctly set the StakeTogether address', async function () {
+    // User1 tries to set the StakeTogether address to zero address - should fail
+    await expect(connect(withdrawals, owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
+      withdrawals,
+      'StakeTogetherAlreadySet',
+    )
+
+    // Verify that the StakeTogether address was correctly set
+    expect(await withdrawals.stakeTogether()).to.equal(await mockStakeTogether.getAddress())
+  })
+
+  it('should correctly set the Router address', async function () {
+    await expect(connect(withdrawals, owner).setRouter(nullAddress)).to.be.revertedWithCustomError(
+      withdrawals,
+      'RouterAlreadySet',
+    )
+  })
+
   describe('Receive Ether', function () {
     it('should correctly receive Ether', async function () {
       const initBalance = await ethers.provider.getBalance(withdrawalsProxy)
@@ -307,55 +325,63 @@ describe('Withdrawals', function () {
       const mintAmount = ethers.parseEther('10')
       await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
 
-      // Approve the transfer amount
-      const transferAmount = ethers.parseEther('5')
-      await withdrawals.connect(user1).approve(user2.address, transferAmount)
-
-      // Add user1 to the anti-fraud list then remove them
-      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
-      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
-      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
-      await mockStakeTogether.connect(owner).removeFromAntiFraud(user1.address)
-
-      // Record the initial allowance and balance
-      const initialAllowance = await withdrawals.allowance(user1.address, user2.address)
-      const initialBalanceUser3 = await withdrawals.balanceOf(user3.address)
-
-      // Execute transferFrom
-      await withdrawals.connect(user2).transferFrom(user1.address, user3.address, transferAmount)
-
-      // Check the final allowance and balance
-      const finalAllowance = await withdrawals.allowance(user1.address, user2.address)
-      const finalBalanceUser3 = await withdrawals.balanceOf(user3.address)
-
-      expect(initialAllowance - transferAmount).to.equal(finalAllowance)
-      expect(initialBalanceUser3 + transferAmount).to.equal(finalBalanceUser3)
-    })
-
-    it('should successfully execute transferFrom, spend allowance after user is removed from anti-fraud list of MockStakeTogether', async function () {
-      const mintAmount = ethers.parseEther('10')
-      await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
-
-      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      const ANTI_FRAUD_SENTINEL_ROLE = await mockStakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
       await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
       await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
 
-      // Grant ANTI_FRAUD_MANAGER_ROLE to the owner before trying to remove from anti-fraud list
-      const ANTI_FRAUD_MANAGER_ROLE = await stakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+      // Ensure that owner has ANTI_FRAUD_MANAGER_ROLE before calling removeFromAntiFraud
+      const ANTI_FRAUD_MANAGER_ROLE = await mockStakeTogether.ANTI_FRAUD_MANAGER_ROLE()
       await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
 
-      // Remove user1 from anti-fraud list
+      // Now it should be possible to remove user1 from the anti-fraud list without the NotAuthorized error
       await mockStakeTogether.connect(owner).removeFromAntiFraud(user1.address)
 
-      const transferAmount = ethers.parseEther('5')
-      await withdrawals.connect(user2).approve(user1.address, transferAmount)
+      // Mint tokens to user2 and approve the transfer for user1
+      await mockStakeTogether.connect(owner).mintWithdrawals(user2.address, mintAmount)
+      await withdrawals.connect(user2).approve(user1.address, mintAmount)
 
+      // Now user1 should be able to transfer tokens from user2 to user3 using transferFrom
+      const transferAmount = ethers.parseEther('5')
       await expect(withdrawals.connect(user1).transferFrom(user2.address, user3.address, transferAmount))
         .to.emit(withdrawals, 'Transfer')
         .withArgs(user2.address, user3.address, transferAmount)
 
-      const balanceUser3 = await withdrawals.balanceOf(user3.address)
-      expect(balanceUser3).to.equal(transferAmount)
+      expect(await withdrawals.balanceOf(user3.address)).to.equal(transferAmount)
+    })
+
+    it('should successfully execute transferFrom, spend allowance after user is removed from anti-fraud list of MockStakeTogether', async function () {
+      const mintAmount = ethers.parseEther('10')
+
+      // Mint to the user1 address to ensure there's a balance.
+      await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await mockStakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const ANTI_FRAUD_MANAGER_ROLE = await mockStakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+
+      // Remove user1 from the anti-fraud list.
+      await mockStakeTogether.connect(owner).removeFromAntiFraud(user1.address)
+
+      // Mint tokens to user2 to ensure there's a balance, then approve the transfer for user1.
+      await mockStakeTogether.connect(owner).mintWithdrawals(user2.address, mintAmount)
+      await withdrawals.connect(user2).approve(user1.address, mintAmount)
+
+      // Now user1 should be able to transfer tokens from user2 to user3 using transferFrom.
+      const transferAmount = ethers.parseEther('5')
+      const tx = await withdrawals
+        .connect(user1)
+        .transferFrom(user2.address, user3.address, transferAmount)
+
+      expect(tx).to.emit(withdrawals, 'Transfer').withArgs(user2.address, user3.address, transferAmount)
+
+      expect(await withdrawals.balanceOf(user3.address)).to.equal(transferAmount)
+
+      // Ensure the allowance is spent.
+      const remainingAllowance = await withdrawals.allowance(user2.address, user1.address)
+      expect(remainingAllowance).to.equal(mintAmount - transferAmount)
     })
   })
 
@@ -431,6 +457,66 @@ describe('Withdrawals', function () {
       const amount = ethers.parseEther('15.0')
       const isReady = await withdrawals.isWithdrawReady(amount)
       expect(isReady).to.equal(false)
+    })
+
+    it('should revert withdrawal if the user is in the anti-fraud list of StakeTogether', async function () {
+      await owner.sendTransaction({
+        to: withdrawalsProxy,
+        value: ethers.parseEther('20.0'),
+      })
+
+      const mintAmount = ethers.parseEther('5.0')
+      await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
+
+      const userBalanceBefore = await withdrawals.balanceOf(user1.address)
+      expect(userBalanceBefore).to.equal(mintAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await mockStakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const withdrawAmount = ethers.parseEther('2.0')
+      await expect(withdrawals.connect(user1).withdraw(withdrawAmount)).to.be.revertedWithCustomError(
+        withdrawals,
+        'ListedInAntiFraud',
+      )
+
+      const ANTI_FRAUD_MANAGER_ROLE = await mockStakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).removeFromAntiFraud(user1.address)
+
+      const tx = await withdrawals.connect(user1).withdraw(withdrawAmount)
+      expect(tx).to.emit(withdrawals, 'Withdraw').withArgs(user1.address, withdrawAmount)
+
+      const userBalanceAfter = await withdrawals.balanceOf(user1.address)
+      expect(userBalanceAfter).to.equal(userBalanceBefore - withdrawAmount)
+    })
+
+    it('should return false if the user is in the anti-fraud list of StakeTogether', async function () {
+      const ANTI_FRAUD_SENTINEL_ROLE = await mockStakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const isReady = await withdrawals.connect(user1).isWithdrawReady(ethers.parseEther('1.0'))
+      expect(isReady).to.equal(false)
+    })
+
+    it('should return true if the user is not in the anti-fraud list of StakeTogether and contract has sufficient balance', async function () {
+      await owner.sendTransaction({
+        to: withdrawalsProxy,
+        value: ethers.parseEther('20.0'),
+      })
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await mockStakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const ANTI_FRAUD_MANAGER_ROLE = await mockStakeTogether.ANTI_FRAUD_MANAGER_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_MANAGER_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).removeFromAntiFraud(user1.address)
+
+      const isReady = await withdrawals.connect(user1).isWithdrawReady(ethers.parseEther('1.0'))
+      expect(isReady).to.equal(true)
     })
   })
 
