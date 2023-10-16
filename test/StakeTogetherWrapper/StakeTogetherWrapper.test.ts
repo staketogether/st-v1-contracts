@@ -101,11 +101,16 @@ describe('StakeTogetherWrapper', function () {
 
       expect(await upgradedContract.version()).to.equal(2n)
     })
-  })
 
-  it('should correctly set the StakeTogether address', async function () {
-    // Verify that the StakeTogether address was correctly set
-    expect(await stakeTogetherWrapper.stakeTogether()).to.equal(await stakeTogether.getAddress())
+    it('should correctly set the StakeTogether address', async function () {
+      // User1 tries to set the StakeTogether address to zero address - should fail
+      await expect(
+        connect(stakeTogetherWrapper, owner).setStakeTogether(nullAddress),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'StakeTogetherAlreadySet')
+
+      // Verify that the StakeTogether address was correctly set
+      expect(await stakeTogetherWrapper.stakeTogether()).to.equal(await mockStakeTogether.getAddress())
+    })
   })
 
   describe('Receive Ether', function () {
@@ -123,6 +128,40 @@ describe('StakeTogetherWrapper', function () {
       expect(finalBalance).to.equal(initBalance + ethers.parseEther('1.0'))
 
       await expect(tx).to.emit(stakeTogetherWrapper, 'ReceiveEther').withArgs(ethers.parseEther('1.0'))
+    })
+  })
+
+  describe('transferExtraAmount', function () {
+    it('should transfer the extra Ether to StakeTogether fee address if contract balance is greater than total supply', async function () {
+      await mockStakeTogether.setFeeAddress(2, user5.address)
+
+      const stFeeAddress = await mockStakeTogether.getFeeAddress(2)
+
+      const stBalanceBefore = await ethers.provider.getBalance(stFeeAddress)
+
+      await owner.sendTransaction({
+        to: stakeTogetherWrapperProxy,
+        value: ethers.parseEther('20.0'),
+      })
+
+      await stakeTogetherWrapper.connect(owner).transferExtraAmount()
+
+      const wstBalanceAfter = ethers.parseEther('0')
+      const wstBalance = await ethers.provider.getBalance(stakeTogetherWrapperProxy)
+
+      const extraAmount = ethers.parseEther('20.0')
+      const stBalanceAfter = await ethers.provider.getBalance(stFeeAddress)
+
+      expect(wstBalanceAfter).to.equal(wstBalance)
+      expect(stBalanceAfter).to.equal(stBalanceBefore + extraAmount)
+    })
+
+    it('should revert if there is no extra Ether in contract balance', async function () {
+      await mockStakeTogether.setFeeAddress(2, user5.address)
+
+      await expect(
+        stakeTogetherWrapper.connect(owner).transferExtraAmount(),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'NoExtraAmountAvailable')
     })
   })
 })
