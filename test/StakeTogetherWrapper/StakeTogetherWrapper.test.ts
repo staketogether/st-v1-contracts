@@ -14,7 +14,7 @@ import { stakeTogetherWrapperFixture } from './StakeTogetherWrapper.fixture'
 
 dotenv.config()
 
-describe('StakeTogetherWrapper', function () {
+describe.only('StakeTogetherWrapper', function () {
   let stakeTogetherWrapper: StakeTogetherWrapper
   let stakeTogetherWrapperProxy: string
   let stakeTogether: StakeTogether
@@ -162,6 +162,255 @@ describe('StakeTogetherWrapper', function () {
       await expect(
         stakeTogetherWrapper.connect(owner).transferExtraAmount(),
       ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'NoExtraAmountAvailable')
+    })
+  })
+
+  describe('Transfer', () => {
+    it('should fail transfer when sender is in anti-fraud list of StakeTogether', async function () {
+      const mintAmount = ethers.parseEther('10')
+      await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const transferAmount = ethers.parseEther('5')
+      await expect(
+        stakeTogetherWrapper.connect(user1).transfer(user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
+    })
+
+    it('should fail transfer when recipient is in anti-fraud list of StakeTogether', async function () {
+      const mintAmount = ethers.parseEther('10')
+      await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user2.address)
+
+      const transferAmount = ethers.parseEther('5')
+      await expect(
+        stakeTogetherWrapper.connect(user1).transfer(user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
+    })
+
+    it('should fail transfer when recipient is in anti-fraud list of StakeTogether', async function () {
+      const mintAmount = ethers.parseEther('10')
+      await mockStakeTogether.connect(owner).mintWithdrawals(user1.address, mintAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user2.address)
+
+      const transferAmount = ethers.parseEther('5')
+      await expect(
+        stakeTogetherWrapper.connect(user1).transfer(user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
+    })
+
+    it('should successfully transfer wstpETH after wrapping stpETH', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+
+      const transferAmount = ethers.parseEther('10')
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      const txWrap = await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+      await txWrap.wait()
+
+      await stakeTogetherWrapper.connect(user1).approve(user2.address, transferAmount)
+
+      const txTransfer = await stakeTogetherWrapper.connect(user1).transfer(user2.address, transferAmount)
+      await txTransfer.wait()
+
+      const user2WstpETH = await stakeTogetherWrapper.balanceOf(user2.address)
+      expect(user2WstpETH).to.equal(transferAmount)
+    })
+  })
+
+  describe('transferFrom', function () {
+    it('should successfully execute transferFrom after wrapping stpETH', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+
+      const transferAmount = ethers.parseEther('10')
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      const txWrap = await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+      await txWrap.wait()
+
+      await stakeTogetherWrapper.connect(user1).approve(user2.address, transferAmount)
+
+      // User2 transfers the wrapped token from User1 to themselves using transferFrom
+      const txTransferFrom = await stakeTogetherWrapper
+        .connect(user2)
+        .transferFrom(user1.address, user2.address, transferAmount)
+      await txTransferFrom.wait()
+
+      const user2WstpETH = await stakeTogetherWrapper.balanceOf(user2.address)
+      expect(user2WstpETH).to.equal(transferAmount)
+    })
+
+    it('should fail transferFrom when sender is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+      const txWrap = await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+      await txWrap.wait()
+
+      const transferAmount = ethers.parseEther('10')
+      await stakeTogetherWrapper.connect(user1).approve(user2.address, transferAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      await expect(
+        stakeTogetherWrapper.connect(user2).transferFrom(user1.address, user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
+    })
+
+    it('should fail transferFrom when recipient is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+      const txWrap = await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+      await txWrap.wait()
+
+      const transferAmount = ethers.parseEther('10')
+      await stakeTogetherWrapper.connect(user1).approve(user2.address, transferAmount)
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user2.address)
+
+      await expect(
+        stakeTogetherWrapper.connect(user1).transferFrom(user1.address, user2.address, transferAmount),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
+    })
+  })
+
+  describe('Wrap', () => {
+    it('should successfully wrap stpETH to wstpETH', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      const tx = await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+      await tx.wait()
+
+      const user1WstpETH = await stakeTogetherWrapper.balanceOf(user1.address)
+      expect(user1WstpETH).to.equal(user1StpETH) // Checks if wstpETH balance is equal to the stpETH balance
+    })
+
+    it('should fail to wrap when sender is in anti-fraud list', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await mockStakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await mockStakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      await expect(stakeTogetherWrapper.connect(user1).wrap(user1StpETH)).to.be.revertedWithCustomError(
+        stakeTogetherWrapper,
+        'ListedInAntiFraud',
+      )
+    })
+
+    it('should fail to wrap when _stpETH amount is zero', async function () {
+      await expect(stakeTogetherWrapper.connect(user1).wrap(0)).to.be.revertedWithCustomError(
+        stakeTogetherWrapper,
+        'ZeroStpETHAmount',
+      )
+    })
+  })
+
+  describe('Unwrap', () => {
+    it('should successfully unwrap wstpETH to stpETH', async function () {
+      const depositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+
+      const unwrapAmount = ethers.parseEther('10')
+      const tx = await stakeTogetherWrapper.connect(user1).unwrap(unwrapAmount)
+      await tx.wait()
+
+      const user1FinalStpETH = await stakeTogether.balanceOf(user1.address)
+      expect(user1FinalStpETH).to.be.gte(unwrapAmount)
+    })
+
+    it('should fail to unwrap when wstpETH amount is zero', async function () {
+      await expect(stakeTogetherWrapper.connect(user1).unwrap(0)).to.be.revertedWithCustomError(
+        stakeTogetherWrapper,
+        'ZeroWstpETHAmount',
+      )
+    })
+
+    it('should fail to unwrap when user is in anti-fraud list', async function () {
+      const depositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+
+      // Add user to anti-fraud list
+      const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
+      await stakeTogether.connect(owner).grantRole(ANTI_FRAUD_SENTINEL_ROLE, owner.address)
+      await stakeTogether.connect(owner).addToAntiFraud(user1.address)
+
+      const unwrapAmount = ethers.parseEther('10')
+      await expect(
+        stakeTogetherWrapper.connect(user1).unwrap(unwrapAmount),
+      ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
     })
   })
 })
