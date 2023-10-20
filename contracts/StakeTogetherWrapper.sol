@@ -146,12 +146,12 @@ contract StakeTogetherWrapper is
   function wrap(uint256 _stpETH) external nonReentrant whenNotPaused returns (uint256) {
     if (_stpETH == 0) revert ZeroStpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
-    uint256 wstpETH = stakeTogether.sharesByWei(_stpETH);
-    if (wstpETH == 0) revert ZeroWstpETHAmount();
-    _mint(msg.sender, wstpETH);
+    uint256 wstpETHAmount = stakeTogether.sharesByWei(_stpETH);
+    if (wstpETHAmount == 0) revert ZeroWstpETHAmount();
+    _mint(msg.sender, wstpETHAmount);
     stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
-    emit Wrapped(msg.sender, _stpETH, wstpETH);
-    return wstpETH;
+    emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
+    return wstpETHAmount;
   }
 
   /// @notice Unwraps the given amount of wstpETH into stpETH.
@@ -161,29 +161,30 @@ contract StakeTogetherWrapper is
   function unwrap(uint256 _wstpETH) external nonReentrant whenNotPaused returns (uint256) {
     if (_wstpETH == 0) revert ZeroWstpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
-    uint256 stpETH = stakeTogether.weiByShares(_wstpETH);
-    if (stpETH == 0) revert ZeroStpETHAmount();
+    uint256 stpETHAmount = stakeTogether.weiByShares(_wstpETH);
+    if (stpETHAmount == 0) revert ZeroStpETHAmount();
     _burn(msg.sender, _wstpETH);
-    stakeTogether.transfer(msg.sender, stpETH);
-    emit Unwrapped(msg.sender, _wstpETH, stpETH);
-    return stpETH;
+    stakeTogether.transfer(msg.sender, stpETHAmount);
+    emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
+    return stpETHAmount;
   }
 
   /// @notice Calculates the current exchange rate of stpETH per wstpETH.
   /// @dev Returns zero if the total supply of wstpETH is zero.
+  /// @param _wstpETH The amount of wstpETH to calculate.
   /// @return The current rate of stpETH per wstpETH.
-  function stpEthPerWstpETH() public view returns (uint256) {
+  function stpEthPerWstpETH(uint256 _wstpETH) public view returns (uint256) {
+    if (_wstpETH == 0) return 0;
     if (totalSupply() == 0) return 0;
-    uint256 stpETHBalance = stakeTogether.balanceOf(address(this));
-    return Math.mulDiv(stpETHBalance, 1 ether, totalSupply());
+    return stakeTogether.weiByShares(_wstpETH);
   }
 
   /// @notice Calculates the current exchange rate of wstpETH per stpETH.
   /// @dev Returns zero if the balance of stpETH is zero.
+  /// @param _stpETH The amount of wstpETH to calculate.
   /// @return The current rate of wstpETH per stpETH.
-  function wstpETHPerStpETH() public view returns (uint256) {
-    uint256 stpETHBalance = stakeTogether.balanceOf(address(this));
-    if (stpETHBalance == 0) return 0;
-    return Math.mulDiv(totalSupply(), 1 ether, stpETHBalance);
+  function wstpETHPerStpETH(uint256 _stpETH) public view returns (uint256) {
+    if (_stpETH == 0) return 0;
+    return stakeTogether.sharesByWei(_stpETH);
   }
 }

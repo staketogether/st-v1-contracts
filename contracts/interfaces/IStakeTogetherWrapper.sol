@@ -67,13 +67,15 @@ interface IStakeTogetherWrapper {
 
   /// @notice Calculates the current exchange rate of stpETH per wstpETH.
   /// @dev Returns zero if the total supply of wstpETH is zero.
+  /// @param _wstpETH The amount of wstpETH to calculate.
   /// @return The current rate of stpETH per wstpETH.
-  function stpEthPerWstpETH() external view returns (uint256);
+  function stpEthPerWstpETH(uint256 _wstpETH) external view returns (uint256);
 
   /// @notice Calculates the current exchange rate of wstpETH per stpETH.
   /// @dev Returns zero if the balance of stpETH is zero.
+  /// @param _stpETH The amount of wstpETH to calculate.
   /// @return The current rate of wstpETH per stpETH.
-  function wstpETHPerStpETH() external view returns (uint256);
+  function wstpETHPerStpETH(uint256 _stpETH) external view returns (uint256);
 
   /// @notice Transfers an amount of wei to the specified address.
   /// @param _to The address to transfer to.

@@ -14,7 +14,7 @@ import { stakeTogetherWrapperFixture } from './StakeTogetherWrapper.fixture'
 
 dotenv.config()
 
-describe.only('StakeTogetherWrapper', function () {
+describe('StakeTogetherWrapper', function () {
   let stakeTogetherWrapper: StakeTogetherWrapper
   let stakeTogetherWrapperProxy: string
   let stakeTogether: StakeTogether
@@ -441,6 +441,100 @@ describe.only('StakeTogetherWrapper', function () {
       await expect(
         stakeTogetherWrapper.connect(user1).unwrap(unwrapAmount),
       ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'ListedInAntiFraud')
+    })
+
+    it('should reflect a 10% increase in stpETH balance after a rebase considering the staking reward fee', async function () {
+      const initialDeposit = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      // Calculate expected stpETH after the 0.3% deposit fee using native BigInt and 'n' notation
+      const initialDepositBigInt = BigInt(initialDeposit.toString())
+      const expectedStpETH = (initialDepositBigInt * 997n) / 1000n
+
+      // The owner adds a pool
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      // User1 deposits 100 ETH into the pool
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
+
+      // Check user1's stpETH balance after the deposit and fee
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      expect(user1StpETH.toString()).to.equal(expectedStpETH.toString())
+
+      // User1 approves the StakeTogetherWrapper to spend their stpETH
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      // User1 wraps their stpETH to wstpETH
+      await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+
+      // Simulate a 10% rebase by sending additional 10 ethers to the StakeTogether proxy
+      // Considering a 9% staking reward fee
+      const rebaseAmount = ethers.parseEther('10')
+      const afterFeeRebaseAmount = (rebaseAmount * 991n) / 1000n
+      await owner.sendTransaction({
+        to: stakeTogetherProxy,
+        value: rebaseAmount,
+      })
+
+      // User1 unwraps their wstpETH to stpETH
+      const unwrapAmount = user1StpETH
+      const tx = await stakeTogetherWrapper.connect(user1).unwrap(unwrapAmount)
+      await tx.wait()
+
+      // Check user1's stpETH balance after the rebase and unwrap, expecting an increase
+      const user1FinalStpETH = await stakeTogether.balanceOf(user1.address)
+      expect(user1FinalStpETH).to.gt(initialDeposit)
+    })
+  })
+
+  describe('Exchange Rates', () => {
+    it('should calculate stpETH per wstpETH correctly', async function () {
+      const initialDeposit = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+      await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+
+      const user1WstpETH = await stakeTogetherWrapper.balanceOf(user1.address)
+      const rate = await stakeTogetherWrapper.stpEthPerWstpETH(user1WstpETH)
+
+      expect(rate).to.be.gt(0) // The exchange rate should be greater than zero
+
+      // When the wstpETH amount is zero
+      const zeroRate = await stakeTogetherWrapper.stpEthPerWstpETH(0)
+      expect(zeroRate).to.equal(0) // Should return zero
+    })
+
+    it('should calculate wstpETH per stpETH correctly', async function () {
+      const initialDeposit = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
+
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+      const rate = await stakeTogetherWrapper.wstpETHPerStpETH(user1StpETH)
+
+      expect(rate).to.be.gt(0) // The exchange rate should be greater than zero
+
+      // When the stpETH amount is zero
+      const zeroRate = await stakeTogetherWrapper.wstpETHPerStpETH(0)
+      expect(zeroRate).to.equal(0) // Should return zero
+    })
+
+    it('should return 0 for stpEthPerWstpETH when totalSupply is 0', async function () {
+      const totalSupply = await stakeTogetherWrapper.totalSupply()
+      expect(totalSupply).to.equal(0)
+
+      const rate = await stakeTogetherWrapper.stpEthPerWstpETH(ethers.parseEther('10'))
+      expect(rate).to.equal(0)
     })
   })
 })
