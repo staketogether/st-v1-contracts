@@ -1409,6 +1409,72 @@ describe('Router', function () {
       expect(await ethers.provider.getBalance(withdrawals)).equal(ethers.parseEther('35'))
     })
 
+    it('should revert LossMustBeZero', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      await advanceBlocks(1000)
+
+      const invalidReport = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 0n,
+        lossAmount: 1n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      for (const oracle of oracles) {
+        if (oracle === user1) {
+          await expect(router.connect(oracle).submitReport(invalidReport)).to.be.revertedWithCustomError(
+            router,
+            'LossMustBeZero',
+          )
+        }
+      }
+    })
+
+    it('should revert ProfitSharesMustBeZero', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      await advanceBlocks(1000)
+
+      const invalidReport = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 0n,
+        profitShares: 1n,
+        lossAmount: 1n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      for (const oracle of oracles) {
+        if (oracle === user1) {
+          await expect(router.connect(oracle).submitReport(invalidReport)).to.be.revertedWithCustomError(
+            router,
+            'ProfitSharesMustBeZero',
+          )
+        }
+      }
+    })
+
     it('should return the correct hash for the report', async function () {
       await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
       await router.connect(owner).grantRole(ORACLE_SENTINEL_ROLE, owner.address)

@@ -84,9 +84,6 @@ interface IRouter {
   /// @notice Emitted when the report's loss amount must be zero for execution.
   error LossMustBeZero();
 
-  /// @notice Emitted when the report's profit amount A must be zero for execution.
-  error ProfitAmountMustBeZero();
-
   /// @notice Emitted when the report's profit shares S must be zero for execution.
   error ProfitSharesMustBeZero();
 

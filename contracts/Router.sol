@@ -394,12 +394,7 @@ contract Router is
       if (_report.lossAmount != 0) {
         revert LossMustBeZero();
       }
-    }
-
-    if (_report.lossAmount > 0) {
-      if (_report.profitAmount != 0) {
-        revert ProfitAmountMustBeZero();
-      }
+    } else if (_report.lossAmount > 0) {
       if (_report.profitShares != 0) {
         revert ProfitSharesMustBeZero();
       }
