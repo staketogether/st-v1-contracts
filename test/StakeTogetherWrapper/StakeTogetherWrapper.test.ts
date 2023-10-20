@@ -360,6 +360,36 @@ describe.only('StakeTogetherWrapper', function () {
         'ZeroStpETHAmount',
       )
     })
+
+    it('should successfully wrap stpETH to wstpETH considering deposit fee', async function () {
+      const initialDeposit = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      // Calculate expected stpETH after the 0.3% deposit fee using native BigInt and 'n' notation
+      const initialDepositBigInt = BigInt(initialDeposit.toString())
+      const expectedStpETH = (initialDepositBigInt * 997n) / 1000n
+
+      // The owner adds a pool
+      await stakeTogether.connect(owner).addPool(poolAddress, true)
+
+      // User1 deposits 100 ETH into the pool
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
+
+      // Check user1's stpETH balance after the deposit and fee
+      const user1StpETH = await stakeTogether.balanceOf(user1.address)
+
+      expect(user1StpETH.toString()).to.equal(expectedStpETH)
+
+      await stakeTogether.connect(user1).approve(stakeTogetherWrapperProxy, user1StpETH)
+
+      const tx = await stakeTogetherWrapper.connect(user1).wrap(user1StpETH)
+      await tx.wait()
+
+      // Check user1's wstpETH balance to confirm it's equal to their stpETH balance after the fee
+      const user1WstpETH = await stakeTogetherWrapper.balanceOf(user1.address)
+      expect(user1WstpETH).to.equal(user1StpETH)
+    })
   })
 
   describe('Unwrap', () => {
