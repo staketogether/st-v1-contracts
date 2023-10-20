@@ -4,7 +4,13 @@ import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-import { Airdrop, MockAirdrop__factory, MockRouter, MockStakeTogether } from '../../typechain'
+import {
+  Airdrop,
+  Airdrop__factory,
+  MockAirdrop__factory,
+  MockRouter,
+  MockStakeTogether,
+} from '../../typechain'
 import connect from '../utils/connect'
 import { airdropFixture } from './Airdrop.fixture'
 
@@ -99,26 +105,22 @@ describe('Airdrop', function () {
   describe('Set Config', function () {
     it('should correctly set the StakeTogether address', async function () {
       // User1 tries to set the StakeTogether address to zero address - should fail
-      await expect(connect(airdrop, owner).setStakeTogether(nullAddress)).to.be.reverted
-
-      // User1 tries to set the StakeTogether address to their own address - should fail
-      await expect(connect(airdrop, user1).setStakeTogether(user1.address)).to.be.reverted
-
-      // Owner sets the StakeTogether address - should succeed
-      await connect(airdrop, owner).setStakeTogether(user1.address)
+      await expect(connect(airdrop, owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
+        airdrop,
+        'StakeTogetherAlreadySet',
+      )
 
       // Verify that the StakeTogether address was correctly set
-      expect(await airdrop.stakeTogether()).to.equal(user1.address)
+      expect(await airdrop.stakeTogether()).to.equal(await mockStakeTogether.getAddress())
     })
 
     it('should correctly set the Router address', async function () {
-      await expect(connect(airdrop, owner).setRouter(nullAddress)).to.be.reverted
+      await expect(connect(airdrop, owner).setRouter(nullAddress)).to.be.revertedWithCustomError(
+        airdrop,
+        'RouterAlreadySet',
+      )
 
-      await expect(connect(airdrop, user1).setRouter(user1.address)).to.be.reverted
-
-      await connect(airdrop, owner).setRouter(user1.address)
-
-      expect(await airdrop.router()).to.equal(user1.address)
+      expect(await airdrop.router()).to.equal(await mockRouter.getAddress())
     })
   })
 
@@ -167,50 +169,77 @@ describe('Airdrop', function () {
 
     it('should revert if there is no extra Ether in contract balance', async function () {
       await mockStakeTogether.setFeeAddress(2, user5.address)
-      await expect(airdrop.connect(owner).transferExtraAmount()).to.be.revertedWith('NO_EXTRA_AMOUNT')
+      await expect(airdrop.connect(owner).transferExtraAmount()).to.be.revertedWithCustomError(
+        airdrop,
+        'NoExtraAmountAvailable',
+      )
     })
   })
 
   describe('addMerkleRoot', function () {
     it('should add a Merkle root if called by the router address', async function () {
+      const AirdropFactory = new Airdrop__factory().connect(owner)
+      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+      await airdrop2.waitForDeployment()
+      const airdropContract2 = airdrop2 as unknown as Airdrop
+      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
+      await airdropContract2.connect(owner).setRouter(owner.address)
+
       const reportBlock = await mockRouter.reportBlock()
       const merkleRoot = ethers.keccak256('0x1234')
 
-      await connect(airdrop, owner).setRouter(owner.address)
-
-      await expect(connect(airdrop, owner).addMerkleRoot(reportBlock, merkleRoot))
-        .to.emit(airdrop, 'AddMerkleRoot')
+      await expect(connect(airdropContract2, owner).addMerkleRoot(reportBlock, merkleRoot))
+        .to.emit(airdropContract2, 'AddMerkleRoot')
         .withArgs(reportBlock, merkleRoot)
 
-      expect(await airdrop.merkleRoots(reportBlock)).to.equal(merkleRoot)
+      expect(await airdrop2.merkleRoots(reportBlock)).to.equal(merkleRoot)
     })
 
     it('should fail if called by an address other than the router', async function () {
       const reportBlock = await mockRouter.reportBlock()
       const merkleRoot = ethers.keccak256('0x1234')
 
-      await expect(connect(airdrop, user1).addMerkleRoot(reportBlock, merkleRoot)).to.be.revertedWith(
-        'ONLY_ROUTER',
-      )
+      await expect(
+        connect(airdrop, user1).addMerkleRoot(reportBlock, merkleRoot),
+      ).to.be.revertedWithCustomError(airdrop, 'OnlyRouter')
     })
 
     it('should fail if Merkle root is already set for the report block', async function () {
+      const AirdropFactory = new Airdrop__factory().connect(owner)
+      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+      await airdrop2.waitForDeployment()
+      const airdropContract2 = airdrop2 as unknown as Airdrop
+      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
+      await airdropContract2.connect(owner).setRouter(owner.address)
+
       const merkleRoot1 = ethers.keccak256('0x1234')
       const merkleRoot2 = ethers.keccak256('0x5678')
 
       const reportBlock = await mockRouter.reportBlock()
 
-      await connect(airdrop, owner).setRouter(owner.address)
-      await connect(airdrop, owner).addMerkleRoot(reportBlock, merkleRoot1)
+      await connect(airdropContract2, owner).addMerkleRoot(reportBlock, merkleRoot1)
 
-      await expect(connect(airdrop, owner).addMerkleRoot(reportBlock, merkleRoot2)).to.be.revertedWith(
-        'ROOT_ALREADY_SET_FOR_BLOCK',
-      )
+      await expect(
+        connect(airdropContract2, owner).addMerkleRoot(reportBlock, merkleRoot2),
+      ).to.be.revertedWithCustomError(airdrop, 'MerkleRootAlreadySetForBlock')
     })
   })
 
   describe('Claim', function () {
     it('should allow a valid claim and emit claim event', async function () {
+      const AirdropFactory = new Airdrop__factory().connect(owner)
+      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+      await airdrop2.waitForDeployment()
+      const airdropContract2 = airdrop2 as unknown as Airdrop
+      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
+      await airdropContract2.connect(owner).setRouter(owner.address)
+
       const user5Balance = await mockStakeTogether.balanceOf(user5.address)
       expect(user5Balance).to.equal(0n)
 
@@ -226,6 +255,8 @@ describe('Airdrop', function () {
       const user1Shares = user1DepositAmount - fee
 
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
+
+      await mockStakeTogether.connect(owner).setFeeAddress(0, await airdropContract2.getAddress())
 
       const tx1 = await mockStakeTogether
         .connect(user1)
@@ -249,26 +280,26 @@ describe('Airdrop', function () {
 
       const proof2 = tree.getProof([index1, user2.address, 25000000000000n])
 
-      await airdrop.connect(owner).setRouter(owner.address)
-
       // 3
-      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+      await airdropContract2.connect(owner).addMerkleRoot(epoch, tree.root)
 
       // 4
-      await expect(airdrop.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1))
-        .to.emit(airdrop, 'Claim')
+      await expect(
+        airdropContract2.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1),
+      )
+        .to.emit(airdropContract2, 'Claim')
         .withArgs(epoch, index0, user5.address, 50000000000000n, proof1)
 
       await expect(
-        airdrop.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1),
-      ).to.be.revertedWith('ALREADY_CLAIMED')
+        airdropContract2.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1),
+      ).to.be.revertedWithCustomError(airdrop, 'AlreadyClaimed')
 
-      expect(await airdrop.isClaimed(epoch, index0)).to.equal(true)
-      expect(await airdrop.isClaimed(epoch, index1)).to.equal(false)
+      expect(await airdropContract2.isClaimed(epoch, index0)).to.equal(true)
+      expect(await airdropContract2.isClaimed(epoch, index1)).to.equal(false)
 
-      await airdrop.connect(user1).claim(epoch, index1, user2.address, 25000000000000n, proof2)
+      await airdropContract2.connect(user1).claim(epoch, index1, user2.address, 25000000000000n, proof2)
 
-      expect(await airdrop.isClaimed(epoch, index1)).to.equal(true)
+      expect(await airdropContract2.isClaimed(epoch, index1)).to.equal(true)
 
       const user5BalanceUpdated = await mockStakeTogether.balanceOf(user5.address)
       expect(user5BalanceUpdated).to.equal(50000000000000n)
@@ -284,10 +315,19 @@ describe('Airdrop', function () {
       const proof: string[] = []
       await expect(
         airdrop.connect(user1).claim(epoch, index, user1.address, sharesAmount, proof),
-      ).to.be.revertedWith('MERKLE_ROOT_NOT_SET')
+      ).to.be.revertedWithCustomError(airdrop, 'MerkleRootNotSet')
     })
 
     it('should revert if the account address is zero', async function () {
+      const AirdropFactory = new Airdrop__factory().connect(owner)
+      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+      await airdrop2.waitForDeployment()
+      const airdropContract2 = airdrop2 as unknown as Airdrop
+      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
+      await airdropContract2.connect(owner).setRouter(owner.address)
+
       const epoch = 1
       const index0 = 0n
       const index1 = 1n
@@ -300,17 +340,24 @@ describe('Airdrop', function () {
       const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
 
       const proof1 = tree.getProof([index0, nullAddress, 5000000000000000000n])
-      const proof2 = tree.getProof([index1, user2.address, 2500000000000000000n])
 
-      await airdrop.connect(owner).setRouter(owner.address)
-      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+      await airdropContract2.connect(owner).addMerkleRoot(epoch, tree.root)
 
       await expect(
-        airdrop.connect(user1).claim(epoch, index0, nullAddress, 5000000000000000000n, proof1),
-      ).to.be.revertedWith('ZERO_ADDRESS')
+        airdropContract2.connect(user1).claim(epoch, index0, nullAddress, 5000000000000000000n, proof1),
+      ).to.be.revertedWithCustomError(airdropContract2, 'ZeroAddress')
     })
 
     it('should revert if the account amount is zero', async function () {
+      const AirdropFactory = new Airdrop__factory().connect(owner)
+      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+      await airdrop2.waitForDeployment()
+      const airdropContract2 = airdrop2 as unknown as Airdrop
+      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
+      await airdropContract2.connect(owner).setRouter(owner.address)
+
       const epoch = 1
       const index0 = 0n
       const index1 = 1n
@@ -324,15 +371,23 @@ describe('Airdrop', function () {
 
       const proof1 = tree.getProof([index0, user1.address, 0n])
 
-      await airdrop.connect(owner).setRouter(owner.address)
-      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+      await airdropContract2.connect(owner).addMerkleRoot(epoch, tree.root)
 
       await expect(
-        airdrop.connect(user1).claim(epoch, index0, user1.address, 0n, proof1),
-      ).to.be.revertedWith('ZERO_AMOUNT')
+        airdropContract2.connect(user1).claim(epoch, index0, user1.address, 0n, proof1),
+      ).to.be.revertedWithCustomError(airdrop, 'ZeroAmount')
     })
 
     it('should revert if proof is invalid', async function () {
+      const AirdropFactory = new Airdrop__factory().connect(owner)
+      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+      await airdrop2.waitForDeployment()
+      const airdropContract2 = airdrop2 as unknown as Airdrop
+      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
+      await airdropContract2.connect(owner).setRouter(owner.address)
+
       const epoch = 1
       const index0 = 0n
       const index1 = 1n
@@ -344,12 +399,11 @@ describe('Airdrop', function () {
 
       const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
 
-      await airdrop.connect(owner).setRouter(owner.address)
-      await airdrop.connect(owner).addMerkleRoot(epoch, tree.root)
+      await airdropContract2.connect(owner).addMerkleRoot(epoch, tree.root)
 
       await expect(
-        airdrop.connect(user1).claim(epoch, index0, user1.address, 5000000000000000000n, []),
-      ).to.be.revertedWith('INVALID_PROOF')
+        airdropContract2.connect(user1).claim(epoch, index0, user1.address, 5000000000000000000n, []),
+      ).to.be.revertedWithCustomError(airdropContract2, 'InvalidProof')
     })
   })
 })

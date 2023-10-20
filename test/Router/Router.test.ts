@@ -112,16 +112,13 @@ describe('Router', function () {
 
     it('should correctly set the StakeTogether address', async function () {
       // User1 tries to set the StakeTogether address to zero address - should fail
-      await expect(connect(router, owner).setStakeTogether(nullAddress)).to.be.reverted
-
-      // User1 tries to set the StakeTogether address to their own address - should fail
-      await expect(connect(router, user1).setStakeTogether(user1.address)).to.be.reverted
-
-      // Owner sets the StakeTogether address - should succeed
-      await connect(router, owner).setStakeTogether(user1.address)
+      await expect(connect(router, owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
+        airdrop,
+        'StakeTogetherAlreadySet',
+      )
 
       // Verify that the StakeTogether address was correctly set
-      expect(await router.stakeTogether()).to.equal(user1.address)
+      expect(await router.stakeTogether()).to.equal(await stakeTogether.getAddress())
     })
 
     describe('Receive Ether', function () {
@@ -177,7 +174,7 @@ describe('Router', function () {
         await expect(router.connect(user1).setConfig(config)).to.be.reverted
       })
 
-      it('should not allow non-owner to set configuration', async function () {
+      it('should revert with high margin', async function () {
         const config = {
           bunkerMode: false,
           reportDelayBlock: 60,
@@ -189,7 +186,10 @@ describe('Router', function () {
         }
 
         // Attempt to set config by non-owner should fail
-        await expect(router.connect(owner).setConfig(config)).to.be.revertedWith('MARGIN_TOO_HIGH')
+        await expect(router.connect(owner).setConfig(config)).to.be.revertedWithCustomError(
+          router,
+          'MarginTooHigh',
+        )
       })
     })
   })
@@ -218,8 +218,9 @@ describe('Router', function () {
     it('should revert when adding an already existing report oracle', async function () {
       const existingOracle = user2.address // The oracle added in the beforeEach block
 
-      await expect(router.connect(owner).addReportOracle(existingOracle)).to.be.revertedWith(
-        'REPORT_ORACLE_EXISTS',
+      await expect(router.connect(owner).addReportOracle(existingOracle)).to.be.revertedWithCustomError(
+        router,
+        'OracleExists',
       )
     })
 
@@ -257,9 +258,9 @@ describe('Router', function () {
     it('should revert when trying to remove a non-existing report oracle', async function () {
       const nonExistingOracle = user3.address
 
-      await expect(router.connect(owner).removeReportOracle(nonExistingOracle)).to.be.revertedWith(
-        'REPORT_ORACLE_NOT_EXISTS',
-      )
+      await expect(
+        router.connect(owner).removeReportOracle(nonExistingOracle),
+      ).to.be.revertedWithCustomError(router, 'OracleNotExists')
     })
   })
 
@@ -284,16 +285,16 @@ describe('Router', function () {
       await router.connect(owner).unBlacklistReportOracle(user2.address)
 
       // Try to un-blacklist the oracle again (it's no longer blacklisted)
-      await expect(router.connect(owner).unBlacklistReportOracle(user2.address)).to.be.revertedWith(
-        'REPORT_ORACLE_NOT_BLACKLISTED',
-      )
+      await expect(
+        router.connect(owner).unBlacklistReportOracle(user2.address),
+      ).to.be.revertedWithCustomError(router, 'OracleNotBlacklisted')
     })
 
     it('should revert when trying to un-blacklist a non-existing oracle', async function () {
       // Un-blacklist a non-existing oracle
-      await expect(router.connect(owner).unBlacklistReportOracle(user3.address)).to.be.revertedWith(
-        'REPORT_ORACLE_NOT_EXISTS',
-      )
+      await expect(
+        router.connect(owner).unBlacklistReportOracle(user3.address),
+      ).to.be.revertedWithCustomError(router, 'OracleNotExists')
     })
   })
 
@@ -310,7 +311,10 @@ describe('Router', function () {
       await router.connect(owner).addSentinel(user1.address)
 
       // Try to add the same sentinel again
-      await expect(router.connect(owner).addSentinel(user1.address)).to.be.revertedWith('SENTINEL_EXISTS')
+      await expect(router.connect(owner).addSentinel(user1.address)).to.be.revertedWithCustomError(
+        router,
+        'SentinelExists',
+      )
     })
 
     it('should revert when trying to add a sentinel by a non-admin', async function () {
@@ -338,8 +342,9 @@ describe('Router', function () {
 
       it('should revert when trying to remove a non-existing sentinel', async function () {
         // Try to remove a sentinel that was not added
-        await expect(router.connect(owner).removeSentinel(user2.address)).to.be.revertedWith(
-          'SENTINEL_NOT_EXISTS',
+        await expect(router.connect(owner).removeSentinel(user2.address)).to.be.revertedWithCustomError(
+          router,
+          'SentinelNotExists',
         )
       })
 
@@ -380,7 +385,10 @@ describe('Router', function () {
         accumulatedReports: 0n,
       }
 
-      await expect(router.connect(user2).submitReport(report)).to.be.revertedWith('ONLY_ACTIVE_ORACLE')
+      await expect(router.connect(user2).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'OnlyActiveOracle',
+      )
     })
 
     it('should revert if block min quorum not achieved', async function () {
@@ -406,8 +414,9 @@ describe('Router', function () {
 
       await advanceBlocks(1000)
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'EPOCH_SHOULD_BE_GREATER',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'EpochShouldBeGreater',
       )
     })
 
@@ -434,8 +443,9 @@ describe('Router', function () {
 
       await advanceBlocks(1000)
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'EPOCH_SHOULD_BE_GREATER',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'EpochShouldBeGreater',
       )
     })
 
@@ -491,8 +501,9 @@ describe('Router', function () {
       const tx1 = await router.connect(user1).submitReport(report)
       await expect(tx1).to.emit(router, 'SubmitReport')
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'ORACLE_ALREADY_REPORTED',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'OracleAlreadyReported',
       )
     })
 
@@ -535,20 +546,23 @@ describe('Router', function () {
         accumulatedReports: 0n,
       }
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'ORACLE_ALREADY_REPORTED',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'OracleAlreadyReported',
       )
 
       await advanceBlocks(500)
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'ORACLE_ALREADY_REPORTED',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'OracleAlreadyReported',
       )
 
       await advanceBlocks(500)
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'ORACLE_ALREADY_REPORTED',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'OracleAlreadyReported',
       )
     })
 
@@ -605,15 +619,19 @@ describe('Router', function () {
         accumulatedReports: 0n,
       }
 
-      await expect(router.connect(user1).submitReport(tempReport)).to.be.revertedWith(
-        'ORACLE_ALREADY_REPORTED',
+      await expect(router.connect(user1).submitReport(tempReport)).to.be.revertedWithCustomError(
+        router,
+        'OracleAlreadyReported',
       )
 
       const currentBlockReport = await router.reportBlock()
 
-      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('TOO_EARLY_TO_EXECUTE')
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWithCustomError(
+        router,
+        'EarlyExecution',
+      )
 
-      expect(currentBlockReport).to.equal(49n)
+      expect(currentBlockReport).to.equal(52n)
     })
 
     it('should reach consensus and fail if execute early', async function () {
@@ -649,7 +667,10 @@ describe('Router', function () {
         await network.provider.send('evm_mine')
       }
 
-      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('TOO_EARLY_TO_EXECUTE')
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWithCustomError(
+        router,
+        'EarlyExecution',
+      )
     })
 
     it('should skip if consensus not achieved', async function () {
@@ -673,7 +694,7 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(49n)
+      expect(currentBlockReport).to.equal(52n)
 
       report = {
         epoch: 2n,
@@ -690,8 +711,9 @@ describe('Router', function () {
 
       await advanceBlocks(1100)
 
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWith(
-        'INCREASE_ORACLES_TO_USE_MARGIN',
+      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'IncreaseOraclesToUseMargin',
       )
 
       const config2 = {
@@ -731,8 +753,9 @@ describe('Router', function () {
 
       await expect(failTx).to.emit(router, 'ConsensusFail')
 
-      await expect(router.connect(user5).submitReport(report)).to.be.revertedWith(
-        'BLOCK_NUMBER_NOT_REACHED',
+      await expect(router.connect(user5).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'BlockNumberNotReached',
       )
 
       await advanceBlocks(1000)
@@ -768,7 +791,7 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(49n)
+      expect(currentBlockReport).to.equal(52n)
 
       report = {
         epoch: 2n,
@@ -808,8 +831,9 @@ describe('Router', function () {
 
       await expect(failTx).to.emit(router, 'ConsensusFail')
 
-      await expect(router.connect(user5).submitReport(report)).to.be.revertedWith(
-        'BLOCK_NUMBER_NOT_REACHED',
+      await expect(router.connect(user5).submitReport(report)).to.be.revertedWithCustomError(
+        router,
+        'BlockNumberNotReached',
       )
 
       await advanceBlocks(1000)
@@ -913,8 +937,9 @@ describe('Router', function () {
 
       await advanceBlocks(300)
 
-      await expect(router.connect(user1).executeReport(report)).to.revertedWith(
-        'NOT_ENOUGH_BEACON_BALANCE',
+      await expect(router.connect(user1).executeReport(report)).to.revertedWithCustomError(
+        router,
+        'BeaconBalanceTooLow',
       )
     })
 
@@ -990,7 +1015,10 @@ describe('Router', function () {
       await tx.wait()
       expect(tx).to.emit(router, 'RevokeConsensusReport')
 
-      await expect(router.connect(user1).executeReport(report)).to.be.revertedWith('NOT_ACTIVE_CONSENSUS')
+      await expect(router.connect(user1).executeReport(report)).to.be.revertedWithCustomError(
+        router,
+        'NoActiveConsensus',
+      )
 
       await advanceBlocks(1000)
 
@@ -1278,7 +1306,7 @@ describe('Router', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
-      ).to.be.revertedWith('WFP')
+      ).to.be.revertedWithCustomError(stakeTogether, 'WithdrawFromPool')
 
       expect(await stakeTogether.withdrawBalance()).equal(0n)
       expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('32'))
@@ -1289,7 +1317,7 @@ describe('Router', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawValidator(withdrawAmount2, poolAddress),
-      ).to.be.revertedWith('IBB')
+      ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientBeaconBalance')
 
       const tx2 = await stakeTogether
         .connect(user2)
@@ -1309,9 +1337,13 @@ describe('Router', function () {
 
       expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
 
-      await expect(stakeTogether.connect(user2).anticipateWithdrawValidator()).to.be.revertedWith('NCO')
+      await expect(
+        stakeTogether.connect(user2).anticipateWithdrawValidator(),
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
-      await expect(stakeTogether.connect(user1).anticipateWithdrawValidator()).to.be.revertedWith('NPB')
+      await expect(
+        stakeTogether.connect(user1).anticipateWithdrawValidator(),
+      ).to.be.revertedWithCustomError(stakeTogether, 'NotEnoughPoolBalance')
 
       expect(await ethers.provider.getBalance(router)).equal(0n)
 
@@ -1375,6 +1407,72 @@ describe('Router', function () {
       await expect(executeTx).to.emit(airdrop, 'AddMerkleRoot')
       await expect(executeTx).to.emit(withdrawals, 'ReceiveWithdrawEther')
       expect(await ethers.provider.getBalance(withdrawals)).equal(ethers.parseEther('35'))
+    })
+
+    it('should revert LossMustBeZero', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      await advanceBlocks(1000)
+
+      const invalidReport = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 1000n,
+        profitShares: 0n,
+        lossAmount: 1n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      for (const oracle of oracles) {
+        if (oracle === user1) {
+          await expect(router.connect(oracle).submitReport(invalidReport)).to.be.revertedWithCustomError(
+            router,
+            'LossMustBeZero',
+          )
+        }
+      }
+    })
+
+    it('should revert ProfitSharesMustBeZero', async function () {
+      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
+      const oracles = [user1, user2, user3, user4, user5]
+
+      for (const oracle of oracles) {
+        await router.connect(owner).addReportOracle(oracle.address)
+      }
+
+      await advanceBlocks(1000)
+
+      const invalidReport = {
+        epoch: 2n,
+        merkleRoot: ethers.hexlify(new Uint8Array(32)),
+        profitAmount: 0n,
+        profitShares: 1n,
+        lossAmount: 1n,
+        withdrawAmount: 200n,
+        withdrawRefundAmount: 100n,
+        routerExtraAmount: 300n,
+        validatorsToRemove: [],
+        accumulatedReports: 0n,
+      }
+
+      for (const oracle of oracles) {
+        if (oracle === user1) {
+          await expect(router.connect(oracle).submitReport(invalidReport)).to.be.revertedWithCustomError(
+            router,
+            'ProfitSharesMustBeZero',
+          )
+        }
+      }
     })
 
     it('should return the correct hash for the report', async function () {

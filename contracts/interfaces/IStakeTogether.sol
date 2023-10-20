@@ -1,11 +1,128 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 /// @title StakeTogether Interface
 /// @notice This interface defines the essential structures and functions for the StakeTogether protocol.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 interface IStakeTogether {
+  /// @notice Thrown if the deposit limit is reached.
+  error DepositLimitReached();
+
+  /// @notice Thrown if the feature is disabled.
+  error FeatureDisabled();
+
+  /// @notice Thrown if there is insufficient beacon balance.
+  error InsufficientBeaconBalance();
+
+  /// @notice Thrown if there are insufficient funds in the account.
+  error InsufficientAccountBalance();
+
+  /// @notice Thrown if the allowance is insufficient.
+  error InsufficientAllowance();
+
+  /// @notice Thrown if there is insufficient pool balance.
+  error InsufficientPoolBalance();
+
+  /// @notice Thrown if there are insufficient shares.
+  error InsufficientShares();
+
+  /// @notice Thrown if the allocations length is invalid.
+  error InvalidLength();
+
+  /// @notice Thrown if the total percentage is invalid.
+  error InvalidSum();
+
+  /// @notice Thrown if the value is invalid.
+  error InvalidValue();
+
+  /// @notice Thrown if the pool size is less than the validator size.
+  error InvalidSize();
+
+  /// @notice Thrown if the total percentage is not equal to 1 ether.
+  error InvalidTotalPercentage();
+
+  /// @notice Thrown if the number of delegations exceeds the maximum limit.
+  error MaxDelegations();
+
+  /// @notice Thrown if the withdrawal amount is less than the minimum required.
+  error LessThanMinimumWithdraw();
+
+  /// @notice Thrown if the caller is not the airdrop.
+  error OnlyAirdrop();
+
+  /// @notice Thrown if the caller is not the router.
+  error OnlyRouter();
+
+  /// @notice Thrown if the caller is not a validator oracle.
+  error OnlyValidatorOracle();
+
+  /// @notice Thrown if the caller does not have the appropriate role.
+  error NotAuthorized();
+
+  /// @notice Thrown if the account is not in anti-fraud list.
+  error NotInAntiFraudList();
+
+  /// @notice Thrown if the caller is not the current oracle.
+  error NotIsCurrentValidatorOracle();
+
+  /// @notice Thrown if there is not enough pool balance.
+  error NotEnoughPoolBalance();
+
+  /// @notice Thrown if there is not enough balance on pool.
+  error NotEnoughBalanceOnPool();
+
+  /// @notice Thrown if the pool is not found.
+  error PoolNotFound();
+
+  /// @notice Thrown if the pool already exists.
+  error PoolExists();
+
+  /// @notice Thrown if the listed in anti-fraud.
+  error ListedInAntiFraud();
+
+  /// @notice Thrown if the router balance is greater than the withdrawal balance.
+  error RouterAlreadyHaveBalance();
+
+  /// @notice Thrown if the router balance is lower than the withdrawal balance.
+  error ShouldAnticipateWithdraw();
+
+  /// @notice Thrown if the delegations length should be zero.
+  error ShouldBeZeroLength();
+
+  /// @notice Thrown if the validator oracle already exists.
+  error ValidatorOracleExists();
+
+  /// @notice Thrown if the validator oracle is not found.
+  error ValidatorOracleNotFound();
+
+  /// @notice Thrown if the withdrawal amount is zero.
+  error ZeroAmount();
+
+  /// @notice Thrown if the address is the zero address.
+  error ZeroAddress();
+
+  /// @notice Thrown if there is zero supply.
+  error ZeroSupply();
+
+  /// @notice Thrown if the deposit amount is less than the minimum required.
+  error LessThanMinimumDeposit();
+
+  /// @notice Thrown if the withdrawal pool limit is reached.
+  error WithdrawalsPoolLimitReached();
+
+  /// @notice Thrown if the withdrawal validator limit is reached.
+  error WithdrawalsValidatorLimitWasReached();
+
+  /// @notice Thrown if the withdrawal balance is zero.
+  error WithdrawZeroBalance();
+
+  /// @notice Thrown if the amount is not greater than the pool balance.
+  error WithdrawFromPool();
+
+  /// @notice Thrown if the validator already exists.
+  error ValidatorExists();
+
   /// @notice Configuration for the StakeTogether protocol.
   struct Config {
     uint256 blocksPerDay; /// Number of blocks per day.
@@ -121,7 +238,7 @@ interface IStakeTogether {
   /// @notice Emitted when the deposit limit is reached
   /// @param sender The address of the sender
   /// @param amount The amount deposited
-  event DepositLimitReached(address indexed sender, uint256 amount);
+  event DepositLimitWasReached(address indexed sender, uint256 amount);
 
   /// @notice Emitted when rewards are minted
   /// @param to The address to mint to
@@ -170,6 +287,11 @@ interface IStakeTogether {
   /// @notice Emitted when the beacon balance is set
   /// @param amount The amount set for the beacon balance
   event SetBeaconBalance(uint256 amount);
+
+  /// @notice Emitted when a user's anti-fraud status is changed
+  /// @param account The address of the account
+  /// @param isListed The new anti-fraud status of the account (true if listed, false otherwise)
+  event SetAntiFraudStatus(address indexed account, bool isListed);
 
   /// @notice Emitted when the configuration is set
   /// @param config The configuration struct
@@ -227,7 +349,7 @@ interface IStakeTogether {
   /// @notice Emitted when the withdrawal limit is reached
   /// @param sender The address of the sender
   /// @param amount The amount withdrawn
-  event WithdrawalsLimitReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
+  event WithdrawalsLimitWasReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
 
   /// @notice Stake Together Pool Initialization
   /// @param _router The address of the router.
@@ -265,6 +387,16 @@ interface IStakeTogether {
   /// @param _account The address of the account.
   /// @return Balance value of the given account.
   function balanceOf(address _account) external view returns (uint256);
+
+  /// @notice Retrieves the current balance of the beacon.
+  /// @dev This function returns the current stored value within the beacon.
+  /// @return The balance held within the beacon in uint256 format.
+  function beaconBalance() external view returns (uint256);
+
+  /// @notice Retrieves the available balance for withdrawal.
+  /// @dev This function returns the balance that is currently available for withdrawal.
+  /// @return The available balance for withdrawal in uint256 format.
+  function withdrawBalance() external view returns (uint256);
 
   /// @notice Calculates the wei amount by shares.
   /// @param _sharesAmount Amount of shares.
@@ -307,18 +439,6 @@ interface IStakeTogether {
   /// @return A boolean value indicating whether the operation succeeded.
   function approve(address _spender, uint256 _amount) external returns (bool);
 
-  /// @notice Increases the allowance granted to `_spender` by the caller.
-  /// @param _spender Address of the spender.
-  /// @param _addedValue The additional amount to increase the allowance by.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function increaseAllowance(address _spender, uint256 _addedValue) external returns (bool);
-
-  /// @notice Decreases the allowance granted to `_spender` by the caller.
-  /// @param _spender Address of the spender.
-  /// @param _subtractedValue The amount to subtract from the allowance.
-  /// @return A boolean value indicating whether the operation succeeded.
-  function decreaseAllowance(address _spender, uint256 _subtractedValue) external returns (bool);
-
   /// @notice Deposits into the pool with specific delegations.
   /// @param _pool the address of the pool.
   /// @param _referral The referral address.
@@ -339,6 +459,23 @@ interface IStakeTogether {
   /// @param _amount The amount to withdraw.
   /// @param _pool the address of the pool.
   function withdrawValidator(uint256 _amount, address _pool) external;
+
+  /// @notice Adds an address to the anti-fraud list.
+  /// @dev Callable only by accounts with the ANTI_FRAUD_SENTINEL_ROLE or ANTI_FRAUD_MANAGER_ROLE.
+  /// Reverts if the provided address is the zero address or if the sender is not authorized.
+  /// @param _account The address to be added to the anti-fraud list.
+  function addToAntiFraud(address _account) external;
+
+  /// @notice Removes an address from the anti-fraud list.
+  /// @dev Callable only by accounts with the ANTI_FRAUD_MANAGER_ROLE.
+  /// Reverts if the provided address is the zero address, not in the anti-fraud list, or if the sender is not authorized.
+  /// @param _account The address to be removed from the anti-fraud list.
+  function removeFromAntiFraud(address _account) external;
+
+  /// @notice Check if an address is listed in the anti-fraud list.
+  /// @param _account The address to be checked.
+  /// @return true if the address is in the anti-fraud list, false otherwise.
+  function isListedInAntiFraud(address _account) external view returns (bool);
 
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
@@ -368,10 +505,6 @@ interface IStakeTogether {
 
   /// @notice Forces the selection of the next validator oracle.
   function forceNextValidatorOracle() external;
-
-  /****************
-   ** VALIDATORS **
-   ****************/
 
   /// @notice Sets the beacon balance to the specified amount.
   /// @param _amount The amount to set as the beacon balance.

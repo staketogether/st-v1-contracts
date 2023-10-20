@@ -1,22 +1,21 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/cryptography/MerkleProofUpgradeable.sol';
-
-import './Router.sol';
-import './StakeTogether.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
 import './interfaces/IAirdrop.sol';
+import './interfaces/IRouter.sol';
+import './interfaces/IStakeTogether.sol';
 
 /// @title Airdrop Contract for StakeTogether Protocol
 /// @notice This contract manages the Airdrop functionality for the StakeTogether protocol, providing methods to set and claim rewards.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 contract Airdrop is
   Initializable,
   PausableUpgradeable,
@@ -29,8 +28,8 @@ contract Airdrop is
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); // Role allowing an account to perform administrative operations.
   uint256 public version; // The version of the contract.
 
-  StakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
-  Router public router; // The reference to the Router contract for routing related operations.
+  IRouter public router; // The reference to the Router contract for routing related operations.
+  IStakeTogether public stakeTogether; // The reference to the StakeTogether contract for staking related operations.
 
   mapping(uint256 => bytes32) public merkleRoots; // Stores the merkle roots for block number. This is used for claims verification.
   mapping(uint256 => mapping(uint256 => uint256)) private claimBitMap; // A nested mapping where the first key is the block and the second key is the user's index.
@@ -78,7 +77,7 @@ contract Airdrop is
   /// @dev Only callable by the admin role.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance;
-    require(extraAmount > 0, 'NO_EXTRA_AMOUNT');
+    if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     payable(stakeTogetherFee).transfer(extraAmount);
   }
@@ -87,8 +86,9 @@ contract Airdrop is
   /// @param _stakeTogether The address of the StakeTogether contract.
   /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
-    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
+    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -96,8 +96,9 @@ contract Airdrop is
   /// @param _router The address of the router.
   /// @dev Only callable by the admin role.
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
-    require(_router != address(0), 'ROUTER_CONTRACT_ALREADY_SET');
-    router = Router(payable(_router));
+    if (address(router) != address(0)) revert RouterAlreadySet();
+    if (address(_router) == address(0)) revert ZeroAddress();
+    router = IRouter(payable(_router));
     emit SetRouter(_router);
   }
 
@@ -110,8 +111,8 @@ contract Airdrop is
   /// @param _root The Merkle root.
   /// @dev Only callable by the router.
   function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
-    require(msg.sender == address(router), 'ONLY_ROUTER');
-    require(merkleRoots[_reportBlock] == bytes32(0), 'ROOT_ALREADY_SET_FOR_BLOCK');
+    if (msg.sender != address(router)) revert OnlyRouter();
+    if (merkleRoots[_reportBlock] != bytes32(0)) revert MerkleRootAlreadySetForBlock();
     merkleRoots[_reportBlock] = _root;
     emit AddMerkleRoot(_reportBlock, _root);
   }
@@ -130,13 +131,14 @@ contract Airdrop is
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
-    require(!isClaimed(_blockNumber, _index), 'ALREADY_CLAIMED');
-    require(merkleRoots[_blockNumber] != bytes32(0), 'MERKLE_ROOT_NOT_SET');
-    require(_account != address(0), 'ZERO_ADDRESS');
-    require(_sharesAmount > 0, 'ZERO_AMOUNT');
+    if (stakeTogether.isListedInAntiFraud(_account)) revert ListedInAntiFraud();
+    if (isClaimed(_blockNumber, _index)) revert AlreadyClaimed();
+    if (merkleRoots[_blockNumber] == bytes32(0)) revert MerkleRootNotSet();
+    if (_account == address(0)) revert ZeroAddress();
+    if (_sharesAmount == 0) revert ZeroAmount();
 
     bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_index, _account, _sharesAmount))));
-    require(MerkleProofUpgradeable.verify(merkleProof, merkleRoots[_blockNumber], leaf), 'INVALID_PROOF');
+    if (!MerkleProof.verify(merkleProof, merkleRoots[_blockNumber], leaf)) revert InvalidProof();
 
     _setClaimed(_blockNumber, _index);
 

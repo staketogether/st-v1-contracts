@@ -1,11 +1,41 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 /// @title Interface for Validators Withdrawals
 /// @notice A contract that represent the validator withdrawal functionality
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 interface IWithdrawals {
+  /// @notice This error is thrown when the sender has insufficient STW balance to perform a transaction.
+  error InsufficientStwBalance();
+
+  /// @notice This error is thrown when the contract has insufficient ETH balance to perform a transaction.
+  error InsufficientEthBalance();
+
+  /// @notice Thrown if the listed in anti-fraud.
+  error ListedInAntiFraud();
+
+  /// @notice This error is thrown when there is no extra amount of ETH available to transfer.
+  error NoExtraAmountAvailable();
+
+  /// @notice This error is thrown when an action is attempted by an address other than the router.
+  error OnlyRouter();
+
+  /// @notice This error is thrown when an action is attempted by an address other than the stakeTogether contract.
+  error OnlyStakeTogether();
+
+  /// @notice This error is thrown when trying to set the router contract that has already been set.
+  error RouterAlreadySet();
+
+  /// @notice This error is thrown when trying to set the stakeTogether address that has already been set.
+  error StakeTogetherAlreadySet();
+
+  /// @notice Thrown if the shares amount being claimed is zero.
+  error ZeroAmount();
+
+  /// @notice Thrown if the address trying to make a claim is the zero address.
+  error ZeroAddress();
+
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
   event ReceiveEther(uint256 amount);
@@ -74,4 +104,17 @@ interface IWithdrawals {
   /// @param _amount Amount of ETH to check.
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
   function isWithdrawReady(uint256 _amount) external view returns (bool);
+
+  /// @notice Transfers an amount of wei to the specified address.
+  /// @param _to The address to transfer to.
+  /// @param _amount The amount to be transferred.
+  /// @return True if the transfer was successful.
+  function transfer(address _to, uint256 _amount) external returns (bool);
+
+  /// @notice Transfers tokens from one address to another using an allowance mechanism.
+  /// @param _from Address to transfer from.
+  /// @param _to Address to transfer to.
+  /// @param _amount Amount of tokens to transfer.
+  /// @return A boolean value indicating whether the operation succeeded.
+  function transferFrom(address _from, address _to, uint256 _amount) external returns (bool);
 }

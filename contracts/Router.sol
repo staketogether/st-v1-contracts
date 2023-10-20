@@ -1,25 +1,23 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
-import '@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import '@openzeppelin/contracts/utils/math/Math.sol';
 
-import './Airdrop.sol';
-import './StakeTogether.sol';
-import './Withdrawals.sol';
-
-import './interfaces/IStakeTogether.sol';
+import './interfaces/IAirdrop.sol';
 import './interfaces/IRouter.sol';
+import './interfaces/IStakeTogether.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @title Router Contract for the StakeTogether platform.
 /// @dev This contract handles routing functionalities, is pausable, upgradable, and guards against reentrancy attacks.
 /// It also leverages access controls for administrative purposes. This contract should be initialized after deployment.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 contract Router is
   Initializable,
   PausableUpgradeable,
@@ -35,9 +33,9 @@ contract Router is
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE'); /// Role for reporting as an oracle.
   uint256 public version; /// Contract version.
 
-  StakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  Withdrawals public withdrawals; /// Instance of the Withdrawals contract.
-  Airdrop public airdrop; /// Instance of the Airdrop contract.
+  IAirdrop public airdrop; /// Instance of the Airdrop contract.
+  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
 
   uint256 public totalReportOracles; /// Total number of reportOracles.
@@ -78,8 +76,8 @@ contract Router is
 
     version = 1;
 
-    airdrop = Airdrop(payable(_airdrop));
-    withdrawals = Withdrawals(payable(_withdrawals));
+    airdrop = IAirdrop(payable(_airdrop));
+    withdrawals = IWithdrawals(payable(_withdrawals));
 
     totalReportOracles = 0;
     reportBlock = block.number;
@@ -116,7 +114,7 @@ contract Router is
   /// @notice Allows the Stake Together to send ETH to the contract.
   /// @dev This function can only be called by the Stake Together.
   function receiveWithdrawEther() external payable {
-    require(msg.sender == address(stakeTogether), 'ONLY_STAKE_TOGETHER');
+    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
     emit ReceiveWithdrawEther(msg.value);
   }
 
@@ -124,8 +122,9 @@ contract Router is
   /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
   /// @param _stakeTogether The address of the StakeTogether contract.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
-    require(_stakeTogether != address(0), 'STAKE_TOGETHER_ALREADY_SET');
-    stakeTogether = StakeTogether(payable(_stakeTogether));
+    if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
+    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
+    stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -138,8 +137,8 @@ contract Router is
   /// @param _config A struct containing various configuration parameters.
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
-    require(config.reportDelayBlock < config.reportFrequency, 'REPORT_DELAY_BLOCKS_TOO_HIGH');
-    require(config.reportNoConsensusMargin < config.oracleQuorum, 'MARGIN_TOO_HIGH');
+    if (config.reportDelayBlock >= config.reportFrequency) revert ReportDelayBlocksTooHigh();
+    if (config.reportNoConsensusMargin >= config.oracleQuorum) revert MarginTooHigh();
     emit SetConfig(_config);
   }
 
@@ -149,7 +148,7 @@ contract Router is
 
   /// @dev Modifier to ensure that the caller is an active report oracle.
   modifier activeReportOracle() {
-    require(isReportOracle(msg.sender), 'ONLY_ACTIVE_ORACLE');
+    if (!isReportOracle(msg.sender)) revert OnlyActiveOracle();
     _;
   }
 
@@ -171,8 +170,9 @@ contract Router is
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
   /// @param _account Address of the oracle to be added.
   function addReportOracle(address _account) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(!reportOracles[_account], 'REPORT_ORACLE_EXISTS');
-    require(!reportOraclesBlacklist[_account], 'REPORT_ORACLE_BLACKLISTED');
+    if (reportOracles[_account]) revert OracleExists();
+    if (reportOraclesBlacklist[_account]) revert OracleBlacklisted();
+    if (_account == address(0)) revert ZeroAddress();
     _grantRole(ORACLE_REPORT_ROLE, _account);
     reportOracles[_account] = true;
     totalReportOracles++;
@@ -183,7 +183,7 @@ contract Router is
   /// @dev Only an account with the ORACLE_REPORT_MANAGER_ROLE can call this function.
   /// @param _account Address of the oracle to be removed.
   function removeReportOracle(address _account) external onlyRole(ORACLE_REPORT_MANAGER_ROLE) {
-    require(reportOracles[_account], 'REPORT_ORACLE_NOT_EXISTS');
+    if (!reportOracles[_account]) revert OracleNotExists();
     _revokeRole(ORACLE_REPORT_ROLE, _account);
     reportOracles[_account] = false;
     totalReportOracles--;
@@ -194,7 +194,7 @@ contract Router is
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _account Address of the oracle to be blacklisted.
   function blacklistReportOracle(address _account) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(reportOracles[_account], 'REPORT_ORACLE_NOT_EXISTS');
+    if (!reportOracles[_account]) revert OracleNotExists();
     reportOraclesBlacklist[_account] = true;
     if (totalReportOracles > 0) {
       totalReportOracles--;
@@ -206,8 +206,8 @@ contract Router is
   /// @dev Only an account with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _account Address of the oracle to be removed from the blacklist.
   function unBlacklistReportOracle(address _account) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(reportOracles[_account], 'REPORT_ORACLE_NOT_EXISTS');
-    require(reportOraclesBlacklist[_account], 'REPORT_ORACLE_NOT_BLACKLISTED');
+    if (!reportOracles[_account]) revert OracleNotExists();
+    if (!reportOraclesBlacklist[_account]) revert OracleNotBlacklisted();
     reportOraclesBlacklist[_account] = false;
     totalReportOracles++;
     emit UnBlacklistReportOracle(_account);
@@ -217,7 +217,8 @@ contract Router is
   /// @dev Only an account with the ADMIN_ROLE can call this function.
   /// @param _account Address of the account to be added as sentinel.
   function addSentinel(address _account) external onlyRole(ADMIN_ROLE) {
-    require(!hasRole(ORACLE_SENTINEL_ROLE, _account), 'SENTINEL_EXISTS');
+    if (hasRole(ORACLE_SENTINEL_ROLE, _account)) revert SentinelExists();
+    if (_account == address(0)) revert ZeroAddress();
     grantRole(ORACLE_SENTINEL_ROLE, _account);
   }
 
@@ -225,7 +226,7 @@ contract Router is
   /// @dev Only an account with the ADMIN_ROLE can call this function.
   /// @param _account Address of the sentinel account to be removed.
   function removeSentinel(address _account) external onlyRole(ADMIN_ROLE) {
-    require(hasRole(ORACLE_SENTINEL_ROLE, _account), 'SENTINEL_NOT_EXISTS');
+    if (!hasRole(ORACLE_SENTINEL_ROLE, _account)) revert SentinelNotExists();
     revokeRole(ORACLE_SENTINEL_ROLE, _account);
   }
 
@@ -319,8 +320,8 @@ contract Router is
   /// @dev Computes the next report block and updates the state variable 'reportBlock'.
   /// @return The next report block number.
   function _advanceNextReportBlock() private returns (uint256) {
-    uint256 intervalsPassed = MathUpgradeable.mulDiv(block.number, 1, config.reportFrequency);
-    uint256 nextReportBlock = MathUpgradeable.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
+    uint256 intervalsPassed = Math.mulDiv(block.number, 1, config.reportFrequency);
+    uint256 nextReportBlock = Math.mulDiv(intervalsPassed + 1, config.reportFrequency, 1);
     emit AdvanceNextBlock(reportBlock, nextReportBlock);
     reportBlock = nextReportBlock;
     return reportBlock;
@@ -330,8 +331,8 @@ contract Router is
   /// Ensures that the report exists, hasn't been revoked, and the block number is greater than the last executed one.
   /// @param _reportBlock The block number of the report to be revoked.
   function _revokeConsensusReport(uint256 _reportBlock) private {
-    require(!revokedReports[_reportBlock], 'REPORT_ALREADY_REVOKED');
-    require(_reportBlock > lastExecutedBlock, 'REPORT_BLOCK_SHOULD_BE_GREATER');
+    if (revokedReports[_reportBlock]) revert ReportRevoked();
+    if (_reportBlock <= lastExecutedBlock) revert ReportBlockShouldBeGreater();
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
     emit RevokeConsensusReport(_reportBlock);
@@ -340,8 +341,8 @@ contract Router is
 
   /// @notice Force to advance to the next reportBlock.
   function forceNextReportBlock() external nonReentrant activeReportOracle {
-    require(block.number > reportBlock + config.reportFrequency, 'CONSENSUS_NOT_DELAYED');
-    require(!pendingExecution, 'PENDING_EXECUTION');
+    if (block.number <= reportBlock + config.reportFrequency) revert ConsensusNotDelayed();
+    if (pendingExecution) revert PendingExecution();
     _revokeConsensusReport(reportBlock);
   }
 
@@ -349,8 +350,8 @@ contract Router is
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
   /// @param _reportBlock The report block for which the report was approved.
   function revokeConsensusReport(uint256 _reportBlock) external onlyRole(ORACLE_SENTINEL_ROLE) {
-    require(consensusReport[_reportBlock] != bytes32(0), 'NOT_CONSENSUS_REPORT');
-    require(pendingExecution, 'NO_PENDING_EXECUTION');
+    if (consensusReport[_reportBlock] == bytes32(0)) revert NoActiveConsensus();
+    if (!pendingExecution) revert NoPendingExecution();
     _revokeConsensusReport(_reportBlock);
   }
 
@@ -375,28 +376,28 @@ contract Router is
   /// @return The keccak256 hash of the report.
   function isReadyToSubmit(Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(totalReportOracles >= config.oracleQuorum, 'QUORUM_NOT_REACHED');
-    require(block.number > reportBlock, 'BLOCK_NUMBER_NOT_REACHED');
-    require(_report.epoch > lastExecutedEpoch, 'EPOCH_SHOULD_BE_GREATER');
-    require(!executedReports[reportBlock][hash], 'ALREADY_EXECUTED');
-    require(!reportForBlock[reportBlock][msg.sender], 'ORACLE_ALREADY_REPORTED');
-    require(!pendingExecution, 'PENDING_EXECUTION');
-    require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
+    if (totalReportOracles < config.oracleQuorum) revert QuorumNotReached();
+    if (block.number <= reportBlock) revert BlockNumberNotReached();
+    if (_report.epoch <= lastExecutedEpoch) revert EpochShouldBeGreater();
+    if (executedReports[reportBlock][hash]) revert AlreadyExecuted();
+    if (reportForBlock[reportBlock][msg.sender]) revert OracleAlreadyReported();
+    if (pendingExecution) revert PendingExecution();
+    if (config.reportFrequency <= 0) revert ConfigNotSet();
 
     if (config.reportNoConsensusMargin > 0) {
-      require(
-        config.reportNoConsensusMargin < totalReportOracles - config.oracleQuorum,
-        'INCREASE_ORACLES_TO_USE_MARGIN'
-      );
+      if (config.reportNoConsensusMargin >= totalReportOracles - config.oracleQuorum) {
+        revert IncreaseOraclesToUseMargin();
+      }
     }
 
     if (_report.profitAmount > 0) {
-      require(_report.lossAmount == 0, 'LOSS_MUST_BE_ZERO');
-    }
-
-    if (_report.lossAmount > 0) {
-      require(_report.profitAmount == 0, 'PROFIT_A_MUST_BE_ZERO');
-      require(_report.profitShares == 0, 'PROFIT_S_MUST_BE_ZERO');
+      if (_report.lossAmount != 0) {
+        revert LossMustBeZero();
+      }
+    } else if (_report.lossAmount > 0) {
+      if (_report.profitShares != 0) {
+        revert ProfitSharesMustBeZero();
+      }
     }
 
     return hash;
@@ -408,29 +409,23 @@ contract Router is
   /// @return The keccak256 hash of the report.
   function isReadyToExecute(Report calldata _report) public view returns (bytes32) {
     bytes32 hash = keccak256(abi.encode(_report));
-    require(totalReportOracles >= config.oracleQuorum, 'QUORUM_NOT_REACHED');
-    require(!revokedReports[reportBlock], 'REVOKED_REPORT');
-    require(!executedReports[reportBlock][hash], 'ALREADY_EXECUTED');
-    require(consensusReport[reportBlock] == hash, 'NOT_ACTIVE_CONSENSUS');
-    require(
-      block.number >= reportDelayBlock[reportBlock] + config.reportDelayBlock,
-      'TOO_EARLY_TO_EXECUTE'
-    );
-    require(
-      _report.lossAmount + _report.withdrawRefundAmount <= stakeTogether.beaconBalance(),
-      'NOT_ENOUGH_BEACON_BALANCE'
-    );
-    require(_report.withdrawAmount <= stakeTogether.withdrawBalance(), 'NOT_ENOUGH_WITHDRAW_BALANCE');
-    require(
-      address(this).balance >=
-        (_report.profitAmount +
-          _report.withdrawAmount +
-          _report.withdrawRefundAmount +
-          _report.routerExtraAmount),
-      'NOT_ENOUGH_ETH'
-    );
-    require(pendingExecution, 'NO_PENDING_EXECUTION');
-    require(config.reportFrequency > 0, 'CONFIG_NOT_SET');
+    if (totalReportOracles < config.oracleQuorum) revert QuorumNotReached();
+    if (revokedReports[reportBlock]) revert ReportRevoked();
+    if (executedReports[reportBlock][hash]) revert AlreadyExecuted();
+    if (consensusReport[reportBlock] != hash) revert NoActiveConsensus();
+    if (block.number < reportDelayBlock[reportBlock] + config.reportDelayBlock) revert EarlyExecution();
+    if (_report.lossAmount + _report.withdrawRefundAmount > stakeTogether.beaconBalance())
+      revert BeaconBalanceTooLow();
+    if (_report.withdrawAmount > stakeTogether.withdrawBalance()) revert WithdrawBalanceTooLow();
+    if (
+      address(this).balance <
+      (_report.profitAmount +
+        _report.withdrawAmount +
+        _report.withdrawRefundAmount +
+        _report.routerExtraAmount)
+    ) revert InsufficientEthBalance();
+    if (!pendingExecution) revert NoPendingExecution();
+    if (config.reportFrequency == 0) revert ConfigNotSet();
     return hash;
   }
 }

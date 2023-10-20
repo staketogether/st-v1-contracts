@@ -1,11 +1,44 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.app>
+// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.20;
 
 /// @title Interface for the Airdrop functionality within the Stake Together protocol.
 /// @notice A contract that represents the Airdrop functionality.
-/// @custom:security-contact security@staketogether.app
+/// @custom:security-contact security@staketogether.org
 interface IAirdrop {
+  /// @notice Thrown if a claim has already been made for a given block and index.
+  error AlreadyClaimed();
+
+  /// @notice Thrown if the Merkle Proof verification fails.
+  error InvalidProof();
+
+  /// @notice Thrown if the listed in anti-fraud.
+  error ListedInAntiFraud();
+
+  /// @notice Thrown if the Merkle Root is not set for a given block number.
+  error MerkleRootNotSet();
+
+  /// @notice This error is thrown when trying to set a Merkle Root that has already been set for a given block.
+  error MerkleRootAlreadySetForBlock();
+
+  /// @notice This error is thrown when there is no extra ETH available for transfer.
+  error NoExtraAmountAvailable();
+
+  /// @notice This error is thrown when an action is performed by an address that is not the router.
+  error OnlyRouter();
+
+  /// @notice This error is thrown when trying to set the router address that is already set.
+  error RouterAlreadySet();
+
+  /// @notice This error is thrown when trying to set the stakeTogether address that is already set.
+  error StakeTogetherAlreadySet();
+
+  /// @notice Thrown if the shares amount being claimed is zero.
+  error ZeroAmount();
+
+  /// @notice Thrown if the address trying to make a claim is the zero address.
+  error ZeroAddress();
+
   /// @notice Emitted when a new Merkle root is added.
   /// @param reportBlock The block report number corresponding to the Merkle root.
   /// @param merkleRoot The Merkle root.

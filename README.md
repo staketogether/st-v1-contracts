@@ -1,4 +1,4 @@
-#  Stake Together Smart Contracts
+# Stake Together Smart Contracts
 
 Welcome to the smart contracts of **Stake Together**. This is an Ethereum staking protocol designed especially for communities.
 
@@ -18,7 +18,7 @@ The interfaces are licensed under **GPL-3.0**.
 - How to Deploy
 - About
 
-##  Protocol Overview
+## Protocol Overview
 
 The **Stake Together** protocol functions as a staking pool mechanism, allowing users to create and deposit ether into staking pools. Each deposit results in the issuance of an **stpETH** token as collateral.
 
@@ -28,14 +28,14 @@ Reports are generated daily by oracles and, once a consensus among them is reach
 
 Users can request withdrawals, which are processed by the **Stake Together** contract or, in the absence of liquidity, can burn stpETH to generate stwETH.
 
-##  Contract Summaries
+## Contract Summaries
 
 - **Stake Together**: Manages pools, deposits, withdrawals, and validator creation.
 - **Router**: Receives reports from oracles, achieves consensus, and distributes ETH to associated contracts.
 - **Withdrawals**: Manages the withdrawal of ETH from validators.
 - **Airdrop**: Handles the payment of rewards and incentives via stpETH.
 
-##  Environment Setup
+## Environment Setup
 
 ### Prerequisites
 
@@ -46,7 +46,7 @@ Before you start, make sure you have the following software installed on your sy
 - **Typescript**
 - **Solidity**
 
-##  How to Run
+## How to Run
 
 Follow these steps to get ready for the **Stake Together** smart contracts:
 
@@ -78,7 +78,7 @@ Execute the next command:
 npm run compile
 ```
 
-##  How to Test
+## How to Test
 
 All tests are located in the `test` directory.
 
@@ -94,7 +94,7 @@ All contracts have 100% test coverage. To verify the coverage, execute:
 npm run coverage
 ```
 
-##  How to Deploy
+## How to Deploy
 
 To deploy on the Goerli testnet, ensure you have at least 1.1 ETH in your wallet and run:
 
@@ -105,12 +105,10 @@ npm run goerli:deploy
 Thank you for being a part of the **Stake Together** community!
 If you have feedback or questions, feel free to contribute or get in touch.
 
+## About
 
-##  About
-
-**Website**: [staketogether.app](https://staketogether.app)
+**Website**: [staketogether.org](https://staketogether.org)
 
 **Support on Discord**: [Join our server](https://discord.com/invite/w3keCscVsC)
 
 **Follow us on Twitter**: [@0xStakeTogether](https://twitter.com/0xStakeTogether)
-
