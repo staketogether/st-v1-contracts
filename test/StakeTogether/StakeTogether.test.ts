@@ -31,6 +31,7 @@ describe('Stake Together', function () {
   let VALIDATOR_ORACLE_MANAGER_ROLE: string
   let VALIDATOR_ORACLE_ROLE: string
   let VALIDATOR_ORACLE_SENTINEL_ROLE: string
+  let VALIDATOR_MANAGER_ROLE: string
   let initialBalance: bigint
 
   // Setting up the fixture before each test
@@ -56,6 +57,7 @@ describe('Stake Together', function () {
     VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
     VALIDATOR_ORACLE_ROLE = fixture.VALIDATOR_ORACLE_ROLE
     VALIDATOR_ORACLE_SENTINEL_ROLE = fixture.VALIDATOR_ORACLE_SENTINEL_ROLE
+    VALIDATOR_MANAGER_ROLE = fixture.VALIDATOR_MANAGER_ROLE
     initialBalance = await ethers.provider.getBalance(stakeTogetherProxy)
   })
 
@@ -143,7 +145,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address // Example pool address
 
       // Adding the pool
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       // Three users depositing 1 Ether each
       const users = [user1, user2, user3]
@@ -186,7 +188,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address // Example pool address
 
       // Adding the pool
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       // Two users depositing 1 Ether each
       const users = [user1, user2]
@@ -246,7 +248,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       await stakeTogether
         .connect(airdropFeeAddress)
@@ -360,7 +362,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -393,7 +395,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('0.001')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const config = await stakeTogether.config()
       expect(config.minDepositAmount).to.equal(user1DepositAmount)
@@ -419,7 +421,7 @@ describe('Stake Together', function () {
       const toAddress = user2.address
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -458,7 +460,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('10') / 3n
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
 
@@ -495,7 +497,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address
       const referral = user4.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
 
@@ -530,7 +532,7 @@ describe('Stake Together', function () {
       const referral = user4.address
       const blocksPerDay = 7200
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee1 = (user1DepositAmount * 3n) / 1000n
 
@@ -591,7 +593,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('0.0005')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       await expect(
         stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount }),
@@ -647,8 +649,8 @@ describe('Stake Together', function () {
       const poolAddress1 = user3.address
       const poolAddress2 = user4.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress1, true)
-      await stakeTogether.connect(owner).addPool(poolAddress2, true)
+      await stakeTogether.connect(owner).addPool(poolAddress1, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress2, true, false)
 
       const poolAddress = user3.address
 
@@ -676,7 +678,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -711,7 +713,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100') / 3n
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
 
@@ -744,7 +746,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
 
@@ -766,7 +768,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -788,7 +790,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -835,7 +837,7 @@ describe('Stake Together', function () {
       const referral = user4.address
 
       // Deposit from user1 and user2
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
       await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
@@ -886,7 +888,7 @@ describe('Stake Together', function () {
       const referral = user4.address
 
       // Deposit from user1 and user2
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
       await stakeTogether.connect(user2).depositPool(poolAddress, referral, { value: depositAmount })
@@ -913,9 +915,9 @@ describe('Stake Together', function () {
 
       await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('40') })
 
-      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
-      await stakeTogether.connect(oracle).createValidator(publicKey2, signature, depositDataRoot)
-      await stakeTogether.connect(oracle).createValidator(publicKey3, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey2, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey3, signature, depositDataRoot)
 
       const beaconBalance = await stakeTogether.beaconBalance()
       expect(beaconBalance).to.equal(validatorSize * 3n)
@@ -941,7 +943,7 @@ describe('Stake Together', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -1041,7 +1043,7 @@ describe('Stake Together', function () {
       const depositAmount = ethers.parseEther('2')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
@@ -1051,9 +1053,7 @@ describe('Stake Together', function () {
       await tx1.wait()
 
       // Creating the validator
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       const beaconBalanceBefore = ethers.parseEther('50')
       await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
@@ -1099,7 +1099,7 @@ describe('Stake Together', function () {
       const isListed = true
 
       // Add the pool
-      await stakeTogether.connect(owner).addPool(poolAddress, isListed)
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed, false)
 
       // Verify the pool has been added
       expect(await stakeTogether.pools(poolAddress)).to.be.true
@@ -1122,7 +1122,9 @@ describe('Stake Together', function () {
       const paymentAmount = ethers.parseEther('1') // Set the appropriate value to pay the fees
 
       // Add the pool
-      await stakeTogether.connect(userSigner).addPool(poolAddress, isListed, { value: paymentAmount })
+      await stakeTogether
+        .connect(userSigner)
+        .addPool(poolAddress, isListed, false, { value: paymentAmount })
 
       // Verify the pool has been added
       expect(await stakeTogether.pools(poolAddress)).to.be.true
@@ -1138,10 +1140,9 @@ describe('Stake Together', function () {
 
     it('should reject adding a pool with zero address', async function () {
       // Attempt to add the pool with a zero address and expect failure
-      await expect(stakeTogether.connect(owner).addPool(nullAddress, true)).to.be.revertedWithCustomError(
-        stakeTogether,
-        'ZeroAddress',
-      )
+      await expect(
+        stakeTogether.connect(owner).addPool(nullAddress, true, false),
+      ).to.be.revertedWithCustomError(stakeTogether, 'ZeroAddress')
     })
 
     it('should reject adding a pool with an existing address', async function () {
@@ -1149,11 +1150,11 @@ describe('Stake Together', function () {
       const isListed = true
 
       // Owner adds the pool
-      await stakeTogether.connect(owner).addPool(poolAddress, isListed)
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed, false)
 
       // Attempt to add the pool again and expect failure
       await expect(
-        stakeTogether.connect(owner).addPool(poolAddress, isListed),
+        stakeTogether.connect(owner).addPool(poolAddress, isListed, false),
       ).to.be.revertedWithCustomError(stakeTogether, 'PoolExists')
     })
 
@@ -1182,7 +1183,7 @@ describe('Stake Together', function () {
       // Attempt to add the pool and expect failure
       const poolAddress = user3.address
       await expect(
-        stakeTogether.connect(user1).addPool(poolAddress, true, { value: ethers.parseEther('1') }),
+        stakeTogether.connect(user1).addPool(poolAddress, true, false, { value: ethers.parseEther('1') }),
       ).to.be.revertedWithCustomError(stakeTogether, 'FeatureDisabled')
     })
 
@@ -1192,7 +1193,7 @@ describe('Stake Together', function () {
       const paymentAmount = ethers.parseEther('1') // The value to pass
 
       // Add the pool
-      await stakeTogether.connect(owner).addPool(poolAddress, isListed, { value: paymentAmount })
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed, false, { value: paymentAmount })
 
       // Verify the pool has been added
       expect(await stakeTogether.pools(poolAddress)).to.be.true
@@ -1212,7 +1213,7 @@ describe('Stake Together', function () {
       const paymentAmount = ethers.parseEther('1') // The value to pay the fees
 
       // Add the pool by a non-owner user
-      await stakeTogether.connect(user1).addPool(poolAddress, isListed, { value: paymentAmount })
+      await stakeTogether.connect(user1).addPool(poolAddress, isListed, false, { value: paymentAmount })
 
       // Verify the pool has been added
       expect(await stakeTogether.pools(poolAddress)).to.be.true
@@ -1222,7 +1223,7 @@ describe('Stake Together', function () {
       // Add a pool first
       const poolAddress = user3.address
       const isListed = true
-      await stakeTogether.connect(owner).addPool(poolAddress, isListed)
+      await stakeTogether.connect(owner).addPool(poolAddress, isListed, false)
 
       // Verify the pool has been added
       expect(await stakeTogether.pools(poolAddress)).to.be.true
@@ -1257,8 +1258,8 @@ describe('Stake Together', function () {
       // Add pools
       const poolAddress1 = user3.address
       const poolAddress2 = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress1, true)
-      await stakeTogether.connect(owner).addPool(poolAddress2, true)
+      await stakeTogether.connect(owner).addPool(poolAddress1, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress2, true, false)
 
       // Verify that shares are initially zero for user1
       expect(await stakeTogether.shares(user1.address)).to.equal(0)
@@ -1277,6 +1278,33 @@ describe('Stake Together', function () {
         expect(await stakeTogether.pools(delegation.pool)).to.be.true
         expect(delegation.percentage).to.equal(0)
       }
+    })
+
+    it('should fail when trying to remove validators without VALIDATOR_MANAGER_ROLE', async function () {
+      const publicKeys = [
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
+        '0xa34b931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e123f0335be39b974302e42462aee077ab56',
+      ]
+
+      // Trying to remove validators without the VALIDATOR_MANAGER_ROLE should be reverted
+      await expect(stakeTogether.connect(user1).removeValidators(publicKeys)).to.be.reverted
+    })
+
+    it('should successfully remove validators with VALIDATOR_MANAGER_ROLE', async function () {
+      const publicKeys = [
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
+        '0xa34b931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e123f0335be39b974302e42462aee077ab56',
+      ]
+
+      // Grant the VALIDATOR_MANAGER_ROLE to the owner
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_MANAGER_ROLE, owner.address)
+
+      // Trying to remove validators with the VALIDATOR_MANAGER_ROLE should succeed
+      const tx = await stakeTogether.connect(owner).removeValidators(publicKeys)
+      await tx.wait()
+
+      // You can also capture and check the event if the contract emits an event when removing validators
+      await expect(tx).to.emit(stakeTogether, 'RemoveValidators').withArgs(publicKeys)
     })
   })
 
@@ -1485,14 +1513,12 @@ describe('Stake Together', function () {
 
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
 
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
 
       await expect(tx)
-        .to.emit(stakeTogether, 'CreateValidator')
+        .to.emit(stakeTogether, 'AddValidator')
         .withArgs(
           oracle.address,
           validatorSize,
@@ -1533,41 +1559,41 @@ describe('Stake Together', function () {
 
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
 
-      await stakeTogether.connect(oracle1).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle1).addValidator(publicKey, signature, depositDataRoot)
       let nextPublicKey = incrementPublicKey()
 
       await expect(
-        stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle3).addValidator(nextPublicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle2).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle2).addValidator(nextPublicKey, signature, depositDataRoot)
 
       await expect(
-        stakeTogether.connect(oracle1).createValidator(nextPublicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle1).addValidator(nextPublicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle3).addValidator(nextPublicKey, signature, depositDataRoot)
 
       await expect(
-        stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle5).addValidator(nextPublicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle4).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle4).addValidator(nextPublicKey, signature, depositDataRoot)
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle5).addValidator(nextPublicKey, signature, depositDataRoot)
 
       nextPublicKey = incrementPublicKey()
       const tx = await stakeTogether
         .connect(oracle1)
-        .createValidator(nextPublicKey, signature, depositDataRoot)
+        .addValidator(nextPublicKey, signature, depositDataRoot)
 
       const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
       await expect(tx)
-        .to.emit(stakeTogether, 'CreateValidator')
+        .to.emit(stakeTogether, 'AddValidator')
         .withArgs(
           oracle1.address,
           validatorSize,
@@ -1587,7 +1613,7 @@ describe('Stake Together', function () {
       const invalidOracle = user2
 
       await expect(
-        stakeTogether.connect(invalidOracle).createValidator(publicKey, signature, depositDataRoot),
+        stakeTogether.connect(invalidOracle).addValidator(publicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'OnlyValidatorOracle')
     })
 
@@ -1600,7 +1626,7 @@ describe('Stake Together', function () {
       await owner.sendTransaction({ to: stakeTogetherProxy, value: insufficientFunds })
 
       await expect(
-        stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotEnoughBalanceOnPool')
     })
 
@@ -1615,11 +1641,11 @@ describe('Stake Together', function () {
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize * 2n })
 
       // Creating the first validator
-      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       // Attempting to create a second validator with the same public key
       await expect(
-        stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'ValidatorExists')
     })
 
@@ -1634,9 +1660,7 @@ describe('Stake Together', function () {
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
 
       // Creating the validator
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
     })
 
     it('should set the beacon balance through the router', async function () {
@@ -1657,7 +1681,7 @@ describe('Stake Together', function () {
     it('should correctly distribute the fee among roles and mint shares accordingly', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
@@ -1759,7 +1783,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1784,7 +1808,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1799,7 +1823,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1815,7 +1839,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1840,7 +1864,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1855,7 +1879,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1872,7 +1896,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1906,7 +1930,7 @@ describe('Stake Together', function () {
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1SharesAfterDeposit = user1DepositAmount - fee
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, {
         value: user1DepositAmount,
       })
@@ -1964,7 +1988,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address
       const fee = (user1DepositAmount * 3n) / 1000n
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const tx = await stakeTogether.connect(user1).transfer(user2.address, transferAmount)
@@ -1986,7 +2010,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address
       const fee = (user1DepositAmount * 3n) / 1000n
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
@@ -2004,7 +2028,7 @@ describe('Stake Together', function () {
       const transferAmount = ethers.parseEther('10')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
@@ -2022,7 +2046,7 @@ describe('Stake Together', function () {
       const transferAmount = ethers.parseEther('10')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       await stakeTogether.connect(user1).approve(owner.address, transferAmount)
@@ -2042,7 +2066,7 @@ describe('Stake Together', function () {
       const transferAmount = ethers.parseEther('10')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       await stakeTogether.connect(user1).approve(owner.address, transferAmount)
@@ -2062,7 +2086,7 @@ describe('Stake Together', function () {
       const transferAmount = ethers.parseEther('10')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       await stakeTogether.connect(user1).approve(owner.address, transferAmount)
@@ -2081,7 +2105,7 @@ describe('Stake Together', function () {
       const sharesToTransfer = ethers.parseEther('2')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
@@ -2099,7 +2123,7 @@ describe('Stake Together', function () {
       const sharesToTransfer = ethers.parseEther('2')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const ANTI_FRAUD_SENTINEL_ROLE = await stakeTogether.ANTI_FRAUD_SENTINEL_ROLE()
@@ -2117,7 +2141,7 @@ describe('Stake Together', function () {
       const sharesToTransfer = ethers.parseEther('2')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, user3, { value: user1DepositAmount })
 
       const tx = await stakeTogether.connect(user1).transferShares(user2.address, sharesToTransfer)
@@ -2175,7 +2199,7 @@ describe('Stake Together', function () {
 
     beforeEach(async function () {
       poolAddress = user3.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
     })
 
     it('Stake Entry', async function () {
@@ -2369,7 +2393,7 @@ describe('Stake Together', function () {
     it('Stake Pool', async function () {
       const depositAmount = ethers.parseEther('1')
 
-      await stakeTogether.connect(owner).addPool(user3.address, true, { value: depositAmount })
+      await stakeTogether.connect(owner).addPool(user3.address, true, false, { value: depositAmount })
 
       const balance = await ethers.provider.getBalance(stakeTogether)
       expect(balance).to.equal(initialBalance + depositAmount)
@@ -2387,7 +2411,7 @@ describe('Stake Together', function () {
       const totalShares2 = await stakeTogether.totalShares()
       expect(totalShares2).to.equal(initialShares + depositAmount)
 
-      await stakeTogether.connect(owner).addPool(user4.address, true, { value: depositAmount })
+      await stakeTogether.connect(owner).addPool(user4.address, true, false, { value: depositAmount })
 
       const balance3 = await ethers.provider.getBalance(stakeTogether)
       expect(balance3).to.equal(initialBalance + depositAmount + depositAmount + depositAmount)

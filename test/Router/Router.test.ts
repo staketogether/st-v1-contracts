@@ -1198,7 +1198,7 @@ describe('Router', function () {
       const depositAmount = ethers.parseEther('2')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
@@ -1208,9 +1208,7 @@ describe('Router', function () {
       await tx1.wait()
 
       // Creating the validator
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       const withdrawAmount = ethers.parseEther('1.5')
 
@@ -1292,7 +1290,7 @@ describe('Router', function () {
       // Deposit
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const tx1 = await stakeTogether
         .connect(user1)
@@ -1300,7 +1298,7 @@ describe('Router', function () {
       await tx1.wait()
 
       // Creating the validator
-      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       const withdrawAmount = ethers.parseEther('1.5')
 
@@ -1324,9 +1322,7 @@ describe('Router', function () {
         .depositPool(poolAddress, referral, { value: ethers.parseEther('40') })
       await tx2.wait()
 
-      await stakeTogether
-        .connect(oracle2)
-        .createValidator(incrementPublicKey(), signature, depositDataRoot)
+      await stakeTogether.connect(oracle2).addValidator(incrementPublicKey(), signature, depositDataRoot)
 
       expect(await ethers.provider.getBalance(stakeTogetherProxy)).equal(9980000000000000000n)
       expect(await stakeTogether.withdrawBalance()).equal(0n)

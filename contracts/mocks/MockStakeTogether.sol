@@ -35,6 +35,7 @@ contract MockStakeTogether is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE'); /// Role for managing pools.
+  bytes32 public constant VALIDATOR_MANAGER_ROLE = keccak256('VALIDATOR_MANAGER_ROLE'); /// Role for managing exit validators.
   bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE'); /// Role for managing validator oracles.
   bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
   bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for sentinel functionality in validator oracle management.
@@ -470,7 +471,11 @@ contract MockStakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
-  function addPool(address _pool, bool _listed) external payable nonReentrant whenNotPaused {
+  function addPool(
+    address _pool,
+    bool _listed,
+    bool _social
+  ) external payable nonReentrant whenNotPaused {
     if (_pool == address(0)) revert ZeroAddress();
     if (pools[_pool]) revert PoolExists();
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
@@ -479,7 +484,7 @@ contract MockStakeTogether is
       _processStakePool();
     }
     pools[_pool] = true;
-    emit AddPool(_pool, _listed, msg.value);
+    emit AddPool(_pool, _listed, _social, msg.value);
   }
 
   /// @notice Removes a pool by its address.
@@ -624,7 +629,7 @@ contract MockStakeTogether is
   /// @param _signature The signature of the validator.
   /// @param _depositDataRoot The deposit data root for the validator.
   /// @dev Only a valid validator oracle can call this function.
-  function createValidator(
+  function addValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
@@ -638,7 +643,7 @@ contract MockStakeTogether is
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit CreateValidator(
+    emit AddValidator(
       msg.sender,
       config.validatorSize,
       _publicKey,
@@ -653,6 +658,14 @@ contract MockStakeTogether is
       _depositDataRoot
     );
     _processStakeValidator();
+  }
+
+  /// @notice Removes validators by their public keys.
+  /// @param _publicKeys The public keys of the validators to be removed.
+  function removeValidators(
+    bytes[] calldata _publicKeys
+  ) external onlyRole(VALIDATOR_MANAGER_ROLE) whenNotPaused {
+    emit RemoveValidators(_publicKeys);
   }
 
   /*************

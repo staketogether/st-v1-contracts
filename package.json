@@ -45,7 +45,7 @@
     "goerli:deploy": "npx hardhat run scripts/deploy.ts --network goerli",
     "goerli:stake": "npx hardhat run scripts/stake.ts --network goerli",
     "goerli:unstake": "npx hardhat run scripts/unstake.ts --network goerli",
-    "goerli:createValidator": "npx hardhat run scripts/createValidator.ts --network goerli",
+    "goerli:addValidator": "npx hardhat run scripts/addValidator.ts --network goerli",
     "goerli:registerValidator": "npx hardhat run scripts/registerValidator.ts --network goerli",
     "verify:goerli": "npx hardhat verify --network goerli",
     "test": "npx hardhat test --typecheck",
