@@ -142,6 +142,7 @@ interface IRouter {
     bytes32[] validatorsToRemove;
     uint256 accumulatedReports;
   }
+
   /// @notice Emitted when a new oracle is added for reporting.
   /// @param reportOracle The address of the oracle that was added.
   event AddReportOracle(address indexed reportOracle);

@@ -187,9 +187,10 @@ interface IStakeTogether {
 
   /// @notice Emitted when a pool is added
   /// @param pool The address of the pool
-  /// @param listed Whether the pool is listed
+  /// @param listed Indicates if the pool is listed
+  /// @param social Indicates if the pool is social
   /// @param amount The amount associated with the pool
-  event AddPool(address indexed pool, bool listed, uint256 amount);
+  event AddPool(address indexed pool, bool listed, bool social, uint256 amount);
 
   /// @notice Emitted when a validator oracle is added
   /// @param account The address of the account
@@ -478,9 +479,10 @@ interface IStakeTogether {
   function isListedInAntiFraud(address _account) external view returns (bool);
 
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
-  /// @param _pool The address of the pool to add.
-  /// @param _listed The listing status of the pool.
-  function addPool(address _pool, bool _listed) external payable;
+  /// @param _pool Address of the new pool.
+  /// @param _listed True if the pool is listed.
+  /// @param _social True if the pool is social.
+  function addPool(address _pool, bool _listed, bool _social) external payable;
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.

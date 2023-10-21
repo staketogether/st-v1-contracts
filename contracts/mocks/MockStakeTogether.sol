@@ -470,7 +470,11 @@ contract MockStakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
-  function addPool(address _pool, bool _listed) external payable nonReentrant whenNotPaused {
+  function addPool(
+    address _pool,
+    bool _listed,
+    bool _social
+  ) external payable nonReentrant whenNotPaused {
     if (_pool == address(0)) revert ZeroAddress();
     if (pools[_pool]) revert PoolExists();
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
@@ -479,7 +483,7 @@ contract MockStakeTogether is
       _processStakePool();
     }
     pools[_pool] = true;
-    emit AddPool(_pool, _listed, msg.value);
+    emit AddPool(_pool, _listed, _social, msg.value);
   }
 
   /// @notice Removes a pool by its address.

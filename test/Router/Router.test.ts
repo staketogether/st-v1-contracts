@@ -1198,7 +1198,7 @@ describe('Router', function () {
       const depositAmount = ethers.parseEther('2')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
@@ -1292,7 +1292,7 @@ describe('Router', function () {
       // Deposit
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
       const tx1 = await stakeTogether
         .connect(user1)
