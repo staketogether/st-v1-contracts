@@ -31,6 +31,7 @@ describe('Stake Together', function () {
   let VALIDATOR_ORACLE_MANAGER_ROLE: string
   let VALIDATOR_ORACLE_ROLE: string
   let VALIDATOR_ORACLE_SENTINEL_ROLE: string
+  let VALIDATOR_MANAGER_ROLE: string
   let initialBalance: bigint
 
   // Setting up the fixture before each test
@@ -56,6 +57,7 @@ describe('Stake Together', function () {
     VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
     VALIDATOR_ORACLE_ROLE = fixture.VALIDATOR_ORACLE_ROLE
     VALIDATOR_ORACLE_SENTINEL_ROLE = fixture.VALIDATOR_ORACLE_SENTINEL_ROLE
+    VALIDATOR_MANAGER_ROLE = fixture.VALIDATOR_MANAGER_ROLE
     initialBalance = await ethers.provider.getBalance(stakeTogetherProxy)
   })
 
@@ -1276,6 +1278,33 @@ describe('Stake Together', function () {
         expect(await stakeTogether.pools(delegation.pool)).to.be.true
         expect(delegation.percentage).to.equal(0)
       }
+    })
+
+    it('should fail when trying to remove validators without VALIDATOR_MANAGER_ROLE', async function () {
+      const publicKeys = [
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
+        '0xa34b931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e123f0335be39b974302e42462aee077ab56',
+      ]
+
+      // Trying to remove validators without the VALIDATOR_MANAGER_ROLE should be reverted
+      await expect(stakeTogether.connect(user1).removeValidators(publicKeys)).to.be.reverted
+    })
+
+    it('should successfully remove validators with VALIDATOR_MANAGER_ROLE', async function () {
+      const publicKeys = [
+        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
+        '0xa34b931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e123f0335be39b974302e42462aee077ab56',
+      ]
+
+      // Grant the VALIDATOR_MANAGER_ROLE to the owner
+      await stakeTogether.connect(owner).grantRole(VALIDATOR_MANAGER_ROLE, owner.address)
+
+      // Trying to remove validators with the VALIDATOR_MANAGER_ROLE should succeed
+      const tx = await stakeTogether.connect(owner).removeValidators(publicKeys)
+      await tx.wait()
+
+      // You can also capture and check the event if the contract emits an event when removing validators
+      await expect(tx).to.emit(stakeTogether, 'RemoveValidators').withArgs(publicKeys)
     })
   })
 

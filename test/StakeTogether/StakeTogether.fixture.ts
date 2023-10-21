@@ -274,6 +274,7 @@ export async function stakeTogetherFixture() {
     await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_MANAGER_ROLE()
   const VALIDATOR_ORACLE_SENTINEL_ROLE =
     await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_SENTINEL_ROLE()
+  const VALIDATOR_MANAGER_ROLE = await stakeTogether.stakeTogetherContract.VALIDATOR_MANAGER_ROLE()
 
   return {
     provider,
@@ -299,5 +300,6 @@ export async function stakeTogetherFixture() {
     VALIDATOR_ORACLE_ROLE,
     VALIDATOR_ORACLE_MANAGER_ROLE,
     VALIDATOR_ORACLE_SENTINEL_ROLE,
+    VALIDATOR_MANAGER_ROLE,
   }
 }
