@@ -213,7 +213,7 @@ interface IStakeTogether {
   /// @param withdrawalCredentials The withdrawal credentials
   /// @param signature The signature
   /// @param depositDataRoot The deposit data root
-  event CreateValidator(
+  event AddValidator(
     address indexed oracle,
     uint256 amount,
     bytes publicKey,
@@ -528,7 +528,7 @@ interface IStakeTogether {
   /// @param _signature The signature of the validator.
   /// @param _depositDataRoot The deposit data root for the validator.
   /// @dev Only a valid validator oracle can call this function.
-  function createValidator(
+  function addValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot

@@ -632,7 +632,7 @@ contract StakeTogether is
   /// @param _signature The signature of the validator.
   /// @param _depositDataRoot The deposit data root for the validator.
   /// @dev Only a valid validator oracle can call this function.
-  function createValidator(
+  function addValidator(
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
@@ -646,7 +646,7 @@ contract StakeTogether is
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit CreateValidator(
+    emit AddValidator(
       msg.sender,
       config.validatorSize,
       _publicKey,

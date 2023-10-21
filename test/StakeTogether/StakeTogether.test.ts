@@ -913,9 +913,9 @@ describe('Stake Together', function () {
 
       await owner.sendTransaction({ to: stakeTogetherProxy, value: ethers.parseEther('40') })
 
-      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
-      await stakeTogether.connect(oracle).createValidator(publicKey2, signature, depositDataRoot)
-      await stakeTogether.connect(oracle).createValidator(publicKey3, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey2, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey3, signature, depositDataRoot)
 
       const beaconBalance = await stakeTogether.beaconBalance()
       expect(beaconBalance).to.equal(validatorSize * 3n)
@@ -1051,9 +1051,7 @@ describe('Stake Together', function () {
       await tx1.wait()
 
       // Creating the validator
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       const beaconBalanceBefore = ethers.parseEther('50')
       await mockRouter.connect(owner).setBeaconBalance(beaconBalanceBefore)
@@ -1486,14 +1484,12 @@ describe('Stake Together', function () {
 
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
 
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
 
       await expect(tx)
-        .to.emit(stakeTogether, 'CreateValidator')
+        .to.emit(stakeTogether, 'AddValidator')
         .withArgs(
           oracle.address,
           validatorSize,
@@ -1534,41 +1530,41 @@ describe('Stake Together', function () {
 
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
 
-      await stakeTogether.connect(oracle1).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle1).addValidator(publicKey, signature, depositDataRoot)
       let nextPublicKey = incrementPublicKey()
 
       await expect(
-        stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle3).addValidator(nextPublicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle2).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle2).addValidator(nextPublicKey, signature, depositDataRoot)
 
       await expect(
-        stakeTogether.connect(oracle1).createValidator(nextPublicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle1).addValidator(nextPublicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle3).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle3).addValidator(nextPublicKey, signature, depositDataRoot)
 
       await expect(
-        stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle5).addValidator(nextPublicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle4).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle4).addValidator(nextPublicKey, signature, depositDataRoot)
 
       nextPublicKey = incrementPublicKey()
-      await stakeTogether.connect(oracle5).createValidator(nextPublicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle5).addValidator(nextPublicKey, signature, depositDataRoot)
 
       nextPublicKey = incrementPublicKey()
       const tx = await stakeTogether
         .connect(oracle1)
-        .createValidator(nextPublicKey, signature, depositDataRoot)
+        .addValidator(nextPublicKey, signature, depositDataRoot)
 
       const withdrawalCredentials = await stakeTogether.withdrawalCredentials()
       await expect(tx)
-        .to.emit(stakeTogether, 'CreateValidator')
+        .to.emit(stakeTogether, 'AddValidator')
         .withArgs(
           oracle1.address,
           validatorSize,
@@ -1588,7 +1584,7 @@ describe('Stake Together', function () {
       const invalidOracle = user2
 
       await expect(
-        stakeTogether.connect(invalidOracle).createValidator(publicKey, signature, depositDataRoot),
+        stakeTogether.connect(invalidOracle).addValidator(publicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'OnlyValidatorOracle')
     })
 
@@ -1601,7 +1597,7 @@ describe('Stake Together', function () {
       await owner.sendTransaction({ to: stakeTogetherProxy, value: insufficientFunds })
 
       await expect(
-        stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'NotEnoughBalanceOnPool')
     })
 
@@ -1616,11 +1612,11 @@ describe('Stake Together', function () {
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize * 2n })
 
       // Creating the first validator
-      await stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot)
+      await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
 
       // Attempting to create a second validator with the same public key
       await expect(
-        stakeTogether.connect(oracle).createValidator(publicKey, signature, depositDataRoot),
+        stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot),
       ).to.be.revertedWithCustomError(stakeTogether, 'ValidatorExists')
     })
 
@@ -1635,9 +1631,7 @@ describe('Stake Together', function () {
       await owner.sendTransaction({ to: stakeTogetherProxy, value: poolSize })
 
       // Creating the validator
-      const tx = await stakeTogether
-        .connect(oracle)
-        .createValidator(publicKey, signature, depositDataRoot)
+      const tx = await stakeTogether.connect(oracle).addValidator(publicKey, signature, depositDataRoot)
     })
 
     it('should set the beacon balance through the router', async function () {
