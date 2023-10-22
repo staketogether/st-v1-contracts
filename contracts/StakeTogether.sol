@@ -339,7 +339,7 @@ contract StakeTogether is
   /// @param _referral The referral address.
   function _depositBase(address _to, DepositType _depositType, address _pool, address _referral) private {
     if (!config.feature.Deposit) revert FeatureDisabled();
-    if (totalSupply() == 0) revert ZeroSupply();
+    if (!(totalSupply() > 0)) revert ZeroSupply();
     if (antiFraudList[_to]) revert ListedInAntiFraud();
     if (msg.value < config.minDepositAmount) revert LessThanMinimumDeposit();
     if (!pools[_pool]) revert PoolNotFound();
