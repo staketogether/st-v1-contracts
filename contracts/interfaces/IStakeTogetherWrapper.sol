@@ -26,11 +26,11 @@ interface IStakeTogetherWrapper {
 
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
-  event ReceiveEther(uint256 amount);
+  event ReceiveEther(uint256 indexed amount);
 
   /// @notice Emitted when the StakeTogether address is set
   /// @param stakeTogether The address of the StakeTogether contract
-  event SetStakeTogether(address stakeTogether);
+  event SetStakeTogether(address indexed stakeTogether);
 
   /// @notice Emitted when stpETH is wrapped into wstpETH.
   /// @param user The address of the user who wrapped the stpETH.

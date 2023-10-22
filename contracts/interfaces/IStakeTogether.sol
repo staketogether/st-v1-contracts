@@ -270,7 +270,7 @@ interface IStakeTogether {
   /// @dev This event emits when rewards are processed for staking, indicating the amount and the number of shares.
   /// @param amount The total amount of rewards that have been processed for staking.
   /// @param sharesAmount The total number of shares associated with the processed staking rewards.
-  event ProcessStakeRewards(uint256 amount, uint256 sharesAmount);
+  event ProcessStakeRewards(uint256 indexed amount, uint256 indexed sharesAmount);
 
   /// @dev This event emits when a validator's stake has been processed.
   /// @param account The address of the account whose stake as a validator has been processed.
@@ -279,7 +279,7 @@ interface IStakeTogether {
 
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
-  event ReceiveEther(uint256 amount);
+  event ReceiveEther(uint256 indexed amount);
 
   /// @notice Emitted when a pool is removed
   /// @param pool The address of the pool
@@ -291,7 +291,7 @@ interface IStakeTogether {
 
   /// @notice Emitted when the beacon balance is set
   /// @param amount The amount set for the beacon balance
-  event SetBeaconBalance(uint256 amount);
+  event SetBeaconBalance(uint256 indexed amount);
 
   /// @notice Emitted when a user's anti-fraud status is changed
   /// @param account The address of the account
@@ -300,7 +300,7 @@ interface IStakeTogether {
 
   /// @notice Emitted when the configuration is set
   /// @param config The configuration struct
-  event SetConfig(Config config);
+  event SetConfig(Config indexed config);
 
   /// @notice Emitted when a fee is set
   /// @param feeType The type of fee being set
@@ -323,11 +323,11 @@ interface IStakeTogether {
 
   /// @notice Emitted when the validator size is set
   /// @param newValidatorSize The new size for the validator
-  event SetValidatorSize(uint256 newValidatorSize);
+  event SetValidatorSize(uint256 indexed newValidatorSize);
 
   /// @notice Emitted when the withdraw balance is set
   /// @param amount The amount set for the withdraw balance
-  event SetWithdrawBalance(uint256 amount);
+  event SetWithdrawBalance(uint256 indexed amount);
 
   /// @notice Emitted when the withdrawal credentials are set
   /// @param withdrawalCredentials The withdrawal credentials bytes

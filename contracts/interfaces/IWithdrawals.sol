@@ -38,19 +38,19 @@ interface IWithdrawals {
 
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
-  event ReceiveEther(uint256 amount);
+  event ReceiveEther(uint256 indexed amount);
 
   /// @notice Emitted when Ether is received from Router
   /// @param amount The amount of Ether received
-  event ReceiveWithdrawEther(uint256 amount);
+  event ReceiveWithdrawEther(uint256 indexed amount);
 
   /// @notice Emitted when the Router address is set
   /// @param router The address of the StakeTogether contract
-  event SetRouter(address router);
+  event SetRouter(address indexed router);
 
   /// @notice Emitted when the StakeTogether address is set
   /// @param stakeTogether The address of the StakeTogether contract
-  event SetStakeTogether(address stakeTogether);
+  event SetStakeTogether(address indexed stakeTogether);
 
   /// @notice Emitted when a user withdraws funds
   /// @param user The address of the user who is withdrawing

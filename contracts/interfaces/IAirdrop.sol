@@ -66,15 +66,15 @@ interface IAirdrop {
 
   /// @notice Emitted when ETH is received by the contract.
   /// @param amount The amount of ETH received.
-  event ReceiveEther(uint256 amount);
+  event ReceiveEther(uint256 indexed amount);
 
   /// @notice Emitted when the router address is set.
   /// @param router The address of the router.
-  event SetRouter(address router);
+  event SetRouter(address indexed router);
 
   /// @notice Emitted when the StakeTogether contract address is set.
   /// @param stakeTogether The address of the StakeTogether contract.
-  event SetStakeTogether(address stakeTogether);
+  event SetStakeTogether(address indexed stakeTogether);
 
   /// @notice Initializes the contract with initial settings.
   function initialize() external;

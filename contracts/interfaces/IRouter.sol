@@ -154,25 +154,25 @@ interface IRouter {
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusApprove(uint256 reportBlock, Report report, bytes32 hash);
+  event ConsensusApprove(uint256 indexed reportBlock, Report report, bytes32 indexed hash);
 
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ConsensusFail(uint256 reportBlock, Report report, bytes32 hash);
+  event ConsensusFail(uint256 indexed reportBlock, Report report, bytes32 indexed hash);
 
   /// @notice Emitted when a report is executed.
   /// @param report The report details.
   /// @param hash The hash of the report for reference.
-  event ExecuteReport(uint256 reportBlock, Report report, bytes32 hash);
+  event ExecuteReport(uint256 indexed reportBlock, Report report, bytes32 indexed hash);
 
   /// @notice Emitted when the contract receives ether.
   /// @param amount The amount of ether received.
-  event ReceiveEther(uint256 amount);
+  event ReceiveEther(uint256 indexed amount);
 
   /// @notice Emitted when Ether is received from Stake Together
   /// @param amount The amount of Ether received
-  event ReceiveWithdrawEther(uint256 amount);
+  event ReceiveWithdrawEther(uint256 indexed amount);
 
   /// @notice Emitted when an oracle is removed from reporting.
   /// @param reportOracle The address of the oracle that was removed.
@@ -180,19 +180,19 @@ interface IRouter {
 
   /// @notice Emitted when a consensus report is revoked.
   /// @param reportBlock The block number at which the consensus was revoked.
-  event RevokeConsensusReport(uint256 reportBlock);
+  event RevokeConsensusReport(uint256 indexed reportBlock);
 
   /// @notice Emitted when the protocol configuration is updated.
   /// @param config The updated configuration.
-  event SetConfig(Config config);
+  event SetConfig(Config indexed config);
 
   /// @notice Emitted when the last consensus block is set.
   /// @param epoch The block number set as the last consensus epoch.
-  event SetLastExecutedEpoch(uint256 epoch);
+  event SetLastExecutedEpoch(uint256 indexed epoch);
 
   /// @notice Emitted when the StakeTogether address is set.
   /// @param stakeTogether The address of the StakeTogether contract.
-  event SetStakeTogether(address stakeTogether);
+  event SetStakeTogether(address indexed stakeTogether);
 
   /// @notice Emitted when the next report frequency is skipped.
   /// @param reportBlock The epoch for which the report frequency was skipped.
@@ -202,7 +202,7 @@ interface IRouter {
   /// @notice Emitted when a report is submitted.
   /// @param report The details of the submitted report.
   /// @param hash The hash of the submitted report.
-  event SubmitReport(Report report, bytes32 hash);
+  event SubmitReport(Report indexed report, bytes32 indexed hash);
 
   /// @notice Emitted when an oracle is unblacklisted.
   /// @param reportOracle The address of the oracle that was unblacklisted.

@@ -1279,7 +1279,9 @@ describe('Stake Together', function () {
         expect(delegation.percentage).to.equal(0)
       }
     })
+  })
 
+  describe('Remove Validators', function () {
     it('should fail when trying to remove validators without VALIDATOR_MANAGER_ROLE', async function () {
       const publicKeys = [
         '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
