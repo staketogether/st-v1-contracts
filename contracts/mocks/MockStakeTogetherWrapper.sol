@@ -11,6 +11,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 
 import '../interfaces/IStakeTogether.sol';
 import '../interfaces/IStakeTogetherWrapper.sol';
@@ -79,7 +80,7 @@ contract MockStakeTogetherWrapper is
     uint256 extraAmount = address(this).balance - totalSupply();
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
-    payable(stakeTogetherFee).transfer(extraAmount);
+    Address.sendValue(payable(stakeTogetherFee), extraAmount);
   }
 
   /// @notice Sets the StakeTogether contract address.

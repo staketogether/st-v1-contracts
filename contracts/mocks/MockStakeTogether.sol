@@ -11,6 +11,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 
 import '../interfaces/IDepositContract.sol';
 import '../interfaces/IRouter.sol';
@@ -193,6 +194,8 @@ contract MockStakeTogether is
     address _to,
     uint256 _amount
   ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+    if (isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     _transfer(msg.sender, _to, _amount);
     return true;
   }
@@ -207,6 +210,8 @@ contract MockStakeTogether is
     address _to,
     uint256 _amount
   ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+    if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -217,8 +222,6 @@ contract MockStakeTogether is
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
   function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
-    if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
-    if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -242,6 +245,8 @@ contract MockStakeTogether is
     address _to,
     uint256 _sharesAmount
   ) private whenNotPaused nonReentrant {
+    if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (_from == address(0)) revert ZeroAddress();
     if (_to == address(0)) revert ZeroAddress();
     if (_sharesAmount > shares[_from]) revert InsufficientShares();
@@ -406,7 +411,7 @@ contract MockStakeTogether is
     if (!config.feature.WithdrawPool) revert FeatureDisabled();
     if (_amount > address(this).balance) revert InsufficientPoolBalance();
     _withdrawBase(_amount, WithdrawType.Pool, _pool);
-    payable(msg.sender).transfer(_amount);
+    Address.sendValue(payable(msg.sender), _amount);
   }
 
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
@@ -800,7 +805,11 @@ contract MockStakeTogether is
       getFeeAddress(FeeRole.Operator),
       fees[FeeType.ProcessStakeValidator].value
     );
-    payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.ProcessStakeValidator].value);
+
+    Address.sendValue(
+      payable(getFeeAddress(FeeRole.Operator)),
+      fees[FeeType.ProcessStakeValidator].value
+    );
   }
 
   /********************

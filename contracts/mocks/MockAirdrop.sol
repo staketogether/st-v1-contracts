@@ -8,6 +8,7 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 
 import '../interfaces/IAirdrop.sol';
 import '../interfaces/IRouter.sol';
@@ -79,7 +80,7 @@ contract MockAirdrop is
     uint256 extraAmount = address(this).balance;
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
-    payable(stakeTogetherFee).transfer(extraAmount);
+    Address.sendValue(payable(stakeTogetherFee), extraAmount);
   }
 
   /// @notice Sets the StakeTogether contract address.

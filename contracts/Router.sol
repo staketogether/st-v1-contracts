@@ -8,6 +8,7 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 
 import './interfaces/IAirdrop.sol';
 import './interfaces/IRouter.sol';
@@ -310,7 +311,8 @@ contract Router is
     }
 
     if (_report.routerExtraAmount > 0) {
-      payable(stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether)).transfer(
+      Address.sendValue(
+        payable(stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether)),
         _report.routerExtraAmount
       );
     }

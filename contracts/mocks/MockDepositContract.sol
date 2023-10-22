@@ -26,4 +26,8 @@ contract MockDepositContract is IDepositContract {
   function to_little_endian_64(uint64 value) internal pure returns (bytes memory ret) {
     ret = new bytes(value);
   }
+
+  function withdraw(uint256 amount, address payable account) external {
+    account.transfer(amount);
+  }
 }
