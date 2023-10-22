@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -11,6 +11,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 
 import './interfaces/IDepositContract.sol';
 import './interfaces/IRouter.sol';
@@ -410,7 +411,7 @@ contract StakeTogether is
     if (!config.feature.WithdrawPool) revert FeatureDisabled();
     if (_amount > address(this).balance) revert InsufficientPoolBalance();
     _withdrawBase(_amount, WithdrawType.Pool, _pool);
-    payable(msg.sender).transfer(_amount);
+    Address.sendValue(payable(msg.sender), _amount);
   }
 
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
@@ -804,6 +805,10 @@ contract StakeTogether is
       getFeeAddress(FeeRole.Operator),
       fees[FeeType.ProcessStakeValidator].value
     );
-    payable(getFeeAddress(FeeRole.Operator)).transfer(fees[FeeType.ProcessStakeValidator].value);
+
+    Address.sendValue(
+      payable(getFeeAddress(FeeRole.Operator)),
+      fees[FeeType.ProcessStakeValidator].value
+    );
   }
 }

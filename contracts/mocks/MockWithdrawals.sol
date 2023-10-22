@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -10,6 +10,7 @@ import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import '@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
+import '@openzeppelin/contracts/utils/Address.sol';
 
 import '../interfaces/IRouter.sol';
 import '../interfaces/IStakeTogether.sol';
@@ -91,7 +92,7 @@ contract MockWithdrawals is
     uint256 extraAmount = address(this).balance - totalSupply();
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
-    payable(stakeTogetherFee).transfer(extraAmount);
+    Address.sendValue(payable(stakeTogetherFee), extraAmount);
   }
 
   /// @notice Sets the StakeTogether contract address.
@@ -180,7 +181,7 @@ contract MockWithdrawals is
     if (_amount <= 0) revert ZeroAmount();
     emit Withdraw(msg.sender, _amount);
     _burn(msg.sender, _amount);
-    payable(msg.sender).transfer(_amount);
+    Address.sendValue(payable(msg.sender), _amount);
   }
 
   /// @notice Checks if the contract is ready to withdraw the specified amount.
