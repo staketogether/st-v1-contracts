@@ -119,13 +119,13 @@ contract StakeTogether is
 
   /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
   /// @notice Unpauses the contract, allowing actions to resume.
   /// @dev Only callable by the admin role.
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
@@ -147,7 +147,7 @@ contract StakeTogether is
   /// @notice Sets the configuration for the Stake Together Protocol.
   /// @dev Only callable by the admin role.
   /// @param _config Configuration settings to be applied.
-  function setConfig(Config memory _config) public onlyRole(ADMIN_ROLE) {
+  function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     if (_config.poolSize < config.validatorSize) revert InvalidSize();
     config = _config;
     emit SetConfig(_config);
@@ -221,7 +221,11 @@ contract StakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
-  function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+  function _update(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) internal override nonReentrant whenNotPaused {
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -231,7 +235,10 @@ contract StakeTogether is
   /// @param _to The address to transfer to.
   /// @param _sharesAmount The number of shares to be transferred.
   /// @return Equivalent amount in wei.
-  function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
+  function transferShares(
+    address _to,
+    uint256 _sharesAmount
+  ) public nonReentrant whenNotPaused returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
     return weiByShares(_sharesAmount);
   }
@@ -240,11 +247,7 @@ contract StakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _sharesAmount The number of shares to be transferred.
-  function _transferShares(
-    address _from,
-    address _to,
-    uint256 _sharesAmount
-  ) private whenNotPaused nonReentrant {
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
     if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (_from == address(0)) revert ZeroAddress();
@@ -443,7 +446,7 @@ contract StakeTogether is
   /// @notice Adds an address to the anti-fraud list.
   /// @dev Only a user with the ANTI_FRAUD_SENTINEL_ROLE or ANTI_FRAUD_MANAGER_ROLE can add addresses.
   /// @param _account The address to be added to the anti-fraud list.
-  function addToAntiFraud(address _account) public {
+  function addToAntiFraud(address _account) external {
     if (!hasRole(ANTI_FRAUD_SENTINEL_ROLE, msg.sender) && !hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender))
       revert NotAuthorized();
     if (_account == address(0)) revert ZeroAddress();
@@ -454,7 +457,7 @@ contract StakeTogether is
   /// @notice Removes an address from the anti-fraud list.
   /// @dev Only a user with the ANTI_FRAUD_MANAGER_ROLE can remove addresses.
   /// @param _account The address to be removed from the anti-fraud list.
-  function removeFromAntiFraud(address _account) public {
+  function removeFromAntiFraud(address _account) external {
     if (!hasRole(ANTI_FRAUD_MANAGER_ROLE, msg.sender)) revert NotAuthorized();
     if (_account == address(0)) revert ZeroAddress();
     if (!antiFraudList[_account]) revert NotInAntiFraudList();
@@ -506,7 +509,7 @@ contract StakeTogether is
     uint256 totalPercentage = 0;
     if (shares[msg.sender] > 0) {
       if (_delegations.length > config.maxDelegations) revert MaxDelegations();
-      for (uint i = 0; i < _delegations.length; i++) {
+      for (uint256 i = 0; i < _delegations.length; i++) {
         if (!pools[_delegations[i].pool]) revert PoolNotFound();
         totalPercentage += _delegations[i].percentage;
       }
@@ -758,9 +761,9 @@ contract StakeTogether is
 
     allocatedShares[3] = _sharesAmount - totalAllocatedShares;
 
-    uint length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
+    uint256 length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
 
-    for (uint i = 0; i < length; i++) {
+    for (uint256 i = 0; i < length; i++) {
       if (allocatedShares[i] > 0) {
         if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
           _mintShares(_to, allocatedShares[i]);

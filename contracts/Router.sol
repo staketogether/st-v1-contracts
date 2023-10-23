@@ -124,7 +124,7 @@ contract Router is
   /// @param _stakeTogether The address of the StakeTogether contract.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
-    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
+    if (_stakeTogether == address(0)) revert ZeroAddress();
     stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
@@ -157,7 +157,7 @@ contract Router is
   /// @param _account Address of the oracle to be checked.
   /// @return A boolean indicating if the address is an active report oracle.
   function isReportOracle(address _account) public view returns (bool) {
-    return reportOracles[_account] && !reportOraclesBlacklist[_account];
+    return reportOracles[_account] && !isReportOracleBlackListed(_account);
   }
 
   /// @notice Checks if a report oracle is blacklisted.
