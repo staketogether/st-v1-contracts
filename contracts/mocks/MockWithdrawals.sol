@@ -187,7 +187,7 @@ contract MockWithdrawals is
   /// @notice Checks if the contract is ready to withdraw the specified amount.
   /// @param _amount Amount of ETH to check.
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
-  function isWithdrawReady(uint256 _amount) public view returns (bool) {
+  function isWithdrawReady(uint256 _amount) external view returns (bool) {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) return false;
     return address(this).balance >= _amount;
   }

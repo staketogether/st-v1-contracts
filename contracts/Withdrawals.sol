@@ -166,7 +166,7 @@ contract Withdrawals is
   /// @param _to Address to receive the minted tokens.
   /// @param _amount Amount of tokens to mint.
   /// @dev Only callable by the StakeTogether contract.
-  function mint(address _to, uint256 _amount) public whenNotPaused {
+  function mint(address _to, uint256 _amount) external whenNotPaused {
     if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
     _mint(_to, _amount);
   }
@@ -174,7 +174,7 @@ contract Withdrawals is
   /// @notice Withdraws the specified amount of ETH, burning tokens in exchange.
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
-  function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
+  function withdraw(uint256 _amount) external whenNotPaused nonReentrant {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
@@ -187,7 +187,7 @@ contract Withdrawals is
   /// @notice Checks if the contract is ready to withdraw the specified amount.
   /// @param _amount Amount of ETH to check.
   /// @return A boolean indicating if the contract has sufficient balance to withdraw the specified amount.
-  function isWithdrawReady(uint256 _amount) public view returns (bool) {
+  function isWithdrawReady(uint256 _amount) external view returns (bool) {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) return false;
     return address(this).balance >= _amount;
   }

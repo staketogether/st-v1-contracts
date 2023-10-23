@@ -119,13 +119,13 @@ contract MockStakeTogether is
 
   /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
   /// @notice Unpauses the contract, allowing actions to resume.
   /// @dev Only callable by the admin role.
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 

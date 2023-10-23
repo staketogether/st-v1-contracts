@@ -163,7 +163,7 @@ contract MockRouter is
   /// @notice Checks if a report oracle is blacklisted.
   /// @param _account Address of the oracle to be checked.
   /// @return A boolean indicating if the address is a blacklisted report oracle.
-  function isReportOracleBlackListed(address _account) public view returns (bool) {
+  function isReportOracleBlackListed(address _account) external view returns (bool) {
     return reportOraclesBlacklist[_account];
   }
 

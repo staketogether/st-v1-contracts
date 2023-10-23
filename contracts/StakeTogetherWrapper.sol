@@ -42,7 +42,7 @@ contract StakeTogetherWrapper is
     _disableInitializers();
   }
 
-  function initialize() public initializer {
+  function initialize() external initializer {
     __ERC20_init('Wrapped Stake Together Protocol', 'wstpETH');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -57,13 +57,13 @@ contract StakeTogetherWrapper is
 
   /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
-  function pause() public onlyRole(ADMIN_ROLE) {
+  function pause() external onlyRole(ADMIN_ROLE) {
     _pause();
   }
 
   /// @notice Unpauses the contract, allowing actions to resume.
   /// @dev Only callable by the admin role.
-  function unpause() public onlyRole(ADMIN_ROLE) {
+  function unpause() external onlyRole(ADMIN_ROLE) {
     _unpause();
   }
 
@@ -176,7 +176,7 @@ contract StakeTogetherWrapper is
   /// @dev Returns zero if the total supply of wstpETH is zero.
   /// @param _wstpETH The amount of wstpETH to calculate.
   /// @return The current rate of stpETH per wstpETH.
-  function stpEthPerWstpETH(uint256 _wstpETH) public view returns (uint256) {
+  function stpEthPerWstpETH(uint256 _wstpETH) external view returns (uint256) {
     if (_wstpETH == 0) return 0;
     if (totalSupply() == 0) return 0;
     return stakeTogether.weiByShares(_wstpETH);
@@ -186,7 +186,7 @@ contract StakeTogetherWrapper is
   /// @dev Returns zero if the balance of stpETH is zero.
   /// @param _stpETH The amount of wstpETH to calculate.
   /// @return The current rate of wstpETH per stpETH.
-  function wstpETHPerStpETH(uint256 _stpETH) public view returns (uint256) {
+  function wstpETHPerStpETH(uint256 _stpETH) external view returns (uint256) {
     if (_stpETH == 0) return 0;
     return stakeTogether.sharesByWei(_stpETH);
   }
