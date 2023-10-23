@@ -124,7 +124,7 @@ contract MockRouter is
   /// @param _stakeTogether The address of the StakeTogether contract.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
-    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
+    if (_stakeTogether == address(0)) revert ZeroAddress();
     stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }

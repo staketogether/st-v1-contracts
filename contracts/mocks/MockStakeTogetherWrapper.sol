@@ -88,7 +88,7 @@ contract MockStakeTogetherWrapper is
   /// @dev Only callable by the admin role.
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
-    if (address(_stakeTogether) == address(0)) revert ZeroAddress();
+    if (_stakeTogether == address(0)) revert ZeroAddress();
     stakeTogether = IStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
