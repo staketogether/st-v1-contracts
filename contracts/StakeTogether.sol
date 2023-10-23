@@ -506,7 +506,7 @@ contract StakeTogether is
     uint256 totalPercentage = 0;
     if (shares[msg.sender] > 0) {
       if (_delegations.length > config.maxDelegations) revert MaxDelegations();
-      for (uint i = 0; i < _delegations.length; i++) {
+      for (uint256 i = 0; i < _delegations.length; i++) {
         if (!pools[_delegations[i].pool]) revert PoolNotFound();
         totalPercentage += _delegations[i].percentage;
       }
@@ -758,9 +758,9 @@ contract StakeTogether is
 
     allocatedShares[3] = _sharesAmount - totalAllocatedShares;
 
-    uint length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
+    uint256 length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
 
-    for (uint i = 0; i < length; i++) {
+    for (uint256 i = 0; i < length; i++) {
       if (allocatedShares[i] > 0) {
         if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
           _mintShares(_to, allocatedShares[i]);
