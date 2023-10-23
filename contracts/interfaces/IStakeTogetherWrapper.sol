@@ -15,6 +15,9 @@ interface IStakeTogetherWrapper {
   /// @notice This error is thrown when trying to set the stakeTogether address that has already been set.
   error StakeTogetherAlreadySet();
 
+  /// @notice This error thrown when the transfer of stpETH fails.
+  error TransferStpEthFailed();
+
   /// @notice Thrown if the address trying to make a claim is the zero address.
   error ZeroAddress();
 

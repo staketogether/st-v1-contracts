@@ -150,8 +150,9 @@ contract StakeTogetherWrapper is
     uint256 wstpETHAmount = stakeTogether.sharesByWei(_stpETH);
     if (wstpETHAmount == 0) revert ZeroWstpETHAmount();
     _mint(msg.sender, wstpETHAmount);
-    stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
     emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
+    bool success = stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
+    if (!success) revert TransferStpEthFailed();
     return wstpETHAmount;
   }
 
@@ -165,8 +166,9 @@ contract StakeTogetherWrapper is
     uint256 stpETHAmount = stakeTogether.weiByShares(_wstpETH);
     if (stpETHAmount == 0) revert ZeroStpETHAmount();
     _burn(msg.sender, _wstpETH);
-    stakeTogether.transfer(msg.sender, stpETHAmount);
     emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
+    bool success = stakeTogether.transfer(msg.sender, stpETHAmount);
+    if (!success) revert TransferStpEthFailed();
     return stpETHAmount;
   }
 
