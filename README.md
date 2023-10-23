@@ -104,7 +104,7 @@ If you have feedback or questions, feel free to contribute or get in touch.
 - **Router**: Receives reports from oracles, achieves consensus, and distributes ETH to associated contracts.
 - **Withdrawals**: Manages the withdrawal of ETH from validators.
 - **Airdrop**: Handles the payment of rewards and incentives via stpETH.
-- **StakeTogetherWrapper**: Handles the conversion between stpETH (rebase) and wstpETH (stable)
+- **StakeTogetherWrapper**: Handles the conversion between stpETH (rebase token) and wstpETH (stable token)
 
 ## Main Features by Contract
 
@@ -112,7 +112,7 @@ If you have feedback or questions, feel free to contribute or get in touch.
 
 - **addPool**: This function allows users to add a new staking pool to the system. It verifies that the pool address is not zero, the pool does not already exist, and that the sender has the appropriate permissions or pays the required fee if the feature is enabled. The pool's address, listing status, and whether it's a social pool are recorded and an event is emitted to log the addition of the new pool.
 
-- **depositPool**:  This function allows users to deposit a specified amount into a designated staking pool. It ensures the deposit feature is enabled, the total supply is not zero, the recipient is not listed in the anti-fraud list, and the deposit is above the minimum amount and within the deposit limit. The function also ensures that the selected pool exists. Upon successful validation, it processes the stake entry, updating the total deposited amount.
+- **depositPool**: This function allows users to deposit a specified amount into a designated staking pool. It ensures the deposit feature is enabled, the total supply is not zero, the recipient is not listed in the anti-fraud list, and the deposit is above the minimum amount and within the deposit limit. The function also ensures that the selected pool exists. Upon successful validation, it processes the stake entry, updating the total deposited amount.
 
 - **depositDonation**: This function allows users to deposit a donation to a specific address associated with a pool. It follows similar validation checks as the depositPool function, including feature enablement, total supply, anti-fraud list, and deposit limits. This function is specifically designed for donation-type deposits, making it distinct from regular pool deposits while still utilizing the core deposit functionality.
 
