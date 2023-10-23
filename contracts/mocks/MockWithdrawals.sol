@@ -154,7 +154,11 @@ contract MockWithdrawals is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
-  function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+  function _update(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) internal override nonReentrant whenNotPaused {
     super._update(_from, _to, _amount);
   }
 
@@ -166,7 +170,7 @@ contract MockWithdrawals is
   /// @param _to Address to receive the minted tokens.
   /// @param _amount Amount of tokens to mint.
   /// @dev Only callable by the StakeTogether contract.
-  function mint(address _to, uint256 _amount) public whenNotPaused {
+  function mint(address _to, uint256 _amount) external {
     if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
     _mint(_to, _amount);
   }
@@ -174,7 +178,7 @@ contract MockWithdrawals is
   /// @notice Withdraws the specified amount of ETH, burning tokens in exchange.
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
-  function withdraw(uint256 _amount) public whenNotPaused nonReentrant {
+  function withdraw(uint256 _amount) external {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();

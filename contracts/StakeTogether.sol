@@ -221,7 +221,11 @@ contract StakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _amount The amount to be transferred.
-  function _update(address _from, address _to, uint256 _amount) internal override whenNotPaused {
+  function _update(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) internal override nonReentrant whenNotPaused {
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -231,7 +235,10 @@ contract StakeTogether is
   /// @param _to The address to transfer to.
   /// @param _sharesAmount The number of shares to be transferred.
   /// @return Equivalent amount in wei.
-  function transferShares(address _to, uint256 _sharesAmount) public returns (uint256) {
+  function transferShares(
+    address _to,
+    uint256 _sharesAmount
+  ) public nonReentrant whenNotPaused returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
     return weiByShares(_sharesAmount);
   }
@@ -240,11 +247,7 @@ contract StakeTogether is
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
   /// @param _sharesAmount The number of shares to be transferred.
-  function _transferShares(
-    address _from,
-    address _to,
-    uint256 _sharesAmount
-  ) private whenNotPaused nonReentrant {
+  function _transferShares(address _from, address _to, uint256 _sharesAmount) private whenNotPaused {
     if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (_from == address(0)) revert ZeroAddress();

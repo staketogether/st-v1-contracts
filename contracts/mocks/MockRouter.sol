@@ -157,13 +157,13 @@ contract MockRouter is
   /// @param _account Address of the oracle to be checked.
   /// @return A boolean indicating if the address is an active report oracle.
   function isReportOracle(address _account) public view returns (bool) {
-    return reportOracles[_account] && !reportOraclesBlacklist[_account];
+    return reportOracles[_account] && !isReportOracleBlackListed(_account);
   }
 
   /// @notice Checks if a report oracle is blacklisted.
   /// @param _account Address of the oracle to be checked.
   /// @return A boolean indicating if the address is a blacklisted report oracle.
-  function isReportOracleBlackListed(address _account) external view returns (bool) {
+  function isReportOracleBlackListed(address _account) public view returns (bool) {
     return reportOraclesBlacklist[_account];
   }
 
