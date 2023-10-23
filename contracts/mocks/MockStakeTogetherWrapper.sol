@@ -152,9 +152,7 @@ contract MockStakeTogetherWrapper is
     _mint(msg.sender, wstpETHAmount);
     emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
     bool success = stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
-    if (!success) {
-      revert TransferStpEthFailed();
-    }
+    if (!success) revert TransferStpEthFailed();
     return wstpETHAmount;
   }
 
@@ -170,9 +168,7 @@ contract MockStakeTogetherWrapper is
     _burn(msg.sender, _wstpETH);
     emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
     bool success = stakeTogether.transfer(msg.sender, stpETHAmount);
-    if (!success) {
-      revert TransferStpEthFailed();
-    }
+    if (!success) revert TransferStpEthFailed();
     return stpETHAmount;
   }
 
