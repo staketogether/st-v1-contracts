@@ -236,8 +236,8 @@ interface IStakeTogether {
     address indexed to,
     uint256 amount,
     DepositType depositType,
-    address pool,
-    address referral
+    address indexed pool,
+    bytes indexed referral
   );
 
   /// @notice Emitted when the deposit limit is reached
@@ -447,13 +447,13 @@ interface IStakeTogether {
   /// @notice Deposits into the pool with specific delegations.
   /// @param _pool the address of the pool.
   /// @param _referral The referral address.
-  function depositPool(address _pool, address _referral) external payable;
+  function depositPool(address _pool, bytes calldata _referral) external payable;
 
   /// @notice Deposits a donation to the specified address.
   /// @param _to The address to deposit to.
   /// @param _pool the address of the pool.
   /// @param _referral The referral address.
-  function depositDonation(address _to, address _pool, address _referral) external payable;
+  function depositDonation(address _to, address _pool, bytes calldata _referral) external payable;
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.

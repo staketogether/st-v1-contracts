@@ -340,7 +340,12 @@ contract StakeTogether is
   /// @param _to The address to deposit to.
   /// @param _depositType The type of deposit (Pool or Donation).
   /// @param _referral The referral address.
-  function _depositBase(address _to, DepositType _depositType, address _pool, address _referral) private {
+  function _depositBase(
+    address _to,
+    DepositType _depositType,
+    address _pool,
+    bytes calldata _referral
+  ) private {
     if (!config.feature.Deposit) revert FeatureDisabled();
     if (!(totalSupply() > 0)) revert ZeroSupply();
     if (antiFraudList[_to]) revert ListedInAntiFraud();
@@ -362,7 +367,10 @@ contract StakeTogether is
   /// @notice Deposits into the pool with specific delegations.
   /// @param _pool The address of the pool to deposit to.
   /// @param _referral The referral address.
-  function depositPool(address _pool, address _referral) external payable nonReentrant whenNotPaused {
+  function depositPool(
+    address _pool,
+    bytes calldata _referral
+  ) external payable nonReentrant whenNotPaused {
     _depositBase(msg.sender, DepositType.Pool, _pool, _referral);
   }
 
@@ -372,7 +380,7 @@ contract StakeTogether is
   function depositDonation(
     address _to,
     address _pool,
-    address _referral
+    bytes calldata _referral
   ) external payable nonReentrant whenNotPaused {
     _depositBase(_to, DepositType.Donation, _pool, _referral);
   }
