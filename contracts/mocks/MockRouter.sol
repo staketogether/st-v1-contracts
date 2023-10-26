@@ -256,7 +256,7 @@ contract MockRouter is
           lastConsensusBlock = reportBlock;
           reportDelayBlock[reportBlock] = block.number;
           pendingExecution = true;
-          emit ConsensusApprove(reportBlock, _report, hash);
+          emit ConsensusApprove(reportBlock, _report);
         }
       }
 
@@ -264,12 +264,12 @@ contract MockRouter is
         totalVotes[reportBlock] >= votesBeforeThreshold &&
         reportVotesForBlock[reportBlock][hash] < config.oracleQuorum
       ) {
-        emit ConsensusFail(reportBlock, _report, hash);
+        emit ConsensusFail(reportBlock, _report);
         _advanceNextReportBlock();
       }
     }
 
-    emit SubmitReport(_report, hash);
+    emit SubmitReport(msg.sender, _report);
   }
 
   /// @notice Allows an active report oracle to execute an approved report.
@@ -282,7 +282,7 @@ contract MockRouter is
     lastExecutedBlock = reportBlock;
     lastExecutedEpoch = _report.epoch;
     pendingExecution = false;
-    emit ExecuteReport(reportBlock, _report, hash);
+    emit ExecuteReport(msg.sender, reportBlock, _report);
 
     uint256 currentReportBlock = reportBlock;
     _advanceNextReportBlock();
@@ -337,7 +337,7 @@ contract MockRouter is
     if (_reportBlock <= lastExecutedBlock) revert ReportBlockShouldBeGreater();
     revokedReports[_reportBlock] = true;
     pendingExecution = false;
-    emit RevokeConsensusReport(_reportBlock);
+    emit RevokeConsensusReport(msg.sender, _reportBlock);
     _advanceNextReportBlock();
   }
 

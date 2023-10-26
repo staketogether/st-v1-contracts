@@ -459,7 +459,7 @@ contract StakeTogether is
       revert NotAuthorized();
     if (_account == address(0)) revert ZeroAddress();
     antiFraudList[_account] = true;
-    emit SetAntiFraudStatus(_account, true);
+    emit SetAntiFraudStatus(msg.sender, _account, true);
   }
 
   /// @notice Removes an address from the anti-fraud list.
@@ -470,7 +470,7 @@ contract StakeTogether is
     if (_account == address(0)) revert ZeroAddress();
     if (!antiFraudList[_account]) revert NotInAntiFraudList();
     antiFraudList[_account] = false;
-    emit SetAntiFraudStatus(_account, false);
+    emit SetAntiFraudStatus(msg.sender, _account, false);
   }
 
   /// @notice Check if an address is listed in the anti-fraud list.
