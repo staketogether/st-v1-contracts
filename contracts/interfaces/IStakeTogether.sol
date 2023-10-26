@@ -294,9 +294,10 @@ interface IStakeTogether {
   event SetBeaconBalance(uint256 indexed amount);
 
   /// @notice Emitted when a user's anti-fraud status is changed
+  /// @param sender The address that is executing
   /// @param account The address of the account
   /// @param isListed The new anti-fraud status of the account (true if listed, false otherwise)
-  event SetAntiFraudStatus(address indexed account, bool isListed);
+  event SetAntiFraudStatus(address indexed sender, address indexed account, bool isListed);
 
   /// @notice Emitted when the configuration is set
   /// @param config The configuration struct
@@ -349,7 +350,12 @@ interface IStakeTogether {
   /// @param amount The withdrawal amount
   /// @param withdrawType The type of withdrawal
   /// @param pool The address of the pool
-  event WithdrawBase(address indexed account, uint256 amount, WithdrawType withdrawType, address pool);
+  event WithdrawBase(
+    address indexed account,
+    uint256 amount,
+    WithdrawType withdrawType,
+    address indexed pool
+  );
 
   /// @notice Emitted when the withdrawal limit is reached
   /// @param sender The address of the sender

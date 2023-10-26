@@ -153,18 +153,16 @@ interface IRouter {
 
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
-  /// @param hash The hash of the report for reference.
-  event ConsensusApprove(uint256 indexed reportBlock, Report report, bytes32 indexed hash);
+  event ConsensusApprove(uint256 indexed reportBlock, Report report);
 
   /// @notice Emitted when a report is approved by consensus.
   /// @param report The report details.
-  /// @param hash The hash of the report for reference.
-  event ConsensusFail(uint256 indexed reportBlock, Report report, bytes32 indexed hash);
+  event ConsensusFail(uint256 indexed reportBlock, Report report);
 
   /// @notice Emitted when a report is executed.
+  /// @param sender The sneder oracle that execute the report.
   /// @param report The report details.
-  /// @param hash The hash of the report for reference.
-  event ExecuteReport(uint256 indexed reportBlock, Report report, bytes32 indexed hash);
+  event ExecuteReport(address indexed sender, uint256 indexed reportBlock, Report report);
 
   /// @notice Emitted when the contract receives ether.
   /// @param amount The amount of ether received.
@@ -179,8 +177,9 @@ interface IRouter {
   event RemoveReportOracle(address indexed reportOracle);
 
   /// @notice Emitted when a consensus report is revoked.
+  /// @param sender The sentinel that execute the revoke.
   /// @param reportBlock The block number at which the consensus was revoked.
-  event RevokeConsensusReport(uint256 indexed reportBlock);
+  event RevokeConsensusReport(address indexed sender, uint256 indexed reportBlock);
 
   /// @notice Emitted when the protocol configuration is updated.
   /// @param config The updated configuration.
@@ -200,9 +199,9 @@ interface IRouter {
   event AdvanceNextBlock(uint256 indexed reportBlock, uint256 indexed reportNextBlock);
 
   /// @notice Emitted when a report is submitted.
+  /// @param sender The address of the oracle that submitted the report.
   /// @param report The details of the submitted report.
-  /// @param hash The hash of the submitted report.
-  event SubmitReport(Report indexed report, bytes32 indexed hash);
+  event SubmitReport(address indexed sender, Report indexed report);
 
   /// @notice Emitted when an oracle is unblacklisted.
   /// @param reportOracle The address of the oracle that was unblacklisted.

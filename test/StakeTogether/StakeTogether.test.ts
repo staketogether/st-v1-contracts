@@ -376,12 +376,11 @@ describe('Stake Together', function () {
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to, _value, _type, _pool, _referral] = event.args
+      const [_to, _value, _type, _pool] = event.args
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(1)
       expect(_pool).to.equal(poolAddress)
-      expect(_referral).to.equal(referral.toLocaleLowerCase())
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
       const actualBalance = await stakeTogether.balanceOf(user1.address)
@@ -441,12 +440,11 @@ describe('Stake Together', function () {
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to, _value, _type, _pool, _referral] = event.args
+      const [_to, _value, _type, _pool] = event.args
       expect(_to).to.equal(toAddress)
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(0)
       expect(_pool).to.equal(poolAddress)
-      expect(_referral).to.equal(referral.toLowerCase())
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
       const actualBalance = await stakeTogether.balanceOf(toAddress)
@@ -475,12 +473,11 @@ describe('Stake Together', function () {
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to, _value, _type, _pool, _referral] = event.args
+      const [_to, _value, _type, _pool] = event.args
       expect(_to).to.equal(user1.address)
       expect(_value).to.equal(user1DepositAmount)
       expect(_type).to.equal(1)
       expect(_pool).to.equal(poolAddress)
-      expect(_referral).to.equal(referral.toLowerCase())
 
       const expectedBalance = await stakeTogether.weiByShares(user1Shares)
       const actualBalance = await stakeTogether.balanceOf(user1.address)
@@ -510,12 +507,11 @@ describe('Stake Together', function () {
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to1, _value1, _type1, _pool, _referral1] = event.args
+      const [_to1, _value1, _type1, _pool] = event.args
       expect(_to1).to.equal(user1.address)
       expect(_value1).to.equal(user1DepositAmount)
       expect(_type1).to.equal(1)
       expect(_pool).to.equal(poolAddress)
-      expect(_referral1).to.equal(referral.toLowerCase())
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
 
@@ -545,12 +541,11 @@ describe('Stake Together', function () {
       let logs = await stakeTogether.queryFilter(eventFilter)
 
       let event = logs[0]
-      const [_to1, _value1, _type1, _pool, _referral1] = event.args
+      const [_to1, _value1, _type1, _pool] = event.args
       expect(_to1).to.equal(user1.address)
       expect(_value1).to.equal(user1DepositAmount)
       expect(_type1).to.equal(1)
       expect(_pool).to.equal(poolAddress)
-      expect(_referral1).to.equal(referral.toLowerCase())
 
       const fee2 = (user2DepositAmount * 3n) / 1000n
 
@@ -581,12 +576,11 @@ describe('Stake Together', function () {
       logs = await stakeTogether.queryFilter(eventFilter)
 
       event = logs[0]
-      const [_to3, _value3, _type3, _pool3, _referral3] = event.args
+      const [_to3, _value3, _type3, _pool3] = event.args
       expect(_to3).to.equal(user3.address)
       expect(_value3).to.equal(user3DepositAmount)
       expect(_type3).to.equal(1)
       expect(_pool3).to.equal(poolAddress)
-      expect(_referral3).to.equal(referral.toLowerCase())
     })
 
     it('should fail if deposit amount is less than minDepositAmount', async function () {
@@ -2515,7 +2509,7 @@ describe('Stake Together', function () {
 
       await expect(stakeTogether.connect(owner).addToAntiFraud(addressToAdd))
         .to.emit(stakeTogether, 'SetAntiFraudStatus')
-        .withArgs(addressToAdd, true)
+        .withArgs(owner.address, addressToAdd, true)
 
       const isListed = await stakeTogether.isListedInAntiFraud(addressToAdd)
       expect(isListed).to.equal(true)
@@ -2552,7 +2546,7 @@ describe('Stake Together', function () {
 
       await expect(stakeTogether.connect(owner).removeFromAntiFraud(addressToRemove))
         .to.emit(stakeTogether, 'SetAntiFraudStatus')
-        .withArgs(addressToRemove, false)
+        .withArgs(owner.address, addressToRemove, false)
 
       const isListed = await stakeTogether.isListedInAntiFraud(addressToRemove)
       expect(isListed).to.equal(false)
