@@ -81,12 +81,6 @@ interface IRouter {
   /// @notice Emitted when there are not enough oracles to use the margin.
   error RequiredMoreOracles();
 
-  /// @notice Emitted when the report's loss amount must be zero for execution.
-  error LossMustBeZero();
-
-  /// @notice Emitted when the report's profit shares S must be zero for execution.
-  error ProfitSharesMustBeZero();
-
   /// @notice Emitted when the quorum is not yet reached for consensus.
   error QuorumNotReached();
 

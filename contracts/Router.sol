@@ -385,16 +385,6 @@ contract Router is
       }
     }
 
-    if (_report.profitAmount > 0) {
-      if (_report.lossAmount != 0) {
-        revert LossMustBeZero();
-      }
-    } else if (_report.lossAmount > 0) {
-      if (_report.profitShares != 0) {
-        revert ProfitSharesMustBeZero();
-      }
-    }
-
     return hash;
   }
 
