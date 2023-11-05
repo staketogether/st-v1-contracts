@@ -128,7 +128,6 @@ interface IRouter {
   /// @param lossAmount The loss incurred during this epoch.
   /// @param withdrawAmount The amount withdrawn during this epoch.
   /// @param withdrawRefundAmount The amount refunded during withdrawals in this epoch.
-  /// @param routerExtraAmount Extra amount available with the router.
   /// @param validatorsToRemove The list of validators to be removed in this epoch.
   struct Report {
     uint256 epoch;
@@ -138,7 +137,6 @@ interface IRouter {
     uint256 lossAmount;
     uint256 withdrawAmount;
     uint256 withdrawRefundAmount;
-    uint256 routerExtraAmount;
     bytes32[] validatorsToRemove;
     uint256 accumulatedReports;
   }

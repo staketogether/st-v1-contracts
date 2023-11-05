@@ -2,9 +2,15 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
-import { BytesLike } from 'ethers'
 import { ethers, network, upgrades } from 'hardhat'
-import { Airdrop, MockRouter__factory, Router, StakeTogether, Withdrawals } from '../../typechain'
+import {
+  Airdrop,
+  IRouter,
+  MockRouter__factory,
+  Router,
+  StakeTogether,
+  Withdrawals,
+} from '../../typechain'
 import connect from '../utils/connect'
 import { routerFixture } from './Router.fixture'
 
@@ -356,20 +362,7 @@ describe('Router', function () {
   })
 
   describe('Report Submit', function () {
-    type Report = {
-      epoch: bigint
-      merkleRoot: BytesLike
-      profitAmount: bigint
-      profitShares: bigint
-      lossAmount: bigint
-      withdrawAmount: bigint
-      withdrawRefundAmount: bigint
-      routerExtraAmount: bigint
-      validatorsToRemove: BytesLike[]
-      accumulatedReports: bigint
-    }
-
-    let report: Report
+    let report: IRouter.ReportStruct
 
     it('should revert if send by a non oracle', async function () {
       report = {
@@ -380,7 +373,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -407,7 +399,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -436,7 +427,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -465,7 +455,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -491,7 +480,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -523,7 +511,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -541,7 +528,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -582,7 +568,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -614,7 +599,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -650,7 +634,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -704,7 +687,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -741,7 +723,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -801,7 +782,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -821,7 +801,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -875,7 +854,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -888,7 +866,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -924,7 +901,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -961,7 +937,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1000,7 +975,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1030,7 +1004,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
-        routerExtraAmount: 0n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1066,7 +1039,6 @@ describe('Router', function () {
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          routerExtraAmount: 55n,
           validatorsToRemove: [],
           accumulatedReports: 0n,
         },
@@ -1078,7 +1050,6 @@ describe('Router', function () {
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          routerExtraAmount: 30n,
           validatorsToRemove: [],
           accumulatedReports: 0n,
         },
@@ -1090,7 +1061,6 @@ describe('Router', function () {
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          routerExtraAmount: 40n,
           validatorsToRemove: [],
           accumulatedReports: 0n,
         },
@@ -1102,7 +1072,6 @@ describe('Router', function () {
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          routerExtraAmount: 40n,
           validatorsToRemove: [],
           accumulatedReports: 0n,
         },
@@ -1114,7 +1083,6 @@ describe('Router', function () {
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          routerExtraAmount: 40n,
           validatorsToRemove: [],
           accumulatedReports: 0n,
         },
@@ -1153,7 +1121,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
-        routerExtraAmount: 55n,
         validatorsToRemove: validatorsToRemove,
         accumulatedReports: 0n,
       }
@@ -1235,7 +1202,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 100n,
         withdrawRefundAmount: 0n,
-        routerExtraAmount: 55n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1263,7 +1229,7 @@ describe('Router', function () {
       await expect(executeTx).to.emit(airdrop, 'AddMerkleRoot')
       await expect(executeTx).to.emit(stakeTogether, 'MintFeeShares')
       await expect(executeTx).to.emit(withdrawals, 'ReceiveWithdrawEther')
-      expect(stPosBalance).to.equal(stPreBalance + report.routerExtraAmount)
+      expect(stPosBalance).to.equal(stPreBalance)
     })
 
     it('should anticipate the withdrawal ', async function () {
@@ -1381,7 +1347,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: ethers.parseEther('35'),
         withdrawRefundAmount: 0n,
-        routerExtraAmount: 0n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1423,7 +1388,6 @@ describe('Router', function () {
         lossAmount: 1n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1456,7 +1420,6 @@ describe('Router', function () {
         lossAmount: 1n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1488,7 +1451,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        routerExtraAmount: 300n,
         validatorsToRemove: [],
         accumulatedReports: 0n,
       }
@@ -1496,7 +1458,7 @@ describe('Router', function () {
       const contractHash = await router.getReportHash(report)
 
       expect(contractHash).to.be.equal(
-        '0xeb4f2918aaa5b9f83d6baa520d0a5f1f3f3236930558a3feddc607966e874bf6',
+        '0x084c104b865109b546f171009979d97477cb535c784b2c75482e73692f435c63',
       )
     })
   })

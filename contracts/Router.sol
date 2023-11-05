@@ -309,13 +309,6 @@ contract Router is
       stakeTogether.setWithdrawBalance(stakeTogether.withdrawBalance() - _report.withdrawAmount);
       withdrawals.receiveWithdrawEther{ value: _report.withdrawAmount }();
     }
-
-    if (_report.routerExtraAmount > 0) {
-      Address.sendValue(
-        payable(stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether)),
-        _report.routerExtraAmount
-      );
-    }
   }
 
   /// @notice Advances to the next report block based on the current block number and report frequency.
@@ -421,10 +414,7 @@ contract Router is
     if (_report.withdrawAmount > stakeTogether.withdrawBalance()) revert WithdrawBalanceTooLow();
     if (
       address(this).balance <
-      (_report.profitAmount +
-        _report.withdrawAmount +
-        _report.withdrawRefundAmount +
-        _report.routerExtraAmount)
+      (_report.profitAmount + _report.withdrawAmount + _report.withdrawRefundAmount)
     ) revert InsufficientEthBalance();
     if (!pendingExecution) revert NoPendingExecution();
     if (config.reportFrequency == 0) revert ConfigNotSet();
