@@ -496,7 +496,7 @@ contract MockStakeTogether is
     if (pools[_pool]) revert PoolExists();
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       if (!config.feature.AddPool) revert FeatureDisabled();
-      if (msg.value != fees[FeeType.StakePool].value) revert InvalidValue();
+      if (msg.value != fees[FeeType.Pool].value) revert InvalidValue();
       _processStakePool();
     }
     pools[_pool] = true;
@@ -748,6 +748,21 @@ contract MockStakeTogether is
     emit SetFee(_feeType, _value, _allocations);
   }
 
+  /// @notice Gets the fee value for a given type.
+  /// @param _type The type for which the value will be retrieved.
+  /// @return The value associated with the given type.
+  function getFeeValue(FeeType _type) external view returns (uint256) {
+    return fees[_type].value;
+  }
+
+  /// @notice Gets the fee allocation for a given role.
+  /// @param _type The type for which the value will be retrieved.
+  /// @param _role The role for which the address will be retrieved.
+  /// @return The allocation value associated with the given type.
+  function getFeeAllocation(FeeType _type, FeeRole _role) external view returns (uint256) {
+    return fees[_type].allocations[_role];
+  }
+
   /// @notice Distributes fees according to their type, amount, and the destination.
   /// @param _feeType The type of fee being distributed.
   /// @param _sharesAmount The total shares amount for the fee.
@@ -769,11 +784,11 @@ contract MockStakeTogether is
 
     allocatedShares[3] = _sharesAmount - totalAllocatedShares;
 
-    uint256 length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
+    uint256 length = (_feeType == FeeType.Entry) ? roles.length : roles.length - 1;
 
     for (uint256 i = 0; i < length; i++) {
       if (allocatedShares[i] > 0) {
-        if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
+        if (_feeType == FeeType.Entry && roles[i] == FeeRole.Sender) {
           _mintShares(_to, allocatedShares[i]);
         } else {
           _mintShares(getFeeAddress(roles[i]), allocatedShares[i]);
@@ -789,7 +804,7 @@ contract MockStakeTogether is
   /// @dev Calls the distributeFees function internally.
   function _processStakeEntry(address _to, uint256 _amount) private {
     uint256 sharesAmount = Math.mulDiv(_amount, totalShares, totalSupply() - _amount);
-    _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
+    _distributeFees(FeeType.Entry, sharesAmount, _to);
   }
 
   /// @notice Process staking rewards and distributes the rewards based on shares.
@@ -797,30 +812,24 @@ contract MockStakeTogether is
   /// @dev The caller should be the router contract. This function will also emit the ProcessStakeRewards event.
   function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
     if (msg.sender != address(router)) revert OnlyRouter();
-    _distributeFees(FeeType.ProcessStakeRewards, _sharesAmount, address(0));
+    _distributeFees(FeeType.Rewards, _sharesAmount, address(0));
     emit ProcessStakeRewards(msg.value, _sharesAmount);
   }
 
   /// @notice Processes the staking pool fee and distributes it accordingly.
   /// @dev Calculates the shares amount and then distributes the staking pool fee.
   function _processStakePool() private {
-    uint256 amount = fees[FeeType.StakePool].value;
+    uint256 amount = fees[FeeType.Pool].value;
     uint256 sharesAmount = Math.mulDiv(amount, totalShares, totalSupply() - amount);
-    _distributeFees(FeeType.StakePool, sharesAmount, address(0));
+    _distributeFees(FeeType.Pool, sharesAmount, address(0));
   }
 
   /// @notice Transfers the staking validator fee to the operator role.
   /// @dev Transfers the associated amount to the Operator's address.
   function _processStakeValidator() private {
-    emit ProcessStakeValidator(
-      getFeeAddress(FeeRole.Operator),
-      fees[FeeType.ProcessStakeValidator].value
-    );
+    emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
 
-    Address.sendValue(
-      payable(getFeeAddress(FeeRole.Operator)),
-      fees[FeeType.ProcessStakeValidator].value
-    );
+    Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
   }
 
   /********************

@@ -2398,9 +2398,10 @@ describe('Stake Together', function () {
       // Process Stake Rewards
 
       const rewardsAmount = ethers.parseEther('3')
-      const rewardsSharesAmount = (totalShares * ethers.parseEther('0.5261')) / ethers.parseEther('1')
+      const rewardsSharesAmount = (totalShares * ethers.parseEther('0.588')) / ethers.parseEther('1')
       // Calculated Off-Chain by Oracle with function to calculate the closest share amount
 
+      // During de processStakeRewards, the distribute fee will apply the fee to the rewards, tha will reduce the amount of shares
       const tx1 = await mockRouter.connect(user1).processStakeRewards(rewardsSharesAmount, {
         value: rewardsAmount,
       })
@@ -2424,15 +2425,18 @@ describe('Stake Together', function () {
 
       const valuationNewShares = await stakeTogether.weiByShares(totalNewShares)
 
-      // console.log('valuationNewShares', valuationNewShares.toString())
+      // Oracle = TotalProfitShares (considering the fee reduction)
+      // Distribute Fee will reduce the amount of shares by fee amount
 
       const epsilon = 1000000000000000n
-      const expectedValue = ethers.parseEther('0.27')
+      const expectedValue = ethers.parseEther('0.3')
 
       const difference =
         valuationNewShares > expectedValue
           ? valuationNewShares - expectedValue
           : expectedValue - valuationNewShares
+
+      console.log('difference', difference.toString())
       const isApproxEqual = difference < epsilon
 
       expect(isApproxEqual).to.be.true
