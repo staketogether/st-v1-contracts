@@ -1179,7 +1179,7 @@ describe('Router', function () {
 
       const withdrawAmount = ethers.parseEther('1.5')
 
-      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress)
+      await stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress)
 
       // Router
 
@@ -1269,7 +1269,7 @@ describe('Router', function () {
       const withdrawAmount = ethers.parseEther('1.5')
 
       await expect(
-        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
+        stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress),
       ).to.be.revertedWithCustomError(stakeTogether, 'WithdrawFromPool')
 
       expect(await stakeTogether.withdrawBalance()).equal(0n)
@@ -1280,7 +1280,7 @@ describe('Router', function () {
       expect(await stakeTogether.balanceOf(user1)).equal(withdrawAmount2)
 
       await expect(
-        stakeTogether.connect(user1).withdrawValidator(withdrawAmount2, poolAddress),
+        stakeTogether.connect(user1).withdrawBeacon(withdrawAmount2, poolAddress),
       ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientBeaconBalance')
 
       const tx2 = await stakeTogether
@@ -1295,7 +1295,7 @@ describe('Router', function () {
       expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('64'))
       expect(await ethers.provider.getBalance(router)).equal(0n)
 
-      await stakeTogether.connect(user2).withdrawValidator(ethers.parseEther('35'), poolAddress)
+      await stakeTogether.connect(user2).withdrawBeacon(ethers.parseEther('35'), poolAddress)
 
       expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
 

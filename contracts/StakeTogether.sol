@@ -60,8 +60,8 @@ contract StakeTogether is
   mapping(address => mapping(address => uint256)) private allowances; /// Allowances mapping.
 
   mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
-  mapping(address => uint256) private nextWithdrawBlock; // Mapping the next block for withdraw validator
-  mapping(address => uint256) private nextWithdrawBeaconBlock; // Mapping the next block for withdraw from validator
+  mapping(address => uint256) private nextWithdrawBlock; // Mapping the next block for withdraw
+  mapping(address => uint256) private nextWithdrawBeaconBlock; // Mapping the next block for withdraw from beacon
   uint256 public lastResetBlock; /// Block number of the last reset.
   uint256 public totalDeposited; /// Total amount deposited.
   uint256 public totalWithdrawnPool; /// Total amount withdrawn pool.
@@ -440,14 +440,14 @@ contract StakeTogether is
     Address.sendValue(payable(msg.sender), _amount);
   }
 
-  /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
+  /// @notice Withdrawals from the beacon chain.
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
-  function withdrawValidator(
+  function withdrawBeacon(
     uint256 _amount,
     address _pool
   ) external nonReentrant nonFlashLoan whenNotPaused {
-    if (!config.feature.WithdrawValidator) revert FeatureDisabled();
+    if (!config.feature.WithdrawBeacon) revert FeatureDisabled();
     if (_amount <= address(this).balance) revert WithdrawFromPool();
     if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
     _withdrawBase(_amount, WithdrawType.Validator, _pool);

@@ -217,7 +217,7 @@ export async function deployStakeTogether(
       AddPool: false,
       Deposit: true,
       WithdrawPool: true,
-      WithdrawValidator: true,
+      WithdrawBeacon: true,
     },
   }
 

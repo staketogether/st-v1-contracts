@@ -156,7 +156,7 @@ interface IStakeTogether {
     bool AddPool; /// Enable/disable pool addition.
     bool Deposit; /// Enable/disable deposits.
     bool WithdrawPool; /// Enable/disable pool withdrawals.
-    bool WithdrawValidator; /// Enable/disable validator withdrawals.
+    bool WithdrawBeacon; /// Enable/disable validator withdrawals.
   }
 
   /// @notice Represents the fee structure.
@@ -473,7 +473,7 @@ interface IStakeTogether {
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
   /// @param _pool the address of the pool.
-  function withdrawValidator(uint256 _amount, address _pool) external;
+  function withdrawBeacon(uint256 _amount, address _pool) external;
 
   /// @notice Get the next withdraw block for account
   /// @param _account the address of the account.

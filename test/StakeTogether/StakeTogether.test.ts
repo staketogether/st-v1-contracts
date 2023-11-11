@@ -296,7 +296,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: true,
-          WithdrawValidator: true,
+          WithdrawBeacon: true,
         },
       }
 
@@ -322,7 +322,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: true,
-          WithdrawValidator: true,
+          WithdrawBeacon: true,
         },
       }
 
@@ -345,7 +345,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: true,
-          WithdrawValidator: true,
+          WithdrawBeacon: true,
         },
       }
 
@@ -609,7 +609,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: false,
           WithdrawPool: true,
-          WithdrawValidator: true,
+          WithdrawBeacon: true,
         },
       }
 
@@ -826,7 +826,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: true,
-          WithdrawValidator: true,
+          WithdrawBeacon: true,
         },
       }
 
@@ -862,7 +862,7 @@ describe('Stake Together', function () {
       await stakeTogether.connect(user2).withdrawPool(withdrawAmount, poolAddress)
     })
 
-    it('should revert when trying to withdraw validator amount that exceeds the limit', async function () {
+    it('should revert when trying to withdraw beacon amount that exceeds the limit', async function () {
       const config = {
         validatorSize: ethers.parseEther('32'),
         poolSize: ethers.parseEther('32'),
@@ -877,7 +877,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: true,
-          WithdrawValidator: true,
+          WithdrawBeacon: true,
         },
       }
 
@@ -924,11 +924,11 @@ describe('Stake Together', function () {
       const beaconBalance = await stakeTogether.beaconBalance()
       expect(beaconBalance).to.equal(validatorSize * 3n)
 
-      await stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress)
+      await stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress)
 
       // Expect a revert with the specific error message
       await expect(
-        stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress),
+        stakeTogether.connect(user2).withdrawBeacon(withdrawAmount, poolAddress),
       ).to.be.revertedWithCustomError(stakeTogether, 'WithdrawalsValidatorLimitWasReached')
 
       const blocksPerDay = 7200n
@@ -936,7 +936,7 @@ describe('Stake Together', function () {
         await network.provider.send('evm_mine')
       }
 
-      await expect(stakeTogether.connect(user2).withdrawValidator(withdrawAmount, poolAddress)).to.not
+      await expect(stakeTogether.connect(user2).withdrawBeacon(withdrawAmount, poolAddress)).to.not
         .reverted
     })
 
@@ -979,7 +979,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: false,
-          WithdrawValidator: false,
+          WithdrawBeacon: false,
         },
       }
 
@@ -1012,7 +1012,7 @@ describe('Stake Together', function () {
           AddPool: true,
           Deposit: true,
           WithdrawPool: false,
-          WithdrawValidator: false,
+          WithdrawBeacon: false,
         },
       }
 
@@ -1022,7 +1022,7 @@ describe('Stake Together', function () {
       const poolAddress = user3.address
 
       await expect(
-        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
+        stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress),
       ).to.be.revertedWithCustomError(stakeTogether, 'FeatureDisabled')
     })
 
@@ -1063,7 +1063,7 @@ describe('Stake Together', function () {
       const withdrawAmount = ethers.parseEther('60')
 
       await expect(
-        stakeTogether.connect(user1).withdrawValidator(withdrawAmount, poolAddress),
+        stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress),
       ).to.be.revertedWithCustomError(stakeTogether, 'InsufficientBeaconBalance')
     })
 
@@ -1176,7 +1176,7 @@ describe('Stake Together', function () {
           AddPool: false,
           Deposit: false,
           WithdrawPool: false,
-          WithdrawValidator: false,
+          WithdrawBeacon: false,
         },
       }
 
