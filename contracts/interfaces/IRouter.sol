@@ -106,7 +106,6 @@ interface IRouter {
   /// @param oracleBlackListLimit The maximum number of oracles that can be blacklisted.
   /// @param oracleQuorum The quorum required among oracles for a report to be considered.
   struct Config {
-    bool bunkerMode;
     uint256 reportFrequency;
     uint256 reportDelayBlock;
     uint256 reportNoConsensusMargin;
@@ -114,15 +113,16 @@ interface IRouter {
     uint256 oracleQuorum;
   }
 
-  /// @dev Report structure used for reporting the state of the protocol at different epochs.
-  /// @param epoch The epoch for which this report is generated.
-  /// @param merkleRoot The merkle root representing the state of the protocol.
-  /// @param profitAmount The amount of profit generated during this epoch.
-  /// @param profitShares The shares associated with the profit.
-  /// @param lossAmount The loss incurred during this epoch.
-  /// @param withdrawAmount The amount withdrawn during this epoch.
-  /// @param withdrawRefundAmount The amount refunded during withdrawals in this epoch.
-  /// @param validatorsToRemove The list of validators to be removed in this epoch.
+  /// @dev Report structure used for reporting the state of the protocol at different report blocks.
+  /// @param epoch The specific time period for which this report is generated.
+  /// @param merkleRoot The Merkle root hash representing the state of the data at this epoch.
+  /// @param profitAmount The total profit amount generated during this epoch.
+  /// @param profitShares The distribution of profits among stakeholders for this epoch.
+  /// @param lossAmount The total loss amount incurred during this epoch.
+  /// @param withdrawAmount The total amount withdrawn by users during this epoch.
+  /// @param withdrawRefundAmount The amount refunded to users on withdrawal during this epoch.
+  /// @param validatorsStatus The status of validators during this epoch, represented as a bytes32 value.
+  /// @param accumulatedReports The total number of reports accumulated up to this epoch.
   struct Report {
     uint256 epoch;
     bytes32 merkleRoot;
@@ -131,7 +131,7 @@ interface IRouter {
     uint256 lossAmount;
     uint256 withdrawAmount;
     uint256 withdrawRefundAmount;
-    bytes32[] validatorsToRemove;
+    bytes32 validatorsStatus;
     uint256 accumulatedReports;
   }
 
@@ -198,11 +198,6 @@ interface IRouter {
   /// @notice Emitted when an oracle is unblacklisted.
   /// @param reportOracle The address of the oracle that was unblacklisted.
   event UnBlacklistReportOracle(address indexed reportOracle);
-
-  /// @notice Emitted when validators are set to be removed.
-  /// @param reportBlock The epoch at which validators are set to be removed.
-  /// @param validatorsHash The list of hashes representing validators to be removed.
-  event ValidatorsToRemove(uint256 indexed reportBlock, bytes32[] validatorsHash);
 
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.

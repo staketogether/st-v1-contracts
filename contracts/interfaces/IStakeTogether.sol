@@ -222,10 +222,6 @@ interface IStakeTogether {
     bytes32 depositDataRoot
   );
 
-  /// @notice Emitted when validators are removed
-  /// @param _publicKeys The public keys of the removed validators
-  event RemoveValidators(bytes[] _publicKeys);
-
   /// @notice Emitted when a base deposit is made
   /// @param to The address to deposit to
   /// @param amount The deposit amount
@@ -543,10 +539,6 @@ interface IStakeTogether {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external;
-
-  /// @notice Removes validators by their public keys.
-  /// @param _publicKeys The public keys of the validators to be removed.
-  function removeValidators(bytes[] calldata _publicKeys) external;
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.

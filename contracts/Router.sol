@@ -287,10 +287,6 @@ contract Router is
     uint256 currentReportBlock = reportBlock;
     _advanceNextReportBlock();
 
-    if (_report.validatorsToRemove.length > 0) {
-      emit ValidatorsToRemove(currentReportBlock, _report.validatorsToRemove);
-    }
-
     if (_report.merkleRoot != bytes32(0)) {
       airdrop.addMerkleRoot(currentReportBlock, _report.merkleRoot);
     }

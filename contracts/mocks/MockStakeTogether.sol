@@ -676,14 +676,6 @@ contract MockStakeTogether is
     _processStakeValidator();
   }
 
-  /// @notice Removes validators by their public keys.
-  /// @param _publicKeys The public keys of the validators to be removed.
-  function removeValidators(
-    bytes[] calldata _publicKeys
-  ) external onlyRole(VALIDATOR_MANAGER_ROLE) whenNotPaused {
-    emit RemoveValidators(_publicKeys);
-  }
-
   /*************
    ** Airdrop **
    *************/
