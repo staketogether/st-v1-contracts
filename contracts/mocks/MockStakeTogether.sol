@@ -59,6 +59,7 @@ contract MockStakeTogether is
   uint256 public totalShares; /// Total number of shares.
   mapping(address => mapping(address => uint256)) private allowances; /// Allowances mapping.
 
+  mapping(address => uint) private lastOperationBlock; // Mapping of addresses to their last operation block.
   uint256 public lastResetBlock; /// Block number of the last reset.
   uint256 public totalDeposited; /// Total amount deposited.
   uint256 public totalWithdrawnPool; /// Total amount withdrawn pool.
@@ -140,6 +141,13 @@ contract MockStakeTogether is
     emit ReceiveEther(msg.value);
   }
 
+  modifier nonFlashLoan() {
+    if (lastOperationBlock[msg.sender] == block.number) {
+      revert FlashLoan();
+    }
+    _;
+  }
+
   /************
    ** CONFIG **
    ************/
@@ -212,6 +220,7 @@ contract MockStakeTogether is
   ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -362,6 +371,7 @@ contract MockStakeTogether is
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
     _processStakeEntry(_to, msg.value);
+    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -370,7 +380,7 @@ contract MockStakeTogether is
   function depositPool(
     address _pool,
     bytes calldata _referral
-  ) external payable nonReentrant whenNotPaused {
+  ) external payable nonReentrant nonFlashLoan whenNotPaused {
     _depositBase(msg.sender, DepositType.Pool, _pool, _referral);
   }
 
@@ -381,7 +391,7 @@ contract MockStakeTogether is
     address _to,
     address _pool,
     bytes calldata _referral
-  ) external payable nonReentrant whenNotPaused {
+  ) external payable nonReentrant nonFlashLoan whenNotPaused {
     _depositBase(_to, DepositType.Donation, _pool, _referral);
   }
 
@@ -413,12 +423,13 @@ contract MockStakeTogether is
     emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
     uint256 sharesToBurn = Math.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
+    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
-  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+  function withdrawPool(uint256 _amount, address _pool) external nonReentrant nonFlashLoan whenNotPaused {
     if (!config.feature.WithdrawPool) revert FeatureDisabled();
     if (_amount > address(this).balance) revert InsufficientPoolBalance();
     _withdrawBase(_amount, WithdrawType.Pool, _pool);
@@ -428,7 +439,10 @@ contract MockStakeTogether is
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
-  function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+  function withdrawValidator(
+    uint256 _amount,
+    address _pool
+  ) external nonReentrant nonFlashLoan whenNotPaused {
     if (!config.feature.WithdrawValidator) revert FeatureDisabled();
     if (_amount <= address(this).balance) revert WithdrawFromPool();
     if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
@@ -491,7 +505,7 @@ contract MockStakeTogether is
     address _pool,
     bool _listed,
     bool _social
-  ) external payable nonReentrant whenNotPaused {
+  ) external payable nonReentrant whenNotPaused nonFlashLoan {
     if (_pool == address(0)) revert ZeroAddress();
     if (pools[_pool]) revert PoolExists();
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
@@ -501,14 +515,16 @@ contract MockStakeTogether is
     }
     pools[_pool] = true;
     emit AddPool(_pool, _listed, _social, msg.value);
+    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
-  function removePool(address _pool) external whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
+  function removePool(address _pool) external nonFlashLoan whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     if (!pools[_pool]) revert PoolNotFound();
     pools[_pool] = false;
     emit RemovePool(_pool);
+    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Updates delegations for the sender's address.

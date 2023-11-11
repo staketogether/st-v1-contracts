@@ -6,6 +6,9 @@ pragma solidity 0.8.22;
 /// @notice A contract that represent the validator withdrawal functionality
 /// @custom:security-contact security@staketogether.org
 interface IWithdrawals {
+  /// @notice Thrown if the operation is a FlashLoan.
+  error FlashLoan();
+
   /// @notice This error is thrown when the sender has insufficient STW balance to perform a transaction.
   error InsufficientStwBalance();
 

@@ -37,6 +37,7 @@ contract MockWithdrawals is
   uint256 public version; /// Contract version.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IRouter public router; /// Instance of the Router contract.
+  mapping(address => uint) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -77,6 +78,13 @@ contract MockWithdrawals is
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable {
     emit ReceiveEther(msg.value);
+  }
+
+  modifier nonFlashLoan() {
+    if (lastOperationBlock[msg.sender] == block.number) {
+      revert FlashLoan();
+    }
+    _;
   }
 
   /// @notice Allows the router to send ETH to the contract.
@@ -145,6 +153,7 @@ contract MockWithdrawals is
   ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -178,7 +187,7 @@ contract MockWithdrawals is
   /// @notice Withdraws the specified amount of ETH, burning tokens in exchange.
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
-  function withdraw(uint256 _amount) external {
+  function withdraw(uint256 _amount) external nonReentrant nonFlashLoan whenNotPaused {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
@@ -186,6 +195,7 @@ contract MockWithdrawals is
     emit Withdraw(msg.sender, _amount);
     _burn(msg.sender, _amount);
     Address.sendValue(payable(msg.sender), _amount);
+    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Checks if the contract is ready to withdraw the specified amount.

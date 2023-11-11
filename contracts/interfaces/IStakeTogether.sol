@@ -12,6 +12,9 @@ interface IStakeTogether {
   /// @notice Thrown if the feature is disabled.
   error FeatureDisabled();
 
+  /// @notice Thrown if the operation is a FlashLoan.
+  error FlashLoan();
+
   /// @notice Thrown if there is insufficient beacon balance.
   error InsufficientBeaconBalance();
 

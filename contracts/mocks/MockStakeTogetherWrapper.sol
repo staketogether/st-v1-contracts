@@ -36,6 +36,7 @@ contract MockStakeTogetherWrapper is
 
   uint256 public version; /// Contract version.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  mapping(address => uint) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -72,6 +73,13 @@ contract MockStakeTogetherWrapper is
   /// @notice Receive function to accept incoming ETH transfers.
   receive() external payable {
     emit ReceiveEther(msg.value);
+  }
+
+  modifier nonFlashLoan() {
+    if (lastOperationBlock[msg.sender] == block.number) {
+      revert FlashLoan();
+    }
+    _;
   }
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
@@ -123,6 +131,7 @@ contract MockStakeTogetherWrapper is
   ) public override(ERC20Upgradeable, IStakeTogetherWrapper) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -148,7 +157,7 @@ contract MockStakeTogetherWrapper is
   /// @dev Reverts if the sender is on the anti-fraud list, or if the _stpETH amount is zero.
   /// @param _stpETH The amount of stpETH to wrap.
   /// @return The amount of wstpETH minted.
-  function wrap(uint256 _stpETH) external returns (uint256) {
+  function wrap(uint256 _stpETH) external nonFlashLoan returns (uint256) {
     if (_stpETH == 0) revert ZeroStpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 wstpETHAmount = stakeTogether.sharesByWei(_stpETH);
@@ -157,6 +166,7 @@ contract MockStakeTogetherWrapper is
     emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
     bool success = stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
     if (!success) revert TransferStpEthFailed();
+    lastOperationBlock[msg.sender] = block.number;
     return wstpETHAmount;
   }
 
@@ -164,7 +174,7 @@ contract MockStakeTogetherWrapper is
   /// @dev Reverts if the sender is on the anti-fraud list, or if the _wstpETH amount is zero.
   /// @param _wstpETH The amount of wstpETH to unwrap.
   /// @return The amount of stpETH received.
-  function unwrap(uint256 _wstpETH) external returns (uint256) {
+  function unwrap(uint256 _wstpETH) external nonFlashLoan returns (uint256) {
     if (_wstpETH == 0) revert ZeroWstpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 stpETHAmount = stakeTogether.weiByShares(_wstpETH);
@@ -173,6 +183,7 @@ contract MockStakeTogetherWrapper is
     emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
     bool success = stakeTogether.transfer(msg.sender, stpETHAmount);
     if (!success) revert TransferStpEthFailed();
+    lastOperationBlock[msg.sender] = block.number;
     return stpETHAmount;
   }
 

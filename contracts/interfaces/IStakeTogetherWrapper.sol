@@ -6,6 +6,9 @@ pragma solidity 0.8.22;
 /// @notice This interface defines the essential structures and functions for the StakeTogetherWrapper.
 /// @custom:security-contact security@staketogether.org
 interface IStakeTogetherWrapper {
+  /// @notice Thrown if the operation is a FlashLoan.
+  error FlashLoan();
+
   /// @notice Thrown if the listed in anti-fraud.
   error ListedInAntiFraud();
 
