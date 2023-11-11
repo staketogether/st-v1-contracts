@@ -48,6 +48,9 @@ interface IStakeTogether {
   /// @notice Thrown if the total percentage is not equal to 1 ether.
   error InvalidTotalPercentage();
 
+  /// @notice Thrown if the total supply is invalid.
+  error InvalidTotalSupply();
+
   /// @notice Thrown if the number of delegations exceeds the maximum limit.
   error MaxDelegations();
 

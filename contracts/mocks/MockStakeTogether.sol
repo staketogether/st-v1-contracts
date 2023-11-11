@@ -171,7 +171,9 @@ contract MockStakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    return address(this).balance + beaconBalance - withdrawBalance;
+    uint256 _totalSupply = address(this).balance + beaconBalance - withdrawBalance;
+    if (_totalSupply < 1 ether) revert InvalidTotalSupply();
+    return _totalSupply;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -690,15 +692,6 @@ contract MockStakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
-    if (validators[_publicKey]) revert ValidatorExists();
-    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
-
-    validators[_publicKey] = true;
-    _nextValidatorOracle();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
     emit AddValidator(
       msg.sender,
       config.validatorSize,
@@ -707,13 +700,6 @@ contract MockStakeTogether is
       _signature,
       _depositDataRoot
     );
-    deposit.deposit{ value: config.validatorSize }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    _processStakeValidator();
   }
 
   /*************

@@ -171,7 +171,9 @@ contract StakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    return address(this).balance + beaconBalance - withdrawBalance;
+    uint256 _totalSupply = address(this).balance + beaconBalance - withdrawBalance;
+    if (_totalSupply < 1 ether) revert InvalidTotalSupply();
+    return _totalSupply;
   }
 
   ///  @notice Calculates the shares amount by wei.
