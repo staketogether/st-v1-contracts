@@ -813,6 +813,7 @@ contract MockStakeTogether is
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
+      if (getFeeAddress(roles[i]) == address(0)) revert ZeroAddress();
       uint256 allocation = fees[_feeType].allocations[roles[i]];
       allocatedShares[i] = Math.mulDiv(feeShares, allocation, 1 ether);
       totalAllocatedShares += allocatedShares[i];
