@@ -43,7 +43,7 @@ contract Router is
   mapping(address => bool) private reportOracles; /// Mapping to track oracle addresses.
   mapping(address => bool) public reportOraclesBlacklist; /// Mapping to track blacklisted reportOracles.
 
-  mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports by epoch.
+  mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports.
   mapping(uint256 => mapping(address => bool)) reportForBlock; /// Mapping to track blocks for reports.
   mapping(uint256 => uint256) public totalVotes; // Mapping to track block report votes for reports.
   mapping(uint256 => mapping(bytes32 => uint256)) public reportVotesForBlock; /// Mapping to track votes for reports.
@@ -54,7 +54,6 @@ contract Router is
   uint256 public reportBlock; /// The next block where a report is expected.
   uint256 public lastConsensusBlock; /// The last block where consensus was achieved.
   uint256 public lastExecutedBlock; /// The last block where a report was executed.
-  uint256 public lastExecutedEpoch; /// The last epoch where consensus was executed.
   bool public pendingExecution; /// Theres a report pending to be executed.
 
   mapping(uint256 => uint256) public reportDelayBlock; /// Mapping to track the delay for reports.
@@ -85,7 +84,6 @@ contract Router is
 
     lastConsensusBlock = 1;
     lastExecutedBlock = 1;
-    lastExecutedEpoch = 1;
     pendingExecution = false;
   }
 
@@ -280,7 +278,6 @@ contract Router is
 
     executedReports[reportBlock][hash] = true;
     lastExecutedBlock = reportBlock;
-    lastExecutedEpoch = _report.epoch;
     pendingExecution = false;
     emit ExecuteReport(msg.sender, reportBlock, _report);
 
@@ -346,14 +343,6 @@ contract Router is
     _revokeConsensusReport(_reportBlock);
   }
 
-  /// @notice Set the last epoch for which a consensus was executed.
-  /// @dev Only accounts with the ADMIN_ROLE can call this function.
-  /// @param _epoch The last epoch for which consensus was executed.
-  function setLastExecutedEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
-    lastExecutedEpoch = _epoch;
-    emit SetLastExecutedEpoch(_epoch);
-  }
-
   /// @notice Computes and returns the hash of a given report.
   /// @param _report The data structure containing report details.
   /// @return The keccak256 hash of the report.
@@ -369,7 +358,6 @@ contract Router is
     bytes32 hash = keccak256(abi.encode(_report));
     if (totalReportOracles < config.oracleQuorum) revert QuorumNotReached();
     if (block.number <= reportBlock) revert BlockNumberNotReached();
-    if (_report.epoch <= lastExecutedEpoch) revert EpochShouldBeGreater();
     if (executedReports[reportBlock][hash]) revert AlreadyExecuted();
     if (reportForBlock[reportBlock][msg.sender]) revert OracleAlreadyReported();
     if (pendingExecution) revert PendingExecution();

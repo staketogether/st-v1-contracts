@@ -27,9 +27,6 @@ interface IRouter {
   /// @notice Emitted when trying to execute too early.
   error EarlyExecution();
 
-  /// @notice Emitted when the epoch should be greater than the last executed epoch.
-  error EpochShouldBeGreater();
-
   /// @notice Emitted when the report's profit amount A is not enough for execution.
   error IncreaseOraclesToUseMargin();
 
@@ -75,7 +72,7 @@ interface IRouter {
   /// @notice Emitted when a report for a specific block has already been revoked.
   error ReportRevoked();
 
-  /// Emits when the report block is not greater than the last executed epoch.
+  /// Emits when the report block is not greater than the last executed reportBlock.
   error ReportBlockShouldBeGreater();
 
   /// @notice Emitted when there are not enough oracles to use the margin.
@@ -114,17 +111,17 @@ interface IRouter {
   }
 
   /// @dev Report structure used for reporting the state of the protocol at different report blocks.
-  /// @param epoch The specific time period for which this report is generated.
-  /// @param merkleRoot The Merkle root hash representing the state of the data at this epoch.
-  /// @param profitAmount The total profit amount generated during this epoch.
-  /// @param profitShares The distribution of profits among stakeholders for this epoch.
-  /// @param lossAmount The total loss amount incurred during this epoch.
-  /// @param withdrawAmount The total amount withdrawn by users during this epoch.
-  /// @param withdrawRefundAmount The amount refunded to users on withdrawal during this epoch.
-  /// @param validatorsStatus The status of validators during this epoch, represented as a bytes32 value.
-  /// @param accumulatedReports The total number of reports accumulated up to this epoch.
+  /// @param reportBlock The specific block period for which this report is generated.
+  /// @param merkleRoot The Merkle root hash representing the state of the data at this reportBlock.
+  /// @param profitAmount The total profit amount generated during this reportBlock.
+  /// @param profitShares The distribution of profits among stakeholders for this reportBlock.
+  /// @param lossAmount The total loss amount incurred during this reportBlock.
+  /// @param withdrawAmount The total amount withdrawn by users during this reportBlock.
+  /// @param withdrawRefundAmount The amount refunded to users on withdrawal during this reportBlock.
+  /// @param validatorsStatus The status of validators during this epreportBlockoch, represented as a bytes32 value.
+  /// @param accumulatedReports The total number of reports accumulated up to this reportBlock.
   struct Report {
-    uint256 epoch;
+    uint256 reportBlock;
     bytes32 merkleRoot;
     uint256 profitAmount;
     uint256 profitShares;
@@ -177,16 +174,12 @@ interface IRouter {
   /// @param config The updated configuration.
   event SetConfig(Config indexed config);
 
-  /// @notice Emitted when the last consensus block is set.
-  /// @param epoch The block number set as the last consensus epoch.
-  event SetLastExecutedEpoch(uint256 indexed epoch);
-
   /// @notice Emitted when the StakeTogether address is set.
   /// @param stakeTogether The address of the StakeTogether contract.
   event SetStakeTogether(address indexed stakeTogether);
 
   /// @notice Emitted when the next report frequency is skipped.
-  /// @param reportBlock The epoch for which the report frequency was skipped.
+  /// @param reportBlock The reportBlock for which the report frequency was skipped.
   /// @param reportNextBlock The block number at which the report frequency was skipped.
   event AdvanceNextBlock(uint256 indexed reportBlock, uint256 indexed reportNextBlock);
 
@@ -287,18 +280,13 @@ interface IRouter {
   /// @param _report The data structure containing report details.
   function getReportHash(Report calldata _report) external pure returns (bytes32);
 
-  // @notice Revokes a consensus-approved report for a given epoch.
+  // @notice Revokes a consensus-approved report for a given reportBlock.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _reportBlock The epoch for which the report was approved.
+  /// @param _reportBlock The reportBlock for which the report was approved.
   function revokeConsensusReport(uint256 _reportBlock) external;
 
-  /// @notice Set the last epoch for which a consensus was reached.
-  /// @dev Only accounts with the ADMIN_ROLE can call this function.
-  /// @param _epoch The last epoch for which consensus was reached.
-  function setLastExecutedEpoch(uint256 _epoch) external;
-
-  /// @notice Validates if conditions to submit a report for an epoch are met.
-  /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.
+  /// @notice Validates if conditions to submit a report for an reportBlock are met.
+  /// @dev Verifies conditions such as block number, consensus reportBlock, executed reports, and oracle votes.
   /// @param _report The data structure containing report details.
   function isReadyToSubmit(Report calldata _report) external view returns (bytes32);
 
