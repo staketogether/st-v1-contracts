@@ -14,6 +14,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
 import './interfaces/IDepositContract.sol';
+import './interfaces/IAirdrop.sol';
 import './interfaces/IRouter.sol';
 import './interfaces/IStakeTogether.sol';
 import './interfaces/IWithdrawals.sol';
@@ -45,7 +46,8 @@ contract StakeTogether is
 
   uint256 public version; /// Contract version.
 
-  IDepositContract public depositContract; /// Deposit contract interface.
+  IAirdrop public airdrop; /// Airdrop contract instance.
+  IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
 
@@ -86,14 +88,17 @@ contract StakeTogether is
   }
 
   /// @notice Stake Together Pool Initialization
+  /// @param _airdrop The address of the airdrop contract.
+  /// @param _deposit The address of the deposit contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _depositContract The address of the deposit contract.
+
   /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
+    address _airdrop,
+    address _deposit,
     address _router,
     address _withdrawals,
-    address _depositContract,
     bytes memory _withdrawalCredentials
   ) public initializer {
     __ERC20_init('Stake Together Protocol', 'stpETH');
@@ -107,7 +112,8 @@ contract StakeTogether is
 
     version = 1;
 
-    depositContract = IDepositContract(_depositContract);
+    airdrop = IAirdrop(payable(_airdrop));
+    deposit = IDepositContract(_deposit);
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
     withdrawalCredentials = _withdrawalCredentials;
@@ -706,7 +712,7 @@ contract StakeTogether is
       _signature,
       _depositDataRoot
     );
-    depositContract.deposit{ value: config.validatorSize }(
+    deposit.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,
@@ -723,9 +729,8 @@ contract StakeTogether is
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
-    address airdropFee = getFeeAddress(FeeRole.Airdrop);
-    if (msg.sender != airdropFee) revert OnlyAirdrop();
-    _transferShares(airdropFee, _account, _sharesAmount);
+    if (msg.sender != address(airdrop)) revert OnlyAirdrop();
+    _transferShares(address(airdrop), _account, _sharesAmount);
   }
 
   /*****************
@@ -745,6 +750,11 @@ contract StakeTogether is
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     if (_address == address(0)) revert ZeroAddress();
     feesRole[_role] = _address;
+    if (_role == FeeRole.Airdrop) {
+      feesRole[_role] = payable(airdrop);
+    } else {
+      feesRole[_role] = _address;
+    }
     emit SetFeeAddress(_role, _address);
   }
 
