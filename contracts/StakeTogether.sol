@@ -136,7 +136,7 @@ contract StakeTogether is
 
   /// @notice Receive function to accept incoming ETH transfers.
   /// @dev Non-reentrant to prevent re-entrancy attacks.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
   }
 

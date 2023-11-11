@@ -106,7 +106,7 @@ contract Router is
 
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
   }
 
@@ -237,7 +237,7 @@ contract Router is
   /// @dev Handles report submissions, checking for consensus or thresholds and preps next block if needed.
   /// It uses a combination of total votes for report to determine consensus.
   /// @param _report Data structure of the report.
-  function submitReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
+  function submitReport(Report calldata _report) external whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToSubmit(_report);
 
     reports[reportBlock][hash].push(msg.sender);
@@ -328,7 +328,7 @@ contract Router is
   }
 
   /// @notice Force to advance to the next reportBlock.
-  function forceNextReportBlock() external nonReentrant activeReportOracle {
+  function forceNextReportBlock() external activeReportOracle {
     if (block.number <= reportBlock + config.reportFrequency) revert ConsensusNotDelayed();
     if (pendingExecution) revert PendingExecution();
     _revokeConsensusReport(reportBlock);

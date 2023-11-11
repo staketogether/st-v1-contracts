@@ -70,7 +70,7 @@ contract MockStakeTogetherWrapper is
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   /// @notice Receive function to accept incoming ETH transfers.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
   }
 

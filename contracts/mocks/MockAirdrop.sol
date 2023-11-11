@@ -70,7 +70,7 @@ contract MockAirdrop is
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
   }
 
@@ -111,7 +111,7 @@ contract MockAirdrop is
   /// @param _reportBlock The block number.
   /// @param _root The Merkle root.
   /// @dev Only callable by the router.
-  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
+  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external whenNotPaused {
     if (msg.sender != address(router)) revert OnlyRouter();
     if (merkleRoots[_reportBlock] != bytes32(0)) revert MerkleRootAlreadySetForBlock();
     merkleRoots[_reportBlock] = _root;
