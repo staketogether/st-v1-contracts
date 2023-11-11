@@ -440,7 +440,7 @@ contract MockStakeTogether is
     Address.sendValue(payable(msg.sender), _amount);
   }
 
-  /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
+  /// @notice Withdrawals from the beacon chain.
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
   function withdrawBeacon(
@@ -591,8 +591,14 @@ contract MockStakeTogether is
     }
 
     validatorsOracle.pop();
-
     delete validatorsOracleIndices[_account];
+
+    bool isCurrentOracle = (index == currentOracleIndex);
+
+    if (isCurrentOracle) {
+      currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
+    }
+
     _revokeRole(VALIDATOR_ORACLE_ROLE, _account);
     emit RemoveValidatorOracle(_account);
   }

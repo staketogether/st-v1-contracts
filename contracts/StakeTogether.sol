@@ -591,8 +591,14 @@ contract StakeTogether is
     }
 
     validatorsOracle.pop();
-
     delete validatorsOracleIndices[_account];
+
+    bool isCurrentOracle = (index == currentOracleIndex);
+
+    if (isCurrentOracle) {
+      currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
+    }
+
     _revokeRole(VALIDATOR_ORACLE_ROLE, _account);
     emit RemoveValidatorOracle(_account);
   }
