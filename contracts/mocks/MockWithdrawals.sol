@@ -49,6 +49,7 @@ contract MockWithdrawals is
     __ERC20_init('Stake Together Withdrawals', 'stwETH');
     __ERC20Burnable_init();
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __ERC20Permit_init('Stake Together Withdrawals');
     __UUPSUpgradeable_init();

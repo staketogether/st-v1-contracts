@@ -588,17 +588,6 @@ interface IStakeTogether {
   /// @dev Only an admin can call this function.
   function setFee(FeeType _feeType, uint256 _value, uint256[] calldata _allocations) external;
 
-  /// @notice Gets the fee value for a given type.
-  /// @param _type The type for which the value will be retrieved.
-  /// @return The value associated with the given type.
-  function getFeeValue(FeeType _type) external view returns (uint256);
-
-  /// @notice Gets the fee allocation for a given role.
-  /// @param _type The type for which the value will be retrieved.
-  /// @param _role The role for which the address will be retrieved.
-  /// @return The allocation value associated with the given type.
-  function getFeeAllocation(FeeType _type, FeeRole _role) external view returns (uint256);
-
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev Requires the caller to be the router contract.

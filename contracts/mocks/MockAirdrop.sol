@@ -43,6 +43,7 @@ contract MockAirdrop is
   /// @notice Initializes the contract with initial settings.
   function initialize() external initializer {
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
 

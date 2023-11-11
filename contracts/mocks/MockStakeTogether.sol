@@ -104,6 +104,7 @@ contract MockStakeTogether is
     __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __ERC20Permit_init('Stake Together Protocol');
     __UUPSUpgradeable_init();
@@ -768,21 +769,6 @@ contract MockStakeTogether is
     fees[_feeType].value = _value;
 
     emit SetFee(_feeType, _value, _allocations);
-  }
-
-  /// @notice Gets the fee value for a given type.
-  /// @param _type The type for which the value will be retrieved.
-  /// @return The value associated with the given type.
-  function getFeeValue(FeeType _type) external view returns (uint256) {
-    return fees[_type].value;
-  }
-
-  /// @notice Gets the fee allocation for a given role.
-  /// @param _type The type for which the value will be retrieved.
-  /// @param _role The role for which the address will be retrieved.
-  /// @return The allocation value associated with the given type.
-  function getFeeAllocation(FeeType _type, FeeRole _role) external view returns (uint256) {
-    return fees[_type].allocations[_role];
   }
 
   /// @notice Distributes fees according to their type, amount, and the destination.

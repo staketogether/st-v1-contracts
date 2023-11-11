@@ -47,6 +47,7 @@ contract StakeTogetherWrapper is
     __ERC20_init('Wrapped Stake Together Protocol', 'wstpETH');
     __ERC20Burnable_init();
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __ERC20Permit_init('Wrapped Stake Together Protocol');
     __UUPSUpgradeable_init();

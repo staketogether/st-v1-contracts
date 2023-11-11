@@ -69,6 +69,7 @@ contract MockRouter is
   /// @param _withdrawals The address of the Withdrawals contract.
   function initialize(address _airdrop, address _withdrawals) external initializer {
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
 
