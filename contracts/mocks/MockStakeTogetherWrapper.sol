@@ -85,7 +85,7 @@ contract MockStakeTogetherWrapper is
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
-    uint256 extraAmount = address(this).balance - totalSupply();
+    uint256 extraAmount = address(this).balance;
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     Address.sendValue(payable(stakeTogetherFee), extraAmount);
