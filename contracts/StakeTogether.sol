@@ -212,6 +212,7 @@ contract StakeTogether is
   ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
