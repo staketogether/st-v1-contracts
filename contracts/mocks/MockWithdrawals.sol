@@ -82,7 +82,7 @@ contract MockWithdrawals is
   }
 
   modifier nonFlashLoan() {
-    if (lastOperationBlock[msg.sender] == block.number) {
+    if (block.number <= lastOperationBlock[msg.sender]) {
       revert FlashLoan();
     }
     _;

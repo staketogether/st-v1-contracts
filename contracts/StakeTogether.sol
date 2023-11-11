@@ -146,7 +146,7 @@ contract StakeTogether is
   }
 
   modifier nonFlashLoan() {
-    if (lastOperationBlock[msg.sender] == block.number) {
+    if (block.number <= lastOperationBlock[msg.sender]) {
       revert FlashLoan();
     }
     _;
@@ -369,6 +369,8 @@ contract StakeTogether is
 
     _resetLimits();
     totalDeposited += msg.value;
+    lastOperationBlock[msg.sender] = block.number;
+    nextWithdrawBlock[msg.sender] = router.reportBlock() + config.withdrawDelay;
 
     if (totalDeposited > config.depositLimit) {
       emit DepositLimitWasReached(_to, msg.value);
@@ -377,8 +379,6 @@ contract StakeTogether is
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
     _processStakeEntry(_to, msg.value);
-    lastOperationBlock[msg.sender] = block.number;
-    nextWithdrawBlock[msg.sender] = router.reportBlock() + config.withdrawDelay;
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -413,6 +413,7 @@ contract StakeTogether is
     if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyWithdraw();
 
     _resetLimits();
+    lastOperationBlock[msg.sender] = block.number;
 
     if (_withdrawType == WithdrawType.Pool) {
       totalWithdrawnPool += _amount;
@@ -431,7 +432,6 @@ contract StakeTogether is
     emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
     uint256 sharesToBurn = Math.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
-    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
@@ -454,10 +454,11 @@ contract StakeTogether is
     if (!config.feature.WithdrawBeacon) revert FeatureDisabled();
     if (_amount <= address(this).balance) revert WithdrawFromPool();
     if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
+    nextWithdrawBeaconBlock[msg.sender] = router.reportBlock() + config.withdrawBeaconDelay;
     _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
+
     withdrawals.mint(msg.sender, _amount);
-    nextWithdrawBeaconBlock[msg.sender] = router.reportBlock() + config.withdrawBeaconDelay;
   }
 
   /// @notice Resets the daily limits for deposits and withdrawals.
@@ -535,8 +536,8 @@ contract StakeTogether is
       _processStakePool();
     }
     pools[_pool] = true;
-    emit AddPool(_pool, _listed, _social, msg.value);
     lastOperationBlock[msg.sender] = block.number;
+    emit AddPool(_pool, _listed, _social, msg.value);
   }
 
   /// @notice Removes a pool by its address.
@@ -544,8 +545,8 @@ contract StakeTogether is
   function removePool(address _pool) external nonFlashLoan whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     if (!pools[_pool]) revert PoolNotFound();
     pools[_pool] = false;
-    emit RemovePool(_pool);
     lastOperationBlock[msg.sender] = block.number;
+    emit RemovePool(_pool);
   }
 
   /// @notice Updates delegations for the sender's address.

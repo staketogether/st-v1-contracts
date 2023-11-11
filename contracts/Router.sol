@@ -84,7 +84,6 @@ contract Router is
 
     lastConsensusBlock = 1;
     lastExecutedBlock = 1;
-    pendingExecution = false;
   }
 
   /// @notice Pauses the contract functionalities.

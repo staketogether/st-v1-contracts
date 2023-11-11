@@ -77,7 +77,7 @@ contract StakeTogetherWrapper is
   }
 
   modifier nonFlashLoan() {
-    if (lastOperationBlock[msg.sender] == block.number) {
+    if (block.number <= lastOperationBlock[msg.sender]) {
       revert FlashLoan();
     }
     _;
@@ -163,11 +163,11 @@ contract StakeTogetherWrapper is
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 wstpETHAmount = stakeTogether.sharesByWei(_stpETH);
     if (wstpETHAmount == 0) revert ZeroWstpETHAmount();
+    lastOperationBlock[msg.sender] = block.number;
     _mint(msg.sender, wstpETHAmount);
     emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
     bool success = stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
     if (!success) revert TransferStpEthFailed();
-    lastOperationBlock[msg.sender] = block.number;
     return wstpETHAmount;
   }
 
@@ -175,16 +175,16 @@ contract StakeTogetherWrapper is
   /// @dev Reverts if the sender is on the anti-fraud list, or if the _wstpETH amount is zero.
   /// @param _wstpETH The amount of wstpETH to unwrap.
   /// @return The amount of stpETH received.
-  function unwrap(uint256 _wstpETH) external nonFlashLoan returns (uint256) {
+  function unwrap(uint256 _wstpETH) external nonReentrant nonFlashLoan returns (uint256) {
     if (_wstpETH == 0) revert ZeroWstpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 stpETHAmount = stakeTogether.weiByShares(_wstpETH);
     if (stpETHAmount == 0) revert ZeroStpETHAmount();
+    lastOperationBlock[msg.sender] = block.number;
     _burn(msg.sender, _wstpETH);
     emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
     bool success = stakeTogether.transfer(msg.sender, stpETHAmount);
     if (!success) revert TransferStpEthFailed();
-    lastOperationBlock[msg.sender] = block.number;
     return stpETHAmount;
   }
 
