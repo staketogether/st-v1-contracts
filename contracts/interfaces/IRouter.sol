@@ -51,6 +51,9 @@ interface IRouter {
   /// @notice Emitted when an oracle is already in the report oracles list.
   error OracleExists();
 
+  /// @notice Emitted when an oracle is already blacklisted.
+  error OracleAlreadyBlacklisted();
+
   /// @notice Emitted when an oracle is blacklisted.
   error OracleBlacklisted();
 

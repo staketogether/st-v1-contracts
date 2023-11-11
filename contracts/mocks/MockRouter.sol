@@ -194,6 +194,7 @@ contract MockRouter is
   /// @param _account Address of the oracle to be blacklisted.
   function blacklistReportOracle(address _account) external onlyRole(ORACLE_SENTINEL_ROLE) {
     if (!reportOracles[_account]) revert OracleNotExists();
+    if (reportOraclesBlacklist[_account]) revert OracleAlreadyBlacklisted();
     reportOraclesBlacklist[_account] = true;
     if (totalReportOracles > 0) {
       totalReportOracles--;
