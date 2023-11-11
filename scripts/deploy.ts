@@ -33,7 +33,7 @@ export async function deploy() {
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
 
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(owner, airdrop.proxyAddress, router.proxyAddress, withdrawals.proxyAddress)
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
   // CONFIG
@@ -148,6 +148,7 @@ export async function deployRouter(
 
 export async function deployStakeTogether(
   owner: HardhatEthersSigner,
+  airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -173,9 +174,10 @@ export async function deployStakeTogether(
   const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    airdropContract,
+    depositAddress,
     routerContract,
     withdrawalsContract,
-    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -204,15 +206,17 @@ export async function deployStakeTogether(
   const poolSize = ethers.parseEther('32')
 
   const config = {
-    validatorSize: ethers.parseEther('32'),
-    poolSize: poolSize + stakeValidatorFee,
+    blocksPerDay: 7200n,
+    depositLimit: ethers.parseEther('1000'),
+    maxDelegations: 64n,
     minDepositAmount: ethers.parseEther('0.001'),
     minWithdrawAmount: ethers.parseEther('0.00001'),
-    depositLimit: ethers.parseEther('1000'),
+    poolSize: poolSize + stakeValidatorFee,
+    validatorSize: ethers.parseEther('32'),
     withdrawalPoolLimit: ethers.parseEther('1000'),
     withdrawalValidatorLimit: ethers.parseEther('1000'),
-    blocksPerDay: 7200n,
-    maxDelegations: 64n,
+    withdrawDelay: 10n,
+    withdrawBeaconDelay: 10n,
     feature: {
       AddPool: false,
       Deposit: true,
@@ -305,18 +309,18 @@ export async function configContracts(
     routerContract: Router
   },
 ) {
-  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
-
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
   await airdrop.airdropContract.setRouter(router.proxyAddress)
+
+  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
   await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
 
-  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
 
   await stakeTogetherWrapper.stakeTogetherWrapperContract.setStakeTogether(stakeTogether.proxyAddress)
 }
@@ -337,10 +341,10 @@ async function verifyContracts(
 
   console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)
