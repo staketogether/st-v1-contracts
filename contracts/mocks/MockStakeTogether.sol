@@ -118,11 +118,6 @@ contract MockStakeTogether is
     withdrawals = IWithdrawals(payable(_withdrawals));
     withdrawalCredentials = _withdrawalCredentials;
 
-    totalShares = 0;
-    beaconBalance = 0;
-    withdrawBalance = 0;
-    currentOracleIndex = 0;
-
     _mintShares(address(this), 1 ether);
   }
 

@@ -79,7 +79,6 @@ contract Router is
     airdrop = IAirdrop(payable(_airdrop));
     withdrawals = IWithdrawals(payable(_withdrawals));
 
-    totalReportOracles = 0;
     reportBlock = block.number;
 
     lastConsensusBlock = 1;
