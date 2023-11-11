@@ -37,7 +37,7 @@ contract Withdrawals is
   uint256 public version; /// Contract version.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IRouter public router; /// Instance of the Router contract.
-  mapping(address => uint) private lastOperationBlock; // Mapping of addresses to their last operation block.
+  mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -192,6 +192,7 @@ contract Withdrawals is
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
     if (_amount <= 0) revert ZeroAmount();
+    if (block.number < stakeTogether.getWithdrawBeaconBlock(msg.sender)) revert EarlyBeaconWithdraw();
     emit Withdraw(msg.sender, _amount);
     _burn(msg.sender, _amount);
     Address.sendValue(payable(msg.sender), _amount);

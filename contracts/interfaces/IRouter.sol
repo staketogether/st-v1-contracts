@@ -294,4 +294,7 @@ interface IRouter {
   /// @dev Verifies conditions like revoked reports, executed reports, consensus reports, and beacon balance.
   /// @param _report The data structure containing report details.
   function isReadyToExecute(Report calldata _report) external view returns (bytes32);
+
+  /// @notice Returns the next report block.
+  function reportBlock() external view returns (uint256);
 }

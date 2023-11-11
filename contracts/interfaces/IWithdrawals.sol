@@ -6,6 +6,9 @@ pragma solidity 0.8.22;
 /// @notice A contract that represent the validator withdrawal functionality
 /// @custom:security-contact security@staketogether.org
 interface IWithdrawals {
+  /// @notice This error is thrown when use try withdraw before the beacon delay.
+  error EarlyBeaconWithdraw();
+
   /// @notice Thrown if the operation is a FlashLoan.
   error FlashLoan();
 

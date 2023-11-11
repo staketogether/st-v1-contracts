@@ -9,6 +9,9 @@ interface IStakeTogether {
   /// @notice Thrown if the deposit limit is reached.
   error DepositLimitReached();
 
+  /// @notice Thrown if the withdraw is too early to be executed.
+  error EarlyWithdraw();
+
   /// @notice Thrown if the feature is disabled.
   error FeatureDisabled();
 
@@ -137,6 +140,8 @@ interface IStakeTogether {
     uint256 validatorSize; /// Size of the validator.
     uint256 withdrawalPoolLimit; /// Maximum amount of pool withdrawal.
     uint256 withdrawalValidatorLimit; /// Maximum amount of validator withdrawal.
+    uint256 withdrawDelay; /// Delay Blocks for withdrawal.
+    uint256 withdrawBeaconDelay; /// Delay Blocks for beacon withdrawal.
     Feature feature; /// Additional features configuration.
   }
 
@@ -469,6 +474,14 @@ interface IStakeTogether {
   /// @param _amount The amount to withdraw.
   /// @param _pool the address of the pool.
   function withdrawValidator(uint256 _amount, address _pool) external;
+
+  /// @notice Get the next withdraw block for account
+  /// @param _account the address of the account.
+  function getWithdrawBlock(address _account) external view returns (uint256);
+
+  /// @notice Get the next withdraw beacon block for account
+  /// @param _account the address of the account.
+  function getWithdrawBeaconBlock(address _account) external view returns (uint256);
 
   /// @notice Adds an address to the anti-fraud list.
   /// @dev Callable only by accounts with the ANTI_FRAUD_SENTINEL_ROLE or ANTI_FRAUD_MANAGER_ROLE.

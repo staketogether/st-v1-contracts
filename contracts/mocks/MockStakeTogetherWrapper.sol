@@ -36,7 +36,7 @@ contract MockStakeTogetherWrapper is
 
   uint256 public version; /// Contract version.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  mapping(address => uint) private lastOperationBlock; // Mapping of addresses to their last operation block.
+  mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {

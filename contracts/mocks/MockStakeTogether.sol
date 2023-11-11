@@ -59,7 +59,9 @@ contract MockStakeTogether is
   uint256 public totalShares; /// Total number of shares.
   mapping(address => mapping(address => uint256)) private allowances; /// Allowances mapping.
 
-  mapping(address => uint) private lastOperationBlock; // Mapping of addresses to their last operation block.
+  mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
+  mapping(address => uint256) private nextWithdrawBlock; // Mapping the next block for withdraw validator
+  mapping(address => uint256) private nextWithdrawBeaconBlock; // Mapping the next block for withdraw from validator
   uint256 public lastResetBlock; /// Block number of the last reset.
   uint256 public totalDeposited; /// Total amount deposited.
   uint256 public totalWithdrawnPool; /// Total amount withdrawn pool.
@@ -372,6 +374,7 @@ contract MockStakeTogether is
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
     _processStakeEntry(_to, msg.value);
     lastOperationBlock[msg.sender] = block.number;
+    nextWithdrawBlock[msg.sender] = router.reportBlock() + config.withdrawDelay;
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -403,6 +406,7 @@ contract MockStakeTogether is
     if (_amount == 0) revert ZeroAmount();
     if (_amount > balanceOf(msg.sender)) revert InsufficientAccountBalance();
     if (_amount < config.minWithdrawAmount) revert LessThanMinimumWithdraw();
+    if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyWithdraw();
 
     _resetLimits();
 
@@ -449,6 +453,7 @@ contract MockStakeTogether is
     _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
     withdrawals.mint(msg.sender, _amount);
+    nextWithdrawBeaconBlock[msg.sender] = router.reportBlock() + config.withdrawBeaconDelay;
   }
 
   /// @notice Resets the daily limits for deposits and withdrawals.
@@ -459,6 +464,18 @@ contract MockStakeTogether is
       totalWithdrawnValidator = 0;
       lastResetBlock = block.number;
     }
+  }
+
+  /// @notice Get the next withdraw block for account
+  /// @param _account the address of the account.
+  function getWithdrawBlock(address _account) external view returns (uint256) {
+    return nextWithdrawBlock[_account];
+  }
+
+  /// @notice Get the next withdraw beacon block for account
+  /// @param _account the address of the account.
+  function getWithdrawBeaconBlock(address _account) external view returns (uint256) {
+    return nextWithdrawBeaconBlock[_account];
   }
 
   /****************
