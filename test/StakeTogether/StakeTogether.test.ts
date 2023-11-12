@@ -242,35 +242,6 @@ describe('Stake Together', function () {
       ).to.be.revertedWithCustomError(stakeTogether, 'OnlyRouter')
     })
 
-    // it.only('should claim rewards and emit ClaimRewards event', async function () {
-    //   const airdropFeeAddress = await stakeTogether.airdrop()
-
-    //   const user1DepositAmount = ethers.parseEther('100')
-    //   const poolAddress = user3.address
-    //   const referral = user4.address
-    //   await stakeTogether.connect(owner).addPool(poolAddress, true, false)
-
-    //   await stakeTogether
-    //     .connect(airdropFeeAddress)
-    //     .depositPool(poolAddress, referral, { value: user1DepositAmount })
-
-    //   const sharesAmount = ethers.parseEther('10')
-
-    //   await stakeTogether.connect(owner).setFeeAddress(0, airdropFeeAddress)
-
-    //   const initialSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
-    //   const initialSharesAccount = await stakeTogether.shares(user1.address)
-
-    //   expect(initialSharesAirdrop).to.be.gte(sharesAmount)
-
-    //   const tx = await stakeTogether.connect(airdropFeeAddress).claimAirdrop(user1.address, sharesAmount)
-
-    //   const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
-    //   const finalSharesAccount = await stakeTogether.shares(user1.address)
-    //   expect(finalSharesAirdrop).to.equal(initialSharesAirdrop - sharesAmount)
-    //   expect(finalSharesAccount).to.equal(initialSharesAccount + sharesAmount)
-    // })
-
     it('should fail to claim rewards if caller is not airdrop fee address', async function () {
       const sharesAmount = ethers.parseEther('10')
 
@@ -394,6 +365,45 @@ describe('Stake Together', function () {
 
       const calculatedShares = await stakeTogether.sharesByWei(user1DepositAmount - fee)
       expect(calculatedShares).to.equal(user1Shares)
+    })
+
+    it.only('should correctly handle deposit and maintain the same withdraw', async function () {
+      const user1DepositAmount = ethers.parseEther('100')
+      const user1WithdrawAmount = ethers.parseEther('1')
+      const poolAddress = user3.address
+      const referral = user4.address
+
+      // Add pool before testing deposit
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+
+      // Check withdraw block before deposit
+      const withdrawBlockBefore = await stakeTogether.getWithdrawBlock(user1.address)
+      expect(withdrawBlockBefore).to.equal(0n)
+
+      // Perform deposit
+      await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
+
+      // Check withdraw block after deposit
+      const withdrawBlockAfter = await stakeTogether.getWithdrawBlock(user1.address)
+      expect(withdrawBlockAfter).to.equal(47n)
+
+      await expect(
+        stakeTogether.connect(user1).withdrawPool(user1WithdrawAmount, poolAddress),
+      ).revertedWithCustomError(stakeTogether, 'EarlyWithdraw')
+
+      for (let i = 0; i < 100; i++) {
+        await network.provider.send('evm_mine')
+      }
+
+      const accountBalanceBefore = await ethers.provider.getBalance(user1.address)
+
+      console.log('accountBalanceBefore', ethers.formatEther(accountBalanceBefore.toString()))
+
+      await stakeTogether.connect(user1).withdrawPool(user1WithdrawAmount, poolAddress)
+
+      const accountBalanceAfter = await ethers.provider.getBalance(user1.address)
+
+      expect(accountBalanceAfter).to.equal(accountBalanceBefore - user1WithdrawAmount)
     })
 
     it('should correctly handle deposit with minimum deposit amount', async function () {

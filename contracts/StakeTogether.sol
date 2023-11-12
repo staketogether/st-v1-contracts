@@ -370,7 +370,7 @@ contract StakeTogether is
     _resetLimits();
     totalDeposited += msg.value;
     lastOperationBlock[msg.sender] = block.number;
-    nextWithdrawBlock[msg.sender] = router.reportBlock() + config.withdrawDelay;
+    nextWithdrawBlock[msg.sender] = block.number + config.withdrawDelay;
 
     if (totalDeposited > config.depositLimit) {
       emit DepositLimitWasReached(_to, msg.value);
@@ -454,7 +454,7 @@ contract StakeTogether is
     if (!config.feature.WithdrawBeacon) revert FeatureDisabled();
     if (_amount <= address(this).balance) revert WithdrawFromPool();
     if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
-    nextWithdrawBeaconBlock[msg.sender] = router.reportBlock() + config.withdrawBeaconDelay;
+    nextWithdrawBeaconBlock[msg.sender] = block.number + config.withdrawBeaconDelay;
     _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
 
