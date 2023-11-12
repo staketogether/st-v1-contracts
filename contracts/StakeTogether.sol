@@ -378,7 +378,7 @@ contract StakeTogether is
     }
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
-    _processStakeEntry(_to, msg.value);
+    _processFeeEntry(_to, msg.value);
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -533,7 +533,7 @@ contract StakeTogether is
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       if (!config.feature.AddPool) revert FeatureDisabled();
       if (msg.value != fees[FeeType.Pool].value) revert InvalidValue();
-      _processStakePool();
+      _processFeePool();
     }
     pools[_pool] = true;
     lastOperationBlock[msg.sender] = block.number;
@@ -717,7 +717,7 @@ contract StakeTogether is
       _signature,
       _depositDataRoot
     );
-    _processStakeValidator();
+    _processFeeValidator();
   }
 
   /*************
@@ -788,6 +788,12 @@ contract StakeTogether is
     emit SetFee(_feeType, _value, _allocations);
   }
 
+  /// @notice Get the fee for a given fee type.
+  /// @param _feeType The type of fee to get.
+  function getFee(FeeType _feeType) external view returns (uint256) {
+    return fees[_feeType].value;
+  }
+
   /// @notice Distributes fees according to their type, amount, and the destination.
   /// @param _feeType The type of fee being distributed.
   /// @param _sharesAmount The total shares amount for the fee.
@@ -828,7 +834,7 @@ contract StakeTogether is
   /// @param _to The address to receive the stake entry.
   /// @param _amount The amount staked.
   /// @dev Calls the distributeFees function internally.
-  function _processStakeEntry(address _to, uint256 _amount) private {
+  function _processFeeEntry(address _to, uint256 _amount) private {
     uint256 sharesAmount = Math.mulDiv(_amount, totalShares, totalSupply() - _amount);
     _distributeFees(FeeType.Entry, sharesAmount, _to);
   }
@@ -836,7 +842,7 @@ contract StakeTogether is
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev The caller should be the router contract. This function will also emit the ProcessStakeRewards event.
-  function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
+  function processFeeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
     if (msg.sender != address(router)) revert OnlyRouter();
     _distributeFees(FeeType.Rewards, _sharesAmount, address(0));
     emit ProcessStakeRewards(msg.value, _sharesAmount);
@@ -844,7 +850,7 @@ contract StakeTogether is
 
   /// @notice Processes the staking pool fee and distributes it accordingly.
   /// @dev Calculates the shares amount and then distributes the staking pool fee.
-  function _processStakePool() private {
+  function _processFeePool() private {
     uint256 amount = fees[FeeType.Pool].value;
     uint256 sharesAmount = Math.mulDiv(amount, totalShares, totalSupply() - amount);
     _distributeFees(FeeType.Pool, sharesAmount, address(0));
@@ -852,9 +858,8 @@ contract StakeTogether is
 
   /// @notice Transfers the staking validator fee to the operator role.
   /// @dev Transfers the associated amount to the Operator's address.
-  function _processStakeValidator() private {
+  function _processFeeValidator() private {
     emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
-
     Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
   }
 }

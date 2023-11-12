@@ -591,5 +591,5 @@ interface IStakeTogether {
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev Requires the caller to be the router contract.
-  function processStakeRewards(uint256 _sharesAmount) external payable;
+  function processFeeRewards(uint256 _sharesAmount) external payable;
 }

@@ -289,7 +289,7 @@ contract MockRouter is
     }
 
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewards{ value: _report.profitAmount }(_report.profitShares);
+      stakeTogether.processFeeRewards{ value: _report.profitAmount }(_report.profitShares);
     }
 
     if (_report.lossAmount > 0 || _report.withdrawAmount > 0 || _report.withdrawRefundAmount > 0) {
@@ -411,8 +411,8 @@ contract MockRouter is
     stakeTogether.setWithdrawBalance(_amount);
   }
 
-  function processStakeRewards(uint256 _sharesAmount) external payable {
-    stakeTogether.processStakeRewards{ value: msg.value }(_sharesAmount);
+  function processFeeRewards(uint256 _sharesAmount) external payable {
+    stakeTogether.processFeeRewards{ value: msg.value }(_sharesAmount);
   }
 
   function addMerkleRoot(uint256 _reportBlock, bytes32 merkleRoot) external nonReentrant {

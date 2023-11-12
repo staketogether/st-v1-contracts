@@ -369,6 +369,8 @@ contract MockStakeTogether is
 
     _resetLimits();
     totalDeposited += msg.value;
+    lastOperationBlock[msg.sender] = block.number;
+    nextWithdrawBlock[msg.sender] = router.reportBlock() + config.withdrawDelay;
 
     if (totalDeposited > config.depositLimit) {
       emit DepositLimitWasReached(_to, msg.value);
@@ -376,9 +378,7 @@ contract MockStakeTogether is
     }
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
-    _processStakeEntry(_to, msg.value);
-    lastOperationBlock[msg.sender] = block.number;
-    nextWithdrawBlock[msg.sender] = router.reportBlock() + config.withdrawDelay;
+    _processFeeEntry(_to, msg.value);
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -413,6 +413,7 @@ contract MockStakeTogether is
     if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyWithdraw();
 
     _resetLimits();
+    lastOperationBlock[msg.sender] = block.number;
 
     if (_withdrawType == WithdrawType.Pool) {
       totalWithdrawnPool += _amount;
@@ -431,7 +432,6 @@ contract MockStakeTogether is
     emit WithdrawBase(msg.sender, _amount, _withdrawType, _pool);
     uint256 sharesToBurn = Math.mulDiv(_amount, shares[msg.sender], balanceOf(msg.sender));
     _burnShares(msg.sender, sharesToBurn);
-    lastOperationBlock[msg.sender] = block.number;
   }
 
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
@@ -454,10 +454,11 @@ contract MockStakeTogether is
     if (!config.feature.WithdrawBeacon) revert FeatureDisabled();
     if (_amount <= address(this).balance) revert WithdrawFromPool();
     if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
+    nextWithdrawBeaconBlock[msg.sender] = router.reportBlock() + config.withdrawBeaconDelay;
     _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
+
     withdrawals.mint(msg.sender, _amount);
-    nextWithdrawBeaconBlock[msg.sender] = router.reportBlock() + config.withdrawBeaconDelay;
   }
 
   /// @notice Resets the daily limits for deposits and withdrawals.
@@ -532,11 +533,11 @@ contract MockStakeTogether is
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       if (!config.feature.AddPool) revert FeatureDisabled();
       if (msg.value != fees[FeeType.Pool].value) revert InvalidValue();
-      _processStakePool();
+      _processFeePool();
     }
     pools[_pool] = true;
-    emit AddPool(_pool, _listed, _social, msg.value);
     lastOperationBlock[msg.sender] = block.number;
+    emit AddPool(_pool, _listed, _social, msg.value);
   }
 
   /// @notice Removes a pool by its address.
@@ -544,8 +545,8 @@ contract MockStakeTogether is
   function removePool(address _pool) external nonFlashLoan whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     if (!pools[_pool]) revert PoolNotFound();
     pools[_pool] = false;
-    emit RemovePool(_pool);
     lastOperationBlock[msg.sender] = block.number;
+    emit RemovePool(_pool);
   }
 
   /// @notice Updates delegations for the sender's address.
@@ -701,6 +702,12 @@ contract MockStakeTogether is
       _signature,
       _depositDataRoot
     );
+    deposit.deposit{ value: config.validatorSize }(
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
   }
 
   /*************
@@ -771,6 +778,12 @@ contract MockStakeTogether is
     emit SetFee(_feeType, _value, _allocations);
   }
 
+  /// @notice Get the fee for a given fee type.
+  /// @param _feeType The type of fee to get.
+  function getFee(FeeType _feeType) external view returns (uint256) {
+    return fees[_feeType].value;
+  }
+
   /// @notice Distributes fees according to their type, amount, and the destination.
   /// @param _feeType The type of fee being distributed.
   /// @param _sharesAmount The total shares amount for the fee.
@@ -811,7 +824,7 @@ contract MockStakeTogether is
   /// @param _to The address to receive the stake entry.
   /// @param _amount The amount staked.
   /// @dev Calls the distributeFees function internally.
-  function _processStakeEntry(address _to, uint256 _amount) private {
+  function _processFeeEntry(address _to, uint256 _amount) private {
     uint256 sharesAmount = Math.mulDiv(_amount, totalShares, totalSupply() - _amount);
     _distributeFees(FeeType.Entry, sharesAmount, _to);
   }
@@ -819,7 +832,7 @@ contract MockStakeTogether is
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev The caller should be the router contract. This function will also emit the ProcessStakeRewards event.
-  function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
+  function processFeeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
     if (msg.sender != address(router)) revert OnlyRouter();
     _distributeFees(FeeType.Rewards, _sharesAmount, address(0));
     emit ProcessStakeRewards(msg.value, _sharesAmount);
@@ -827,7 +840,7 @@ contract MockStakeTogether is
 
   /// @notice Processes the staking pool fee and distributes it accordingly.
   /// @dev Calculates the shares amount and then distributes the staking pool fee.
-  function _processStakePool() private {
+  function _processFeePool() private {
     uint256 amount = fees[FeeType.Pool].value;
     uint256 sharesAmount = Math.mulDiv(amount, totalShares, totalSupply() - amount);
     _distributeFees(FeeType.Pool, sharesAmount, address(0));
@@ -835,9 +848,8 @@ contract MockStakeTogether is
 
   /// @notice Transfers the staking validator fee to the operator role.
   /// @dev Transfers the associated amount to the Operator's address.
-  function _processStakeValidator() private {
+  function _processFeeValidator() private {
     emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
-
     Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
   }
 
