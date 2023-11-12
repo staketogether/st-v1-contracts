@@ -5,6 +5,8 @@ import {
   Airdrop,
   Airdrop__factory,
   MockDepositContract__factory,
+  MockFlashLoan,
+  MockFlashLoan__factory,
   MockRouter__factory,
   Router,
   StakeTogether,
@@ -205,6 +207,25 @@ async function deployStakeTogether(
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
 
+async function deployMockFlashLoan(
+  owner: HardhatEthersSigner,
+  stakeTogether: string,
+  stakeTogetherProxy: string,
+  withdrawals: string,
+) {
+  const MockFlashLoanFactory = new MockFlashLoan__factory().connect(owner)
+  const mockFlashLoan = await upgrades.deployProxy(MockFlashLoanFactory, [
+    stakeTogether,
+    stakeTogetherProxy,
+    withdrawals,
+  ])
+  await mockFlashLoan.waitForDeployment()
+
+  const mockFlashLoanContract = mockFlashLoan as unknown as MockFlashLoan
+
+  return { mockFlashLoanContract }
+}
+
 export async function configContracts(
   owner: HardhatEthersSigner,
   airdrop: {
@@ -262,7 +283,6 @@ export async function stakeTogetherFixture() {
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
 
   // DEPLOY
-
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
@@ -271,6 +291,12 @@ export async function stakeTogetherFixture() {
     airdrop.proxyAddress,
     router.proxyAddress,
     withdrawals.proxyAddress,
+  )
+  const { mockFlashLoanContract } = await deployMockFlashLoan(
+    owner,
+    stakeTogether.proxyAddress,
+    stakeTogether.proxyAddress,
+    stakeTogether.proxyAddress,
   )
 
   await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
@@ -303,6 +329,7 @@ export async function stakeTogetherFixture() {
     mockRouterProxy: router.proxyAddress,
     withdrawals: withdrawals.withdrawalsContract,
     withdrawalsProxy: withdrawals.proxyAddress,
+    mockFlashLoan: mockFlashLoanContract,
     ADMIN_ROLE,
     UPGRADER_ROLE,
     POOL_MANAGER_ROLE,

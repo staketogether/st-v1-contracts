@@ -5,6 +5,8 @@ import {
   Airdrop,
   Airdrop__factory,
   MockDepositContract__factory,
+  MockFlashLoan,
+  MockFlashLoan__factory,
   MockRouter__factory,
   MockStakeTogether,
   MockStakeTogether__factory,
@@ -248,6 +250,25 @@ async function deployStakeTogether(
   }
 }
 
+async function deployMockFlashLoan(
+  owner: HardhatEthersSigner,
+  stakeTogether: string,
+  stakeTogetherProxy: string,
+  withdrawals: string,
+) {
+  const MockFlashLoanFactory = new MockFlashLoan__factory().connect(owner)
+  const mockFlashLoan = await upgrades.deployProxy(MockFlashLoanFactory, [
+    stakeTogether,
+    stakeTogetherProxy,
+    withdrawals,
+  ])
+  await mockFlashLoan.waitForDeployment()
+
+  const mockFlashLoanContract = mockFlashLoan as unknown as MockFlashLoan
+
+  return { mockFlashLoanContract }
+}
+
 export async function configContracts(
   owner: HardhatEthersSigner,
   airdrop: {
@@ -327,6 +348,13 @@ export async function stakeTogetherWrapperFixture() {
   )
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
+  const { mockFlashLoanContract } = await deployMockFlashLoan(
+    owner,
+    stakeTogether.proxyAddress,
+    stakeTogether.proxyAddress,
+    stakeTogether.proxyAddress,
+  )
+
   await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
 
   const UPGRADER_ROLE = await withdrawals.withdrawalsContract.UPGRADER_ROLE()
@@ -352,6 +380,7 @@ export async function stakeTogetherWrapperFixture() {
     stakeTogetherWrapperProxy: stakeTogetherWrapper.proxyAddress,
     mockStakeTogether: stakeTogether.mockStakeTogetherContract,
     mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
+    mockFlashLoan: mockFlashLoanContract,
     UPGRADER_ROLE,
     ADMIN_ROLE,
   }

@@ -3,7 +3,13 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { MockRouter, MockStakeTogether__factory, StakeTogether, Withdrawals } from '../../typechain'
+import {
+  MockFlashLoan,
+  MockRouter,
+  MockStakeTogether__factory,
+  StakeTogether,
+  Withdrawals,
+} from '../../typechain'
 import connect from '../utils/connect'
 import { stakeTogetherFixture } from './StakeTogether.fixture'
 
@@ -17,6 +23,7 @@ describe('Stake Together', function () {
   let mockRouterProxy: string
   let withdrawals: Withdrawals
   let withdrawalsProxy: string
+  let mockFlashLoan: MockFlashLoan
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -43,6 +50,7 @@ describe('Stake Together', function () {
     mockRouterProxy = fixture.mockRouterProxy
     withdrawals = fixture.withdrawals
     withdrawalsProxy = fixture.withdrawalsProxy
+    mockFlashLoan = fixture.mockFlashLoan
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -181,6 +189,18 @@ describe('Stake Together', function () {
       // Total balance in the contract should be 4 Ether + total fees
       const totalContractBalance = await ethers.provider.getBalance(stakeTogetherProxy)
       expect(totalContractBalance).to.equal(ethers.parseEther('4') + initialBalance) // contract init with 1n
+    })
+
+    it('should distribute profit equally among three depositors', async function () {
+      const depositAmount = ethers.parseEther('1')
+      const poolAddress = user3.address
+
+      // Adding the pool
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+
+      await expect(
+        mockFlashLoan.depositAndWithdraw(poolAddress, poolAddress, { value: depositAmount }),
+      ).to.revertedWithCustomError(stakeTogether, 'FlashLoan')
     })
 
     it('should distribute profit equally among two depositors by Stake Entry', async function () {
@@ -385,7 +405,7 @@ describe('Stake Together', function () {
 
       // Check withdraw block after deposit
       const withdrawBlockAfter = await stakeTogether.getWithdrawBlock(user1.address)
-      expect(withdrawBlockAfter).to.equal(130n)
+      expect(withdrawBlockAfter).to.equal(132n)
 
       await expect(
         stakeTogether.connect(user1).withdrawPool(user1WithdrawAmount, poolAddress),
