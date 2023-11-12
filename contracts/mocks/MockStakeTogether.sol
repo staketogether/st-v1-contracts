@@ -667,7 +667,7 @@ contract MockStakeTogether is
   /// @notice Initiates a transfer to anticipate a validator's withdrawal.
   /// @dev Only a valid validator oracle can initiate this anticipation request.
   /// This function also checks the balance constraints before processing.
-  function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
+  function anticipateWithdrawBeacon() external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
     if (withdrawBalance == 0) revert WithdrawZeroBalance();
@@ -679,7 +679,7 @@ contract MockStakeTogether is
     if (address(this).balance < diffAmount) revert NotEnoughPoolBalance();
 
     _setBeaconBalance(beaconBalance + diffAmount);
-    emit AnticipateWithdrawValidator(msg.sender, diffAmount);
+    emit AnticipateWithdrawBeacon(msg.sender, diffAmount);
 
     router.receiveWithdrawEther{ value: diffAmount }();
   }
@@ -859,6 +859,11 @@ contract MockStakeTogether is
 
   function initializeV2() external onlyRole(UPGRADER_ROLE) {
     version = 2;
+  }
+
+  function initializeV2Airdrop(address _airdrop) external onlyRole(UPGRADER_ROLE) {
+    version = 2;
+    airdrop = IAirdrop(payable(_airdrop));
   }
 
   function mintWithdrawals(address account, uint256 amount) external {

@@ -116,6 +116,7 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
+  airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -145,9 +146,10 @@ async function deployStakeTogether(
   const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    airdropContract,
+    depositAddress,
     routerContract,
     withdrawalsContract,
-    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -182,6 +184,8 @@ async function deployStakeTogether(
     withdrawalValidatorLimit: ethers.parseEther('1000'),
     blocksPerDay: 7200n,
     maxDelegations: 64n,
+    withdrawDelay: 10n,
+    withdrawBeaconDelay: 10n,
     feature: {
       AddPool: false,
       Deposit: true,
@@ -315,7 +319,12 @@ export async function stakeTogetherWrapperFixture() {
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
 
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    airdrop.proxyAddress,
+    router.proxyAddress,
+    withdrawals.proxyAddress,
+  )
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
   await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)

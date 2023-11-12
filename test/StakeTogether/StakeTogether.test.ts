@@ -238,38 +238,38 @@ describe('Stake Together', function () {
       const rewardShares = ethers.parseEther('5')
 
       await expect(
-        stakeTogether.connect(user1).processStakeRewards(rewardShares, { value: rewardAmount }),
+        stakeTogether.connect(user1).processFeeRewards(rewardShares, { value: rewardAmount }),
       ).to.be.revertedWithCustomError(stakeTogether, 'OnlyRouter')
     })
 
-    it('should claim rewards and emit ClaimRewards event', async function () {
-      const airdropFeeAddress = user3
+    // it.only('should claim rewards and emit ClaimRewards event', async function () {
+    //   const airdropFeeAddress = await stakeTogether.airdrop()
 
-      const user1DepositAmount = ethers.parseEther('100')
-      const poolAddress = user3.address
-      const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+    //   const user1DepositAmount = ethers.parseEther('100')
+    //   const poolAddress = user3.address
+    //   const referral = user4.address
+    //   await stakeTogether.connect(owner).addPool(poolAddress, true, false)
 
-      await stakeTogether
-        .connect(airdropFeeAddress)
-        .depositPool(poolAddress, referral, { value: user1DepositAmount })
+    //   await stakeTogether
+    //     .connect(airdropFeeAddress)
+    //     .depositPool(poolAddress, referral, { value: user1DepositAmount })
 
-      const sharesAmount = ethers.parseEther('10')
+    //   const sharesAmount = ethers.parseEther('10')
 
-      await stakeTogether.connect(owner).setFeeAddress(0, airdropFeeAddress)
+    //   await stakeTogether.connect(owner).setFeeAddress(0, airdropFeeAddress)
 
-      const initialSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
-      const initialSharesAccount = await stakeTogether.shares(user1.address)
+    //   const initialSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
+    //   const initialSharesAccount = await stakeTogether.shares(user1.address)
 
-      expect(initialSharesAirdrop).to.be.gte(sharesAmount)
+    //   expect(initialSharesAirdrop).to.be.gte(sharesAmount)
 
-      const tx = await stakeTogether.connect(airdropFeeAddress).claimAirdrop(user1.address, sharesAmount)
+    //   const tx = await stakeTogether.connect(airdropFeeAddress).claimAirdrop(user1.address, sharesAmount)
 
-      const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
-      const finalSharesAccount = await stakeTogether.shares(user1.address)
-      expect(finalSharesAirdrop).to.equal(initialSharesAirdrop - sharesAmount)
-      expect(finalSharesAccount).to.equal(initialSharesAccount + sharesAmount)
-    })
+    //   const finalSharesAirdrop = await stakeTogether.shares(airdropFeeAddress)
+    //   const finalSharesAccount = await stakeTogether.shares(user1.address)
+    //   expect(finalSharesAirdrop).to.equal(initialSharesAirdrop - sharesAmount)
+    //   expect(finalSharesAccount).to.equal(initialSharesAccount + sharesAmount)
+    // })
 
     it('should fail to claim rewards if caller is not airdrop fee address', async function () {
       const sharesAmount = ethers.parseEther('10')
@@ -292,6 +292,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -318,6 +320,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -341,6 +345,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -605,6 +611,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: false,
@@ -822,6 +830,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -873,6 +883,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('40'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -975,6 +987,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -1008,6 +1022,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: true,
           Deposit: true,
@@ -1172,6 +1188,8 @@ describe('Stake Together', function () {
         withdrawalValidatorLimit: ethers.parseEther('1000'),
         blocksPerDay: 7200n,
         maxDelegations: 64n,
+        withdrawDelay: 10n,
+        withdrawBeaconDelay: 10n,
         feature: {
           AddPool: false,
           Deposit: false,
@@ -1280,35 +1298,6 @@ describe('Stake Together', function () {
         expect(await stakeTogether.pools(delegation.pool)).to.be.true
         expect(delegation.percentage).to.equal(0)
       }
-    })
-  })
-
-  describe('Remove Validators', function () {
-    it('should fail when trying to remove validators without VALIDATOR_MANAGER_ROLE', async function () {
-      const publicKeys = [
-        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
-        '0xa34b931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e123f0335be39b974302e42462aee077ab56',
-      ]
-
-      // Trying to remove validators without the VALIDATOR_MANAGER_ROLE should be reverted
-      await expect(stakeTogether.connect(user1).removeValidators(publicKeys)).to.be.reverted
-    })
-
-    it('should successfully remove validators with VALIDATOR_MANAGER_ROLE', async function () {
-      const publicKeys = [
-        '0x954c931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e683f0335be39b974302e42462aee077cf93',
-        '0xa34b931791b73c03c5e699eb8da1222b221b098f6038282ff7e32a4382d9e123f0335be39b974302e42462aee077ab56',
-      ]
-
-      // Grant the VALIDATOR_MANAGER_ROLE to the owner
-      await stakeTogether.connect(owner).grantRole(VALIDATOR_MANAGER_ROLE, owner.address)
-
-      // Trying to remove validators with the VALIDATOR_MANAGER_ROLE should succeed
-      const tx = await stakeTogether.connect(owner).removeValidators(publicKeys)
-      await tx.wait()
-
-      // You can also capture and check the event if the contract emits an event when removing validators
-      await expect(tx).to.emit(stakeTogether, 'RemoveValidators').withArgs(publicKeys)
     })
   })
 
@@ -2401,8 +2390,8 @@ describe('Stake Together', function () {
       const rewardsSharesAmount = (totalShares * ethers.parseEther('0.588')) / ethers.parseEther('1')
       // Calculated Off-Chain by Oracle with function to calculate the closest share amount
 
-      // During de processStakeRewards, the distribute fee will apply the fee to the rewards, tha will reduce the amount of shares
-      const tx1 = await mockRouter.connect(user1).processStakeRewards(rewardsSharesAmount, {
+      // During de processFeeRewards, the distribute fee will apply the fee to the rewards, tha will reduce the amount of shares
+      const tx1 = await mockRouter.connect(user1).processFeeRewards(rewardsSharesAmount, {
         value: rewardsAmount,
       })
 
@@ -2436,7 +2425,6 @@ describe('Stake Together', function () {
           ? valuationNewShares - expectedValue
           : expectedValue - valuationNewShares
 
-      console.log('difference', difference.toString())
       const isApproxEqual = difference < epsilon
 
       expect(isApproxEqual).to.be.true

@@ -366,76 +366,20 @@ describe('Router', function () {
 
     it('should revert if send by a non oracle', async function () {
       report = {
-        epoch: 1n,
+        reportBlock: 1n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
       await expect(router.connect(user2).submitReport(report)).to.be.revertedWithCustomError(
         router,
         'OnlyActiveOracle',
-      )
-    })
-
-    it('should revert if block min quorum not achieved', async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      await router.connect(owner).addReportOracle(user1.address)
-      await router.connect(owner).addReportOracle(user2.address)
-      await router.connect(owner).addReportOracle(user3.address)
-      await router.connect(owner).addReportOracle(user4.address)
-      await router.connect(owner).addReportOracle(user5.address)
-
-      report = {
-        epoch: 1n,
-        merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 1000n,
-        profitShares: 100n,
-        lossAmount: 500n,
-        withdrawAmount: 200n,
-        withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
-        accumulatedReports: 0n,
-      }
-
-      await advanceBlocks(1000)
-
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
-        router,
-        'EpochShouldBeGreater',
-      )
-    })
-
-    it('should revert if epoch less than last consensus', async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      await router.connect(owner).addReportOracle(user1.address)
-      await router.connect(owner).addReportOracle(user2.address)
-      await router.connect(owner).addReportOracle(user3.address)
-      await router.connect(owner).addReportOracle(user4.address)
-      await router.connect(owner).addReportOracle(user5.address)
-
-      report = {
-        epoch: 1n,
-        merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 1000n,
-        profitShares: 100n,
-        lossAmount: 500n,
-        withdrawAmount: 200n,
-        withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
-        accumulatedReports: 0n,
-      }
-
-      await advanceBlocks(1000)
-
-      await expect(router.connect(user1).submitReport(report)).to.be.revertedWithCustomError(
-        router,
-        'EpochShouldBeGreater',
       )
     })
 
@@ -448,14 +392,14 @@ describe('Router', function () {
       await router.connect(owner).addReportOracle(user5.address)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -473,14 +417,14 @@ describe('Router', function () {
       }
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -504,14 +448,14 @@ describe('Router', function () {
       }
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -521,14 +465,14 @@ describe('Router', function () {
       await expect(tx1).to.emit(router, 'SubmitReport')
 
       report = {
-        epoch: 4n,
+        reportBlock: 4n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -561,14 +505,14 @@ describe('Router', function () {
       }
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 0n,
         profitShares: 0n,
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -592,14 +536,14 @@ describe('Router', function () {
       await expect(tx5).to.emit(router, 'SubmitReport')
 
       const tempReport = {
-        epoch: 3n,
+        reportBlock: 3n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -615,7 +559,7 @@ describe('Router', function () {
         'EarlyExecution',
       )
 
-      expect(currentBlockReport).to.equal(52n)
+      expect(currentBlockReport).to.equal(56n)
     })
 
     it('should reach consensus and fail if execute early', async function () {
@@ -627,14 +571,14 @@ describe('Router', function () {
       }
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -677,17 +621,17 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(52n)
+      expect(currentBlockReport).to.equal(56n)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -716,14 +660,14 @@ describe('Router', function () {
       await router.connect(user4).submitReport(report)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 10010n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -772,17 +716,17 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
-      expect(currentBlockReport).to.equal(52n)
+      expect(currentBlockReport).to.equal(56n)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -794,14 +738,14 @@ describe('Router', function () {
       await router.connect(user4).submitReport(report)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 10010n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -847,26 +791,26 @@ describe('Router', function () {
       await connect(router, owner).setConfig(config)
 
       const report1 = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
       const report2 = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 10010n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -894,14 +838,14 @@ describe('Router', function () {
       }
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -930,14 +874,14 @@ describe('Router', function () {
       }
 
       const report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -968,14 +912,14 @@ describe('Router', function () {
       }
 
       const report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -997,14 +941,14 @@ describe('Router', function () {
       await advanceBlocks(1000)
 
       const report2 = {
-        epoch: 3n,
+        reportBlock: 3n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 0n,
         profitShares: 0n,
         lossAmount: 0n,
         withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -1032,58 +976,58 @@ describe('Router', function () {
 
       const reports = [
         {
-          epoch: 2n,
+          reportBlock: 2n,
           merkleRoot: ethers.hexlify(new Uint8Array(32)),
           profitAmount: 1000n,
           profitShares: 100n,
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          validatorsToRemove: [],
+          validatorsStatus: ethers.keccak256('0x'),
           accumulatedReports: 0n,
         },
         {
-          epoch: 3n,
+          reportBlock: 3n,
           merkleRoot: ethers.hexlify(new Uint8Array(32)),
           profitAmount: 1500n,
           profitShares: 100n,
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          validatorsToRemove: [],
+          validatorsStatus: ethers.keccak256('0x'),
           accumulatedReports: 0n,
         },
         {
-          epoch: 4n,
+          reportBlock: 4n,
           merkleRoot: ethers.hexlify(new Uint8Array(32)),
           profitAmount: 800n,
           profitShares: 100n,
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          validatorsToRemove: [],
+          validatorsStatus: ethers.keccak256('0x'),
           accumulatedReports: 0n,
         },
         {
-          epoch: 5n,
+          reportBlock: 5n,
           merkleRoot: ethers.hexlify(new Uint8Array(32)),
           profitAmount: 800n,
           profitShares: 100n,
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          validatorsToRemove: [],
+          validatorsStatus: ethers.keccak256('0x'),
           accumulatedReports: 0n,
         },
         {
-          epoch: 6n,
+          reportBlock: 6n,
           merkleRoot: ethers.hexlify(new Uint8Array(32)),
           profitAmount: 800n,
           profitShares: 100n,
           lossAmount: 0n,
           withdrawAmount: 0n,
           withdrawRefundAmount: 0n,
-          validatorsToRemove: [],
+          validatorsStatus: ethers.keccak256('0x'),
           accumulatedReports: 0n,
         },
       ]
@@ -1102,49 +1046,6 @@ describe('Router', function () {
         const executeTx = await router.connect(user1).executeReport(report)
         await expect(executeTx).to.emit(router, 'ExecuteReport')
       }
-    })
-
-    it('should emit ValidatorsToRemove event if 100 validators are to be removed', async function () {
-      await router.connect(owner).grantRole(ORACLE_REPORT_MANAGER_ROLE, owner.address)
-      const oracles = [user1, user2, user3, user4, user5]
-      const validatorsToRemove = Array.from({ length: 100 }, (_, i) => ethers.hexlify(new Uint8Array(32)))
-
-      for (const oracle of oracles) {
-        await router.connect(owner).addReportOracle(oracle.address)
-      }
-
-      const report = {
-        epoch: 2n,
-        merkleRoot: ethers.hexlify(new Uint8Array(32)),
-        profitAmount: 1000n,
-        profitShares: 100n,
-        lossAmount: 0n,
-        withdrawAmount: 0n,
-        withdrawRefundAmount: 0n,
-        validatorsToRemove: validatorsToRemove,
-        accumulatedReports: 0n,
-      }
-
-      await advanceBlocks(1000)
-
-      for (const oracle of oracles) {
-        await router.connect(oracle).submitReport(report)
-      }
-
-      const delayBlocks = (await router.config()).reportDelayBlock
-
-      for (let i = 0; i < delayBlocks; i++) {
-        await network.provider.send('evm_mine')
-      }
-
-      await owner.sendTransaction({ to: routerProxy, value: ethers.parseEther('1') })
-
-      const reportBlock = await router.reportBlock()
-
-      const executeTx = await router.connect(user1).executeReport(report)
-      await expect(executeTx)
-        .to.emit(router, 'ValidatorsToRemove')
-        .withArgs(reportBlock, validatorsToRemove)
     })
 
     it('should reach consensus and execute the report, adding Merkle root', async function () {
@@ -1195,14 +1096,14 @@ describe('Router', function () {
       await advanceBlocks(1000)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: merkleRoot,
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 100n,
         withdrawRefundAmount: 0n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -1299,13 +1200,15 @@ describe('Router', function () {
 
       expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
 
-      await expect(
-        stakeTogether.connect(user2).anticipateWithdrawValidator(),
-      ).to.be.revertedWithCustomError(stakeTogether, 'NotIsCurrentValidatorOracle')
+      await expect(stakeTogether.connect(user2).anticipateWithdrawBeacon()).to.be.revertedWithCustomError(
+        stakeTogether,
+        'NotIsCurrentValidatorOracle',
+      )
 
-      await expect(
-        stakeTogether.connect(user1).anticipateWithdrawValidator(),
-      ).to.be.revertedWithCustomError(stakeTogether, 'NotEnoughPoolBalance')
+      await expect(stakeTogether.connect(user1).anticipateWithdrawBeacon()).to.be.revertedWithCustomError(
+        stakeTogether,
+        'NotEnoughPoolBalance',
+      )
 
       expect(await ethers.provider.getBalance(router)).equal(0n)
 
@@ -1319,7 +1222,7 @@ describe('Router', function () {
       expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('64'))
       expect(await ethers.provider.getBalance(router)).equal(0n)
 
-      await stakeTogether.connect(user1).anticipateWithdrawValidator()
+      await stakeTogether.connect(user1).anticipateWithdrawBeacon()
 
       expect(await ethers.provider.getBalance(stakeTogetherProxy)).equal(980000000000000000n)
       expect(await stakeTogether.withdrawBalance()).equal(ethers.parseEther('35'))
@@ -1340,14 +1243,14 @@ describe('Router', function () {
       await advanceBlocks(1000)
 
       report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: merkleRoot,
         profitAmount: 0n,
         profitShares: 0n,
         lossAmount: 0n,
         withdrawAmount: ethers.parseEther('35'),
         withdrawRefundAmount: 0n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -1380,42 +1283,22 @@ describe('Router', function () {
       }
 
       const report = {
-        epoch: 2n,
+        reportBlock: 2n,
         merkleRoot: ethers.hexlify(new Uint8Array(32)),
         profitAmount: 1000n,
         profitShares: 100n,
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsToRemove: [],
+        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
       const contractHash = await router.getReportHash(report)
 
       expect(contractHash).to.be.equal(
-        '0x084c104b865109b546f171009979d97477cb535c784b2c75482e73692f435c63',
+        '0xf7061c5c8f8a1b51dc98ff55ec4091d447b81a8ada749183b1e472cd4d2e4598',
       )
-    })
-  })
-
-  describe('Set Consensus', () => {
-    it('should set the last executed epoch', async function () {
-      const newEpoch = 42
-
-      await router.connect(owner).grantRole(ADMIN_ROLE, owner.address)
-
-      await expect(router.connect(owner).setLastExecutedEpoch(newEpoch))
-        .to.emit(router, 'SetLastExecutedEpoch')
-        .withArgs(newEpoch)
-
-      expect(await router.lastExecutedEpoch()).to.equal(newEpoch)
-    })
-
-    it('should revert if called by non-admin', async function () {
-      const newEpoch = 42
-
-      await expect(router.connect(user1).setLastExecutedEpoch(newEpoch)).to.be.reverted
     })
   })
 })

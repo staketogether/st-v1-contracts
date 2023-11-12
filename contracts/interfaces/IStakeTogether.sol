@@ -210,7 +210,7 @@ interface IStakeTogether {
   /// @notice Emitted when withdraw is prioritized
   /// @param oracle The address of the oracle
   /// @param amount The amount for the validator
-  event AnticipateWithdrawValidator(address indexed oracle, uint256 amount);
+  event AnticipateWithdrawBeacon(address indexed oracle, uint256 amount);
 
   /// @notice Emitted when shares are burned
   /// @param account The address of the account
@@ -548,7 +548,7 @@ interface IStakeTogether {
   /// @notice Initiates a transfer to anticipate a validator's withdrawal.
   /// @dev Only a valid validator oracle can initiate this anticipation request.
   /// This function also checks the balance constraints before processing.
-  function anticipateWithdrawValidator() external;
+  function anticipateWithdrawBeacon() external;
 
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.

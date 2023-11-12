@@ -188,7 +188,7 @@ contract Withdrawals is
   /// @notice Withdraws the specified amount of ETH, burning tokens in exchange.
   /// @param _amount Amount of ETH to withdraw.
   /// @dev The caller must have a balance greater or equal to the amount, and the contract must have sufficient ETH balance.
-  function withdraw(uint256 _amount) external nonReentrant nonFlashLoan whenNotPaused {
+  function withdraw(uint256 _amount) external nonFlashLoan whenNotPaused {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
