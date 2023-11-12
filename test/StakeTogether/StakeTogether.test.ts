@@ -367,7 +367,7 @@ describe('Stake Together', function () {
       expect(calculatedShares).to.equal(user1Shares)
     })
 
-    it.only('should correctly handle deposit and maintain the same withdraw', async function () {
+    it('should correctly handle deposit and maintain the same withdraw', async function () {
       const user1DepositAmount = ethers.parseEther('100')
       const user1WithdrawAmount = ethers.parseEther('1')
       const poolAddress = user3.address
@@ -385,7 +385,7 @@ describe('Stake Together', function () {
 
       // Check withdraw block after deposit
       const withdrawBlockAfter = await stakeTogether.getWithdrawBlock(user1.address)
-      expect(withdrawBlockAfter).to.equal(47n)
+      expect(withdrawBlockAfter).to.equal(130n)
 
       await expect(
         stakeTogether.connect(user1).withdrawPool(user1WithdrawAmount, poolAddress),
@@ -395,13 +395,11 @@ describe('Stake Together', function () {
         await network.provider.send('evm_mine')
       }
 
-      const accountBalanceBefore = await ethers.provider.getBalance(user1.address)
-
-      console.log('accountBalanceBefore', ethers.formatEther(accountBalanceBefore.toString()))
+      const accountBalanceBefore = await stakeTogether.balanceOf(user1.address)
 
       await stakeTogether.connect(user1).withdrawPool(user1WithdrawAmount, poolAddress)
 
-      const accountBalanceAfter = await ethers.provider.getBalance(user1.address)
+      const accountBalanceAfter = await stakeTogether.balanceOf(user1.address)
 
       expect(accountBalanceAfter).to.equal(accountBalanceBefore - user1WithdrawAmount)
     })
@@ -713,6 +711,11 @@ describe('Stake Together', function () {
       const withdrawAmount = ethers.parseEther('40')
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
 
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
+
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
 
       let expectedBalanceAfterWithdraw = await stakeTogether.balanceOf(user1.address)
@@ -745,6 +748,11 @@ describe('Stake Together', function () {
       // Withdraw
       const withdrawAmount = ethers.parseEther('40') / 3n
       const sharesForWithdrawAmount = await stakeTogether.sharesByWei(withdrawAmount)
+
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
 
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
 
@@ -867,6 +875,10 @@ describe('Stake Together', function () {
       // Calculate shares for the first withdrawal
       const withdrawAmount = ethers.parseEther('900')
 
+      for (let i = 0; i < 7200n; i++) {
+        await network.provider.send('evm_mine')
+      }
+
       await stakeTogether.connect(user1).withdrawPool(withdrawAmount, poolAddress)
 
       // Expect a revert with the specific error message
@@ -945,6 +957,10 @@ describe('Stake Together', function () {
 
       const beaconBalance = await stakeTogether.beaconBalance()
       expect(beaconBalance).to.equal(validatorSize * 3n)
+
+      for (let i = 0; i < 7200n; i++) {
+        await network.provider.send('evm_mine')
+      }
 
       await stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress)
 

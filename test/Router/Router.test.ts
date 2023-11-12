@@ -1080,6 +1080,11 @@ describe('Router', function () {
 
       const withdrawAmount = ethers.parseEther('1.5')
 
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
+
       await stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress)
 
       // Router
@@ -1169,6 +1174,11 @@ describe('Router', function () {
 
       const withdrawAmount = ethers.parseEther('1.5')
 
+      const blocksPerDay = 7200n
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
+
       await expect(
         stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress),
       ).to.be.revertedWithCustomError(stakeTogether, 'WithdrawFromPool')
@@ -1195,6 +1205,10 @@ describe('Router', function () {
       expect(await stakeTogether.withdrawBalance()).equal(0n)
       expect(await stakeTogether.beaconBalance()).equal(ethers.parseEther('64'))
       expect(await ethers.provider.getBalance(router)).equal(0n)
+
+      for (let i = 0; i < blocksPerDay; i++) {
+        await network.provider.send('evm_mine')
+      }
 
       await stakeTogether.connect(user2).withdrawBeacon(ethers.parseEther('35'), poolAddress)
 
