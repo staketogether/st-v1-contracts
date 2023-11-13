@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
 import {
+  MockFlashLoan,
   MockStakeTogether,
   MockWithdrawals__factory,
   StakeTogether,
@@ -21,6 +22,7 @@ describe('Withdrawals', function () {
   let stakeTogether: StakeTogether
   let stakeTogetherProxy: string
   let mockStakeTogether: MockStakeTogether
+  let mockFlashLoan: MockFlashLoan
   let mockStakeTogetherProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
@@ -43,6 +45,7 @@ describe('Withdrawals', function () {
     stakeTogetherProxy = fixture.stakeTogetherProxy
     mockStakeTogether = fixture.mockStakeTogether
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
+    mockFlashLoan = fixture.mockFlashLoan
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2

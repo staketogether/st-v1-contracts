@@ -48,4 +48,15 @@ contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgra
 
     payable(msg.sender).transfer(withdrawAmount);
   }
+
+  function wrapAndUnwrap(address _pool, bytes calldata _referral) external payable {
+    require(msg.value == 1 ether, 'Must deposit 1 ETH');
+
+    stakeTogether.depositPool{ value: 1 ether }(_pool, _referral);
+
+    uint256 amount = 0.5 ether;
+    stakeTogether.approve(address(stakeTogetherWrapper), amount);
+    stakeTogetherWrapper.wrap(amount);
+    stakeTogetherWrapper.unwrap(amount);
+  }
 }

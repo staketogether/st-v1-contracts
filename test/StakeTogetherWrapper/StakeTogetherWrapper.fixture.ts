@@ -253,13 +253,13 @@ async function deployStakeTogether(
 async function deployMockFlashLoan(
   owner: HardhatEthersSigner,
   stakeTogether: string,
-  stakeTogetherProxy: string,
+  stakeTogetherWrapper: string,
   withdrawals: string,
 ) {
   const MockFlashLoanFactory = new MockFlashLoan__factory().connect(owner)
   const mockFlashLoan = await upgrades.deployProxy(MockFlashLoanFactory, [
     stakeTogether,
-    stakeTogetherProxy,
+    stakeTogetherWrapper,
     withdrawals,
   ])
   await mockFlashLoan.waitForDeployment()
@@ -351,7 +351,7 @@ export async function stakeTogetherWrapperFixture() {
   const { mockFlashLoanContract } = await deployMockFlashLoan(
     owner,
     stakeTogether.proxyAddress,
-    stakeTogether.proxyAddress,
+    stakeTogetherWrapper.proxyAddress,
     stakeTogether.proxyAddress,
   )
 

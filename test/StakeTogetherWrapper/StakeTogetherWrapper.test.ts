@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
 import {
+  MockFlashLoan,
   MockStakeTogether,
   MockStakeTogetherWrapper__factory,
   StakeTogether,
@@ -21,6 +22,7 @@ describe('StakeTogetherWrapper', function () {
   let stakeTogetherProxy: string
   let mockStakeTogether: MockStakeTogether
   let mockStakeTogetherProxy: string
+  let mockFlashLoan: MockFlashLoan
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -42,6 +44,7 @@ describe('StakeTogetherWrapper', function () {
     stakeTogetherProxy = fixture.stakeTogetherProxy
     mockStakeTogether = fixture.mockStakeTogether
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
+    mockFlashLoan = fixture.mockFlashLoan
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -535,6 +538,19 @@ describe('StakeTogetherWrapper', function () {
 
       const rate = await stakeTogetherWrapper.stpEthPerWstpETH(ethers.parseEther('10'))
       expect(rate).to.equal(0)
+    })
+  })
+
+  describe('Flash Loan', () => {
+    it('should distribute profit equally among three depositors', async function () {
+      const depositAmount = ethers.parseEther('1')
+      const poolAddress = user3.address
+
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+
+      await expect(
+        mockFlashLoan.wrapAndUnwrap(poolAddress, poolAddress, { value: depositAmount }),
+      ).to.revertedWithCustomError(stakeTogether, 'FlashLoan')
     })
   })
 })
