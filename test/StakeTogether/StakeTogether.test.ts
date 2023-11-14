@@ -982,6 +982,9 @@ describe('Stake Together', function () {
         await network.provider.send('evm_mine')
       }
 
+      const withdrawBeaconBlock = await stakeTogether.getWithdrawBeaconBlock(user1.address)
+      expect(withdrawBeaconBlock).to.equal(0n)
+
       await stakeTogether.connect(user1).withdrawBeacon(withdrawAmount, poolAddress)
 
       // Expect a revert with the specific error message
@@ -996,6 +999,9 @@ describe('Stake Together', function () {
 
       await expect(stakeTogether.connect(user2).withdrawBeacon(withdrawAmount, poolAddress)).to.not
         .reverted
+
+      const withdrawBeaconBlockAfter = await stakeTogether.getWithdrawBeaconBlock(user1.address)
+      expect(withdrawBeaconBlockAfter).to.equal(7341n)
     })
 
     it('should revert when trying to withdraw an amount greater than the balance', async function () {
