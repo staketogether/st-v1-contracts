@@ -1760,6 +1760,9 @@ describe('Stake Together', function () {
       expect(airdropLogs[0].args[1]).to.equal((fee * 60n) / 100n)
       expect(stakeTogetherLogs[0].args[1]).to.equal((fee * 40n) / 100n)
       expect(user1Logs[0].args[1]).to.equal(user1Shares)
+
+      const feeValue = ethers.parseEther('0.003')
+      expect(await stakeTogether.getFee(0)).to.equal(feeValue)
     })
 
     it('should only allow admin to set fee', async function () {
