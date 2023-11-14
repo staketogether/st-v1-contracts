@@ -566,4 +566,22 @@ describe('Withdrawals', function () {
       )
     })
   })
+
+  describe('Flash Loan', function () {
+    it('should allow a valid withdrawal', async function () {
+      await owner.sendTransaction({
+        to: withdrawalsProxy,
+        value: ethers.parseEther('20.0'),
+      })
+
+      const mintAmount = ethers.parseEther('5.0')
+      await mockStakeTogether.connect(owner).mintWithdrawals(mockFlashLoan, mintAmount)
+      expect(await withdrawals.balanceOf(mockFlashLoan)).to.equal(mintAmount)
+
+      await expect(mockFlashLoan.connect(user1).doubleWithdraw()).to.be.revertedWithCustomError(
+        withdrawals,
+        'FlashLoan',
+      )
+    })
+  })
 })

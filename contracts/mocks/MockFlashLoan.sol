@@ -59,4 +59,10 @@ contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgra
     stakeTogetherWrapper.wrap(amount);
     stakeTogetherWrapper.unwrap(amount);
   }
+
+  function doubleWithdraw() external payable {
+    uint256 amount = 0.5 ether;
+    withdrawals.withdraw(amount);
+    withdrawals.withdraw(amount);
+  }
 }
