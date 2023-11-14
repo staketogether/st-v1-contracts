@@ -330,6 +330,8 @@ export async function stakeTogetherFixture() {
     withdrawals: withdrawals.withdrawalsContract,
     withdrawalsProxy: withdrawals.proxyAddress,
     mockFlashLoan: mockFlashLoanContract,
+    airdrop: airdrop.airdropContract,
+    router: router.routerContract,
     ADMIN_ROLE,
     UPGRADER_ROLE,
     POOL_MANAGER_ROLE,

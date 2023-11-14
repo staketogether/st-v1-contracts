@@ -1,9 +1,11 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
 import {
+  Airdrop,
   MockFlashLoan,
   MockRouter,
   MockStakeTogether__factory,
@@ -24,6 +26,7 @@ describe('Stake Together', function () {
   let withdrawals: Withdrawals
   let withdrawalsProxy: string
   let mockFlashLoan: MockFlashLoan
+  let airdrop: Airdrop
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
   let user2: HardhatEthersSigner
@@ -51,6 +54,7 @@ describe('Stake Together', function () {
     withdrawals = fixture.withdrawals
     withdrawalsProxy = fixture.withdrawalsProxy
     mockFlashLoan = fixture.mockFlashLoan
+    airdrop = fixture.airdrop
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -2640,6 +2644,72 @@ describe('Stake Together', function () {
 
       const isListed = await stakeTogether.isListedInAntiFraud(suspectAddress)
       expect(isListed).to.equal(false)
+    })
+  })
+
+  describe('Rewards', () => {
+    it('should claim', async function () {
+      const user5Balance = await stakeTogether.balanceOf(user5.address)
+      expect(user5Balance).to.equal(0n)
+
+      const user2Balance = await stakeTogether.balanceOf(user2.address)
+      expect(user2Balance).to.equal(0n)
+
+      const user1DepositAmount = ethers.parseEther('100')
+      const poolAddress = user3.address
+      const referral = user4.address
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+
+      const fee = (user1DepositAmount * 3n) / 1000n
+
+      await stakeTogether.connect(owner).setFeeAddress(0, await airdrop.getAddress())
+
+      const tx1 = await stakeTogether
+        .connect(user1)
+        .depositPool(poolAddress, referral, { value: user1DepositAmount })
+      await tx1.wait()
+
+      const reportBlock = 1n
+      const index0 = 0n
+      const index1 = 1n
+
+      // 1
+      const values: [bigint, bigint, string, bigint][] = [
+        [index0, reportBlock, user5.address, 50000000000000n],
+        [index1, reportBlock, user2.address, 25000000000000n],
+      ]
+
+      // 2
+      const tree = StandardMerkleTree.of(values, ['uint256', 'uint256', 'address', 'uint256'])
+      const proof1 = tree.getProof([index0, reportBlock, user5.address, 50000000000000n])
+      const proof2 = tree.getProof([index1, reportBlock, user2.address, 25000000000000n])
+
+      // 3
+      await mockRouter.connect(owner).addMerkleRoot(reportBlock, tree.root)
+
+      // 4
+      await expect(
+        airdrop.connect(user1).claim(reportBlock, index0, user5.address, 50000000000000n, proof1),
+      )
+        .to.emit(airdrop, 'Claim')
+        .withArgs(reportBlock, index0, user5.address, 50000000000000n, proof1)
+
+      await expect(
+        airdrop.connect(user1).claim(reportBlock, index0, user5.address, 50000000000000n, proof1),
+      ).to.be.revertedWithCustomError(airdrop, 'AlreadyClaimed')
+
+      expect(await airdrop.isClaimed(reportBlock, index0)).to.equal(true)
+      expect(await airdrop.isClaimed(reportBlock, index1)).to.equal(false)
+
+      await airdrop.connect(user1).claim(reportBlock, index1, user2.address, 25000000000000n, proof2)
+
+      expect(await airdrop.isClaimed(reportBlock, index1)).to.equal(true)
+
+      const user5BalanceUpdated = await stakeTogether.balanceOf(user5.address)
+      expect(user5BalanceUpdated).to.equal(50000000000000n)
+
+      const user2BalanceUpdated = await stakeTogether.balanceOf(user2.address)
+      expect(user2BalanceUpdated).to.equal(25000000000000n)
     })
   })
 })
