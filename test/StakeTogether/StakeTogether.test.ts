@@ -413,7 +413,7 @@ describe('Stake Together', function () {
 
       await expect(
         stakeTogether.connect(user1).withdrawPool(user1WithdrawAmount, poolAddress),
-      ).revertedWithCustomError(stakeTogether, 'EarlyWithdraw')
+      ).revertedWithCustomError(stakeTogether, 'EarlyTransfer')
 
       for (let i = 0; i < 100; i++) {
         await network.provider.send('evm_mine')
@@ -1908,6 +1908,10 @@ describe('Stake Together', function () {
           value: user1DepositAmount,
         })
 
+      for (let i = 0; i < 100; i++) {
+        await network.provider.send('evm_mine')
+      }
+
       const amountToTransfer = ethers.parseEther('2')
       const tx = await stakeTogether.connect(user1).transfer(user2.address, amountToTransfer)
 
@@ -1951,6 +1955,10 @@ describe('Stake Together', function () {
         .depositPool(poolAddress, ethers.toUtf8Bytes(await user3.getAddress()), {
           value: user1DepositAmount,
         })
+
+      for (let i = 0; i < 100; i++) {
+        await network.provider.send('evm_mine')
+      }
 
       const user1Balance = await stakeTogether.balanceOf(user1.address)
       await expect(
@@ -2066,6 +2074,10 @@ describe('Stake Together', function () {
         .depositPool(poolAddress, ethers.toUtf8Bytes(await user3.getAddress()), {
           value: user1DepositAmount,
         })
+
+      for (let i = 0; i < 100; i++) {
+        await network.provider.send('evm_mine')
+      }
 
       const tx = await stakeTogether.connect(user1).transfer(user2.address, transferAmount)
 

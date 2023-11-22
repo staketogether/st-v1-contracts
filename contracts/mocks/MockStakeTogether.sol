@@ -241,6 +241,7 @@ contract MockStakeTogether is
     address _to,
     uint256 _amount
   ) internal override nonReentrant whenNotPaused {
+    if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyTransfer();
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -410,7 +411,7 @@ contract MockStakeTogether is
     if (_amount == 0) revert ZeroAmount();
     if (_amount > balanceOf(msg.sender)) revert InsufficientAccountBalance();
     if (_amount < config.minWithdrawAmount) revert LessThanMinimumWithdraw();
-    if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyWithdraw();
+    if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyTransfer();
 
     _resetLimits();
     lastOperationBlock[msg.sender] = block.number;
@@ -694,6 +695,9 @@ contract MockStakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
+    validators[_publicKey] = true;
+    _nextValidatorOracle();
+    _setBeaconBalance(beaconBalance + config.validatorSize);
     emit AddValidator(
       msg.sender,
       config.validatorSize,
@@ -702,6 +706,13 @@ contract MockStakeTogether is
       _signature,
       _depositDataRoot
     );
+    deposit.deposit{ value: config.validatorSize }(
+      _publicKey,
+      withdrawalCredentials,
+      _signature,
+      _depositDataRoot
+    );
+    _processFeeValidator();
   }
 
   /*************

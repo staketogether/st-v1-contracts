@@ -9,8 +9,8 @@ interface IStakeTogether {
   /// @notice Thrown if the deposit limit is reached.
   error DepositLimitReached();
 
-  /// @notice Thrown if the withdraw is too early to be executed.
-  error EarlyWithdraw();
+  /// @notice Thrown if the transfer is too early to be executed.
+  error EarlyTransfer();
 
   /// @notice Thrown if the feature is disabled.
   error FeatureDisabled();
