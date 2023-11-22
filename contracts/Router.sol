@@ -38,6 +38,7 @@ contract Router is
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
+  bool public bunkermode; /// Configuration for beacon withdrawals speed.
 
   uint256 public totalReportOracles; /// Total number of reportOracles.
   mapping(address => bool) private reportOracles; /// Mapping to track oracle addresses.
@@ -129,6 +130,13 @@ contract Router is
   /************
    ** CONFIG **
    ************/
+
+  /// @notice Sets the bunkermode for beacon withdrawals.
+  /// @param _bunkerMode A boolean indicating if the bunkermode is active.
+  function setBunkerMode(bool _bunkerMode) external onlyRole(ADMIN_ROLE) {
+    bunkermode = _bunkerMode;
+    emit SetBunkerMode(_bunkerMode);
+  }
 
   /// @notice Sets the configuration parameters for the contract.
   /// @dev Only the ADMIN_ROLE can set the configuration, and it ensures a minimum report delay block.

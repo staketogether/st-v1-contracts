@@ -121,7 +121,6 @@ interface IRouter {
   /// @param lossAmount The total loss amount incurred during this reportBlock.
   /// @param withdrawAmount The total amount withdrawn by users during this reportBlock.
   /// @param withdrawRefundAmount The amount refunded to users on withdrawal during this reportBlock.
-  /// @param validatorsStatus The status of validators during this epreportBlockoch, represented as a bytes32 value.
   /// @param accumulatedReports The total number of reports accumulated up to this reportBlock.
   struct Report {
     uint256 reportBlock;
@@ -131,7 +130,6 @@ interface IRouter {
     uint256 lossAmount;
     uint256 withdrawAmount;
     uint256 withdrawRefundAmount;
-    bytes32 validatorsStatus;
     uint256 accumulatedReports;
   }
 
@@ -172,6 +170,10 @@ interface IRouter {
   /// @param sender The sentinel that execute the revoke.
   /// @param reportBlock The block number at which the consensus was revoked.
   event RevokeConsensusReport(address indexed sender, uint256 indexed reportBlock);
+
+  /// @notice Emitted when bunker mode is set.
+  /// @param bunkerMode The bunker mode flag.
+  event SetBunkerMode(bool indexed bunkerMode);
 
   /// @notice Emitted when the protocol configuration is updated.
   /// @param config The updated configuration.

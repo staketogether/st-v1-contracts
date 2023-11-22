@@ -373,7 +373,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -399,7 +398,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -424,7 +422,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -455,7 +452,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -472,7 +468,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -512,7 +507,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -543,7 +537,6 @@ describe('Router', function () {
         lossAmount: 500n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -578,7 +571,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -631,7 +623,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -667,7 +658,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -726,7 +716,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -745,7 +734,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -798,7 +786,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -810,7 +797,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -845,7 +831,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -881,7 +866,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -919,7 +903,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -948,7 +931,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 0n,
         withdrawRefundAmount: 0n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -1108,7 +1090,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 100n,
         withdrawRefundAmount: 0n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -1264,7 +1245,6 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: ethers.parseEther('35'),
         withdrawRefundAmount: 0n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
@@ -1304,14 +1284,13 @@ describe('Router', function () {
         lossAmount: 0n,
         withdrawAmount: 200n,
         withdrawRefundAmount: 100n,
-        validatorsStatus: ethers.keccak256('0x'),
         accumulatedReports: 0n,
       }
 
       const contractHash = await router.getReportHash(report)
 
       expect(contractHash).to.be.equal(
-        '0xf7061c5c8f8a1b51dc98ff55ec4091d447b81a8ada749183b1e472cd4d2e4598',
+        '0xb6803f321684e90516d83cc63598f6dcfa347b409a00b230f4e805e9557c5204',
       )
     })
   })
