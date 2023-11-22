@@ -145,6 +145,29 @@ describe('Router', function () {
       })
     })
 
+    describe('setBunkerMode', function () {
+      it('should set bunkermode to true when called by admin', async function () {
+        // Admin sets bunkermode to true
+        await connect(router, owner).setBunkerMode(true)
+
+        // Retrieve the updated bunkermode value
+        const bunkermode = await router.bunkermode()
+
+        // Check if the bunkermode is set to true
+        expect(bunkermode).to.equal(true)
+
+        // Check for the SetBunkerMode event emission
+        await expect(connect(router, owner).setBunkerMode(true))
+          .to.emit(router, 'SetBunkerMode')
+          .withArgs(true)
+      })
+
+      it('should revert when called by a non-admin', async function () {
+        // A non-admin user tries to set bunkermode - should fail
+        await expect(connect(router, user3).setBunkerMode(true)).to.be.reverted // Replace with the actual error message
+      })
+    })
+
     describe('Set Configuration', function () {
       it('should allow owner to set configuration', async function () {
         const config = {

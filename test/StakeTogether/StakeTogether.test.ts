@@ -41,7 +41,6 @@ describe('Stake Together', function () {
   let VALIDATOR_ORACLE_MANAGER_ROLE: string
   let VALIDATOR_ORACLE_ROLE: string
   let VALIDATOR_ORACLE_SENTINEL_ROLE: string
-  let VALIDATOR_MANAGER_ROLE: string
   let initialBalance: bigint
 
   // Setting up the fixture before each test
@@ -69,7 +68,6 @@ describe('Stake Together', function () {
     VALIDATOR_ORACLE_MANAGER_ROLE = fixture.VALIDATOR_ORACLE_MANAGER_ROLE
     VALIDATOR_ORACLE_ROLE = fixture.VALIDATOR_ORACLE_ROLE
     VALIDATOR_ORACLE_SENTINEL_ROLE = fixture.VALIDATOR_ORACLE_SENTINEL_ROLE
-    VALIDATOR_MANAGER_ROLE = fixture.VALIDATOR_MANAGER_ROLE
     initialBalance = await ethers.provider.getBalance(stakeTogetherProxy)
   })
 

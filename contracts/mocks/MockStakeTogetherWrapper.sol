@@ -146,7 +146,8 @@ contract MockStakeTogetherWrapper is
     address _from,
     address _to,
     uint256 _amount
-  ) internal override nonReentrant whenNotPaused {
+  ) internal override nonReentrant nonFlashLoan whenNotPaused {
+    lastOperationBlock[msg.sender] = block.number;
     super._update(_from, _to, _amount);
   }
 
@@ -164,10 +165,10 @@ contract MockStakeTogetherWrapper is
     uint256 wstpETHAmount = stakeTogether.sharesByWei(_stpETH);
     if (wstpETHAmount == 0) revert ZeroWstpETHAmount();
     _mint(msg.sender, wstpETHAmount);
+    lastOperationBlock[msg.sender] = block.number;
     emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
     bool success = stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
     if (!success) revert TransferStpEthFailed();
-    lastOperationBlock[msg.sender] = block.number;
     return wstpETHAmount;
   }
 
@@ -181,10 +182,10 @@ contract MockStakeTogetherWrapper is
     uint256 stpETHAmount = stakeTogether.weiByShares(_wstpETH);
     if (stpETHAmount == 0) revert ZeroStpETHAmount();
     _burn(msg.sender, _wstpETH);
+    lastOperationBlock[msg.sender] = block.number;
     emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
     bool success = stakeTogether.transfer(msg.sender, stpETHAmount);
     if (!success) revert TransferStpEthFailed();
-    lastOperationBlock[msg.sender] = block.number;
     return stpETHAmount;
   }
 

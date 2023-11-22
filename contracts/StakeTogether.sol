@@ -37,7 +37,6 @@ contract StakeTogether is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE'); /// Role for managing pools.
-  bytes32 public constant VALIDATOR_MANAGER_ROLE = keccak256('VALIDATOR_MANAGER_ROLE'); /// Role for managing exit validators.
   bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE'); /// Role for managing validator oracles.
   bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
   bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for sentinel functionality in validator oracle management.
@@ -240,8 +239,9 @@ contract StakeTogether is
     address _from,
     address _to,
     uint256 _amount
-  ) internal override nonReentrant whenNotPaused {
+  ) internal override nonReentrant nonFlashLoan whenNotPaused {
     if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyTransfer();
+    lastOperationBlock[msg.sender] = block.number;
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);

@@ -170,7 +170,8 @@ contract MockWithdrawals is
     address _from,
     address _to,
     uint256 _amount
-  ) internal override nonReentrant whenNotPaused {
+  ) internal override nonReentrant nonFlashLoan whenNotPaused {
+    lastOperationBlock[msg.sender] = block.number;
     super._update(_from, _to, _amount);
   }
 
