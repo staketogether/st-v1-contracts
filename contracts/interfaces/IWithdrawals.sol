@@ -7,7 +7,7 @@ pragma solidity 0.8.22;
 /// @custom:security-contact security@staketogether.org
 interface IWithdrawals {
   /// @notice This error is thrown when use try withdraw before the beacon delay.
-  error EarlyBeaconWithdraw();
+  error EarlyBeaconTransfer();
 
   /// @notice Thrown if the operation is a FlashLoan.
   error FlashLoan();

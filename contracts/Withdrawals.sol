@@ -138,6 +138,7 @@ contract Withdrawals is
   ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (block.number < stakeTogether.getWithdrawBeaconBlock(msg.sender)) revert EarlyBeaconTransfer();
     _transfer(msg.sender, _to, _amount);
     return true;
   }
@@ -155,6 +156,7 @@ contract Withdrawals is
     if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
+    if (block.number < stakeTogether.getWithdrawBeaconBlock(_from)) revert EarlyBeaconTransfer();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -193,7 +195,7 @@ contract Withdrawals is
     if (address(this).balance < _amount) revert InsufficientEthBalance();
     if (balanceOf(msg.sender) < _amount) revert InsufficientStwBalance();
     if (_amount <= 0) revert ZeroAmount();
-    if (block.number < stakeTogether.getWithdrawBeaconBlock(msg.sender)) revert EarlyBeaconWithdraw();
+    if (block.number < stakeTogether.getWithdrawBeaconBlock(msg.sender)) revert EarlyBeaconTransfer();
     emit Withdraw(msg.sender, _amount);
     _burn(msg.sender, _amount);
     Address.sendValue(payable(msg.sender), _amount);
