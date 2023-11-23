@@ -192,6 +192,7 @@ contract Router is
     if (!reportOracles[_account]) revert OracleNotExists();
     _revokeRole(ORACLE_REPORT_ROLE, _account);
     reportOracles[_account] = false;
+    reportOraclesBlacklist[_account] = false;
     if (!reportOraclesBlacklist[_account]) {
       totalReportOracles--;
     }
