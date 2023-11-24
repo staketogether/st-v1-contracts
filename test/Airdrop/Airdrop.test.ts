@@ -242,7 +242,7 @@ describe('Airdrop', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await mockStakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await mockStakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee

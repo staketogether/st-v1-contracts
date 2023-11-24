@@ -174,7 +174,6 @@ describe('Router', function () {
           bunkerMode: false,
           reportDelayBlock: 300,
 
-          oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
           reportNoConsensusMargin: 0,
@@ -193,7 +192,6 @@ describe('Router', function () {
           bunkerMode: false,
           reportDelayBlock: 60,
 
-          oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
           reportNoConsensusMargin: 0,
@@ -208,7 +206,6 @@ describe('Router', function () {
           bunkerMode: false,
           reportDelayBlock: 60,
 
-          oracleBlackListLimit: 3,
           reportFrequency: 1000,
           oracleQuorum: 5,
           reportNoConsensusMargin: 6,
@@ -626,8 +623,6 @@ describe('Router', function () {
       const config = {
         bunkerMode: false,
         reportDelayBlock: 300,
-
-        oracleBlackListLimit: 3,
         reportFrequency: 1000,
         oracleQuorum: 5,
         reportNoConsensusMargin: 2,
@@ -659,7 +654,6 @@ describe('Router', function () {
       const config2 = {
         bunkerMode: false,
         reportDelayBlock: 300,
-        oracleBlackListLimit: 3,
         reportFrequency: 1000,
         oracleQuorum: 5,
         reportNoConsensusMargin: 1,
@@ -719,8 +713,6 @@ describe('Router', function () {
       const config = {
         bunkerMode: false,
         reportDelayBlock: 300,
-
-        oracleBlackListLimit: 3,
         reportFrequency: 1000,
         oracleQuorum: 5,
         reportNoConsensusMargin: 0,
@@ -793,7 +785,6 @@ describe('Router', function () {
       const config = {
         bunkerMode: false,
         reportDelayBlock: 300,
-        oracleBlackListLimit: 3,
         reportFrequency: 1000,
         oracleQuorum: 5,
         reportNoConsensusMargin: 1,
@@ -1066,7 +1057,7 @@ describe('Router', function () {
       const depositAmount = ethers.parseEther('2')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       const delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
@@ -1161,7 +1152,7 @@ describe('Router', function () {
       // Deposit
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       const tx1 = await stakeTogether
         .connect(user1)

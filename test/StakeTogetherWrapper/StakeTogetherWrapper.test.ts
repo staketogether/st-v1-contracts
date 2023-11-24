@@ -215,7 +215,7 @@ describe('StakeTogetherWrapper', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
@@ -242,7 +242,7 @@ describe('StakeTogetherWrapper', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
@@ -270,7 +270,7 @@ describe('StakeTogetherWrapper', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
@@ -296,7 +296,7 @@ describe('StakeTogetherWrapper', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
@@ -324,7 +324,7 @@ describe('StakeTogetherWrapper', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
@@ -342,7 +342,7 @@ describe('StakeTogetherWrapper', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: user1DepositAmount })
 
@@ -374,7 +374,7 @@ describe('StakeTogetherWrapper', function () {
       const expectedStpETH = (initialDepositBigInt * 997n) / 1000n
 
       // The owner adds a pool
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       // User1 deposits 100 ETH into the pool
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
@@ -400,7 +400,7 @@ describe('StakeTogetherWrapper', function () {
       const depositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
       const user1StpETH = await stakeTogether.balanceOf(user1.address)
@@ -427,7 +427,7 @@ describe('StakeTogetherWrapper', function () {
       const depositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: depositAmount })
       const user1StpETH = await stakeTogether.balanceOf(user1.address)
@@ -456,7 +456,7 @@ describe('StakeTogetherWrapper', function () {
       const expectedStpETH = (initialDepositBigInt * 997n) / 1000n
 
       // The owner adds a pool
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       // User1 deposits 100 ETH into the pool
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
@@ -497,7 +497,7 @@ describe('StakeTogetherWrapper', function () {
       const poolAddress = user3.address
       const referral = user4.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
 
       const user1StpETH = await stakeTogether.balanceOf(user1.address)
@@ -519,7 +519,7 @@ describe('StakeTogetherWrapper', function () {
       const poolAddress = user3.address
       const referral = user4.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
       await stakeTogether.connect(user1).depositPool(poolAddress, referral, { value: initialDeposit })
 
       const user1StpETH = await stakeTogether.balanceOf(user1.address)
@@ -546,7 +546,7 @@ describe('StakeTogetherWrapper', function () {
       const depositAmount = ethers.parseEther('1')
       const poolAddress = user3.address
 
-      await stakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await stakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       await expect(
         mockFlashLoan.wrapAndUnwrap(poolAddress, poolAddress, { value: depositAmount }),

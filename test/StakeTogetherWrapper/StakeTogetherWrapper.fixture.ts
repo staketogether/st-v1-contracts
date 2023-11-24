@@ -97,7 +97,6 @@ async function deployRouter(
 
     reportNoConsensusMargin: 0,
     oracleQuorum: 5,
-    oracleBlackListLimit: 3,
     reportFrequency: 1000,
   }
 

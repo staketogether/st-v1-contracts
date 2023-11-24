@@ -103,13 +103,11 @@ interface IRouter {
   /// @param bunkerMode A boolean flag to indicate whether the bunker mode is active or not.
   /// @param reportFrequency The frequency in which reports need to be generated.
   /// @param reportDelayBlock The number of blocks to delay before a report is considered.
-  /// @param oracleBlackListLimit The maximum number of oracles that can be blacklisted.
   /// @param oracleQuorum The quorum required among oracles for a report to be considered.
   struct Config {
     uint256 reportFrequency;
     uint256 reportDelayBlock;
     uint256 reportNoConsensusMargin;
-    uint256 oracleBlackListLimit;
     uint256 oracleQuorum;
   }
 

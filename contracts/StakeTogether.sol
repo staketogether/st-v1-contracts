@@ -524,10 +524,13 @@ contract StakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
+  /// @param _social The kind of pool.
+  /// @param _index Checked if the pool is a index
   function addPool(
     address _pool,
     bool _listed,
-    bool _social
+    bool _social,
+    bool _index
   ) external payable nonReentrant whenNotPaused nonFlashLoan {
     if (_pool == address(0)) revert ZeroAddress();
     if (pools[_pool]) revert PoolExists();
@@ -538,7 +541,7 @@ contract StakeTogether is
     }
     pools[_pool] = true;
     lastOperationBlock[msg.sender] = block.number;
-    emit AddPool(_pool, _listed, _social, msg.value);
+    emit AddPool(_pool, _listed, _social, _index, msg.value);
   }
 
   /// @notice Removes a pool by its address.

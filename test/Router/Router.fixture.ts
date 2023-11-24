@@ -68,10 +68,8 @@ async function deployRouter(
     bunkerMode: false,
     maxValidatorsToExit: 100,
     reportDelayBlock: 60,
-
     reportNoConsensusMargin: 0,
     oracleQuorum: 5,
-    oracleBlackListLimit: 3,
     reportFrequency: 1000,
   }
 

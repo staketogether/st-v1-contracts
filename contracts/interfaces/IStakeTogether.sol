@@ -200,8 +200,9 @@ interface IStakeTogether {
   /// @param pool The address of the pool
   /// @param listed Indicates if the pool is listed
   /// @param social Indicates if the pool is social
+  /// @param index Indicates if the pool is an index
   /// @param amount The amount associated with the pool
-  event AddPool(address indexed pool, bool listed, bool social, uint256 amount);
+  event AddPool(address indexed pool, bool listed, bool social, bool index, uint256 amount);
 
   /// @notice Emitted when a validator oracle is added
   /// @param account The address of the account
@@ -509,7 +510,8 @@ interface IStakeTogether {
   /// @param _pool Address of the new pool.
   /// @param _listed True if the pool is listed.
   /// @param _social True if the pool is social.
-  function addPool(address _pool, bool _listed, bool _social) external payable;
+  /// @param _index True if the pool is an index.
+  function addPool(address _pool, bool _listed, bool _social, bool _index) external payable;
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
