@@ -5,6 +5,8 @@ import {
   Airdrop,
   Airdrop__factory,
   MockDepositContract__factory,
+  MockFlashLoan,
+  MockFlashLoan__factory,
   MockRouter__factory,
   Router,
   StakeTogether,
@@ -72,7 +74,6 @@ async function deployRouter(
 
     reportNoConsensusMargin: 0,
     oracleQuorum: 5,
-    oracleBlackListLimit: 3,
     reportFrequency: 1000,
   }
 
@@ -93,6 +94,7 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
+  airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -122,9 +124,10 @@ async function deployStakeTogether(
   const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    airdropContract,
+    depositAddress,
     routerContract,
     withdrawalsContract,
-    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -150,6 +153,7 @@ async function deployStakeTogether(
   const poolSize = ethers.parseEther('32')
 
   const config = {
+    blocksPerDay: 7200n,
     validatorSize: ethers.parseEther('32'),
     poolSize: poolSize + stakeValidatorFee,
     minDepositAmount: ethers.parseEther('0.001'),
@@ -157,13 +161,14 @@ async function deployStakeTogether(
     depositLimit: ethers.parseEther('1000'),
     withdrawalPoolLimit: ethers.parseEther('1000'),
     withdrawalValidatorLimit: ethers.parseEther('1000'),
-    blocksPerDay: 7200n,
     maxDelegations: 64n,
+    withdrawDelay: 10n,
+    withdrawBeaconDelay: 10n,
     feature: {
       AddPool: true,
       Deposit: true,
       WithdrawPool: true,
-      WithdrawValidator: true,
+      WithdrawBeacon: true,
     },
   }
 
@@ -199,6 +204,25 @@ async function deployStakeTogether(
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
+}
+
+async function deployMockFlashLoan(
+  owner: HardhatEthersSigner,
+  stakeTogether: string,
+  stakeTogetherWrapper: string,
+  withdrawals: string,
+) {
+  const MockFlashLoanFactory = new MockFlashLoan__factory().connect(owner)
+  const mockFlashLoan = await upgrades.deployProxy(MockFlashLoanFactory, [
+    stakeTogether,
+    stakeTogetherWrapper,
+    withdrawals,
+  ])
+  await mockFlashLoan.waitForDeployment()
+
+  const mockFlashLoanContract = mockFlashLoan as unknown as MockFlashLoan
+
+  return { mockFlashLoanContract }
 }
 
 export async function configContracts(
@@ -258,11 +282,21 @@ export async function stakeTogetherFixture() {
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
 
   // DEPLOY
-
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    airdrop.proxyAddress,
+    router.proxyAddress,
+    withdrawals.proxyAddress,
+  )
+  const { mockFlashLoanContract } = await deployMockFlashLoan(
+    owner,
+    stakeTogether.proxyAddress,
+    stakeTogether.proxyAddress,
+    stakeTogether.proxyAddress,
+  )
 
   await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
@@ -274,7 +308,6 @@ export async function stakeTogetherFixture() {
     await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_MANAGER_ROLE()
   const VALIDATOR_ORACLE_SENTINEL_ROLE =
     await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_SENTINEL_ROLE()
-  const VALIDATOR_MANAGER_ROLE = await stakeTogether.stakeTogetherContract.VALIDATOR_MANAGER_ROLE()
 
   return {
     provider,
@@ -294,12 +327,14 @@ export async function stakeTogetherFixture() {
     mockRouterProxy: router.proxyAddress,
     withdrawals: withdrawals.withdrawalsContract,
     withdrawalsProxy: withdrawals.proxyAddress,
+    mockFlashLoan: mockFlashLoanContract,
+    airdrop: airdrop.airdropContract,
+    router: router.routerContract,
     ADMIN_ROLE,
     UPGRADER_ROLE,
     POOL_MANAGER_ROLE,
     VALIDATOR_ORACLE_ROLE,
     VALIDATOR_ORACLE_MANAGER_ROLE,
     VALIDATOR_ORACLE_SENTINEL_ROLE,
-    VALIDATOR_MANAGER_ROLE,
   }
 }

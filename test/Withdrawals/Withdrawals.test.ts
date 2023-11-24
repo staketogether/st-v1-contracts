@@ -4,6 +4,7 @@ import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
 import {
+  MockFlashLoan,
   MockStakeTogether,
   MockWithdrawals__factory,
   StakeTogether,
@@ -21,6 +22,7 @@ describe('Withdrawals', function () {
   let stakeTogether: StakeTogether
   let stakeTogetherProxy: string
   let mockStakeTogether: MockStakeTogether
+  let mockFlashLoan: MockFlashLoan
   let mockStakeTogetherProxy: string
   let owner: HardhatEthersSigner
   let user1: HardhatEthersSigner
@@ -43,6 +45,7 @@ describe('Withdrawals', function () {
     stakeTogetherProxy = fixture.stakeTogetherProxy
     mockStakeTogether = fixture.mockStakeTogether
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
+    mockFlashLoan = fixture.mockFlashLoan
     owner = fixture.owner
     user1 = fixture.user1
     user2 = fixture.user2
@@ -560,6 +563,24 @@ describe('Withdrawals', function () {
       await expect(withdrawals.connect(owner).transferExtraAmount()).to.be.revertedWithCustomError(
         withdrawals,
         'NoExtraAmountAvailable',
+      )
+    })
+  })
+
+  describe('Flash Loan', function () {
+    it('should allow a valid withdrawal', async function () {
+      await owner.sendTransaction({
+        to: withdrawalsProxy,
+        value: ethers.parseEther('20.0'),
+      })
+
+      const mintAmount = ethers.parseEther('5.0')
+      await mockStakeTogether.connect(owner).mintWithdrawals(mockFlashLoan, mintAmount)
+      expect(await withdrawals.balanceOf(mockFlashLoan)).to.equal(mintAmount)
+
+      await expect(mockFlashLoan.connect(user1).doubleWithdraw()).to.be.revertedWithCustomError(
+        withdrawals,
+        'FlashLoan',
       )
     })
   })

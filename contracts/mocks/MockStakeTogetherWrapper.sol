@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -36,6 +36,7 @@ contract MockStakeTogetherWrapper is
 
   uint256 public version; /// Contract version.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -46,6 +47,7 @@ contract MockStakeTogetherWrapper is
     __ERC20_init('Wrapped Stake Together Protocol', 'wstpETH');
     __ERC20Burnable_init();
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __ERC20Permit_init('Wrapped Stake Together Protocol');
     __UUPSUpgradeable_init();
@@ -70,14 +72,21 @@ contract MockStakeTogetherWrapper is
   function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
 
   /// @notice Receive function to accept incoming ETH transfers.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
+  }
+
+  modifier nonFlashLoan() {
+    if (block.number <= lastOperationBlock[msg.sender]) {
+      revert FlashLoan();
+    }
+    _;
   }
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role. Requires that extra amount exists in the contract balance.
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
-    uint256 extraAmount = address(this).balance - totalSupply();
+    uint256 extraAmount = address(this).balance;
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
     address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
     Address.sendValue(payable(stakeTogetherFee), extraAmount);
@@ -123,6 +132,7 @@ contract MockStakeTogetherWrapper is
   ) public override(ERC20Upgradeable, IStakeTogetherWrapper) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -136,7 +146,8 @@ contract MockStakeTogetherWrapper is
     address _from,
     address _to,
     uint256 _amount
-  ) internal override nonReentrant whenNotPaused {
+  ) internal override nonReentrant nonFlashLoan whenNotPaused {
+    lastOperationBlock[msg.sender] = block.number;
     super._update(_from, _to, _amount);
   }
 
@@ -148,12 +159,13 @@ contract MockStakeTogetherWrapper is
   /// @dev Reverts if the sender is on the anti-fraud list, or if the _stpETH amount is zero.
   /// @param _stpETH The amount of stpETH to wrap.
   /// @return The amount of wstpETH minted.
-  function wrap(uint256 _stpETH) external returns (uint256) {
+  function wrap(uint256 _stpETH) external nonFlashLoan returns (uint256) {
     if (_stpETH == 0) revert ZeroStpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 wstpETHAmount = stakeTogether.sharesByWei(_stpETH);
     if (wstpETHAmount == 0) revert ZeroWstpETHAmount();
     _mint(msg.sender, wstpETHAmount);
+    lastOperationBlock[msg.sender] = block.number;
     emit Wrapped(msg.sender, _stpETH, wstpETHAmount);
     bool success = stakeTogether.transferFrom(msg.sender, address(this), _stpETH);
     if (!success) revert TransferStpEthFailed();
@@ -164,12 +176,13 @@ contract MockStakeTogetherWrapper is
   /// @dev Reverts if the sender is on the anti-fraud list, or if the _wstpETH amount is zero.
   /// @param _wstpETH The amount of wstpETH to unwrap.
   /// @return The amount of stpETH received.
-  function unwrap(uint256 _wstpETH) external returns (uint256) {
+  function unwrap(uint256 _wstpETH) external nonFlashLoan returns (uint256) {
     if (_wstpETH == 0) revert ZeroWstpETHAmount();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     uint256 stpETHAmount = stakeTogether.weiByShares(_wstpETH);
     if (stpETHAmount == 0) revert ZeroStpETHAmount();
     _burn(msg.sender, _wstpETH);
+    lastOperationBlock[msg.sender] = block.number;
     emit Unwrapped(msg.sender, _wstpETH, stpETHAmount);
     bool success = stakeTogether.transfer(msg.sender, stpETHAmount);
     if (!success) revert TransferStpEthFailed();

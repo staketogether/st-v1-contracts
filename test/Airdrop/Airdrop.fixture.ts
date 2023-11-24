@@ -73,7 +73,6 @@ async function deployRouter(
 
     reportNoConsensusMargin: 0,
     oracleQuorum: 5,
-    oracleBlackListLimit: 3,
     reportFrequency: 1000,
   }
 
@@ -94,6 +93,7 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
+  airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -123,9 +123,10 @@ async function deployStakeTogether(
   const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    airdropContract,
+    depositAddress,
     routerContract,
     withdrawalsContract,
-    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -160,11 +161,13 @@ async function deployStakeTogether(
     withdrawalValidatorLimit: ethers.parseEther('1000'),
     blocksPerDay: 7200n,
     maxDelegations: 64n,
+    withdrawDelay: 10n,
+    withdrawBeaconDelay: 10n,
     feature: {
       AddPool: false,
       Deposit: true,
       WithdrawPool: true,
-      WithdrawValidator: true,
+      WithdrawBeacon: true,
     },
   }
 
@@ -199,6 +202,18 @@ async function deployStakeTogether(
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
+  // Upgrade Mock Airdrop
+
+  const AirdropFactory = new Airdrop__factory().connect(owner)
+  const airdrop2 = await upgrades.deployProxy(AirdropFactory)
+  await airdrop2.waitForDeployment()
+
+  const airdropContract2 = airdrop2 as unknown as Airdrop
+  const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
+  await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+
+  await airdropContract2.connect(owner).setRouter(owner.address)
+
   // Upgrade ST Mock
 
   const MockStakeTogetherFactory = new MockStakeTogether__factory(owner)
@@ -207,11 +222,13 @@ async function deployStakeTogether(
 
   await mockStakeTogether.waitForDeployment()
 
-  await mockStakeTogether.initializeV2()
+  await mockStakeTogether.initializeV2Airdrop(await airdropContract2.getAddress())
 
   const mockProxyAddress = await mockStakeTogether.getAddress()
 
   const mockStakeTogetherContract = mockStakeTogether as unknown as MockStakeTogether
+
+  await airdropContract2.connect(owner).setStakeTogether(mockProxyAddress)
 
   return {
     proxyAddress,
@@ -219,6 +236,7 @@ async function deployStakeTogether(
     stakeTogetherContract,
     mockProxyAddress,
     mockStakeTogetherContract,
+    mockAirdrop: airdropContract2,
   }
 }
 
@@ -284,7 +302,12 @@ export async function airdropFixture() {
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
 
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    airdrop.proxyAddress,
+    router.proxyAddress,
+    withdrawals.proxyAddress,
+  )
 
   // CONFIG
 
@@ -309,6 +332,7 @@ export async function airdropFixture() {
     airdropProxy: airdrop.proxyAddress,
     mockStakeTogether: stakeTogether.mockStakeTogetherContract,
     mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
+    mockAirdrop: stakeTogether.mockAirdrop,
     mockRouter: router.routerContract,
     mockRouterProxy: router.proxyAddress,
     UPGRADER_ROLE,

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 /// @title StakeTogether Report Configuration
 /// @notice This module includes configuration and reports related to the StakeTogether protocol.
@@ -27,9 +27,6 @@ interface IRouter {
   /// @notice Emitted when trying to execute too early.
   error EarlyExecution();
 
-  /// @notice Emitted when the epoch should be greater than the last executed epoch.
-  error EpochShouldBeGreater();
-
   /// @notice Emitted when the report's profit amount A is not enough for execution.
   error IncreaseOraclesToUseMargin();
 
@@ -54,6 +51,9 @@ interface IRouter {
   /// @notice Emitted when an oracle is already in the report oracles list.
   error OracleExists();
 
+  /// @notice Emitted when an oracle is already blacklisted.
+  error OracleAlreadyBlacklisted();
+
   /// @notice Emitted when an oracle is blacklisted.
   error OracleBlacklisted();
 
@@ -75,17 +75,11 @@ interface IRouter {
   /// @notice Emitted when a report for a specific block has already been revoked.
   error ReportRevoked();
 
-  /// Emits when the report block is not greater than the last executed epoch.
+  /// Emits when the report block is not greater than the last executed reportBlock.
   error ReportBlockShouldBeGreater();
 
   /// @notice Emitted when there are not enough oracles to use the margin.
   error RequiredMoreOracles();
-
-  /// @notice Emitted when the report's loss amount must be zero for execution.
-  error LossMustBeZero();
-
-  /// @notice Emitted when the report's profit shares S must be zero for execution.
-  error ProfitSharesMustBeZero();
 
   /// @notice Emitted when the quorum is not yet reached for consensus.
   error QuorumNotReached();
@@ -109,37 +103,31 @@ interface IRouter {
   /// @param bunkerMode A boolean flag to indicate whether the bunker mode is active or not.
   /// @param reportFrequency The frequency in which reports need to be generated.
   /// @param reportDelayBlock The number of blocks to delay before a report is considered.
-  /// @param oracleBlackListLimit The maximum number of oracles that can be blacklisted.
   /// @param oracleQuorum The quorum required among oracles for a report to be considered.
   struct Config {
-    bool bunkerMode;
     uint256 reportFrequency;
     uint256 reportDelayBlock;
     uint256 reportNoConsensusMargin;
-    uint256 oracleBlackListLimit;
     uint256 oracleQuorum;
   }
 
-  /// @dev Report structure used for reporting the state of the protocol at different epochs.
-  /// @param epoch The epoch for which this report is generated.
-  /// @param merkleRoot The merkle root representing the state of the protocol.
-  /// @param profitAmount The amount of profit generated during this epoch.
-  /// @param profitShares The shares associated with the profit.
-  /// @param lossAmount The loss incurred during this epoch.
-  /// @param withdrawAmount The amount withdrawn during this epoch.
-  /// @param withdrawRefundAmount The amount refunded during withdrawals in this epoch.
-  /// @param routerExtraAmount Extra amount available with the router.
-  /// @param validatorsToRemove The list of validators to be removed in this epoch.
+  /// @dev Report structure used for reporting the state of the protocol at different report blocks.
+  /// @param reportBlock The specific block period for which this report is generated.
+  /// @param merkleRoot The Merkle root hash representing the state of the data at this reportBlock.
+  /// @param profitAmount The total profit amount generated during this reportBlock.
+  /// @param profitShares The distribution of profits among stakeholders for this reportBlock.
+  /// @param lossAmount The total loss amount incurred during this reportBlock.
+  /// @param withdrawAmount The total amount withdrawn by users during this reportBlock.
+  /// @param withdrawRefundAmount The amount refunded to users on withdrawal during this reportBlock.
+  /// @param accumulatedReports The total number of reports accumulated up to this reportBlock.
   struct Report {
-    uint256 epoch;
+    uint256 reportBlock;
     bytes32 merkleRoot;
     uint256 profitAmount;
     uint256 profitShares;
     uint256 lossAmount;
     uint256 withdrawAmount;
     uint256 withdrawRefundAmount;
-    uint256 routerExtraAmount;
-    bytes32[] validatorsToRemove;
     uint256 accumulatedReports;
   }
 
@@ -181,20 +169,20 @@ interface IRouter {
   /// @param reportBlock The block number at which the consensus was revoked.
   event RevokeConsensusReport(address indexed sender, uint256 indexed reportBlock);
 
+  /// @notice Emitted when bunker mode is set.
+  /// @param bunkerMode The bunker mode flag.
+  event SetBunkerMode(bool indexed bunkerMode);
+
   /// @notice Emitted when the protocol configuration is updated.
   /// @param config The updated configuration.
   event SetConfig(Config indexed config);
-
-  /// @notice Emitted when the last consensus block is set.
-  /// @param epoch The block number set as the last consensus epoch.
-  event SetLastExecutedEpoch(uint256 indexed epoch);
 
   /// @notice Emitted when the StakeTogether address is set.
   /// @param stakeTogether The address of the StakeTogether contract.
   event SetStakeTogether(address indexed stakeTogether);
 
   /// @notice Emitted when the next report frequency is skipped.
-  /// @param reportBlock The epoch for which the report frequency was skipped.
+  /// @param reportBlock The reportBlock for which the report frequency was skipped.
   /// @param reportNextBlock The block number at which the report frequency was skipped.
   event AdvanceNextBlock(uint256 indexed reportBlock, uint256 indexed reportNextBlock);
 
@@ -206,11 +194,6 @@ interface IRouter {
   /// @notice Emitted when an oracle is unblacklisted.
   /// @param reportOracle The address of the oracle that was unblacklisted.
   event UnBlacklistReportOracle(address indexed reportOracle);
-
-  /// @notice Emitted when validators are set to be removed.
-  /// @param reportBlock The epoch at which validators are set to be removed.
-  /// @param validatorsHash The list of hashes representing validators to be removed.
-  event ValidatorsToRemove(uint256 indexed reportBlock, bytes32[] validatorsHash);
 
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
@@ -300,18 +283,13 @@ interface IRouter {
   /// @param _report The data structure containing report details.
   function getReportHash(Report calldata _report) external pure returns (bytes32);
 
-  // @notice Revokes a consensus-approved report for a given epoch.
+  // @notice Revokes a consensus-approved report for a given reportBlock.
   /// @dev Only accounts with the ORACLE_SENTINEL_ROLE can call this function.
-  /// @param _reportBlock The epoch for which the report was approved.
+  /// @param _reportBlock The reportBlock for which the report was approved.
   function revokeConsensusReport(uint256 _reportBlock) external;
 
-  /// @notice Set the last epoch for which a consensus was reached.
-  /// @dev Only accounts with the ADMIN_ROLE can call this function.
-  /// @param _epoch The last epoch for which consensus was reached.
-  function setLastExecutedEpoch(uint256 _epoch) external;
-
-  /// @notice Validates if conditions to submit a report for an epoch are met.
-  /// @dev Verifies conditions such as block number, consensus epoch, executed reports, and oracle votes.
+  /// @notice Validates if conditions to submit a report for an reportBlock are met.
+  /// @dev Verifies conditions such as block number, consensus reportBlock, executed reports, and oracle votes.
   /// @param _report The data structure containing report details.
   function isReadyToSubmit(Report calldata _report) external view returns (bytes32);
 
@@ -319,4 +297,7 @@ interface IRouter {
   /// @dev Verifies conditions like revoked reports, executed reports, consensus reports, and beacon balance.
   /// @param _report The data structure containing report details.
   function isReadyToExecute(Report calldata _report) external view returns (bytes32);
+
+  /// @notice Returns the next report block.
+  function reportBlock() external view returns (uint256);
 }

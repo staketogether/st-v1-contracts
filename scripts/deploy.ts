@@ -16,8 +16,6 @@ import {
   Withdrawals__factory,
 } from '../typechain'
 
-// TODO!: Before deploying on Mainnet, remove extra role initializations. (only necessary for testing)
-
 dotenv.config()
 
 const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
@@ -28,12 +26,16 @@ export async function deploy() {
   const [owner] = await ethers.getSigners()
 
   // DEPLOY
-
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
 
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    airdrop.proxyAddress,
+    router.proxyAddress,
+    withdrawals.proxyAddress,
+  )
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
   // CONFIG
@@ -42,7 +44,7 @@ export async function deploy() {
 
   // LOG
 
-  console.log('\n🔷 All ST V2 Contracts Deployed!\n')
+  console.log('\n🔷 All ST Contracts Deployed!\n')
 
   verifyContracts(
     airdrop.proxyAddress,
@@ -71,10 +73,8 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
   const airdropContract = airdrop as unknown as Airdrop
 
   const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
-  const AIR_UPGRADER_ROLE = await airdropContract.UPGRADER_ROLE()
 
   await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
-  await airdropContract.connect(owner).grantRole(AIR_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, airdropContract }
 }
@@ -93,10 +93,8 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
   const withdrawalsContract = withdrawals as unknown as Withdrawals
 
   const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
-  const WITHDRAW_UPGRADER_ROLE = await withdrawalsContract.UPGRADER_ROLE()
 
   await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
-  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
@@ -108,7 +106,6 @@ export async function deployRouter(
 ) {
   const RouterFactory = new Router__factory().connect(owner)
 
-  const reportFrequency = 1_296_000n // 1 once a day
   const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
 
   await router.waitForDeployment()
@@ -120,25 +117,18 @@ export async function deployRouter(
 
   // Create the configuration
   const config = {
-    bunkerMode: false,
-    maxValidatorsToExit: 100,
-    reportDelayBlock: 600,
-    reportNoConsensusMargin: 0,
-    oracleQuorum: 5,
-    oracleBlackListLimit: 3,
-    reportFrequency: reportFrequency,
+    reportFrequency: 120n,
+    reportDelayBlock: 40n,
+    reportNoConsensusMargin: 0n,
+    oracleQuorum: 1n,
   }
 
   // Cast the contract to the correct type
   const routerContract = router as unknown as Router
 
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
-  const ROUTER_UPGRADER_ROLE = await routerContract.UPGRADER_ROLE()
-  const ROUTER_ORACLE_REPORT_MANAGER_ROLE = await routerContract.ORACLE_REPORT_MANAGER_ROLE()
 
   await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
-  await routerContract.connect(owner).grantRole(ROUTER_UPGRADER_ROLE, owner)
-  await routerContract.connect(owner).grantRole(ROUTER_ORACLE_REPORT_MANAGER_ROLE, owner)
 
   // Set the configuration
   await routerContract.setConfig(config)
@@ -148,6 +138,7 @@ export async function deployRouter(
 
 export async function deployStakeTogether(
   owner: HardhatEthersSigner,
+  airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -173,9 +164,10 @@ export async function deployStakeTogether(
   const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    airdropContract,
+    depositAddress,
     routerContract,
     withdrawalsContract,
-    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -189,12 +181,8 @@ export async function deployStakeTogether(
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
-  const ST_UPGRADER_ROLE = await stakeTogetherContract.UPGRADER_ROLE()
-  const ST_POOL_MANAGER_ROLE = await stakeTogetherContract.POOL_MANAGER_ROLE()
 
   await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
-  await stakeTogetherContract.connect(owner).grantRole(ST_UPGRADER_ROLE, owner)
-  await stakeTogetherContract.connect(owner).grantRole(ST_POOL_MANAGER_ROLE, owner)
 
   const stakeEntry = ethers.parseEther('0.003')
   const stakeRewardsFee = ethers.parseEther('0.09')
@@ -204,24 +192,31 @@ export async function deployStakeTogether(
   const poolSize = ethers.parseEther('32')
 
   const config = {
-    validatorSize: ethers.parseEther('32'),
-    poolSize: poolSize + stakeValidatorFee,
+    blocksPerDay: 7200n,
+    depositLimit: ethers.parseEther('1000'),
+    maxDelegations: 64n,
     minDepositAmount: ethers.parseEther('0.001'),
     minWithdrawAmount: ethers.parseEther('0.00001'),
-    depositLimit: ethers.parseEther('1000'),
+    poolSize: poolSize + stakeValidatorFee,
+    validatorSize: ethers.parseEther('32'),
     withdrawalPoolLimit: ethers.parseEther('1000'),
     withdrawalValidatorLimit: ethers.parseEther('1000'),
-    blocksPerDay: 7200n,
-    maxDelegations: 64n,
+    withdrawDelay: 20n,
+    withdrawBeaconDelay: 20n,
     feature: {
       AddPool: false,
       Deposit: true,
       WithdrawPool: true,
-      WithdrawValidator: true,
+      WithdrawBeacon: true,
     },
   }
 
   await stakeTogetherContract.setConfig(config)
+
+  // Airdrop,
+  // Operator,
+  // StakeTogether,
+  // Sender
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
   await stakeTogetherContract.setFee(0n, stakeEntry, [
@@ -233,9 +228,9 @@ export async function deployStakeTogether(
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
   await stakeTogetherContract.setFee(1n, stakeRewardsFee, [
-    ethers.parseEther('0.33'),
-    ethers.parseEther('0.33'),
-    ethers.parseEther('0.34'),
+    ethers.parseEther('0.444'),
+    ethers.parseEther('0.278'),
+    ethers.parseEther('0.278'),
     0n,
   ])
 
@@ -269,10 +264,8 @@ async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
   const stWrapperContract = stWrapper as unknown as StakeTogetherWrapper
 
   const ST_WRAPPER_ADMIN_ROLE = await stWrapperContract.ADMIN_ROLE()
-  const ST_WRAPPER_UPGRADER_ROLE = await stWrapperContract.UPGRADER_ROLE()
 
   await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_ADMIN_ROLE, owner)
-  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
 }
@@ -305,18 +298,18 @@ export async function configContracts(
     routerContract: Router
   },
 ) {
-  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
-
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
   await airdrop.airdropContract.setRouter(router.proxyAddress)
+
+  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
 
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
   await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
 
-  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
 
   await stakeTogetherWrapper.stakeTogetherWrapperContract.setStakeTogether(stakeTogether.proxyAddress)
 }
@@ -337,10 +330,10 @@ async function verifyContracts(
 
   console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
   console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)

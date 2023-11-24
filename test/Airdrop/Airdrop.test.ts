@@ -7,6 +7,7 @@ import { ethers, upgrades } from 'hardhat'
 import {
   Airdrop,
   Airdrop__factory,
+  MockAirdrop,
   MockAirdrop__factory,
   MockRouter,
   MockStakeTogether,
@@ -21,6 +22,7 @@ describe('Airdrop', function () {
   let airdropProxy: string
   let mockStakeTogether: MockStakeTogether
   let mockStakeTogetherProxy: string
+  let mockAirdrop: MockAirdrop
   let mockRouter: MockRouter
   let mockRouterProxy: string
   let owner: HardhatEthersSigner
@@ -42,7 +44,7 @@ describe('Airdrop', function () {
     airdropProxy = fixture.airdropProxy
     mockStakeTogether = fixture.mockStakeTogether
     mockStakeTogetherProxy = fixture.mockStakeTogetherProxy
-
+    mockAirdrop = fixture.mockAirdrop as unknown as MockAirdrop
     mockRouter = fixture.mockRouter as unknown as MockRouter
     mockRouterProxy = fixture.mockRouterProxy
     owner = fixture.owner
@@ -231,15 +233,6 @@ describe('Airdrop', function () {
 
   describe('Claim', function () {
     it('should allow a valid claim and emit claim event', async function () {
-      const AirdropFactory = new Airdrop__factory().connect(owner)
-      const airdrop2 = await upgrades.deployProxy(AirdropFactory)
-      await airdrop2.waitForDeployment()
-      const airdropContract2 = airdrop2 as unknown as Airdrop
-      const AIR_ADMIN_ROLE = await airdropContract2.ADMIN_ROLE()
-      await airdropContract2.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
-      await airdropContract2.connect(owner).setStakeTogether(mockStakeTogetherProxy)
-      await airdropContract2.connect(owner).setRouter(owner.address)
-
       const user5Balance = await mockStakeTogether.balanceOf(user5.address)
       expect(user5Balance).to.equal(0n)
 
@@ -249,57 +242,57 @@ describe('Airdrop', function () {
       const user1DepositAmount = ethers.parseEther('100')
       const poolAddress = user3.address
       const referral = user4.address
-      await mockStakeTogether.connect(owner).addPool(poolAddress, true, false)
+      await mockStakeTogether.connect(owner).addPool(poolAddress, true, false, false)
 
       const fee = (user1DepositAmount * 3n) / 1000n
       const user1Shares = user1DepositAmount - fee
 
       const user1Delegations = [{ pool: poolAddress, percentage: ethers.parseEther('1') }]
 
-      await mockStakeTogether.connect(owner).setFeeAddress(0, await airdropContract2.getAddress())
+      await mockStakeTogether.connect(owner).setFeeAddress(0, await mockAirdrop.getAddress())
 
       const tx1 = await mockStakeTogether
         .connect(user1)
         .depositPool(poolAddress, referral, { value: user1DepositAmount })
       await tx1.wait()
 
-      const epoch = 1
+      const reportBlock = 1n
       const index0 = 0n
       const index1 = 1n
 
       // 1
-      const values: [bigint, string, bigint][] = [
-        [index0, user5.address, 50000000000000n],
-        [index1, user2.address, 25000000000000n],
+      const values: [bigint, bigint, string, bigint][] = [
+        [index0, reportBlock, user5.address, 50000000000000n],
+        [index1, reportBlock, user2.address, 25000000000000n],
       ]
 
       // 2
-      const tree = StandardMerkleTree.of(values, ['uint256', 'address', 'uint256'])
+      const tree = StandardMerkleTree.of(values, ['uint256', 'uint256', 'address', 'uint256'])
 
-      const proof1 = tree.getProof([index0, user5.address, 50000000000000n])
+      const proof1 = tree.getProof([index0, reportBlock, user5.address, 50000000000000n])
 
-      const proof2 = tree.getProof([index1, user2.address, 25000000000000n])
+      const proof2 = tree.getProof([index1, reportBlock, user2.address, 25000000000000n])
 
       // 3
-      await airdropContract2.connect(owner).addMerkleRoot(epoch, tree.root)
+      await mockAirdrop.connect(owner).addMerkleRoot(reportBlock, tree.root)
 
       // 4
       await expect(
-        airdropContract2.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1),
+        mockAirdrop.connect(user1).claim(reportBlock, index0, user5.address, 50000000000000n, proof1),
       )
-        .to.emit(airdropContract2, 'Claim')
-        .withArgs(epoch, index0, user5.address, 50000000000000n, proof1)
+        .to.emit(mockAirdrop, 'Claim')
+        .withArgs(reportBlock, index0, user5.address, 50000000000000n, proof1)
 
       await expect(
-        airdropContract2.connect(user1).claim(epoch, index0, user5.address, 50000000000000n, proof1),
+        mockAirdrop.connect(user1).claim(reportBlock, index0, user5.address, 50000000000000n, proof1),
       ).to.be.revertedWithCustomError(airdrop, 'AlreadyClaimed')
 
-      expect(await airdropContract2.isClaimed(epoch, index0)).to.equal(true)
-      expect(await airdropContract2.isClaimed(epoch, index1)).to.equal(false)
+      expect(await mockAirdrop.isClaimed(reportBlock, index0)).to.equal(true)
+      expect(await mockAirdrop.isClaimed(reportBlock, index1)).to.equal(false)
 
-      await airdropContract2.connect(user1).claim(epoch, index1, user2.address, 25000000000000n, proof2)
+      await mockAirdrop.connect(user1).claim(reportBlock, index1, user2.address, 25000000000000n, proof2)
 
-      expect(await airdropContract2.isClaimed(epoch, index1)).to.equal(true)
+      expect(await mockAirdrop.isClaimed(reportBlock, index1)).to.equal(true)
 
       const user5BalanceUpdated = await mockStakeTogether.balanceOf(user5.address)
       expect(user5BalanceUpdated).to.equal(50000000000000n)

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -43,6 +43,7 @@ contract Airdrop is
   /// @notice Initializes the contract with initial settings.
   function initialize() external initializer {
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
 
@@ -70,7 +71,7 @@ contract Airdrop is
 
   /// @notice Transfers any extra amount of ETH in the contract to the StakeTogether fee address.
   /// @dev Only callable by the admin role.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
   }
 
@@ -111,7 +112,7 @@ contract Airdrop is
   /// @param _reportBlock The block number.
   /// @param _root The Merkle root.
   /// @dev Only callable by the router.
-  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external nonReentrant whenNotPaused {
+  function addMerkleRoot(uint256 _reportBlock, bytes32 _root) external whenNotPaused {
     if (msg.sender != address(router)) revert OnlyRouter();
     if (merkleRoots[_reportBlock] != bytes32(0)) revert MerkleRootAlreadySetForBlock();
     merkleRoots[_reportBlock] = _root;
@@ -119,33 +120,35 @@ contract Airdrop is
   }
 
   /// @notice Claims a reward for a specific block number.
-  /// @param _blockNumber The block report number.
+  /// @param _reportBlock The block report number.
   /// @param _index The index in the Merkle tree.
   /// @param _account The address claiming the reward.
   /// @param _sharesAmount The amount of shares to claim.
   /// @param merkleProof The Merkle proof required to claim the reward.
   /// @dev Verifies the Merkle proof and transfers the reward shares.
   function claim(
-    uint256 _blockNumber,
+    uint256 _reportBlock,
     uint256 _index,
     address _account,
     uint256 _sharesAmount,
     bytes32[] calldata merkleProof
   ) external nonReentrant whenNotPaused {
     if (stakeTogether.isListedInAntiFraud(_account)) revert ListedInAntiFraud();
-    if (isClaimed(_blockNumber, _index)) revert AlreadyClaimed();
-    if (merkleRoots[_blockNumber] == bytes32(0)) revert MerkleRootNotSet();
+    if (isClaimed(_reportBlock, _index)) revert AlreadyClaimed();
+    if (merkleRoots[_reportBlock] == bytes32(0)) revert MerkleRootNotSet();
     if (_account == address(0)) revert ZeroAddress();
     if (_sharesAmount == 0) revert ZeroAmount();
 
-    bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(_index, _account, _sharesAmount))));
-    if (!MerkleProof.verify(merkleProof, merkleRoots[_blockNumber], leaf)) revert InvalidProof();
+    bytes32 leaf = keccak256(
+      bytes.concat(keccak256(abi.encode(_index, _reportBlock, _account, _sharesAmount)))
+    );
+    if (!MerkleProof.verify(merkleProof, merkleRoots[_reportBlock], leaf)) revert InvalidProof();
 
-    _setClaimed(_blockNumber, _index);
+    _setClaimed(_reportBlock, _index);
 
     stakeTogether.claimAirdrop(_account, _sharesAmount);
 
-    emit Claim(_blockNumber, _index, _account, _sharesAmount, merkleProof);
+    emit Claim(_reportBlock, _index, _account, _sharesAmount, merkleProof);
   }
 
   /// @notice Marks a reward as claimed for a specific index and block number.

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -38,12 +38,13 @@ contract Router is
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
+  bool public bunkermode; /// Configuration for beacon withdrawals speed.
 
   uint256 public totalReportOracles; /// Total number of reportOracles.
   mapping(address => bool) private reportOracles; /// Mapping to track oracle addresses.
   mapping(address => bool) public reportOraclesBlacklist; /// Mapping to track blacklisted reportOracles.
 
-  mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports by epoch.
+  mapping(uint256 => mapping(bytes32 => address[])) public reports; /// Mapping to track reports.
   mapping(uint256 => mapping(address => bool)) reportForBlock; /// Mapping to track blocks for reports.
   mapping(uint256 => uint256) public totalVotes; // Mapping to track block report votes for reports.
   mapping(uint256 => mapping(bytes32 => uint256)) public reportVotesForBlock; /// Mapping to track votes for reports.
@@ -54,7 +55,6 @@ contract Router is
   uint256 public reportBlock; /// The next block where a report is expected.
   uint256 public lastConsensusBlock; /// The last block where consensus was achieved.
   uint256 public lastExecutedBlock; /// The last block where a report was executed.
-  uint256 public lastExecutedEpoch; /// The last epoch where consensus was executed.
   bool public pendingExecution; /// Theres a report pending to be executed.
 
   mapping(uint256 => uint256) public reportDelayBlock; /// Mapping to track the delay for reports.
@@ -70,6 +70,7 @@ contract Router is
   /// @param _withdrawals The address of the Withdrawals contract.
   function initialize(address _airdrop, address _withdrawals) external initializer {
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __UUPSUpgradeable_init();
 
@@ -80,13 +81,10 @@ contract Router is
     airdrop = IAirdrop(payable(_airdrop));
     withdrawals = IWithdrawals(payable(_withdrawals));
 
-    totalReportOracles = 0;
     reportBlock = block.number;
 
     lastConsensusBlock = 1;
     lastExecutedBlock = 1;
-    lastExecutedEpoch = 1;
-    pendingExecution = false;
   }
 
   /// @notice Pauses the contract functionalities.
@@ -108,7 +106,7 @@ contract Router is
 
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
   }
 
@@ -132,6 +130,13 @@ contract Router is
   /************
    ** CONFIG **
    ************/
+
+  /// @notice Sets the bunkermode for beacon withdrawals.
+  /// @param _bunkerMode A boolean indicating if the bunkermode is active.
+  function setBunkerMode(bool _bunkerMode) external onlyRole(ADMIN_ROLE) {
+    bunkermode = _bunkerMode;
+    emit SetBunkerMode(_bunkerMode);
+  }
 
   /// @notice Sets the configuration parameters for the contract.
   /// @dev Only the ADMIN_ROLE can set the configuration, and it ensures a minimum report delay block.
@@ -187,7 +192,10 @@ contract Router is
     if (!reportOracles[_account]) revert OracleNotExists();
     _revokeRole(ORACLE_REPORT_ROLE, _account);
     reportOracles[_account] = false;
-    totalReportOracles--;
+    reportOraclesBlacklist[_account] = false;
+    if (!reportOraclesBlacklist[_account]) {
+      totalReportOracles--;
+    }
     emit RemoveReportOracle(_account);
   }
 
@@ -196,6 +204,7 @@ contract Router is
   /// @param _account Address of the oracle to be blacklisted.
   function blacklistReportOracle(address _account) external onlyRole(ORACLE_SENTINEL_ROLE) {
     if (!reportOracles[_account]) revert OracleNotExists();
+    if (reportOraclesBlacklist[_account]) revert OracleAlreadyBlacklisted();
     reportOraclesBlacklist[_account] = true;
     if (totalReportOracles > 0) {
       totalReportOracles--;
@@ -210,6 +219,7 @@ contract Router is
     if (!reportOracles[_account]) revert OracleNotExists();
     if (!reportOraclesBlacklist[_account]) revert OracleNotBlacklisted();
     reportOraclesBlacklist[_account] = false;
+
     totalReportOracles++;
     emit UnBlacklistReportOracle(_account);
   }
@@ -239,7 +249,7 @@ contract Router is
   /// @dev Handles report submissions, checking for consensus or thresholds and preps next block if needed.
   /// It uses a combination of total votes for report to determine consensus.
   /// @param _report Data structure of the report.
-  function submitReport(Report calldata _report) external nonReentrant whenNotPaused activeReportOracle {
+  function submitReport(Report calldata _report) external whenNotPaused activeReportOracle {
     bytes32 hash = isReadyToSubmit(_report);
 
     reports[reportBlock][hash].push(msg.sender);
@@ -280,23 +290,18 @@ contract Router is
 
     executedReports[reportBlock][hash] = true;
     lastExecutedBlock = reportBlock;
-    lastExecutedEpoch = _report.epoch;
     pendingExecution = false;
     emit ExecuteReport(msg.sender, reportBlock, _report);
 
     uint256 currentReportBlock = reportBlock;
     _advanceNextReportBlock();
 
-    if (_report.validatorsToRemove.length > 0) {
-      emit ValidatorsToRemove(currentReportBlock, _report.validatorsToRemove);
-    }
-
     if (_report.merkleRoot != bytes32(0)) {
       airdrop.addMerkleRoot(currentReportBlock, _report.merkleRoot);
     }
 
     if (_report.profitAmount > 0) {
-      stakeTogether.processStakeRewards{ value: _report.profitAmount }(_report.profitShares);
+      stakeTogether.processFeeRewards{ value: _report.profitAmount }(_report.profitShares);
     }
 
     if (_report.lossAmount > 0 || _report.withdrawAmount > 0 || _report.withdrawRefundAmount > 0) {
@@ -308,13 +313,6 @@ contract Router is
     if (_report.withdrawAmount > 0) {
       stakeTogether.setWithdrawBalance(stakeTogether.withdrawBalance() - _report.withdrawAmount);
       withdrawals.receiveWithdrawEther{ value: _report.withdrawAmount }();
-    }
-
-    if (_report.routerExtraAmount > 0) {
-      Address.sendValue(
-        payable(stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether)),
-        _report.routerExtraAmount
-      );
     }
   }
 
@@ -342,7 +340,7 @@ contract Router is
   }
 
   /// @notice Force to advance to the next reportBlock.
-  function forceNextReportBlock() external nonReentrant activeReportOracle {
+  function forceNextReportBlock() external activeReportOracle {
     if (block.number <= reportBlock + config.reportFrequency) revert ConsensusNotDelayed();
     if (pendingExecution) revert PendingExecution();
     _revokeConsensusReport(reportBlock);
@@ -355,14 +353,6 @@ contract Router is
     if (consensusReport[_reportBlock] == bytes32(0)) revert NoActiveConsensus();
     if (!pendingExecution) revert NoPendingExecution();
     _revokeConsensusReport(_reportBlock);
-  }
-
-  /// @notice Set the last epoch for which a consensus was executed.
-  /// @dev Only accounts with the ADMIN_ROLE can call this function.
-  /// @param _epoch The last epoch for which consensus was executed.
-  function setLastExecutedEpoch(uint256 _epoch) external onlyRole(ADMIN_ROLE) {
-    lastExecutedEpoch = _epoch;
-    emit SetLastExecutedEpoch(_epoch);
   }
 
   /// @notice Computes and returns the hash of a given report.
@@ -380,7 +370,6 @@ contract Router is
     bytes32 hash = keccak256(abi.encode(_report));
     if (totalReportOracles < config.oracleQuorum) revert QuorumNotReached();
     if (block.number <= reportBlock) revert BlockNumberNotReached();
-    if (_report.epoch <= lastExecutedEpoch) revert EpochShouldBeGreater();
     if (executedReports[reportBlock][hash]) revert AlreadyExecuted();
     if (reportForBlock[reportBlock][msg.sender]) revert OracleAlreadyReported();
     if (pendingExecution) revert PendingExecution();
@@ -389,16 +378,6 @@ contract Router is
     if (config.reportNoConsensusMargin > 0) {
       if (config.reportNoConsensusMargin >= totalReportOracles - config.oracleQuorum) {
         revert IncreaseOraclesToUseMargin();
-      }
-    }
-
-    if (_report.profitAmount > 0) {
-      if (_report.lossAmount != 0) {
-        revert LossMustBeZero();
-      }
-    } else if (_report.lossAmount > 0) {
-      if (_report.profitShares != 0) {
-        revert ProfitSharesMustBeZero();
       }
     }
 
@@ -421,10 +400,7 @@ contract Router is
     if (_report.withdrawAmount > stakeTogether.withdrawBalance()) revert WithdrawBalanceTooLow();
     if (
       address(this).balance <
-      (_report.profitAmount +
-        _report.withdrawAmount +
-        _report.withdrawRefundAmount +
-        _report.routerExtraAmount)
+      (_report.profitAmount + _report.withdrawAmount + _report.withdrawRefundAmount)
     ) revert InsufficientEthBalance();
     if (!pendingExecution) revert NoPendingExecution();
     if (config.reportFrequency == 0) revert ConfigNotSet();

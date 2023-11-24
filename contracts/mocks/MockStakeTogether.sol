@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -13,6 +13,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
+import '../interfaces/IAirdrop.sol';
 import '../interfaces/IDepositContract.sol';
 import '../interfaces/IRouter.sol';
 import '../interfaces/IStakeTogether.sol';
@@ -36,7 +37,6 @@ contract MockStakeTogether is
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
   bytes32 public constant POOL_MANAGER_ROLE = keccak256('POOL_MANAGER_ROLE'); /// Role for managing pools.
-  bytes32 public constant VALIDATOR_MANAGER_ROLE = keccak256('VALIDATOR_MANAGER_ROLE'); /// Role for managing exit validators.
   bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE'); /// Role for managing validator oracles.
   bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
   bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for sentinel functionality in validator oracle management.
@@ -45,7 +45,8 @@ contract MockStakeTogether is
 
   uint256 public version; /// Contract version.
 
-  IDepositContract public depositContract; /// Deposit contract interface.
+  IAirdrop public airdrop; /// Airdrop contract instance.
+  IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
 
@@ -59,6 +60,9 @@ contract MockStakeTogether is
   uint256 public totalShares; /// Total number of shares.
   mapping(address => mapping(address => uint256)) private allowances; /// Allowances mapping.
 
+  mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
+  mapping(address => uint256) private nextWithdrawBlock; // Mapping the next block for withdraw
+  mapping(address => uint256) private nextWithdrawBeaconBlock; // Mapping the next block for withdraw from beacon
   uint256 public lastResetBlock; /// Block number of the last reset.
   uint256 public totalDeposited; /// Total amount deposited.
   uint256 public totalWithdrawnPool; /// Total amount withdrawn pool.
@@ -83,19 +87,23 @@ contract MockStakeTogether is
   }
 
   /// @notice Stake Together Pool Initialization
+  /// @param _airdrop The address of the airdrop contract.
+  /// @param _deposit The address of the deposit contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _depositContract The address of the deposit contract.
+
   /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
+    address _airdrop,
+    address _deposit,
     address _router,
     address _withdrawals,
-    address _depositContract,
     bytes memory _withdrawalCredentials
   ) public initializer {
     __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
     __Pausable_init();
+    __ReentrancyGuard_init();
     __AccessControl_init();
     __ERC20Permit_init('Stake Together Protocol');
     __UUPSUpgradeable_init();
@@ -104,15 +112,11 @@ contract MockStakeTogether is
 
     version = 1;
 
-    depositContract = IDepositContract(_depositContract);
+    airdrop = IAirdrop(payable(_airdrop));
+    deposit = IDepositContract(_deposit);
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
     withdrawalCredentials = _withdrawalCredentials;
-
-    totalShares = 0;
-    beaconBalance = 0;
-    withdrawBalance = 0;
-    currentOracleIndex = 0;
 
     _mintShares(address(this), 1 ether);
   }
@@ -136,8 +140,15 @@ contract MockStakeTogether is
 
   /// @notice Receive function to accept incoming ETH transfers.
   /// @dev Non-reentrant to prevent re-entrancy attacks.
-  receive() external payable nonReentrant {
+  receive() external payable {
     emit ReceiveEther(msg.value);
+  }
+
+  modifier nonFlashLoan() {
+    if (block.number <= lastOperationBlock[msg.sender]) {
+      revert FlashLoan();
+    }
+    _;
   }
 
   /************
@@ -160,7 +171,9 @@ contract MockStakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    return address(this).balance + beaconBalance - withdrawBalance;
+    uint256 _totalSupply = address(this).balance + beaconBalance - withdrawBalance;
+    if (_totalSupply < 1 ether) revert InvalidTotalSupply();
+    return _totalSupply;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -212,6 +225,7 @@ contract MockStakeTogether is
   ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
     if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
+    if (isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     _spendAllowance(_from, msg.sender, _amount);
     _transfer(_from, _to, _amount);
     return true;
@@ -225,7 +239,9 @@ contract MockStakeTogether is
     address _from,
     address _to,
     uint256 _amount
-  ) internal override nonReentrant whenNotPaused {
+  ) internal override nonReentrant nonFlashLoan whenNotPaused {
+    if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyTransfer();
+    lastOperationBlock[msg.sender] = block.number;
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
@@ -354,6 +370,8 @@ contract MockStakeTogether is
 
     _resetLimits();
     totalDeposited += msg.value;
+    lastOperationBlock[msg.sender] = block.number;
+    nextWithdrawBlock[msg.sender] = block.number + config.withdrawDelay;
 
     if (totalDeposited > config.depositLimit) {
       emit DepositLimitWasReached(_to, msg.value);
@@ -361,7 +379,7 @@ contract MockStakeTogether is
     }
 
     emit DepositBase(_to, msg.value, _depositType, _pool, _referral);
-    _processStakeEntry(_to, msg.value);
+    _processFeeEntry(_to, msg.value);
   }
 
   /// @notice Deposits into the pool with specific delegations.
@@ -370,7 +388,7 @@ contract MockStakeTogether is
   function depositPool(
     address _pool,
     bytes calldata _referral
-  ) external payable nonReentrant whenNotPaused {
+  ) external payable nonReentrant nonFlashLoan whenNotPaused {
     _depositBase(msg.sender, DepositType.Pool, _pool, _referral);
   }
 
@@ -381,7 +399,7 @@ contract MockStakeTogether is
     address _to,
     address _pool,
     bytes calldata _referral
-  ) external payable nonReentrant whenNotPaused {
+  ) external payable nonReentrant nonFlashLoan whenNotPaused {
     _depositBase(_to, DepositType.Donation, _pool, _referral);
   }
 
@@ -393,8 +411,10 @@ contract MockStakeTogether is
     if (_amount == 0) revert ZeroAmount();
     if (_amount > balanceOf(msg.sender)) revert InsufficientAccountBalance();
     if (_amount < config.minWithdrawAmount) revert LessThanMinimumWithdraw();
+    if (block.number < nextWithdrawBlock[msg.sender]) revert EarlyTransfer();
 
     _resetLimits();
+    lastOperationBlock[msg.sender] = block.number;
 
     if (_withdrawType == WithdrawType.Pool) {
       totalWithdrawnPool += _amount;
@@ -418,22 +438,27 @@ contract MockStakeTogether is
   /// @notice Withdraws from the pool with specific delegations and transfers the funds to the sender.
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
-  function withdrawPool(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
+  function withdrawPool(uint256 _amount, address _pool) external nonReentrant nonFlashLoan whenNotPaused {
     if (!config.feature.WithdrawPool) revert FeatureDisabled();
     if (_amount > address(this).balance) revert InsufficientPoolBalance();
     _withdrawBase(_amount, WithdrawType.Pool, _pool);
     Address.sendValue(payable(msg.sender), _amount);
   }
 
-  /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
+  /// @notice Withdrawals from the beacon chain.
   /// @param _amount The amount to withdraw.
   /// @param _pool The address of the pool to withdraw from.
-  function withdrawValidator(uint256 _amount, address _pool) external nonReentrant whenNotPaused {
-    if (!config.feature.WithdrawValidator) revert FeatureDisabled();
+  function withdrawBeacon(
+    uint256 _amount,
+    address _pool
+  ) external nonReentrant nonFlashLoan whenNotPaused {
+    if (!config.feature.WithdrawBeacon) revert FeatureDisabled();
     if (_amount <= address(this).balance) revert WithdrawFromPool();
     if (_amount + withdrawBalance > beaconBalance) revert InsufficientBeaconBalance();
+    nextWithdrawBeaconBlock[msg.sender] = block.number + config.withdrawBeaconDelay;
     _withdrawBase(_amount, WithdrawType.Validator, _pool);
     _setWithdrawBalance(withdrawBalance + _amount);
+
     withdrawals.mint(msg.sender, _amount);
   }
 
@@ -445,6 +470,18 @@ contract MockStakeTogether is
       totalWithdrawnValidator = 0;
       lastResetBlock = block.number;
     }
+  }
+
+  /// @notice Get the next withdraw block for account
+  /// @param _account the address of the account.
+  function getWithdrawBlock(address _account) external view returns (uint256) {
+    return nextWithdrawBlock[_account];
+  }
+
+  /// @notice Get the next withdraw beacon block for account
+  /// @param _account the address of the account.
+  function getWithdrawBeaconBlock(address _account) external view returns (uint256) {
+    return nextWithdrawBeaconBlock[_account];
   }
 
   /****************
@@ -487,27 +524,32 @@ contract MockStakeTogether is
   /// @notice Adds a permissionless pool with a specified address and listing status if feature enabled.
   /// @param _pool The address of the pool to add.
   /// @param _listed The listing status of the pool.
+  /// @param _social The kind of pool.
+  /// @param _index Checked if the pool is a index
   function addPool(
     address _pool,
     bool _listed,
-    bool _social
-  ) external payable nonReentrant whenNotPaused {
+    bool _social,
+    bool _index
+  ) external payable nonReentrant whenNotPaused nonFlashLoan {
     if (_pool == address(0)) revert ZeroAddress();
     if (pools[_pool]) revert PoolExists();
     if (!hasRole(POOL_MANAGER_ROLE, msg.sender) || msg.value > 0) {
       if (!config.feature.AddPool) revert FeatureDisabled();
-      if (msg.value != fees[FeeType.StakePool].value) revert InvalidValue();
-      _processStakePool();
+      if (msg.value != fees[FeeType.Pool].value) revert InvalidValue();
+      _processFeePool();
     }
     pools[_pool] = true;
-    emit AddPool(_pool, _listed, _social, msg.value);
+    lastOperationBlock[msg.sender] = block.number;
+    emit AddPool(_pool, _listed, _social, _index, msg.value);
   }
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
-  function removePool(address _pool) external whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
+  function removePool(address _pool) external nonFlashLoan whenNotPaused onlyRole(POOL_MANAGER_ROLE) {
     if (!pools[_pool]) revert PoolNotFound();
     pools[_pool] = false;
+    lastOperationBlock[msg.sender] = block.number;
     emit RemovePool(_pool);
   }
 
@@ -558,8 +600,14 @@ contract MockStakeTogether is
     }
 
     validatorsOracle.pop();
-
     delete validatorsOracleIndices[_account];
+
+    bool isCurrentOracle = (index == currentOracleIndex);
+
+    if (isCurrentOracle) {
+      currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
+    }
+
     _revokeRole(VALIDATOR_ORACLE_ROLE, _account);
     emit RemoveValidatorOracle(_account);
   }
@@ -623,7 +671,7 @@ contract MockStakeTogether is
   /// @notice Initiates a transfer to anticipate a validator's withdrawal.
   /// @dev Only a valid validator oracle can initiate this anticipation request.
   /// This function also checks the balance constraints before processing.
-  function anticipateWithdrawValidator() external nonReentrant whenNotPaused {
+  function anticipateWithdrawBeacon() external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
     if (withdrawBalance == 0) revert WithdrawZeroBalance();
@@ -635,7 +683,7 @@ contract MockStakeTogether is
     if (address(this).balance < diffAmount) revert NotEnoughPoolBalance();
 
     _setBeaconBalance(beaconBalance + diffAmount);
-    emit AnticipateWithdrawValidator(msg.sender, diffAmount);
+    emit AnticipateWithdrawBeacon(msg.sender, diffAmount);
 
     router.receiveWithdrawEther{ value: diffAmount }();
   }
@@ -650,12 +698,6 @@ contract MockStakeTogether is
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external nonReentrant whenNotPaused {
-    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
-    if (validators[_publicKey]) revert ValidatorExists();
-    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
-
     validators[_publicKey] = true;
     _nextValidatorOracle();
     _setBeaconBalance(beaconBalance + config.validatorSize);
@@ -667,21 +709,13 @@ contract MockStakeTogether is
       _signature,
       _depositDataRoot
     );
-    depositContract.deposit{ value: config.validatorSize }(
+    deposit.deposit{ value: config.validatorSize }(
       _publicKey,
       withdrawalCredentials,
       _signature,
       _depositDataRoot
     );
-    _processStakeValidator();
-  }
-
-  /// @notice Removes validators by their public keys.
-  /// @param _publicKeys The public keys of the validators to be removed.
-  function removeValidators(
-    bytes[] calldata _publicKeys
-  ) external onlyRole(VALIDATOR_MANAGER_ROLE) whenNotPaused {
-    emit RemoveValidators(_publicKeys);
+    _processFeeValidator();
   }
 
   /*************
@@ -692,9 +726,8 @@ contract MockStakeTogether is
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
-    address airdropFee = getFeeAddress(FeeRole.Airdrop);
-    if (msg.sender != airdropFee) revert OnlyAirdrop();
-    _transferShares(airdropFee, _account, _sharesAmount);
+    if (msg.sender != address(airdrop)) revert OnlyAirdrop();
+    _transferShares(address(airdrop), _account, _sharesAmount);
   }
 
   /*****************
@@ -714,6 +747,11 @@ contract MockStakeTogether is
   function setFeeAddress(FeeRole _role, address payable _address) external onlyRole(ADMIN_ROLE) {
     if (_address == address(0)) revert ZeroAddress();
     feesRole[_role] = _address;
+    if (_role == FeeRole.Airdrop) {
+      feesRole[_role] = payable(airdrop);
+    } else {
+      feesRole[_role] = _address;
+    }
     emit SetFeeAddress(_role, _address);
   }
 
@@ -748,6 +786,12 @@ contract MockStakeTogether is
     emit SetFee(_feeType, _value, _allocations);
   }
 
+  /// @notice Get the fee for a given fee type.
+  /// @param _feeType The type of fee to get.
+  function getFee(FeeType _feeType) external view returns (uint256) {
+    return fees[_feeType].value;
+  }
+
   /// @notice Distributes fees according to their type, amount, and the destination.
   /// @param _feeType The type of fee being distributed.
   /// @param _sharesAmount The total shares amount for the fee.
@@ -762,6 +806,7 @@ contract MockStakeTogether is
     uint256 totalAllocatedShares = 0;
 
     for (uint256 i = 0; i < roles.length - 1; i++) {
+      if (getFeeAddress(roles[i]) == address(0)) revert ZeroAddress();
       uint256 allocation = fees[_feeType].allocations[roles[i]];
       allocatedShares[i] = Math.mulDiv(feeShares, allocation, 1 ether);
       totalAllocatedShares += allocatedShares[i];
@@ -769,11 +814,11 @@ contract MockStakeTogether is
 
     allocatedShares[3] = _sharesAmount - totalAllocatedShares;
 
-    uint256 length = (_feeType == FeeType.StakeEntry) ? roles.length : roles.length - 1;
+    uint256 length = (_feeType == FeeType.Entry) ? roles.length : roles.length - 1;
 
     for (uint256 i = 0; i < length; i++) {
       if (allocatedShares[i] > 0) {
-        if (_feeType == FeeType.StakeEntry && roles[i] == FeeRole.Sender) {
+        if (_feeType == FeeType.Entry && roles[i] == FeeRole.Sender) {
           _mintShares(_to, allocatedShares[i]);
         } else {
           _mintShares(getFeeAddress(roles[i]), allocatedShares[i]);
@@ -787,40 +832,33 @@ contract MockStakeTogether is
   /// @param _to The address to receive the stake entry.
   /// @param _amount The amount staked.
   /// @dev Calls the distributeFees function internally.
-  function _processStakeEntry(address _to, uint256 _amount) private {
+  function _processFeeEntry(address _to, uint256 _amount) private {
     uint256 sharesAmount = Math.mulDiv(_amount, totalShares, totalSupply() - _amount);
-    _distributeFees(FeeType.StakeEntry, sharesAmount, _to);
+    _distributeFees(FeeType.Entry, sharesAmount, _to);
   }
 
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev The caller should be the router contract. This function will also emit the ProcessStakeRewards event.
-  function processStakeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
+  function processFeeRewards(uint256 _sharesAmount) external payable nonReentrant whenNotPaused {
     if (msg.sender != address(router)) revert OnlyRouter();
-    _distributeFees(FeeType.ProcessStakeRewards, _sharesAmount, address(0));
+    _distributeFees(FeeType.Rewards, _sharesAmount, address(0));
     emit ProcessStakeRewards(msg.value, _sharesAmount);
   }
 
   /// @notice Processes the staking pool fee and distributes it accordingly.
   /// @dev Calculates the shares amount and then distributes the staking pool fee.
-  function _processStakePool() private {
-    uint256 amount = fees[FeeType.StakePool].value;
+  function _processFeePool() private {
+    uint256 amount = fees[FeeType.Pool].value;
     uint256 sharesAmount = Math.mulDiv(amount, totalShares, totalSupply() - amount);
-    _distributeFees(FeeType.StakePool, sharesAmount, address(0));
+    _distributeFees(FeeType.Pool, sharesAmount, address(0));
   }
 
   /// @notice Transfers the staking validator fee to the operator role.
   /// @dev Transfers the associated amount to the Operator's address.
-  function _processStakeValidator() private {
-    emit ProcessStakeValidator(
-      getFeeAddress(FeeRole.Operator),
-      fees[FeeType.ProcessStakeValidator].value
-    );
-
-    Address.sendValue(
-      payable(getFeeAddress(FeeRole.Operator)),
-      fees[FeeType.ProcessStakeValidator].value
-    );
+  function _processFeeValidator() private {
+    emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
+    Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
   }
 
   /********************
@@ -829,6 +867,11 @@ contract MockStakeTogether is
 
   function initializeV2() external onlyRole(UPGRADER_ROLE) {
     version = 2;
+  }
+
+  function initializeV2Airdrop(address _airdrop) external onlyRole(UPGRADER_ROLE) {
+    version = 2;
+    airdrop = IAirdrop(payable(_airdrop));
   }
 
   function mintWithdrawals(address account, uint256 amount) external {

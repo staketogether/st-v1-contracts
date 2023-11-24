@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 /// @title StakeTogether Interface
 /// @notice This interface defines the essential structures and functions for the StakeTogether protocol.
@@ -9,8 +9,14 @@ interface IStakeTogether {
   /// @notice Thrown if the deposit limit is reached.
   error DepositLimitReached();
 
+  /// @notice Thrown if the transfer is too early to be executed.
+  error EarlyTransfer();
+
   /// @notice Thrown if the feature is disabled.
   error FeatureDisabled();
+
+  /// @notice Thrown if the operation is a FlashLoan.
+  error FlashLoan();
 
   /// @notice Thrown if there is insufficient beacon balance.
   error InsufficientBeaconBalance();
@@ -41,6 +47,9 @@ interface IStakeTogether {
 
   /// @notice Thrown if the total percentage is not equal to 1 ether.
   error InvalidTotalPercentage();
+
+  /// @notice Thrown if the total supply is invalid.
+  error InvalidTotalSupply();
 
   /// @notice Thrown if the number of delegations exceeds the maximum limit.
   error MaxDelegations();
@@ -134,6 +143,8 @@ interface IStakeTogether {
     uint256 validatorSize; /// Size of the validator.
     uint256 withdrawalPoolLimit; /// Maximum amount of pool withdrawal.
     uint256 withdrawalValidatorLimit; /// Maximum amount of validator withdrawal.
+    uint256 withdrawDelay; /// Delay Blocks for withdrawal.
+    uint256 withdrawBeaconDelay; /// Delay Blocks for beacon withdrawal.
     Feature feature; /// Additional features configuration.
   }
 
@@ -148,7 +159,7 @@ interface IStakeTogether {
     bool AddPool; /// Enable/disable pool addition.
     bool Deposit; /// Enable/disable deposits.
     bool WithdrawPool; /// Enable/disable pool withdrawals.
-    bool WithdrawValidator; /// Enable/disable validator withdrawals.
+    bool WithdrawBeacon; /// Enable/disable validator withdrawals.
   }
 
   /// @notice Represents the fee structure.
@@ -171,26 +182,27 @@ interface IStakeTogether {
 
   /// @notice Types of fees within the protocol.
   enum FeeType {
-    StakeEntry, /// Fee for entering a stake.
-    ProcessStakeRewards, /// Fee for staking rewards.
-    StakePool, /// Fee for pool staking.
-    ProcessStakeValidator /// Fee for validator staking.
+    Entry, /// Fee for entering a stake.
+    Rewards, /// Fee for staking rewards.
+    Pool, /// Fee for pool staking.
+    Validator /// Fee for validator staking.
   }
 
   /// @notice Different roles that are used in fee allocation
   enum FeeRole {
-    Airdrop, /// Role for distributing airdrops
-    Operator, /// Role for managing various functionalities
-    StakeTogether, /// Role for handling internal responsibilities within StakeTogether
-    Sender /// Role representing the sender of a transaction
+    Airdrop,
+    Operator,
+    StakeTogether,
+    Sender
   }
 
   /// @notice Emitted when a pool is added
   /// @param pool The address of the pool
   /// @param listed Indicates if the pool is listed
   /// @param social Indicates if the pool is social
+  /// @param index Indicates if the pool is an index
   /// @param amount The amount associated with the pool
-  event AddPool(address indexed pool, bool listed, bool social, uint256 amount);
+  event AddPool(address indexed pool, bool listed, bool social, bool index, uint256 amount);
 
   /// @notice Emitted when a validator oracle is added
   /// @param account The address of the account
@@ -199,7 +211,7 @@ interface IStakeTogether {
   /// @notice Emitted when withdraw is prioritized
   /// @param oracle The address of the oracle
   /// @param amount The amount for the validator
-  event AnticipateWithdrawValidator(address indexed oracle, uint256 amount);
+  event AnticipateWithdrawBeacon(address indexed oracle, uint256 amount);
 
   /// @notice Emitted when shares are burned
   /// @param account The address of the account
@@ -221,10 +233,6 @@ interface IStakeTogether {
     bytes signature,
     bytes32 depositDataRoot
   );
-
-  /// @notice Emitted when validators are removed
-  /// @param _publicKeys The public keys of the removed validators
-  event RemoveValidators(bytes[] _publicKeys);
 
   /// @notice Emitted when a base deposit is made
   /// @param to The address to deposit to
@@ -363,14 +371,16 @@ interface IStakeTogether {
   event WithdrawalsLimitWasReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
 
   /// @notice Stake Together Pool Initialization
+  /// @param _airdrop The address of the airdrop contract.
+  /// @param _deposit The address of the deposit contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _depositContract The address of the deposit contract.
   /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
+    address _airdrop,
+    address _deposit,
     address _router,
     address _withdrawals,
-    address _depositContract,
     bytes memory _withdrawalCredentials
   ) external;
 
@@ -469,7 +479,15 @@ interface IStakeTogether {
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
   /// @param _pool the address of the pool.
-  function withdrawValidator(uint256 _amount, address _pool) external;
+  function withdrawBeacon(uint256 _amount, address _pool) external;
+
+  /// @notice Get the next withdraw block for account
+  /// @param _account the address of the account.
+  function getWithdrawBlock(address _account) external view returns (uint256);
+
+  /// @notice Get the next withdraw beacon block for account
+  /// @param _account the address of the account.
+  function getWithdrawBeaconBlock(address _account) external view returns (uint256);
 
   /// @notice Adds an address to the anti-fraud list.
   /// @dev Callable only by accounts with the ANTI_FRAUD_SENTINEL_ROLE or ANTI_FRAUD_MANAGER_ROLE.
@@ -492,7 +510,8 @@ interface IStakeTogether {
   /// @param _pool Address of the new pool.
   /// @param _listed True if the pool is listed.
   /// @param _social True if the pool is social.
-  function addPool(address _pool, bool _listed, bool _social) external payable;
+  /// @param _index True if the pool is an index.
+  function addPool(address _pool, bool _listed, bool _social, bool _index) external payable;
 
   /// @notice Removes a pool by its address.
   /// @param _pool The address of the pool to remove.
@@ -531,7 +550,7 @@ interface IStakeTogether {
   /// @notice Initiates a transfer to anticipate a validator's withdrawal.
   /// @dev Only a valid validator oracle can initiate this anticipation request.
   /// This function also checks the balance constraints before processing.
-  function anticipateWithdrawValidator() external;
+  function anticipateWithdrawBeacon() external;
 
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
@@ -543,10 +562,6 @@ interface IStakeTogether {
     bytes calldata _signature,
     bytes32 _depositDataRoot
   ) external;
-
-  /// @notice Removes validators by their public keys.
-  /// @param _publicKeys The public keys of the validators to be removed.
-  function removeValidators(bytes[] calldata _publicKeys) external;
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
@@ -578,5 +593,5 @@ interface IStakeTogether {
   /// @notice Process staking rewards and distributes the rewards based on shares.
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev Requires the caller to be the router contract.
-  function processStakeRewards(uint256 _sharesAmount) external payable;
+  function processFeeRewards(uint256 _sharesAmount) external payable;
 }

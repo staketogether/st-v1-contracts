@@ -5,6 +5,8 @@ import {
   Airdrop,
   Airdrop__factory,
   MockDepositContract__factory,
+  MockFlashLoan,
+  MockFlashLoan__factory,
   MockRouter__factory,
   MockStakeTogether,
   MockStakeTogether__factory,
@@ -95,7 +97,6 @@ async function deployRouter(
 
     reportNoConsensusMargin: 0,
     oracleQuorum: 5,
-    oracleBlackListLimit: 3,
     reportFrequency: 1000,
   }
 
@@ -116,6 +117,7 @@ async function deployRouter(
 
 async function deployStakeTogether(
   owner: HardhatEthersSigner,
+  airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
 ) {
@@ -145,9 +147,10 @@ async function deployStakeTogether(
   const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
+    airdropContract,
+    depositAddress,
     routerContract,
     withdrawalsContract,
-    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -182,11 +185,13 @@ async function deployStakeTogether(
     withdrawalValidatorLimit: ethers.parseEther('1000'),
     blocksPerDay: 7200n,
     maxDelegations: 64n,
+    withdrawDelay: 10n,
+    withdrawBeaconDelay: 10n,
     feature: {
       AddPool: false,
       Deposit: true,
       WithdrawPool: true,
-      WithdrawValidator: true,
+      WithdrawBeacon: true,
     },
   }
 
@@ -242,6 +247,25 @@ async function deployStakeTogether(
     mockProxyAddress,
     mockStakeTogetherContract,
   }
+}
+
+async function deployMockFlashLoan(
+  owner: HardhatEthersSigner,
+  stakeTogether: string,
+  stakeTogetherWrapper: string,
+  withdrawals: string,
+) {
+  const MockFlashLoanFactory = new MockFlashLoan__factory().connect(owner)
+  const mockFlashLoan = await upgrades.deployProxy(MockFlashLoanFactory, [
+    stakeTogether,
+    stakeTogetherWrapper,
+    withdrawals,
+  ])
+  await mockFlashLoan.waitForDeployment()
+
+  const mockFlashLoanContract = mockFlashLoan as unknown as MockFlashLoan
+
+  return { mockFlashLoanContract }
 }
 
 export async function configContracts(
@@ -315,8 +339,20 @@ export async function stakeTogetherWrapperFixture() {
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
 
-  const stakeTogether = await deployStakeTogether(owner, router.proxyAddress, withdrawals.proxyAddress)
+  const stakeTogether = await deployStakeTogether(
+    owner,
+    airdrop.proxyAddress,
+    router.proxyAddress,
+    withdrawals.proxyAddress,
+  )
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
+
+  const { mockFlashLoanContract } = await deployMockFlashLoan(
+    owner,
+    stakeTogether.proxyAddress,
+    stakeTogetherWrapper.proxyAddress,
+    stakeTogether.proxyAddress,
+  )
 
   await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
 
@@ -343,6 +379,7 @@ export async function stakeTogetherWrapperFixture() {
     stakeTogetherWrapperProxy: stakeTogetherWrapper.proxyAddress,
     mockStakeTogether: stakeTogether.mockStakeTogetherContract,
     mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
+    mockFlashLoan: mockFlashLoanContract,
     UPGRADER_ROLE,
     ADMIN_ROLE,
   }
