@@ -18,7 +18,7 @@ import {
 
 dotenv.config()
 
-const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
+const depositAddress = String(process.env.MAINNET_DEPOSIT_ADDRESS)
 
 export async function deploy() {
   checkVariables()
@@ -38,11 +38,7 @@ export async function deploy() {
   )
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
-  // CONFIG
-
   await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
-
-  // LOG
 
   console.log('\n🔷 All ST Contracts Deployed!\n')
 
@@ -316,16 +312,16 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperImplementation}`)
+  console.log(`npx hardhat verify --network mainnet ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network mainnet ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network mainnet ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network mainnet ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network mainnet ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network mainnet ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network mainnet ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network mainnet ${stakeTogetherImplementation} &&`)
+  console.log(`npx hardhat verify --network mainnet ${stakeTogetherWrapperProxy} &&`)
+  console.log(`npx hardhat verify --network mainnet ${stakeTogetherWrapperImplementation}`)
 }
 
 deploy().catch((error) => {

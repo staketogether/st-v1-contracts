@@ -29,8 +29,13 @@ const config: HardhatUserConfig = {
     target: 'ethers-v6',
   },
   networks: {
+    mainnet: {
+      url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.MAINNET_ALCHEMY_API_KEY}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      gasPrice: 100000,
+    },
     goerli: {
-      url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_GOERLI_API_KEY}`,
+      url: `https://eth-goerli.g.alchemy.com/v2/${process.env.GOERLI_ALCHEMY_API_KEY}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
       gasPrice: 100000,
     },
@@ -38,9 +43,6 @@ const config: HardhatUserConfig = {
       url: 'http://127.0.0.1:8545',
     },
     hardhat: {
-      // forking: {
-      //   url: `https://eth-goerli.g.alchemy.com/v2/${process.env.ALCHEMY_GOERLI_API_KEY}`
-      // },
       accounts: [
         {
           privateKey: process.env.ACCOUNT_1_PRIVATE_KEY as string,

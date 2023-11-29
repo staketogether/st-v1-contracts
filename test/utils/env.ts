@@ -1,7 +1,9 @@
 export function checkVariables() {
   const missingVariables = []
+  if (!process.env.MAINNET_DEPOSIT_ADDRESS) missingVariables.push('MAINNET_DEPOSIT_ADDRESS')
+  if (!process.env.MAINNET_ALCHEMY_API_KEY) missingVariables.push('MAINNET_ALCHEMY_API_KEY')
   if (!process.env.GOERLI_DEPOSIT_ADDRESS) missingVariables.push('GOERLI_DEPOSIT_ADDRESS')
-  if (!process.env.ALCHEMY_GOERLI_API_KEY) missingVariables.push('ALCHEMY_GOERLI_API_KEY')
+  if (!process.env.GOERLI_ALCHEMY_API_KEY) missingVariables.push('GOERLI_ALCHEMY_API_KEY')
   if (!process.env.DEPLOYER_PRIVATE_KEY) missingVariables.push('DEPLOYER_PRIVATE_KEY')
   if (!process.env.ETHERSCAN_API_KEY) missingVariables.push('ETHERSCAN_API_KEY')
   if (!process.env.ACCOUNT_1_PRIVATE_KEY) missingVariables.push('ACCOUNT_1_PRIVATE_KEY')
