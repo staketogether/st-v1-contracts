@@ -73,7 +73,6 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
   const airdropContract = airdrop as unknown as Airdrop
 
   const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
-
   await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
 
   return { proxyAddress, implementationAddress, airdropContract }
@@ -93,7 +92,6 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
   const withdrawalsContract = withdrawals as unknown as Withdrawals
 
   const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
-
   await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
@@ -117,20 +115,17 @@ export async function deployRouter(
 
   // Create the configuration
   const config = {
-    reportFrequency: 120n,
-    reportDelayBlock: 40n,
+    reportFrequency: 7200n,
+    reportDelayBlock: 1200n,
     reportNoConsensusMargin: 0n,
-    oracleQuorum: 1n,
+    oracleQuorum: 2n,
   }
 
-  // Cast the contract to the correct type
   const routerContract = router as unknown as Router
 
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
-
   await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
 
-  // Set the configuration
   await routerContract.setConfig(config)
 
   return { proxyAddress, implementationAddress, routerContract }
@@ -181,7 +176,6 @@ export async function deployStakeTogether(
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
-
   await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
 
   const stakeEntry = ethers.parseEther('0.003')
@@ -195,19 +189,19 @@ export async function deployStakeTogether(
     blocksPerDay: 7200n,
     depositLimit: ethers.parseEther('1000'),
     maxDelegations: 64n,
-    minDepositAmount: ethers.parseEther('0.001'),
-    minWithdrawAmount: ethers.parseEther('0.00001'),
+    minDepositAmount: ethers.parseEther('0.01'),
+    minWithdrawAmount: ethers.parseEther('0.009'),
     poolSize: poolSize + stakeValidatorFee,
     validatorSize: ethers.parseEther('32'),
     withdrawalPoolLimit: ethers.parseEther('1000'),
     withdrawalValidatorLimit: ethers.parseEther('1000'),
-    withdrawDelay: 20n,
-    withdrawBeaconDelay: 20n,
+    withdrawDelay: 7200n,
+    withdrawBeaconDelay: 7200n,
     feature: {
       AddPool: false,
       Deposit: true,
       WithdrawPool: true,
-      WithdrawBeacon: true,
+      WithdrawBeacon: false,
     },
   }
 
@@ -235,17 +229,12 @@ export async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, stakePoolFee, [
-    ethers.parseEther('0.4'),
-    0n,
-    ethers.parseEther('0.6'),
-    0n,
-  ])
+  await stakeTogetherContract.setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
   await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
-  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
+  // await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
@@ -264,7 +253,6 @@ async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
   const stWrapperContract = stWrapper as unknown as StakeTogetherWrapper
 
   const ST_WRAPPER_ADMIN_ROLE = await stWrapperContract.ADMIN_ROLE()
-
   await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_ADMIN_ROLE, owner)
 
   return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
