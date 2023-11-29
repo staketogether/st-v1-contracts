@@ -30,14 +30,18 @@ const config: HardhatUserConfig = {
   },
   networks: {
     mainnet: {
-      url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.MAINNET_ALCHEMY_API_KEY}`,
+      url: `https://mainnet.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 1,
       gasPrice: 100000,
+      gas: 10000000,
     },
     goerli: {
-      url: `https://eth-goerli.g.alchemy.com/v2/${process.env.GOERLI_ALCHEMY_API_KEY}`,
+      url: `https://goerli.infura.io/v3/${process.env.GOERLI_INFURA_API_KEY}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      gasPrice: 100000,
+      chainId: 5,
+      gas: 5000000,
+      gasPrice: 50000000000,
     },
     localhost: {
       url: 'http://127.0.0.1:8545',

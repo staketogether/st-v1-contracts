@@ -50,7 +50,7 @@ Follow these steps to get ready for the **Stake Together** smart contracts:
    Edit the `.env` file to include your details:
 
 ```env
-GOERLI_ALCHEMY_API_KEY=YOUR_API_KEY_HERE
+GOERLI_INFURA_API_KEY=YOUR_API_KEY_HERE
 ETHERSCAN_API_KEY=YOUR_API_KEY_HERE
 DEPLOYER_PRIVATE_KEY=YOUR_PRIVATE_KEY_HERE
 ```
