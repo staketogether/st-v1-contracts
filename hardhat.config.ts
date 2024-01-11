@@ -30,18 +30,14 @@ const config: HardhatUserConfig = {
   },
   networks: {
     mainnet: {
-      url: `https://mainnet.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`,
+      url: `${process.env.MAINNET_EXECUTION}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
       chainId: 1,
-      gasPrice: 100000,
-      gas: 10000000,
     },
-    goerli: {
-      url: `https://goerli.infura.io/v3/${process.env.GOERLI_INFURA_API_KEY}`,
+    holesky: {
+      url: `${process.env.HOLESKY_EXECUTION}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 5,
-      gas: 5000000,
-      gasPrice: 50000000000,
+      chainId: 17000,
     },
     localhost: {
       url: 'http://127.0.0.1:8545',
@@ -93,12 +89,25 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY as string,
+    customChains: [
+      {
+        network: 'holesky',
+        chainId: 17000,
+        urls: {
+          apiURL: `${process.env.HOLESKY_EXECUTION}`,
+          browserURL: 'https://holesky.etherscan.io',
+        },
+      },
+    ],
   },
   gasReporter: {
     currency: 'USD',
     gasPrice: 5,
     enabled: process.env.GAS_REPORTER === 'true' ? true : false,
     coinmarketcap: process.env.COINMARKETCAP_API_KEY as string,
+  },
+  sourcify: {
+    enabled: false,
   },
 }
 
