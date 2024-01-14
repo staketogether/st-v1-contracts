@@ -256,6 +256,7 @@ contract StakeTogether is
     uint256 _sharesAmount
   ) public nonReentrant whenNotPaused returns (uint256) {
     _transferShares(msg.sender, _to, _sharesAmount);
+    emit Transfer(msg.sender, _to, weiByShares(_sharesAmount));
     return weiByShares(_sharesAmount);
   }
 
@@ -335,6 +336,7 @@ contract StakeTogether is
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
     emit MintShares(_to, _sharesAmount);
+    emit Transfer(address(0), _to, weiByShares(_sharesAmount));
   }
 
   /// @notice Internal function to burn shares from a given address.
@@ -346,6 +348,7 @@ contract StakeTogether is
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
