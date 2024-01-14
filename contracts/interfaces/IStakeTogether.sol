@@ -442,12 +442,6 @@ interface IStakeTogether {
   /// @return A boolean value indicating whether the operation succeeded.
   function transferFrom(address _from, address _to, uint256 _amount) external returns (bool);
 
-  /// @notice Transfers a number of shares to the specified address.
-  /// @param _to The address to transfer to.
-  /// @param _sharesAmount The number of shares to be transferred.
-  /// @return Equivalent amount in wei.
-  function transferShares(address _to, uint256 _sharesAmount) external returns (uint256);
-
   /// @notice Returns the remaining number of tokens that an spender is allowed to spend on behalf of a token owner.
   /// @param _account Address of the token owner.
   /// @param _spender Address of the spender.

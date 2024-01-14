@@ -247,19 +247,6 @@ contract StakeTogether is
     emit Transfer(_from, _to, _amount);
   }
 
-  /// @notice Transfers a number of shares to the specified address.
-  /// @param _to The address to transfer to.
-  /// @param _sharesAmount The number of shares to be transferred.
-  /// @return Equivalent amount in wei.
-  function transferShares(
-    address _to,
-    uint256 _sharesAmount
-  ) public nonReentrant whenNotPaused returns (uint256) {
-    _transferShares(msg.sender, _to, _sharesAmount);
-    emit Transfer(msg.sender, _to, weiByShares(_sharesAmount));
-    return weiByShares(_sharesAmount);
-  }
-
   /// @notice Internal function to handle the transfer of shares.
   /// @param _from The address to transfer from.
   /// @param _to The address to transfer to.
