@@ -856,15 +856,7 @@ contract StakeTogether is
   }
 
   /// @notice Temp Function to Emit Non Processed Transfer Events
-  function emitMultipleTransfers(
-    address[] memory _from,
-    address[] memory _to,
-    uint256[] memory _amounts
-  ) external onlyRole(ADMIN_ROLE) {
-    require(_from.length == _to.length && _to.length == _amounts.length);
-
-    for (uint256 i = 0; i < _from.length; i++) {
-      emit Transfer(_from[i], _to[i], _amounts[i]);
-    }
+  function emitTransfer(address _from, address _to, uint256 _amount) external onlyRole(ADMIN_ROLE) {
+    emit Transfer(_from, _to, _amount);
   }
 }
