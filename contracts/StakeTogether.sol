@@ -866,4 +866,9 @@ contract StakeTogether is
     emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
     Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
   }
+
+  /// @notice Temp Function to Emit Non Processed Transfer Events
+  function emitTransfer(address _from, address _to, uint256 _amount) external onlyRole(ADMIN_ROLE) {
+    emit Transfer(_from, _to, _amount);
+  }
 }
