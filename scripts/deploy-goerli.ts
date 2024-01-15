@@ -234,7 +234,7 @@ export async function deployStakeTogether(
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
   await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
-  // await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
+  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('0.00001') })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }

@@ -370,20 +370,6 @@ interface IStakeTogether {
   /// @param amount The amount withdrawn
   event WithdrawalsLimitWasReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
 
-  /// @notice Stake Together Pool Initialization
-  /// @param _airdrop The address of the airdrop contract.
-  /// @param _deposit The address of the deposit contract.
-  /// @param _router The address of the router.
-  /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
-  function initialize(
-    address _airdrop,
-    address _deposit,
-    address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
-  ) external;
-
   /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
   function pause() external;

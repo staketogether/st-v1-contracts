@@ -13,17 +13,17 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IDepositContract.sol';
-import './interfaces/IAirdrop.sol';
-import './interfaces/IRouter.sol';
-import './interfaces/IStakeTogether.sol';
-import './interfaces/IWithdrawals.sol';
+import '../interfaces/IDepositContract.sol';
+import '../interfaces/IAirdrop.sol';
+import '../interfaces/IRouter.sol';
+import '../interfaces/IStakeTogether.sol';
+import '../interfaces/IWithdrawals.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 /// @custom:security-contact security@staketogether.org
-contract StakeTogether is
+contract StakeTogetherV2 is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -87,38 +87,8 @@ contract StakeTogether is
   }
 
   /// @notice Stake Together Pool Initialization
-  /// @param _airdrop The address of the airdrop contract.
-  /// @param _deposit The address of the deposit contract.
-  /// @param _router The address of the router.
-  /// @param _withdrawals The address of the withdrawals contract.
-
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
-  function initialize(
-    address _airdrop,
-    address _deposit,
-    address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
-  ) public initializer {
-    __ERC20_init('Stake Together Protocol', 'stpETH');
-    __ERC20Burnable_init();
-    __Pausable_init();
-    __ReentrancyGuard_init();
-    __AccessControl_init();
-    __ERC20Permit_init('Stake Together Protocol');
-    __UUPSUpgradeable_init();
-
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-
-    version = 1;
-
-    airdrop = IAirdrop(payable(_airdrop));
-    deposit = IDepositContract(_deposit);
-    router = IRouter(payable(_router));
-    withdrawals = IWithdrawals(payable(_withdrawals));
-    withdrawalCredentials = _withdrawalCredentials;
-
-    _mintShares(address(this), 1 ether);
+  function initializeV2() public onlyRole(UPGRADER_ROLE) {
+    version = 2;
   }
 
   /// @notice Pauses the contract, preventing certain actions.
@@ -171,9 +141,7 @@ contract StakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    uint256 _totalSupply = address(this).balance + beaconBalance - withdrawBalance;
-    if (_totalSupply < 1 ether) revert InvalidTotalSupply();
-    return _totalSupply;
+    return address(this).balance + beaconBalance - withdrawBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -245,18 +213,6 @@ contract StakeTogether is
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
-  }
-
-  /// @notice Transfers a number of shares to the specified address.
-  /// @param _to The address to transfer to.
-  /// @param _sharesAmount The number of shares to be transferred.
-  /// @return Equivalent amount in wei.
-  function transferShares(
-    address _to,
-    uint256 _sharesAmount
-  ) public nonReentrant whenNotPaused returns (uint256) {
-    _transferShares(msg.sender, _to, _sharesAmount);
-    return weiByShares(_sharesAmount);
   }
 
   /// @notice Internal function to handle the transfer of shares.
@@ -335,6 +291,7 @@ contract StakeTogether is
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
     emit MintShares(_to, _sharesAmount);
+    emit Transfer(address(0), _to, weiByShares(_sharesAmount));
   }
 
   /// @notice Internal function to burn shares from a given address.
@@ -346,6 +303,7 @@ contract StakeTogether is
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
@@ -865,5 +823,14 @@ contract StakeTogether is
   function _processFeeValidator() private {
     emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
     Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
+  }
+
+  /// @notice Temp Function to Emit Non Processed Transfer Events
+  function emitTransfer(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) external whenPaused onlyRole(ADMIN_ROLE) {
+    emit Transfer(_from, _to, _amount);
   }
 }
