@@ -856,7 +856,11 @@ contract StakeTogether is
   }
 
   /// @notice Temp Function to Emit Non Processed Transfer Events
-  function emitTransfer(address _from, address _to, uint256 _amount) external onlyRole(ADMIN_ROLE) {
+  function emitTransfer(
+    address _from,
+    address _to,
+    uint256 _amount
+  ) external whenPaused onlyRole(ADMIN_ROLE) {
     emit Transfer(_from, _to, _amount);
   }
 }
