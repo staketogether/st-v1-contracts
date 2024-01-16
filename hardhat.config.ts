@@ -90,6 +90,9 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY as string,
   },
+  sourcify: {
+    enabled: false,
+  },
   gasReporter: {
     currency: 'USD',
     gasPrice: 5,

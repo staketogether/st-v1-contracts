@@ -2,7 +2,7 @@ import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ethers, network, upgrades } from 'hardhat'
 import { StakeTogetherV3__factory } from '../typechain'
 
-const proxyAddress = '0xBD1C6935eaA5B6EaA8b88154b64acf081D2a2599'
+const proxyAddress = '0x857F2A401723B15d27cdC7943C8d934FE29a29D3'
 
 async function upgrade() {
   const [owner] = await ethers.getSigners()
