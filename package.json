@@ -46,6 +46,8 @@
     "deploy:mainnet": "npx hardhat run scripts/deploy-mainnet.ts --network mainnet",
     "upgrade:st-v2:goerli": "npx hardhat run scripts/upgrade-st-v2.ts --network goerli",
     "upgrade:st-v3:goerli": "npx hardhat run scripts/upgrade-st-v3.ts --network goerli",
+    "upgrade:st-v2:mainnet": "npx hardhat run scripts/upgrade-st-v2.ts --network mainnet",
+    "upgrade:st-v3:mainnet": "npx hardhat run scripts/upgrade-st-v3.ts --network mainnet",
     "verify:goerli": "npx hardhat verify --network goerli",
     "verify:mainnet": "npx hardhat verify --network mainnet",
     "test": "npx hardhat test --typecheck",
