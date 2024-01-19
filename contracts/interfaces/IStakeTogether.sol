@@ -370,20 +370,6 @@ interface IStakeTogether {
   /// @param amount The amount withdrawn
   event WithdrawalsLimitWasReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
 
-  /// @notice Stake Together Pool Initialization
-  /// @param _airdrop The address of the airdrop contract.
-  /// @param _deposit The address of the deposit contract.
-  /// @param _router The address of the router.
-  /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
-  function initialize(
-    address _airdrop,
-    address _deposit,
-    address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
-  ) external;
-
   /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
   function pause() external;
@@ -441,12 +427,6 @@ interface IStakeTogether {
   /// @param _amount Amount of tokens to transfer.
   /// @return A boolean value indicating whether the operation succeeded.
   function transferFrom(address _from, address _to, uint256 _amount) external returns (bool);
-
-  /// @notice Transfers a number of shares to the specified address.
-  /// @param _to The address to transfer to.
-  /// @param _sharesAmount The number of shares to be transferred.
-  /// @return Equivalent amount in wei.
-  function transferShares(address _to, uint256 _sharesAmount) external returns (uint256);
 
   /// @notice Returns the remaining number of tokens that an spender is allowed to spend on behalf of a token owner.
   /// @param _account Address of the token owner.
