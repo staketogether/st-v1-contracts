@@ -9,15 +9,15 @@ import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 
 import "./interfaces/IBridge.sol";
 import "./interfaces/IDepositContract.sol";
-import "./interfaces/IExternalNetworkAdapter.sol";
+import "./interfaces/IAdapter.sol";
 
-contract OptimismAdapter is
+contract Adapter is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IExternalNetworkAdapter
+IAdapter
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.

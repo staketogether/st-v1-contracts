@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-interface IExternalNetworkAdapter {
+interface IAdapter {
   /// @notice Thrown if the caller does not have the appropriate role.
   error NotAuthorized();
 
@@ -35,7 +35,7 @@ interface IExternalNetworkAdapter {
   /// @notice Thrown if the address is the zero address.
   error ZeroAddress();
 
-  /// @notice Configuration for the StakeTogether's OptimismAdapter.sol.
+  /// @notice Configuration for the StakeTogether's Adapter.sol.sol.
   struct Config {
     uint256 validatorSize; /// Size of the validator.
   }
