@@ -34,10 +34,25 @@ const config: HardhatUserConfig = {
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
       chainId: 1,
     },
+    optimism: {
+      url: `https://optimism-mainnet.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 10,
+    },
     goerli: {
       url: `https://goerli.infura.io/v3/${process.env.GOERLI_INFURA_API_KEY}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
       chainId: 5,
+    },
+    sepolia: {
+      url: `https://sepolia.infura.io/v3/${process.env.SEPOLIA_INFURA_API_KEY}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 5,
+    },
+    optimismSepolia: {
+      url: `https://optimism-sepolia.infura.io/v3/${process.env.OP_SEPOLIA_INFURA_API_KEY}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 11155420,
     },
     localhost: {
       url: 'http://127.0.0.1:8545',

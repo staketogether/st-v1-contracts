@@ -87,8 +87,22 @@ contract StakeTogetherV4 is
   }
 
   /// @notice Stake Together Pool Initialization
-  function initializeV4() public onlyRole(UPGRADER_ROLE) {
-    version = 4;
+  function initialize() public initializer {
+    __ERC20_init('Stake Together Protocol restaking ETH', 'stprETH');
+    __ERC20Burnable_init();
+    __Pausable_init();
+    __ReentrancyGuard_init();
+    __AccessControl_init();
+    __ERC20Permit_init('Stake Together Protocol restaking ETH');
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+    version = 1;
+
+    airdrop = IAirdrop(payable(_airdrop));
+    router = IRouter(payable(_router));
+    withdrawals = IWithdrawals(payable(_withdrawals));
   }
 
   /// @notice Pauses the contract, preventing certain actions.

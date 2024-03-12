@@ -7,7 +7,6 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 
-import "./interfaces/IStakeTogether.sol";
 import "./interfaces/IBridge.sol";
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IExternalNetworkAdapter.sol";
@@ -26,11 +25,10 @@ contract OptimismAdapter is
   bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
   bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for managing validator oracle sentinels.
 
-  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IDepositContract public deposit; /// Instance of the deposit contract.
   IBridge public bridge; /// Instance of the bridge contract.
   Config public config; /// Configuration settings for the protocol.
-  address private _l2StakeTogether; /// Address of the L2 StakeTogether contract.
+  address public l2StakeTogether; /// Address of the L2 StakeTogether contract.
   uint256 public version; /// Contract version.
 
   bytes public withdrawalCredentials; /// Credentials for withdrawals.
@@ -46,10 +44,50 @@ contract OptimismAdapter is
     _disableInitializers();
   }
 
+  function initialize(
+    address _l2StakeTogether,
+    address _deposit,
+    address _bridge,
+    bytes memory _withdrawalCredentials
+  ) public initializer {
+    __Pausable_init();
+    __ReentrancyGuard_init();
+    __AccessControl_init();
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    _grantRole(ADMIN_ROLE, msg.sender);
+    _grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender);
+
+    l2StakeTogether = _l2StakeTogether;
+    deposit = IDepositContract(_deposit);
+    bridge = IBridge(_bridge);
+    withdrawalCredentials = _withdrawalCredentials;
+    version = 1;
+  }
+
+  /// @notice Pauses the contract, preventing certain actions.
+  /// @dev Only callable by the admin role.
+  function pause() external onlyRole(ADMIN_ROLE) {
+    _pause();
+  }
+
+  /// @notice Unpauses the contract, allowing actions to resume.
+  /// @dev Only callable by the admin role.
+  function unpause() external onlyRole(ADMIN_ROLE) {
+    _unpause();
+  }
+
   /// @notice Internal function to authorize an upgrade.
   /// @dev Only callable by the upgrader role.
   /// @param _newImplementation Address of the new contract implementation.
   function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+  /// @notice Receive function to accept incoming ETH transfers.
+  /// @dev Non-reentrant to prevent re-entrancy attacks.
+  receive() external payable {
+    emit ReceiveEther(msg.value);
+  }
 
   /************
    ** CONFIG **
@@ -107,7 +145,7 @@ contract OptimismAdapter is
     if (_minGasLimit == 0) revert ZeroedGasLimit();
     if (address(this).balance < msg.value) revert NotEnoughBalance();
     if (msg.value > address(this).balance) revert WithdrawZeroBalance();
-    bridge.bridgeETHTo{value: msg.value}(_l2StakeTogether, _minGasLimit, _extraData);
+    bridge.bridgeETHTo{value: msg.value}(l2StakeTogether, _minGasLimit, _extraData);
   }
 
   /***********************
