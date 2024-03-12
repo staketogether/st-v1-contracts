@@ -1,12 +1,30 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
+import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+
 import "./interfaces/IStakeTogether.sol";
 import "./interfaces/IBridge.sol";
 import "./interfaces/IDepositContract.sol";
 import "./interfaces/IExternalNetworkAdapter.sol";
 
-contract OptimismAdapter is IExternalNetworkAdapter {
+contract OptimismAdapter is
+  Initializable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  UUPSUpgradeable,
+  ReentrancyGuardUpgradeable,
+  IExternalNetworkAdapter
+{
+  bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
+  bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
+  bytes32 public constant VALIDATOR_ORACLE_ROLE = keccak256('VALIDATOR_ORACLE_ROLE'); /// Role for managing validator oracles.
+  bytes32 public constant VALIDATOR_ORACLE_MANAGER_ROLE = keccak256('VALIDATOR_ORACLE_MANAGER_ROLE'); /// Role for managing validator oracle managers.
+  bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for managing validator oracle sentinels.
 
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IDepositContract public deposit; /// Instance of the deposit contract.
@@ -23,9 +41,26 @@ contract OptimismAdapter is IExternalNetworkAdapter {
 
   mapping(bytes => bool) public validators; /// Mapping of validators.
 
-  constructor(address stakeTogetherAddress, address depositAddress) {
-    stakeTogether = IStakeTogether(stakeTogetherAddress);
-    deposit = IDepositContract(depositAddress);
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    _disableInitializers();
+  }
+
+  /// @notice Internal function to authorize an upgrade.
+  /// @dev Only callable by the upgrader role.
+  /// @param _newImplementation Address of the new contract implementation.
+  function _authorizeUpgrade(address _newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+
+  /************
+   ** CONFIG **
+   ************/
+
+  /// @notice Sets the configuration for the Stake Together Protocol.
+  /// @dev Only callable by the admin role.
+  /// @param _config Configuration settings to be applied.
+  function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
+    config = _config;
+    emit SetConfig(_config);
   }
 
   /**********************
@@ -65,14 +100,14 @@ contract OptimismAdapter is IExternalNetworkAdapter {
   }
 
   function withdrawToL2(
-    uint32 minGasLimit,
-    bytes calldata extraData
-  ) external payable nonReentrant whenNotPaused onlyAdmin {
+    uint32 _minGasLimit,
+    bytes calldata _extraData
+  ) external payable nonReentrant whenNotPaused onlyRole(ADMIN_ROLE) {
     if (msg.value == 0) revert ZeroAmount();
-    if (minGasLimit == 0) revert ZeroedGasLimit();
-    if (address(this).balance < amount) revert NotEnoughBalance();
-    if (amount > address(this).balance) revert WithdrawZeroBalance();
-    bridge.bridgeETHTo{value: msg.value}(_l2StakeTogether, minGasLimit, extraData);
+    if (_minGasLimit == 0) revert ZeroedGasLimit();
+    if (address(this).balance < msg.value) revert NotEnoughBalance();
+    if (msg.value > address(this).balance) revert WithdrawZeroBalance();
+    bridge.bridgeETHTo{value: msg.value}(_l2StakeTogether, _minGasLimit, _extraData);
   }
 
   /***********************

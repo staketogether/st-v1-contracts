@@ -13,12 +13,11 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import '../interfaces/IDepositContract.sol';
-import '../interfaces/IAirdrop.sol';
-import '../interfaces/IBridge.sol';
-import '../interfaces/IRouter.sol';
-import '../interfaces/IStakeTogether.sol';
-import '../interfaces/IWithdrawals.sol';
+import './interfaces/IAirdrop.sol';
+import './interfaces/IBridge.sol';
+import './interfaces/IRouter.sol';
+import './interfaces/IStakeTogether.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
@@ -47,7 +46,6 @@ contract StakeTogetherV4 is
   uint256 public version; /// Contract version.
 
   IAirdrop public airdrop; /// Airdrop contract instance.
-  IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
   IBridge public bridge; /// Bridge contract instance
@@ -530,6 +528,70 @@ contract StakeTogetherV4 is
     emit UpdateDelegations(msg.sender, _delegations);
   }
 
+  /***********************
+   ** VALIDATORS ORACLE **
+   ***********************/
+
+  /// @notice Adds a new validator oracle by its address.
+  /// @param _account The address of the validator oracle to add.
+  function addValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
+    if (validatorsOracleIndices[_account] != 0) revert ValidatorOracleExists();
+
+    validatorsOracle.push(_account);
+    validatorsOracleIndices[_account] = validatorsOracle.length;
+
+    _grantRole(VALIDATOR_ORACLE_ROLE, _account);
+    emit AddValidatorOracle(_account);
+  }
+
+  /// @notice Removes a validator oracle by its address.
+  /// @param _account The address of the validator oracle to remove.
+  function removeValidatorOracle(address _account) external onlyRole(VALIDATOR_ORACLE_MANAGER_ROLE) {
+    if (validatorsOracleIndices[_account] == 0) revert ValidatorOracleNotFound();
+
+    uint256 index = validatorsOracleIndices[_account] - 1;
+
+    if (index < validatorsOracle.length - 1) {
+      address lastAddress = validatorsOracle[validatorsOracle.length - 1];
+      validatorsOracle[index] = lastAddress;
+      validatorsOracleIndices[lastAddress] = index + 1;
+    }
+
+    validatorsOracle.pop();
+    delete validatorsOracleIndices[_account];
+
+    bool isCurrentOracle = (index == currentOracleIndex);
+
+    if (isCurrentOracle) {
+      currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
+    }
+
+    _revokeRole(VALIDATOR_ORACLE_ROLE, _account);
+    emit RemoveValidatorOracle(_account);
+  }
+
+  /// @notice Checks if an address is a validator oracle.
+  /// @param _account The address to check.
+  /// @return True if the address is a validator oracle, false otherwise.
+  function isValidatorOracle(address _account) public view returns (bool) {
+    return hasRole(VALIDATOR_ORACLE_ROLE, _account) && validatorsOracleIndices[_account] > 0;
+  }
+
+  /// @notice Forces the selection of the next validator oracle.
+  function forceNextValidatorOracle() external {
+    if (
+      !hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) &&
+    !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
+    ) revert NotAuthorized();
+    _nextValidatorOracle();
+  }
+
+  /// @notice Internal function to update the current validator oracle.
+  function _nextValidatorOracle() private {
+    currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
+    emit NextValidatorOracle(currentOracleIndex, validatorsOracle[currentOracleIndex]);
+  }
+
   /****************
    ** VALIDATORS **
    ****************/
@@ -585,15 +647,11 @@ contract StakeTogetherV4 is
   }
 
   /// @notice Requests the addition of a new validator on the L1 network.
-  /// @param amount The amount for the validator
-  /// @param minGasLimit The minimum gas limit for the bridge
-  /// @param extraData The extra data to be sent
+  /// @param _amount The amount for the validator
+  /// @param _minGasLimit The minimum gas limit for the bridge
+  /// @param _extraData The extra data to be sent
   /// @dev Only a valid validator oracle can call this function.
-  function requestAddValidator(
-    uint256 _amount,
-    uint32 _minGasLimit,
-    bytes calldata _extraData
-  ) external {
+  function requestAddValidator(uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (address(this).balance < _amount) revert InsufficientPoolBalance();
 

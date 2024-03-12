@@ -262,11 +262,6 @@ interface IStakeTogether {
   /// @param sharesAmount The amount of shares minted
   event MintShares(address indexed to, uint256 sharesAmount);
 
-  /// @notice Emitted when the next validator oracle is set
-  /// @param index The index of the oracle
-  /// @param account The address of the account
-  event NextValidatorOracle(uint256 index, address indexed account);
-
   /// @dev This event emits when rewards are processed for staking, indicating the amount and the number of shares.
   /// @param amount The total amount of rewards that have been processed for staking.
   /// @param sharesAmount The total number of shares associated with the processed staking rewards.
@@ -357,6 +352,19 @@ interface IStakeTogether {
   /// @param sender The address of the sender
   /// @param amount The amount withdrawn
   event WithdrawalsLimitWasReached(address indexed sender, uint256 amount, WithdrawType withdrawType);
+
+  // @notice Emitted when a validator oracle is added
+  /// @param account The address of the account
+  event AddValidatorOracle(address indexed account);
+
+  /// @notice Emitted when the next validator oracle is set
+  /// @param index The index of the oracle
+  /// @param account The address of the account
+  event NextValidatorOracle(uint256 index, address indexed account);
+
+  /// @notice Emitted when a validator oracle is removed
+  /// @param account The address of the account
+  event RemoveValidatorOracle(address indexed account);
 
   /// @notice Pauses the contract, preventing certain actions.
   /// @dev Only callable by the admin role.
@@ -521,15 +529,11 @@ interface IStakeTogether {
   function anticipateWithdrawBeacon() external;
 
   /// @notice Requests the addition of a new validator on the L1 network.
-  /// @param amount The amount for the validator
-  /// @param minGasLimit The minimum gas limit for the bridge
-  /// @param extraData The extra data to be sent
+  /// @param _amount The amount for the validator
+  /// @param _minGasLimit The minimum gas limit for the bridge
+  /// @param _extraData The extra data to be sent
   /// @dev Only a valid validator oracle can call this function.
-  function requestAddValidator(
-    uint256 _amount,
-    uint32 _minGasAmount,
-    bytes calldata _extraData
-  ) external;
+  function requestAddValidator(uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external;
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.

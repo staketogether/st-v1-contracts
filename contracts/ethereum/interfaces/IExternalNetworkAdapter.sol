@@ -2,6 +2,9 @@
 pragma solidity ^0.8.0;
 
 interface IExternalNetworkAdapter {
+  /// @notice Thrown if the caller does not have the appropriate role.
+  error NotAuthorized();
+
   /// @notice Thrown if the caller is not the current oracle.
   error NotCurrentValidatorOracle();
 
@@ -56,6 +59,11 @@ interface IExternalNetworkAdapter {
   // @notice Emitted when a validator oracle is added
   /// @param account The address of the account
   event AddValidatorOracle(address indexed account);
+
+  /// @notice Emitted when the next validator oracle is set
+  /// @param index The index of the oracle
+  /// @param account The address of the account
+  event NextValidatorOracle(uint256 index, address indexed account);
 
   /// @notice Emitted when a validator oracle is removed
   /// @param account The address of the account
