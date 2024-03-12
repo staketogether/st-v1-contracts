@@ -65,6 +65,10 @@ interface IAdapter {
   /// @param account The address of the account
   event NextValidatorOracle(uint256 index, address indexed account);
 
+  /// @notice Emitted when Ether is received
+  /// @param amount The amount of Ether received
+  event ReceiveEther(uint256 indexed amount);
+
   /// @notice Emitted when a validator oracle is removed
   /// @param account The address of the account
   event RemoveValidatorOracle(address indexed account);

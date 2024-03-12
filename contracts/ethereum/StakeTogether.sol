@@ -13,7 +13,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IDepositContract.sol';
+import "../eigen-layer/interfaces/IDepositContract.sol";
 import './interfaces/IAirdrop.sol';
 import './interfaces/IRouter.sol';
 import './interfaces/IStakeTogether.sol';

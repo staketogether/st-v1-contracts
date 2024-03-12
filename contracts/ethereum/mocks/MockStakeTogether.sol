@@ -14,7 +14,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
 import '../interfaces/IAirdrop.sol';
-import '../interfaces/IDepositContract.sol';
+import "../../eigen-layer/interfaces/IDepositContract.sol";
 import '../interfaces/IRouter.sol';
 import '../interfaces/IStakeTogether.sol';
 import '../interfaces/IWithdrawals.sol';
