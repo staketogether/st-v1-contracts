@@ -52,6 +52,7 @@
     "upgrade:st-v2:mainnet": "npx hardhat run scripts/ethereum/upgrade-st-v2.ts --network mainnet",
     "upgrade:st-v3:mainnet": "npx hardhat run scripts/ethereum/upgrade-st-v3.ts --network mainnet",
     "upgrade:st-v4:mainnet": "npx hardhat run scripts/ethereum/upgrade-st-v4.ts --network mainnet",
+    "verify:op-sepolia": "npx hardhat verify --network optimismSepolia",
     "verify:sepolia": "npx hardhat verify --network sepolia",
     "verify:goerli": "npx hardhat verify --network goerli",
     "verify:mainnet": "npx hardhat verify --network mainnet",

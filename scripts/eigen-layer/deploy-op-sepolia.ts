@@ -8,17 +8,17 @@ import {
   Airdrop__factory,
   Router,
   Router__factory,
-  StakeTogether,
+  StakeTogetherV4,
   StakeTogetherWrapper,
   StakeTogetherWrapper__factory,
-  StakeTogether__factory,
+  StakeTogetherV4__factory,
   Withdrawals,
   Withdrawals__factory,
 } from '../../typechain'
 
 dotenv.config()
 
-const depositAddress = String(process.env.SEPOLIA_DEPOSIT_ADDRESS)
+const bridgeAddress = String(process.env.OP_SEPOLIA_BRIDGE_ADDRESS)
 
 export async function deploy() {
   checkVariables()
@@ -35,6 +35,7 @@ export async function deploy() {
     airdrop.proxyAddress,
     router.proxyAddress,
     withdrawals.proxyAddress,
+    bridgeAddress
   )
   const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
@@ -136,14 +137,16 @@ export async function deployStakeTogether(
   airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
+  bridgeContract: string,
 ) {
 
-  const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
+  const StakeTogetherFactory = new StakeTogetherV4__factory().connect(owner)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     airdropContract,
     routerContract,
     withdrawalsContract,
+    bridgeContract
   ])
 
   await stakeTogether.waitForDeployment()
@@ -153,7 +156,7 @@ export async function deployStakeTogether(
   console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
   console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
 
-  const stakeTogetherContract = stakeTogether as unknown as StakeTogether
+  const stakeTogetherContract = stakeTogether as unknown as StakeTogetherV4
 
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
   await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
@@ -248,7 +251,7 @@ export async function configContracts(
   stakeTogether: {
     proxyAddress: string
     implementationAddress: string
-    stakeTogetherContract: StakeTogether
+    stakeTogetherContract: StakeTogetherV4
   },
   stakeTogetherWrapper: {
     proxyAddress: string

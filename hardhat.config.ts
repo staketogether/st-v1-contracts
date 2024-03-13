@@ -47,7 +47,7 @@ const config: HardhatUserConfig = {
     sepolia: {
       url: `https://sepolia.infura.io/v3/${process.env.SEPOLIA_INFURA_API_KEY}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 5,
+      chainId: 11155111,
     },
     optimismSepolia: {
       url: `https://optimism-sepolia.infura.io/v3/${process.env.OP_SEPOLIA_INFURA_API_KEY}`,
@@ -104,6 +104,24 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY as string,
+    customChains: [
+      {
+        chainId: 10,
+        network: 'optimism',
+        urls: {
+          apiURL: 'https://api-optimistic.etherscan.io/api',
+          browserURL: 'https://optimistic.etherscan.io',
+        },
+      },
+      {
+        chainId: 11155420,
+        network: 'optimismSepolia',
+        urls: {
+          apiURL: 'https://api-sepolia-optimistic.etherscan.io/api',
+          browserURL: 'https://optimistic-sepolia.etherscan.io',
+        },
+      },
+    ],
   },
   sourcify: {
     enabled: false,

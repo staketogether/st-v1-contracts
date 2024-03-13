@@ -87,7 +87,12 @@ contract StakeTogetherV4 is
   }
 
   /// @notice Stake Together Pool Initialization
-  function initialize() public initializer {
+  function initialize(
+    address _airdrop,
+    address _router,
+    address _withdrawals,
+    address _bridgeOptimism
+  ) public initializer {
     __ERC20_init('Stake Together Protocol restaking ETH', 'stprETH');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -103,6 +108,7 @@ contract StakeTogetherV4 is
     airdrop = IAirdrop(payable(_airdrop));
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
+    bridge = IBridge(payable(_bridgeOptimism));
   }
 
   /// @notice Pauses the contract, preventing certain actions.
@@ -146,6 +152,13 @@ contract StakeTogetherV4 is
     if (_config.poolSize < config.validatorSize) revert InvalidSize();
     config = _config;
     emit SetConfig(_config);
+  }
+
+  /// @notice Sets the L1 adapter address.
+  /// @dev Only callable by the admin role.
+  /// @param _l1Adapter Address of the L1 adapter contract.
+  function setL1Adapter(address _l1Adapter) external onlyRole(ADMIN_ROLE) {
+    l1Adapter = _l1Adapter;
   }
 
   /************
