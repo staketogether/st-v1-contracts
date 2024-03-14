@@ -1,13 +1,24 @@
 import '@nomicfoundation/hardhat-toolbox'
 import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
-import { HardhatUserConfig } from 'hardhat/config'
+import { HardhatUserConfig, task } from 'hardhat/config'
 
 import dotenv from 'dotenv'
 import { checkVariables } from './test/utils/env'
+import deployEthSepolia from './scripts/eigen-layer/deploy-eth-sepolia'
+import configureEthSepolia from './scripts/eigen-layer/configure-eth-sepolia'
+import deployOpSepolia from './scripts/eigen-layer/deploy-op-sepolia'
+import configureOpSepolia from './scripts/eigen-layer/configure-op-sepolia'
+import eigenLayerTestnet from './scripts/eigen-layer/deploy-and-configure'
 dotenv.config()
 
 checkVariables()
+
+const deployEthSepoliaTask = deployEthSepolia
+const configureEthSepoliaTask = configureEthSepolia
+const deployOpSepoliaTask = deployOpSepolia
+const configureOpSepoliaTask = configureOpSepolia
+const eigenLayerTestnetTask = eigenLayerTestnet
 
 const config: HardhatUserConfig = {
   solidity: {

@@ -23,7 +23,7 @@ import './interfaces/IWithdrawals.sol';
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 /// @custom:security-contact security@staketogether.org
-contract StakeTogetherV4 is
+contract StakeTogether is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -159,6 +159,7 @@ contract StakeTogetherV4 is
   /// @param _l1Adapter Address of the L1 adapter contract.
   function setL1Adapter(address _l1Adapter) external onlyRole(ADMIN_ROLE) {
     l1Adapter = _l1Adapter;
+    emit SetL1Adapter(_l1Adapter);
   }
 
   /************

@@ -1,46 +1,59 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
-import { ethers, network, upgrades } from 'hardhat'
 import { checkVariables } from '../../test/utils/env'
-import { OptimismAdapter, OptimismAdapter__factory } from '../../typechain'
+import { Adapter, Adapter__factory } from '../../typechain'
+import { task } from 'hardhat/config'
+import { HardhatRuntimeEnvironment } from 'hardhat/types'
 
 dotenv.config()
 
-const depositAddress = String(process.env.SEPOLIA_DEPOSIT_ADDRESS)
+const deployEthSepolia = task("deploy-eth-sepolia", "Deploys and configures the Adapter's contract")
+  .addParam('withdrawalsCredentials', 'The address of the withdrawals credentials')
+  .addParam('bridgeAddress', 'The address of the bridge')
+  .addParam(`depositAddress`, 'The address of the deposit contract')
+  .setAction(async (taskArgs, hre) => {
+    await hre.network.provider.request({
+      method: "hardhat_setNetwork",
+      params: [taskArgs.network]
+    })
 
-export async function deploy() {
-  checkVariables()
+    checkVariables()
+    const { ethers } = hre
 
-  const [owner] = await ethers.getSigners()
+    const depositAddress = taskArgs.depositAddress
+    const [owner] = await ethers.getSigners()
 
-  const l2StakeTogetherAdapter = ''
-  const withdrawalsCredentials = ''
-  const bridgeAddress = ''
-  const opAdapter = await deployOptimismAdapter(
-    owner,
-    l2StakeTogetherAdapter,
-    depositAddress,
-    bridgeAddress,
-    withdrawalsCredentials,
-  )
+    const withdrawalsCredentials = taskArgs.withdrawalsCredentials
+    const bridgeAddress = taskArgs.bridgeAddress
+    const opAdapter = await deployEthereumAdapter(
+      owner,
+      depositAddress,
+      bridgeAddress,
+      withdrawalsCredentials,
+      hre
+    )
 
-  // LOG
-  console.log('\n🔷 All ST Contracts Deployed!\n')
+    // LOG
+    console.log('\n🔷 All Ethereum Deployed!\n')
+    await verifyContracts(
+      opAdapter.proxyAddress,
+      opAdapter.implementationAddress,
+    )
 
-  verifyContracts(
-    opAdapter.proxyAddress,
-    opAdapter.implementationAddress,
-  )
-}
+    return {
+      opAdapter
+    }
+  });
 
-export async function deployOptimismAdapter(
+async function deployEthereumAdapter(
   owner: HardhatEthersSigner,
-  l2StakeTogetherAddress: string,
   depositAddress: string,
   bridgeAddress: string,
   withdrawalsCredentialsAddress: string,
+  hre: HardhatRuntimeEnvironment
 ) {
+  const { ethers, upgrades, network } = hre
   function convertToWithdrawalAddress(eth1Address: string): string {
     if (!ethers.isAddress(eth1Address)) {
       throw new Error('Invalid ETH1 address format.')
@@ -57,10 +70,9 @@ export async function deployOptimismAdapter(
     throw new Error('Withdrawals credentials are not the correct length')
   }
 
-  const OptimismAdapterFactory = new OptimismAdapter__factory().connect(owner)
+  const OptimismAdapterFactory = new Adapter__factory().connect(owner)
 
   const optimismAdapter = await upgrades.deployProxy(OptimismAdapterFactory, [
-    l2StakeTogetherAddress,
     depositAddress,
     bridgeAddress,
     withdrawalsCredentialsAddress,
@@ -70,10 +82,10 @@ export async function deployOptimismAdapter(
   const proxyAddress = await optimismAdapter.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`Adapter\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`Adapter\t\t Implementation\t\t ${implementationAddress}`)
 
-  const optimismAdapterContract = optimismAdapter as unknown as OptimismAdapter
+  const optimismAdapterContract = optimismAdapter as unknown as Adapter
 
   const ST_ADMIN_ROLE = await optimismAdapterContract.ADMIN_ROLE()
   await optimismAdapterContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
@@ -84,7 +96,7 @@ export async function deployOptimismAdapter(
 
   await optimismAdapterContract.setConfig(config)
 
-  return { proxyAddress, implementationAddress, stakeTogetherContract: optimismAdapterContract }
+  return { proxyAddress, implementationAddress, adapterContract: optimismAdapterContract }
 }
 
 async function verifyContracts(
@@ -93,11 +105,8 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network sepolia ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network sepolia ${airdropImplementation} &&`)
 }
 
-deploy().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+export default deployEthSepolia

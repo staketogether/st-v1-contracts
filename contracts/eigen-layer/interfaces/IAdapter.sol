@@ -81,6 +81,10 @@ interface IAdapter {
   /// @param newValidatorSize The new size for the validator
   event SetValidatorSize(uint256 indexed newValidatorSize);
 
+  /// @notice Emitted when the L2 Stake Together contract address is set
+  /// @param l2StakeTogether The address of the L2 Stake Together contract
+  event SetL2StakeTogether(address indexed l2StakeTogether);
+
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.

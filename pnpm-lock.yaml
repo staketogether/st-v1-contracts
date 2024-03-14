@@ -29,9 +29,6 @@ dependencies:
   dotenv:
     specifier: ^16.3.1
     version: 16.3.1
-  eigenlayer-contracts:
-    specifier: github:Layr-Labs/eigenlayer-contracts#mainnet
-    version: github.com/Layr-Labs/eigenlayer-contracts/0139d6213927c0a7812578899ddd3dda58051928(hardhat@2.19.4)
   solc:
     specifier: 0.8.22
     version: 0.8.22
@@ -2608,7 +2605,6 @@ packages:
     dependencies:
       is-hex-prefixed: 1.0.0
       strip-hex-prefix: 1.0.0
-    bundledDependencies: false
 
   /evp_bytestokey@1.0.3:
     resolution: {integrity: sha512-/f2Go4TognH/KvCISP7OUsHn85hT9nUkxxA9BEWxFn+Oj9o8ZNLm/40hdlgSLyuOimsrTKLUMEorQexp/aPQeA==}
@@ -2977,6 +2973,7 @@ packages:
       wordwrap: 1.0.0
     optionalDependencies:
       uglify-js: 3.17.4
+    dev: true
 
   /hard-rejection@2.1.0:
     resolution: {integrity: sha512-VIZB+ibDhx7ObhAe7OVtoEbuP4h/MuOTHJ+J8h/eBXotJYl0fBgR72xDFCKgIh22OJZIOVNxBMWuhAr10r8HdA==}
@@ -3853,6 +3850,7 @@ packages:
 
   /neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
+    dev: true
 
   /node-addon-api@2.0.2:
     resolution: {integrity: sha512-Ntyt4AIXyaLIuMHF6IOoTakB3K+RWxwtsHNRxllEoA6vPwP9o4866g6YWDLUdnucilZhmkxiHwHr11gAENw+QA==}
@@ -4618,16 +4616,6 @@ packages:
       - supports-color
     dev: true
 
-  /solidity-docgen@0.6.0-beta.36(hardhat@2.19.4):
-    resolution: {integrity: sha512-f/I5G2iJgU1h0XrrjRD0hHMr7C10u276vYvm//rw1TzFcYQ4xTOyAoi9oNAHRU0JU4mY9eTuxdVc2zahdMuhaQ==}
-    peerDependencies:
-      hardhat: ^2.8.0
-    dependencies:
-      handlebars: 4.7.8
-      hardhat: 2.19.4(ts-node@10.9.1)(typescript@5.2.2)
-      solidity-ast: 0.4.52
-    dev: false
-
   /source-map-support@0.5.21:
     resolution: {integrity: sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==}
     dependencies:
@@ -5092,6 +5080,7 @@ packages:
     engines: {node: '>=0.8.0'}
     hasBin: true
     requiresBuild: true
+    dev: true
     optional: true
 
   /unbox-primitive@1.0.2:
@@ -5223,6 +5212,7 @@ packages:
 
   /wordwrap@1.0.0:
     resolution: {integrity: sha512-gvVzJFlPycKc5dZN4yPkP8w7Dc37BtP1yczEneOb4uq34pXZcvrtRTmWV8W+Ume+XCxKgbjM+nevkyFPMybd4Q==}
+    dev: true
 
   /wordwrapjs@4.0.1:
     resolution: {integrity: sha512-kKlNACbvHrkpIw6oPeYDSmdCTu2hdMHoyXLTcUKala++lx5Y+wjJ/e474Jqv5abnVmwxw08DiTuHmw69lJGksA==}
@@ -5348,14 +5338,3 @@ packages:
   /yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
-
-  github.com/Layr-Labs/eigenlayer-contracts/0139d6213927c0a7812578899ddd3dda58051928(hardhat@2.19.4):
-    resolution: {tarball: https://codeload.github.com/Layr-Labs/eigenlayer-contracts/tar.gz/0139d6213927c0a7812578899ddd3dda58051928}
-    id: github.com/Layr-Labs/eigenlayer-contracts/0139d6213927c0a7812578899ddd3dda58051928
-    name: eigenlayer-contracts
-    version: 1.0.0
-    dependencies:
-      solidity-docgen: 0.6.0-beta.36(hardhat@2.19.4)
-    transitivePeerDependencies:
-      - hardhat
-    dev: false

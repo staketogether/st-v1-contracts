@@ -17,7 +17,7 @@ contract Adapter is
   AccessControlUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-IAdapter
+  IAdapter
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
@@ -45,7 +45,6 @@ IAdapter
   }
 
   function initialize(
-    address _l2StakeTogether,
     address _deposit,
     address _bridge,
     bytes memory _withdrawalCredentials
@@ -59,7 +58,6 @@ IAdapter
     _grantRole(ADMIN_ROLE, msg.sender);
     _grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender);
 
-    l2StakeTogether = _l2StakeTogether;
     deposit = IDepositContract(_deposit);
     bridge = IBridge(_bridge);
     withdrawalCredentials = _withdrawalCredentials;
@@ -99,6 +97,14 @@ IAdapter
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
     config = _config;
     emit SetConfig(_config);
+  }
+
+  /// @notice Sets L2 Stake Together contract address.
+  /// @dev Only callable by the admin role.
+  /// @param _l2StakeTogether Address of the L2 Stake Together contract.
+  function setL2StakeTogether(address _l2StakeTogether) external onlyRole(ADMIN_ROLE) {
+    l2StakeTogether = _l2StakeTogether;
+    emit SetL2StakeTogether(_l2StakeTogether);
   }
 
   /**********************

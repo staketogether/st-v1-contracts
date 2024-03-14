@@ -1,67 +1,81 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
-import { ethers, network, upgrades } from 'hardhat'
 import { checkVariables } from '../../test/utils/env'
 import {
   Airdrop,
   Airdrop__factory,
   Router,
   Router__factory,
-  StakeTogetherV4,
+  StakeTogether,
   StakeTogetherWrapper,
   StakeTogetherWrapper__factory,
-  StakeTogetherV4__factory,
+  StakeTogether__factory,
   Withdrawals,
-  Withdrawals__factory,
+  Withdrawals__factory, Adapter__factory, Adapter
 } from '../../typechain'
+import { task } from 'hardhat/config'
+import { HardhatRuntimeEnvironment } from 'hardhat/types'
 
 dotenv.config()
 
-const bridgeAddress = String(process.env.OP_SEPOLIA_BRIDGE_ADDRESS)
+const deployOpSepolia = task("deploy-op-sepolia", "Configures the OP Sepolia Stake Together's contracts")
+  .addParam('bridgeAddress', 'The address of the bridge')
+  .setAction(async (taskArgs, hre) => {
+    await hre.network.provider.request({
+      method: "hardhat_setNetwork",
+      params: [taskArgs.network]
+    })
 
-export async function deploy() {
-  checkVariables()
+    checkVariables()
 
-  const [owner] = await ethers.getSigners()
+    const { ethers } = hre
 
-  // DEPLOY
-  const airdrop = await deployAirdrop(owner)
-  const withdrawals = await deployWithdrawals(owner)
-  const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
+    const [owner] = await ethers.getSigners()
 
-  const stakeTogether = await deployStakeTogether(
-    owner,
-    airdrop.proxyAddress,
-    router.proxyAddress,
-    withdrawals.proxyAddress,
-    bridgeAddress
-  )
-  const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
+    const bridgeAddress = taskArgs.bridgeAddress
 
-  // CONFIG
+    // DEPLOY
+    const airdrop = await deployAirdrop(owner, hre)
+    const withdrawals = await deployWithdrawals(owner, hre)
+    const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress, hre)
 
-  await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
+    const stakeTogether = await deployStakeTogether(
+      owner,
+      airdrop.proxyAddress,
+      router.proxyAddress,
+      withdrawals.proxyAddress,
+      bridgeAddress,
+      hre
+    )
+    const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner, hre)
 
-  // LOG
+    // CONFIG
+    await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
 
-  console.log('\n🔷 All ST Contracts Deployed!\n')
+    // LOG
+    console.log('\n🔷 All ST Contracts Deployed!\n')
 
-  verifyContracts(
-    airdrop.proxyAddress,
-    airdrop.implementationAddress,
-    router.proxyAddress,
-    router.implementationAddress,
-    stakeTogether.proxyAddress,
-    stakeTogether.implementationAddress,
-    stakeTogetherWrapper.proxyAddress,
-    stakeTogetherWrapper.implementationAddress,
-    withdrawals.proxyAddress,
-    withdrawals.implementationAddress,
-  )
-}
+    await verifyContracts(
+      airdrop.proxyAddress,
+      airdrop.implementationAddress,
+      router.proxyAddress,
+      router.implementationAddress,
+      stakeTogether.proxyAddress,
+      stakeTogether.implementationAddress,
+      stakeTogetherWrapper.proxyAddress,
+      stakeTogetherWrapper.implementationAddress,
+      withdrawals.proxyAddress,
+      withdrawals.implementationAddress,
+    )
 
-export async function deployAirdrop(owner: HardhatEthersSigner) {
+    return {
+      stakeTogether
+    }
+  });
+
+async function deployAirdrop(owner: HardhatEthersSigner, hre: HardhatRuntimeEnvironment) {
+  const { upgrades, network } = hre
   const AirdropFactory = new Airdrop__factory().connect(owner)
   const airdrop = await upgrades.deployProxy(AirdropFactory)
   await airdrop.waitForDeployment()
@@ -79,8 +93,9 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, airdropContract }
 }
 
-export async function deployWithdrawals(owner: HardhatEthersSigner) {
+async function deployWithdrawals(owner: HardhatEthersSigner, hre: HardhatRuntimeEnvironment) {
   const WithdrawalsFactory = new Withdrawals__factory().connect(owner)
+  const { upgrades, network } = hre
 
   const withdrawals = await upgrades.deployProxy(WithdrawalsFactory)
   await withdrawals.waitForDeployment()
@@ -98,11 +113,13 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
 
-export async function deployRouter(
+async function deployRouter(
   owner: HardhatEthersSigner,
   airdropContract: string,
   withdrawalsContract: string,
+  hre: HardhatRuntimeEnvironment
 ) {
+  const { upgrades, network } = hre
   const RouterFactory = new Router__factory().connect(owner)
 
   const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
@@ -132,15 +149,17 @@ export async function deployRouter(
   return { proxyAddress, implementationAddress, routerContract }
 }
 
-export async function deployStakeTogether(
+async function deployStakeTogether(
   owner: HardhatEthersSigner,
   airdropContract: string,
   routerContract: string,
   withdrawalsContract: string,
   bridgeContract: string,
+  hre: HardhatRuntimeEnvironment
 ) {
+  const { upgrades, network, ethers } = hre
 
-  const StakeTogetherFactory = new StakeTogetherV4__factory().connect(owner)
+  const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     airdropContract,
@@ -156,7 +175,7 @@ export async function deployStakeTogether(
   console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
   console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
 
-  const stakeTogetherContract = stakeTogether as unknown as StakeTogetherV4
+  const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
   await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
@@ -222,8 +241,9 @@ export async function deployStakeTogether(
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
 
-async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
+async function deployStakeTogetherWrapper(owner: HardhatEthersSigner, hre: HardhatRuntimeEnvironment) {
   const STWrapperFactory = new StakeTogetherWrapper__factory().connect(owner)
+  const { upgrades, network } = hre
 
   const stWrapper = await upgrades.deployProxy(STWrapperFactory)
   await stWrapper.waitForDeployment()
@@ -241,7 +261,7 @@ async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
   return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
 }
 
-export async function configContracts(
+async function configContracts(
   owner: HardhatEthersSigner,
   airdrop: {
     proxyAddress: string
@@ -251,7 +271,7 @@ export async function configContracts(
   stakeTogether: {
     proxyAddress: string
     implementationAddress: string
-    stakeTogetherContract: StakeTogetherV4
+    stakeTogetherContract: StakeTogether
   },
   stakeTogetherWrapper: {
     proxyAddress: string
@@ -299,19 +319,16 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperImplementation}`)
+  console.log(`npx hardhat verify --network optimismSepolia ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${stakeTogetherImplementation} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${stakeTogetherWrapperProxy} &&`)
+  console.log(`npx hardhat verify --network optimismSepolia ${stakeTogetherWrapperImplementation}`)
 }
 
-deploy().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+export default deployOpSepolia

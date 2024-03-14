@@ -309,6 +309,10 @@ interface IStakeTogether {
   /// @param router The address of the router
   event SetRouter(address indexed router);
 
+  /// @notice Emitted when the L1 Adapter contract address is set
+  /// @param l1Adapter The address of the L1 Adapter contract
+  event SetL1Adapter(address indexed l1Adapter);
+
   /// @notice Emitted when the StakeTogether address is set
   /// @param stakeTogether The address of StakeTogether
   event SetStakeTogether(address indexed stakeTogether);
