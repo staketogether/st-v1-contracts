@@ -11,7 +11,6 @@ import {
   Withdrawals,
   Withdrawals__factory,
 } from '../../typechain'
-import connect from '../utils/connect'
 import { withdrawalsFixture } from './Withdrawals.fixture'
 
 dotenv.config()
@@ -66,19 +65,19 @@ describe('Withdrawals', function () {
       expect(await withdrawals.paused()).to.equal(false)
 
       // User without admin role tries to pause the contract - should fail
-      await expect(connect(withdrawals, user1).pause()).to.reverted
+      await expect(withdrawals.connect(user1).pause()).to.reverted
 
       // The owner pauses the contract
-      await connect(withdrawals, owner).pause()
+      await withdrawals.connect(owner).pause()
 
       // Check if the contract is paused
       expect(await withdrawals.paused()).to.equal(true)
 
       // User without admin role tries to unpause the contract - should fail
-      await expect(connect(withdrawals, user1).unpause()).to.reverted
+      await expect(withdrawals.connect(user1).unpause()).to.reverted
 
       // The owner unpauses the contract
-      await connect(withdrawals, owner).unpause()
+      await withdrawals.connect(owner).unpause()
       // Check if the contract is not paused
       expect(await withdrawals.paused()).to.equal(false)
     })
@@ -110,7 +109,7 @@ describe('Withdrawals', function () {
 
   it('should correctly set the StakeTogether address', async function () {
     // User1 tries to set the StakeTogether address to zero address - should fail
-    await expect(connect(withdrawals, owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
+    await expect(withdrawals.connect(owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
       withdrawals,
       'StakeTogetherAlreadySet',
     )
@@ -120,7 +119,7 @@ describe('Withdrawals', function () {
   })
 
   it('should correctly set the Router address', async function () {
-    await expect(connect(withdrawals, owner).setRouter(nullAddress)).to.be.revertedWithCustomError(
+    await expect(withdrawals.connect(owner).setRouter(nullAddress)).to.be.revertedWithCustomError(
       withdrawals,
       'RouterAlreadySet',
     )
@@ -170,7 +169,7 @@ describe('Withdrawals', function () {
       await expect(
         withdrawalsContract2.connect(user1).mint(user1.address, mintAmount),
       ).to.be.revertedWithCustomError(withdrawalsContract2, 'OnlyStakeTogether')
-      await connect(withdrawalsContract2, owner).setStakeTogether(user1.address)
+      await withdrawalsContract2.connect(owner).setStakeTogether(user1.address)
       await withdrawalsContract2.connect(user1).mint(user1.address, mintAmount)
       // expect(await withdrawalsContract2.balanceOf(user1.address)).to.equal(mintAmount)
     })

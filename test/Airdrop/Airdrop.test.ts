@@ -12,7 +12,6 @@ import {
   MockRouter,
   MockStakeTogether,
 } from '../../typechain'
-import connect from '../utils/connect'
 import { airdropFixture } from './Airdrop.fixture'
 
 dotenv.config()
@@ -67,19 +66,19 @@ describe('Airdrop', function () {
       expect(await airdrop.paused()).to.equal(false)
 
       // User without admin role tries to pause the contract - should fail
-      await expect(connect(airdrop, user1).pause()).to.reverted
+      await expect(airdrop.connect(user1).pause()).to.reverted
 
       // The owner pauses the contract
-      await connect(airdrop, owner).pause()
+      await airdrop.connect(owner).pause()
 
       // Check if the contract is paused
       expect(await airdrop.paused()).to.equal(true)
 
       // User without admin role tries to unpause the contract - should fail
-      await expect(connect(airdrop, user1).unpause()).to.reverted
+      await expect(airdrop.connect(user1).unpause()).to.reverted
 
       // The owner unpauses the contract
-      await connect(airdrop, owner).unpause()
+      await airdrop.connect(owner).unpause()
       // Check if the contract is not paused
       expect(await airdrop.paused()).to.equal(false)
     })
@@ -107,7 +106,7 @@ describe('Airdrop', function () {
   describe('Set Config', function () {
     it('should correctly set the StakeTogether address', async function () {
       // User1 tries to set the StakeTogether address to zero address - should fail
-      await expect(connect(airdrop, owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
+      await expect(airdrop.connect(owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
         airdrop,
         'StakeTogetherAlreadySet',
       )
@@ -117,7 +116,7 @@ describe('Airdrop', function () {
     })
 
     it('should correctly set the Router address', async function () {
-      await expect(connect(airdrop, owner).setRouter(nullAddress)).to.be.revertedWithCustomError(
+      await expect(airdrop.connect(owner).setRouter(nullAddress)).to.be.revertedWithCustomError(
         airdrop,
         'RouterAlreadySet',
       )
@@ -192,7 +191,7 @@ describe('Airdrop', function () {
       const reportBlock = await mockRouter.reportBlock()
       const merkleRoot = ethers.keccak256('0x1234')
 
-      await expect(connect(airdropContract2, owner).addMerkleRoot(reportBlock, merkleRoot))
+      await expect(airdropContract2.connect(owner).addMerkleRoot(reportBlock, merkleRoot))
         .to.emit(airdropContract2, 'AddMerkleRoot')
         .withArgs(reportBlock, merkleRoot)
 
@@ -204,7 +203,7 @@ describe('Airdrop', function () {
       const merkleRoot = ethers.keccak256('0x1234')
 
       await expect(
-        connect(airdrop, user1).addMerkleRoot(reportBlock, merkleRoot),
+        airdrop.connect(user1).addMerkleRoot(reportBlock, merkleRoot),
       ).to.be.revertedWithCustomError(airdrop, 'OnlyRouter')
     })
 
@@ -223,10 +222,10 @@ describe('Airdrop', function () {
 
       const reportBlock = await mockRouter.reportBlock()
 
-      await connect(airdropContract2, owner).addMerkleRoot(reportBlock, merkleRoot1)
+      await airdropContract2.connect(owner).addMerkleRoot(reportBlock, merkleRoot1)
 
       await expect(
-        connect(airdropContract2, owner).addMerkleRoot(reportBlock, merkleRoot2),
+        airdropContract2.connect(owner).addMerkleRoot(reportBlock, merkleRoot2),
       ).to.be.revertedWithCustomError(airdrop, 'MerkleRootAlreadySetForBlock')
     })
   })

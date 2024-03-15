@@ -12,7 +12,6 @@ import {
   StakeTogether,
   Withdrawals,
 } from '../../typechain'
-import connect from '../utils/connect'
 import { stakeTogetherFixture } from './StakeTogether.fixture'
 
 dotenv.config()
@@ -78,19 +77,19 @@ describe('Stake Together', function () {
       expect(await stakeTogether.paused()).to.equal(false)
 
       // User without admin role tries to pause the contract - should fail
-      await expect(connect(stakeTogether, user1).pause()).to.reverted
+      await expect(stakeTogether.connect(user1).pause()).to.reverted
 
       // The owner pauses the contract
-      await connect(stakeTogether, owner).pause()
+      await stakeTogether.connect(owner).pause()
 
       // Check if the contract is paused
       expect(await stakeTogether.paused()).to.equal(true)
 
       // User without admin role tries to unpause the contract - should fail
-      await expect(connect(stakeTogether, user1).unpause()).to.reverted
+      await expect(stakeTogether.connect(user1).unpause()).to.reverted
 
       // The owner unpauses the contract
-      await connect(stakeTogether, owner).unpause()
+      await stakeTogether.connect(owner).unpause()
       // Check if the contract is not paused
       expect(await stakeTogether.paused()).to.equal(false)
     })
@@ -296,7 +295,7 @@ describe('Stake Together', function () {
       }
 
       // Set config by owner
-      await connect(stakeTogether, owner).setConfig(config)
+      await stakeTogether.connect(owner).setConfig(config)
 
       // Verify if the configuration was changed correctly
       const updatedConfig = await stakeTogether.config()
@@ -324,7 +323,7 @@ describe('Stake Together', function () {
       }
 
       // Attempt to set config by non-owner should fail
-      await expect(connect(stakeTogether, user1).setConfig(config)).to.be.reverted
+      await expect(stakeTogether.connect(user1).setConfig(config)).to.be.reverted
     })
 
     it('should revert if poolSize is less than validatorSize', async function () {
@@ -651,7 +650,7 @@ describe('Stake Together', function () {
         },
       }
 
-      await connect(stakeTogether, owner).setConfig(config)
+      await stakeTogether.connect(owner).setConfig(config)
 
       const user1DepositAmount = ethers.parseEther('100')
       const nonExistentPoolAddress = nullAddress
@@ -1052,7 +1051,7 @@ describe('Stake Together', function () {
       }
 
       // Set config by owner
-      await connect(stakeTogether, owner).setConfig(config)
+      await stakeTogether.connect(owner).setConfig(config)
 
       // Attempt to withdraw
       const withdrawAmount = ethers.parseEther('1')
@@ -1087,7 +1086,7 @@ describe('Stake Together', function () {
       }
 
       // Set config by owner
-      await connect(stakeTogether, owner).setConfig(config)
+      await stakeTogether.connect(owner).setConfig(config)
       const withdrawAmount = ethers.parseEther('1')
       const poolAddress = user3.address
 
@@ -1253,7 +1252,7 @@ describe('Stake Together', function () {
       }
 
       // Set config by owner
-      await connect(stakeTogether, owner).setConfig(config)
+      await stakeTogether.connect(owner).setConfig(config)
       // Attempt to add the pool and expect failure
       const poolAddress = user3.address
       await expect(
@@ -1375,7 +1374,7 @@ describe('Stake Together', function () {
       const newOracleAddress = user3.address
 
       // Connect with an address that has the VALIDATOR_ORACLE_MANAGER_ROLE (now admin)
-      await connect(stakeTogether, user6).addValidatorOracle(newOracleAddress)
+      await stakeTogether.connect(user6).addValidatorOracle(newOracleAddress)
 
       // Verify that the oracle address has been granted the VALIDATOR_ORACLE_ROLE
       expect(await stakeTogether.hasRole(VALIDATOR_ORACLE_ROLE, newOracleAddress)).to.be.true
