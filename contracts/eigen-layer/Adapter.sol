@@ -143,15 +143,20 @@ contract Adapter is
     );
   }
 
+  /// @notice Withdraws the amount to the L2 Stake Together contract.
+  /// @param _amount The amount to withdraw.
+  /// @param _minGasLimit The minimum gas limit for the withdrawal.
+  /// @param _extraData Extra data to include in the withdrawal.
+  /// @dev Only the admin role can call this function.
   function withdrawToL2(
+    uint256 _amount,
     uint32 _minGasLimit,
     bytes calldata _extraData
-  ) external payable nonReentrant whenNotPaused onlyRole(ADMIN_ROLE) {
-    if (msg.value == 0) revert ZeroAmount();
+  ) external nonReentrant whenNotPaused onlyRole(ADMIN_ROLE) {
+    if (_amount == 0) revert ZeroAmount();
     if (_minGasLimit == 0) revert ZeroedGasLimit();
-    if (address(this).balance < msg.value) revert NotEnoughBalance();
-    if (msg.value > address(this).balance) revert WithdrawZeroBalance();
-    bridge.bridgeETHTo{value: msg.value}(l2StakeTogether, _minGasLimit, _extraData);
+    if (address(this).balance < _amount) revert NotEnoughBalance();
+    bridge.bridgeETHTo{value: _amount}(l2StakeTogether, _minGasLimit, _extraData);
   }
 
   /***********************

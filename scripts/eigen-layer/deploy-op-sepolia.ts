@@ -20,20 +20,14 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 dotenv.config()
 
 const deployOpSepolia = task("deploy-op-sepolia", "Configures the OP Sepolia Stake Together's contracts")
-  .addParam('bridgeAddress', 'The address of the bridge')
   .setAction(async (taskArgs, hre) => {
-    await hre.network.provider.request({
-      method: "hardhat_setNetwork",
-      params: [taskArgs.network]
-    })
-
     checkVariables()
 
     const { ethers } = hre
 
     const [owner] = await ethers.getSigners()
 
-    const bridgeAddress = taskArgs.bridgeAddress
+    const bridgeAddress = process.env.OP_SEPOLIA_BRIDGE_ADDRESS as string
 
     // DEPLOY
     const airdrop = await deployAirdrop(owner, hre)

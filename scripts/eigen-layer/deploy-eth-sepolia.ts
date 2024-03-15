@@ -9,23 +9,16 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 dotenv.config()
 
 const deployEthSepolia = task("deploy-eth-sepolia", "Deploys and configures the Adapter's contract")
-  .addParam('withdrawalsCredentials', 'The address of the withdrawals credentials')
-  .addParam('bridgeAddress', 'The address of the bridge')
-  .addParam(`depositAddress`, 'The address of the deposit contract')
   .setAction(async (taskArgs, hre) => {
-    await hre.network.provider.request({
-      method: "hardhat_setNetwork",
-      params: [taskArgs.network]
-    })
+    const withdrawalsCredentials = process.env.SEPOLIA_WITHDRAWAL_ADDRESS as string
+    const bridgeAddress = process.env.ETH_SEPOLIA_BRIDGE_ADDRESS as string
+    const depositAddress = process.env.SEPOLIA_DEPOSIT_ADDRESS as string
 
     checkVariables()
     const { ethers } = hre
 
-    const depositAddress = taskArgs.depositAddress
     const [owner] = await ethers.getSigners()
 
-    const withdrawalsCredentials = taskArgs.withdrawalsCredentials
-    const bridgeAddress = taskArgs.bridgeAddress
     const opAdapter = await deployEthereumAdapter(
       owner,
       depositAddress,
