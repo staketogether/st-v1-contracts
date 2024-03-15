@@ -119,7 +119,8 @@ interface IAdapter {
 
   /// @notice Sends the passed value to the L2 StakeTogether contract.
   /// @dev Only callable by the admin role.
+  /// @param amount The amount to be sent.
   /// @param minGasLimit The minimum gas limit for the transaction.
   /// @param extraData The extra data to be sent.
-  function withdrawToL2(uint32 minGasLimit, bytes calldata extraData) external payable;
+  function withdrawToL2(uint256 amount, uint32 minGasLimit, bytes calldata extraData) external;
 }
