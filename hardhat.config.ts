@@ -1,7 +1,5 @@
-import '@nomicfoundation/hardhat-toolbox'
 import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
-import { HardhatUserConfig } from 'hardhat/config'
 
 import dotenv from 'dotenv'
 import { checkVariables } from './test/utils/env'
@@ -9,12 +7,12 @@ dotenv.config()
 
 checkVariables()
 
-const config: HardhatUserConfig = {
+const config = {
   solidity: {
-    version: '0.8.22',
+    version: '0.8.25',
     overrides: {
       '*': {
-        version: '0.8.22',
+        version: '0.8.25',
       },
     },
     settings: {
