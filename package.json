@@ -45,6 +45,7 @@
     "deploy:eigen-layer-testnet-eth": "npx hardhat deploy-eth-sepolia --network sepolia",
     "deploy:eigen-layer-testnet-op": "npx hardhat deploy-op-sepolia --network optimismSepolia",
     "deploy:goerli": "npx hardhat run scripts/ethereum/deploy-goerli.ts --network goerli",
+    "deploy:holesky": "npx hardhat run scripts/ethereum/deploy-holesky.ts --network goerli",
     "deploy:mainnet": "npx hardhat run scripts/ethereum/deploy-mainnet.ts --network mainnet",
     "upgrade:st-v2:goerli": "npx hardhat run scripts/ethereum/upgrade-st-v2.ts --network goerli",
     "upgrade:st-v3:goerli": "npx hardhat run scripts/ethereum/upgrade-st-v3.ts --network goerli",
