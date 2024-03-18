@@ -85,6 +85,12 @@ interface IAdapter {
   /// @param l2StakeTogether The address of the L2 Stake Together contract
   event SetL2StakeTogether(address indexed l2StakeTogether);
 
+  /// @notice Emitted when the amount is withdrawn to L2
+  /// @param amount The amount to be withdrawn
+  /// @param minGasLimit The minimum gas limit for the transaction
+  /// @param extraData The extra data to be sent
+  event WithdrawToL2(uint256 amount, uint32 minGasLimit, bytes extraData);
+
   /// @notice Creates a new validator with the given parameters.
   /// @param _publicKey The public key of the validator.
   /// @param _signature The signature of the validator.

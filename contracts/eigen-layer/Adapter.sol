@@ -157,6 +157,7 @@ contract Adapter is
     if (_minGasLimit == 0) revert ZeroedGasLimit();
     if (address(this).balance < _amount) revert NotEnoughBalance();
     bridge.bridgeETHTo{value: _amount}(l2StakeTogether, _minGasLimit, _extraData);
+    emit WithdrawToL2(_amount, _minGasLimit, _extraData);
   }
 
   /***********************
