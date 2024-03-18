@@ -51,7 +51,7 @@ const config: HardhatUserConfig = {
       chainId: 10,
     },
     holesky: {
-      url: process.env.HOLESKY_RPC_URL as string,
+      url: `${process.env.HOLESKY_RPC_URL}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
       chainId: 17000,
     },

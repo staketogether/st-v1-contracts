@@ -316,16 +316,16 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network holesky ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network holesky ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network holesky ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network holesky ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network holesky ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network holesky ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network holesky ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network holesky ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network holesky ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network holesky ${stakeTogetherWrapperImplementation}`)
+  console.log(`npx hardhat verify --network sepolia ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network sepolia ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network sepolia ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network sepolia ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network sepolia ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network sepolia ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network sepolia ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network sepolia ${stakeTogetherImplementation} &&`)
+  console.log(`npx hardhat verify --network sepolia ${stakeTogetherWrapperProxy} &&`)
+  console.log(`npx hardhat verify --network sepolia ${stakeTogetherWrapperImplementation}`)
 }
 
 deploy().catch((error) => {
