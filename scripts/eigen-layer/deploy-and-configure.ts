@@ -1,6 +1,6 @@
 import { task } from 'hardhat/config'
 
-const eigenLayerTestnet = task("eigen-layer:testnet", "Deploys and configures the contract", async (taskArgs, hre) => {
+const eigenLayerTestnet = task("ethereum-staking-restaking:testnet", "Deploys and configures the contract", async (taskArgs, hre) => {
   const { run } = hre;
   const { opAdapter } = await run('deploy-eth-sepolia', {
     network: 'sepolia',
