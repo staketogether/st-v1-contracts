@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.22;
 
-import "../../eigen-layer/interfaces/IDepositContract.sol";
+import "../interfaces/IDepositContract.sol";
 
 contract MockDepositContract is IDepositContract {
   // This can be set to an appropriate value for mocking purposes

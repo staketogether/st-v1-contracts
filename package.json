@@ -54,7 +54,6 @@
     "upgrade:st-v4:mainnet": "npx hardhat run scripts/ethereum-staking/upgrade-st-v4.ts --network mainnet",
     "verify:op-sepolia": "npx hardhat verify --network optimismSepolia",
     "verify:sepolia": "npx hardhat verify --network sepolia",
-    "verify:goerli": "npx hardhat verify --network goerli",
     "verify:holesky": "npx hardhat verify --network holesky",
     "verify:mainnet": "npx hardhat verify --network mainnet",
     "test": "npx hardhat test --typecheck",

@@ -2,8 +2,8 @@ export function checkVariables() {
   const missingVariables = []
   if (!process.env.MAINNET_DEPOSIT_ADDRESS) missingVariables.push('MAINNET_DEPOSIT_ADDRESS')
   if (!process.env.MAINNET_INFURA_API_KEY) missingVariables.push('MAINNET_INFURA_API_KEY')
-  if (!process.env.GOERLI_DEPOSIT_ADDRESS) missingVariables.push('GOERLI_DEPOSIT_ADDRESS')
-  if (!process.env.GOERLI_INFURA_API_KEY) missingVariables.push('GOERLI_INFURA_API_KEY')
+  if (!process.env.HOLESKY_DEPOSIT_ADDRESS) missingVariables.push('HOLESKY_DEPOSIT_ADDRESS')
+  if (!process.env.HOLESKY_RPC_URL) missingVariables.push('HOLESKY_RPC_URL')
   if (!process.env.DEPLOYER_PRIVATE_KEY) missingVariables.push('DEPLOYER_PRIVATE_KEY')
   if (!process.env.ETHERSCAN_API_KEY) missingVariables.push('ETHERSCAN_API_KEY')
   if (!process.env.ACCOUNT_1_PRIVATE_KEY) missingVariables.push('ACCOUNT_1_PRIVATE_KEY')
