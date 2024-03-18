@@ -316,16 +316,16 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperImplementation}`)
+  console.log(`npx hardhat verify --network holesky ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherWrapperProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherWrapperImplementation}`)
 }
 
 deploy().catch((error) => {

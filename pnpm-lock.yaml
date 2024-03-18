@@ -2477,7 +2477,7 @@ packages:
 
   /ethereum-cryptography@0.1.3:
     resolution: {integrity: sha512-w8/4x1SGGzc+tO97TASLja6SLd3fRIK2tLVcV2Gx4IB21hE19atll5Cq9o3d0ZmAYC/8aw0ipieTSiekAea4SQ==}
-    deprecated: Upgrade to ethereum-staking-cryptography@2.0 for security and reduced package size
+    deprecated: Upgrade to ethereum-staking-staking-cryptography@2.0 for security and reduced package size
     dependencies:
       '@types/pbkdf2': 3.1.1
       '@types/secp256k1': 4.0.5
