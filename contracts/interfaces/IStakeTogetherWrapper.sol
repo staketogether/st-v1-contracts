@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
+// SPDX-FileCopyrightText: 2024 Together Technology LTD <legal@staketogether.org>
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.25;
 
