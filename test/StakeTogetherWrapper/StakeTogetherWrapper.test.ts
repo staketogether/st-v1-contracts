@@ -10,7 +10,6 @@ import {
   StakeTogether,
   StakeTogetherWrapper,
 } from '../../typechain'
-import connect from '../utils/connect'
 import { stakeTogetherWrapperFixture } from './StakeTogetherWrapper.fixture'
 
 dotenv.config()
@@ -65,19 +64,19 @@ describe('StakeTogetherWrapper', function () {
       expect(await stakeTogetherWrapper.paused()).to.equal(false)
 
       // User without admin role tries to pause the contract - should fail
-      await expect(connect(stakeTogetherWrapper, user1).pause()).to.reverted
+      await expect(stakeTogetherWrapper.connect(user1).pause()).to.reverted
 
       // The owner pauses the contract
-      await connect(stakeTogetherWrapper, owner).pause()
+      await stakeTogetherWrapper.connect(owner).pause()
 
       // Check if the contract is paused
       expect(await stakeTogetherWrapper.paused()).to.equal(true)
 
       // User without admin role tries to unpause the contract - should fail
-      await expect(connect(stakeTogetherWrapper, user1).unpause()).to.reverted
+      await expect(stakeTogetherWrapper.connect(user1).unpause()).to.reverted
 
       // The owner unpauses the contract
-      await connect(stakeTogetherWrapper, owner).unpause()
+      await stakeTogetherWrapper.connect(owner).unpause()
       // Check if the contract is not paused
       expect(await stakeTogetherWrapper.paused()).to.equal(false)
     })
@@ -108,7 +107,7 @@ describe('StakeTogetherWrapper', function () {
     it('should correctly set the StakeTogether address', async function () {
       // User1 tries to set the StakeTogether address to zero address - should fail
       await expect(
-        connect(stakeTogetherWrapper, owner).setStakeTogether(nullAddress),
+        stakeTogetherWrapper.connect(owner).setStakeTogether(nullAddress),
       ).to.be.revertedWithCustomError(stakeTogetherWrapper, 'StakeTogetherAlreadySet')
 
       // Verify that the StakeTogether address was correctly set

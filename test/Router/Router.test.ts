@@ -11,7 +11,6 @@ import {
   StakeTogether,
   Withdrawals,
 } from '../../typechain'
-import connect from '../utils/connect'
 import { routerFixture } from './Router.fixture'
 
 dotenv.config()
@@ -80,19 +79,19 @@ describe('Router', function () {
       expect(await router.paused()).to.equal(false)
 
       // User without owner role tries to pause the contract - should fail
-      await expect(connect(router, user1).pause()).to.reverted
+      await expect(router.connect(user1).pause()).to.reverted
 
       // The owner pauses the contract
-      await connect(router, owner).pause()
+      await router.connect(owner).pause()
 
       // Check if the contract is paused
       expect(await router.paused()).to.equal(true)
 
       // User without owner role tries to unpause the contract - should fail
-      await expect(connect(router, user1).unpause()).to.reverted
+      await expect(router.connect(user1).unpause()).to.reverted
 
       // The owner unpauses the contract
-      await connect(router, owner).unpause()
+      await router.connect(owner).unpause()
       // Check if the contract is not paused
       expect(await router.paused()).to.equal(false)
     })
@@ -118,7 +117,7 @@ describe('Router', function () {
 
     it('should correctly set the StakeTogether address', async function () {
       // User1 tries to set the StakeTogether address to zero address - should fail
-      await expect(connect(router, owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
+      await expect(router.connect(owner).setStakeTogether(nullAddress)).to.be.revertedWithCustomError(
         airdrop,
         'StakeTogetherAlreadySet',
       )
@@ -148,7 +147,7 @@ describe('Router', function () {
     describe('setBunkerMode', function () {
       it('should set bunkermode to true when called by admin', async function () {
         // Admin sets bunkermode to true
-        await connect(router, owner).setBunkerMode(true)
+        await router.connect(owner).setBunkerMode(true)
 
         // Retrieve the updated bunkermode value
         const bunkermode = await router.bunkermode()
@@ -157,14 +156,14 @@ describe('Router', function () {
         expect(bunkermode).to.equal(true)
 
         // Check for the SetBunkerMode event emission
-        await expect(connect(router, owner).setBunkerMode(true))
+        await expect(router.connect(owner).setBunkerMode(true))
           .to.emit(router, 'SetBunkerMode')
           .withArgs(true)
       })
 
       it('should revert when called by a non-admin', async function () {
         // A non-admin user tries to set bunkermode - should fail
-        await expect(connect(router, user3).setBunkerMode(true)).to.be.reverted // Replace with the actual error message
+        await expect(router.connect(user3).setBunkerMode(true)).to.be.reverted // Replace with the actual error message
       })
     })
 
@@ -180,7 +179,7 @@ describe('Router', function () {
         }
 
         // Set config by owner
-        await connect(router, owner).setConfig(config)
+        await router.connect(owner).setConfig(config)
 
         // Verify if the configuration was changed correctly
         const updatedConfig = await router.config()
@@ -628,7 +627,7 @@ describe('Router', function () {
         reportNoConsensusMargin: 2,
       }
 
-      await connect(router, owner).setConfig(config)
+      await router.connect(owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
       expect(currentBlockReport).to.equal(56n)
@@ -660,7 +659,7 @@ describe('Router', function () {
       }
 
       // Set config by owner
-      await connect(router, owner).setConfig(config2)
+      await router.connect(owner).setConfig(config2)
 
       await router.connect(user1).submitReport(report)
       await router.connect(user2).submitReport(report)
@@ -718,7 +717,7 @@ describe('Router', function () {
         reportNoConsensusMargin: 0,
       }
 
-      await connect(router, owner).setConfig(config)
+      await router.connect(owner).setConfig(config)
 
       const currentBlockReport = await router.reportBlock()
       expect(currentBlockReport).to.equal(56n)
@@ -790,7 +789,7 @@ describe('Router', function () {
         reportNoConsensusMargin: 1,
       }
 
-      await connect(router, owner).setConfig(config)
+      await router.connect(owner).setConfig(config)
 
       const report1 = {
         reportBlock: 2n,

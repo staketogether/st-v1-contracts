@@ -1,6 +1,6 @@
-// SPDX-FileCopyrightText: 2023 Stake Together Labs <legal@staketogether.org>
+// SPDX-FileCopyrightText: 2024 Together Technology LTD <legal@staketogether.org>
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.22;
+pragma solidity 0.8.25;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
@@ -91,7 +91,6 @@ contract MockStakeTogether is
   /// @param _deposit The address of the deposit contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-
   /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
     address _airdrop,
@@ -171,9 +170,7 @@ contract MockStakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    uint256 _totalSupply = address(this).balance + beaconBalance - withdrawBalance;
-    if (_totalSupply < 1 ether) revert InvalidTotalSupply();
-    return _totalSupply;
+    return address(this).balance + beaconBalance - withdrawBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -245,18 +242,6 @@ contract MockStakeTogether is
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
-  }
-
-  /// @notice Transfers a number of shares to the specified address.
-  /// @param _to The address to transfer to.
-  /// @param _sharesAmount The number of shares to be transferred.
-  /// @return Equivalent amount in wei.
-  function transferShares(
-    address _to,
-    uint256 _sharesAmount
-  ) public nonReentrant whenNotPaused returns (uint256) {
-    _transferShares(msg.sender, _to, _sharesAmount);
-    return weiByShares(_sharesAmount);
   }
 
   /// @notice Internal function to handle the transfer of shares.
@@ -335,6 +320,7 @@ contract MockStakeTogether is
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
     emit MintShares(_to, _sharesAmount);
+    emit Transfer(address(0), _to, weiByShares(_sharesAmount));
   }
 
   /// @notice Internal function to burn shares from a given address.
@@ -346,6 +332,7 @@ contract MockStakeTogether is
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
@@ -697,26 +684,7 @@ contract MockStakeTogether is
     bytes calldata _publicKey,
     bytes calldata _signature,
     bytes32 _depositDataRoot
-  ) external nonReentrant whenNotPaused {
-    validators[_publicKey] = true;
-    _nextValidatorOracle();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit AddValidator(
-      msg.sender,
-      config.validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    deposit.deposit{ value: config.validatorSize }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    _processFeeValidator();
-  }
+  ) external nonReentrant whenNotPaused {}
 
   /*************
    ** Airdrop **
@@ -728,6 +696,7 @@ contract MockStakeTogether is
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
     if (msg.sender != address(airdrop)) revert OnlyAirdrop();
     _transferShares(address(airdrop), _account, _sharesAmount);
+    emit Transfer(address(airdrop), _account, weiByShares(_sharesAmount));
   }
 
   /*****************

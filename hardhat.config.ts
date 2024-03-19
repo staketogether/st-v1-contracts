@@ -1,7 +1,6 @@
 import '@nomicfoundation/hardhat-toolbox'
 import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
-import { HardhatUserConfig } from 'hardhat/config'
 
 import dotenv from 'dotenv'
 import { checkVariables } from './test/utils/env'
@@ -9,12 +8,12 @@ dotenv.config()
 
 checkVariables()
 
-const config: HardhatUserConfig = {
+const config = {
   solidity: {
-    version: '0.8.22',
+    version: '0.8.25',
     overrides: {
       '*': {
-        version: '0.8.22',
+        version: '0.8.25',
       },
     },
     settings: {
@@ -41,50 +40,6 @@ const config: HardhatUserConfig = {
     },
     localhost: {
       url: 'http://127.0.0.1:8545',
-    },
-    hardhat: {
-      accounts: [
-        {
-          privateKey: process.env.ACCOUNT_1_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_2_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_3_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_4_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_5_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_6_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_7_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_8_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_9_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-        {
-          privateKey: process.env.ACCOUNT_10_PRIVATE_KEY as string,
-          balance: '10000000000000000000000',
-        },
-      ],
     },
   },
   etherscan: {
