@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-FileCopyrightText: 2024 Together Technology LTD <legal@staketogether.org>
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.0;
 
 import '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
@@ -55,8 +56,6 @@ contract Adapter is
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender);
 
     deposit = IDepositContract(_deposit);
     bridge = IBridge(_bridge);
