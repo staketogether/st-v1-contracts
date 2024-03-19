@@ -109,6 +109,8 @@ contract StakeTogether is
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
     bridge = IBridge(payable(_bridgeOptimism));
+
+    _mintShares(address(this), 1 ether);
   }
 
   /// @notice Pauses the contract, preventing certain actions.
