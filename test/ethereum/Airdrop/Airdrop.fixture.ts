@@ -13,8 +13,8 @@ import {
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from '../../typechain'
-import { checkVariables } from '../utils/env'
+} from '../../../typechain'
+import { checkVariables } from '../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)

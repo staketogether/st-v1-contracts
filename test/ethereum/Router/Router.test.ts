@@ -10,7 +10,7 @@ import {
   Router,
   StakeTogether,
   Withdrawals,
-} from '../../typechain'
+} from '../../../typechain'
 import { routerFixture } from './Router.fixture'
 
 dotenv.config()

@@ -8,14 +8,16 @@ import {
   MockFlashLoan,
   MockFlashLoan__factory,
   MockRouter__factory,
+  MockStakeTogether,
+  MockStakeTogether__factory,
   Router,
   StakeTogether,
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from '../../typechain'
+} from '../../../typechain'
 
-import { checkVariables } from '../utils/env'
+import { checkVariables } from '../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)
@@ -153,7 +155,6 @@ async function deployStakeTogether(
   const poolSize = ethers.parseEther('32')
 
   const config = {
-    blocksPerDay: 7200n,
     validatorSize: ethers.parseEther('32'),
     poolSize: poolSize + stakeValidatorFee,
     minDepositAmount: ethers.parseEther('0.001'),
@@ -161,11 +162,12 @@ async function deployStakeTogether(
     depositLimit: ethers.parseEther('1000'),
     withdrawalPoolLimit: ethers.parseEther('1000'),
     withdrawalValidatorLimit: ethers.parseEther('1000'),
+    blocksPerDay: 7200n,
     maxDelegations: 64n,
     withdrawDelay: 10n,
     withdrawBeaconDelay: 10n,
     feature: {
-      AddPool: true,
+      AddPool: false,
       Deposit: true,
       WithdrawPool: true,
       WithdrawBeacon: true,
@@ -203,7 +205,27 @@ async function deployStakeTogether(
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
-  return { proxyAddress, implementationAddress, stakeTogetherContract }
+  // Upgrade ST Mock
+
+  const MockStakeTogetherFactory = new MockStakeTogether__factory(owner)
+
+  const mockStakeTogether = await upgrades.upgradeProxy(proxyAddress, MockStakeTogetherFactory)
+
+  await mockStakeTogether.waitForDeployment()
+
+  await mockStakeTogether.initializeV2()
+
+  const mockProxyAddress = await mockStakeTogether.getAddress()
+
+  const mockStakeTogetherContract = mockStakeTogether as unknown as MockStakeTogether
+
+  return {
+    proxyAddress,
+    implementationAddress,
+    stakeTogetherContract,
+    mockProxyAddress,
+    mockStakeTogetherContract,
+  }
 }
 
 async function deployMockFlashLoan(
@@ -248,21 +270,21 @@ export async function configContracts(
     routerContract: Router
   },
 ) {
-  await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(0, airdrop.proxyAddress)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(1, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(2, owner)
+  await stakeTogether.stakeTogetherContract.connect(owner).setFeeAddress(3, owner)
 
-  await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
-  await airdrop.airdropContract.setRouter(router.proxyAddress)
+  await airdrop.airdropContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+  await airdrop.airdropContract.connect(owner).setRouter(router.proxyAddress)
 
-  await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
-  await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
+  await withdrawals.withdrawalsContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+  await withdrawals.withdrawalsContract.connect(owner).setRouter(router.proxyAddress)
 
-  await router.routerContract.setStakeTogether(stakeTogether.proxyAddress)
+  await router.routerContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
 }
 
-export async function stakeTogetherFixture() {
+export async function withdrawalsFixture() {
   checkVariables()
 
   const provider = ethers.provider
@@ -282,32 +304,29 @@ export async function stakeTogetherFixture() {
   ;[owner, user1, user2, user3, user4, user5, user6, user7, user8] = await ethers.getSigners()
 
   // DEPLOY
+
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
   const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
+
   const stakeTogether = await deployStakeTogether(
     owner,
     airdrop.proxyAddress,
     router.proxyAddress,
     withdrawals.proxyAddress,
   )
+
   const { mockFlashLoanContract } = await deployMockFlashLoan(
     owner,
     stakeTogether.proxyAddress,
     stakeTogether.proxyAddress,
-    stakeTogether.proxyAddress,
+    withdrawals.proxyAddress,
   )
 
   await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
-  const ADMIN_ROLE = await stakeTogether.stakeTogetherContract.ADMIN_ROLE()
-  const UPGRADER_ROLE = await stakeTogether.stakeTogetherContract.UPGRADER_ROLE()
-  const POOL_MANAGER_ROLE = await stakeTogether.stakeTogetherContract.POOL_MANAGER_ROLE()
-  const VALIDATOR_ORACLE_ROLE = await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_ROLE()
-  const VALIDATOR_ORACLE_MANAGER_ROLE =
-    await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_MANAGER_ROLE()
-  const VALIDATOR_ORACLE_SENTINEL_ROLE =
-    await stakeTogether.stakeTogetherContract.VALIDATOR_ORACLE_SENTINEL_ROLE()
+  const UPGRADER_ROLE = await withdrawals.withdrawalsContract.UPGRADER_ROLE()
+  const ADMIN_ROLE = await withdrawals.withdrawalsContract.ADMIN_ROLE()
 
   return {
     provider,
@@ -321,20 +340,14 @@ export async function stakeTogetherFixture() {
     user7,
     user8,
     nullAddress,
-    stakeTogether: stakeTogether.stakeTogetherContract,
-    stakeTogetherProxy: stakeTogether.proxyAddress,
-    mockRouter: router.routerContract,
-    mockRouterProxy: router.proxyAddress,
     withdrawals: withdrawals.withdrawalsContract,
     withdrawalsProxy: withdrawals.proxyAddress,
+    stakeTogether: stakeTogether.stakeTogetherContract,
+    stakeTogetherProxy: stakeTogether.proxyAddress,
+    mockStakeTogether: stakeTogether.mockStakeTogetherContract,
+    mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
     mockFlashLoan: mockFlashLoanContract,
-    airdrop: airdrop.airdropContract,
-    router: router.routerContract,
-    ADMIN_ROLE,
     UPGRADER_ROLE,
-    POOL_MANAGER_ROLE,
-    VALIDATOR_ORACLE_ROLE,
-    VALIDATOR_ORACLE_MANAGER_ROLE,
-    VALIDATOR_ORACLE_SENTINEL_ROLE,
+    ADMIN_ROLE,
   }
 }

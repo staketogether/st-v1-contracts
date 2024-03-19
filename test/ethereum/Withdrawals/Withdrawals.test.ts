@@ -10,7 +10,7 @@ import {
   StakeTogether,
   Withdrawals,
   Withdrawals__factory,
-} from '../../typechain'
+} from '../../../typechain'
 import { withdrawalsFixture } from './Withdrawals.fixture'
 
 dotenv.config()

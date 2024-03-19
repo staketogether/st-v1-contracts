@@ -11,7 +11,7 @@ import {
   MockStakeTogether__factory,
   StakeTogether,
   Withdrawals,
-} from '../../typechain'
+} from '../../../typechain'
 import { stakeTogetherFixture } from './StakeTogether.fixture'
 
 dotenv.config()

@@ -11,7 +11,7 @@ import {
   MockAirdrop__factory,
   MockRouter,
   MockStakeTogether,
-} from '../../typechain'
+} from '../../../typechain'
 import { airdropFixture } from './Airdrop.fixture'
 
 dotenv.config()

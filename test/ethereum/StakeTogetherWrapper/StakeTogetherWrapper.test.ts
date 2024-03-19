@@ -9,7 +9,7 @@ import {
   MockStakeTogetherWrapper__factory,
   StakeTogether,
   StakeTogetherWrapper,
-} from '../../typechain'
+} from '../../../typechain'
 import { stakeTogetherWrapperFixture } from './StakeTogetherWrapper.fixture'
 
 dotenv.config()

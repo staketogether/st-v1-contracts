@@ -12,12 +12,14 @@ import {
   MockStakeTogether__factory,
   Router,
   StakeTogether,
+  StakeTogetherWrapper,
+  StakeTogetherWrapper__factory,
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from '../../typechain'
+} from '../../../typechain'
 
-import { checkVariables } from '../utils/env'
+import { checkVariables } from '../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)
@@ -54,6 +56,25 @@ async function deployWithdrawals(owner: HardhatEthersSigner) {
   await withdrawalsContract.connect(owner).grantRole(WITHDRAW_UPGRADER_ROLE, owner)
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
+}
+
+async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
+  const STWrapperFactory = new StakeTogetherWrapper__factory().connect(owner)
+
+  const stWrapper = await upgrades.deployProxy(STWrapperFactory)
+  await stWrapper.waitForDeployment()
+  const proxyAddress = await stWrapper.getAddress()
+  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
+
+  const stWrapperContract = stWrapper as unknown as StakeTogetherWrapper
+
+  const ST_WRAPPER_ADMIN_ROLE = await stWrapperContract.ADMIN_ROLE()
+  const ST_WRAPPER_UPGRADER_ROLE = await stWrapperContract.UPGRADER_ROLE()
+
+  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_ADMIN_ROLE, owner)
+  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_UPGRADER_ROLE, owner)
+
+  return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
 }
 
 async function deployRouter(
@@ -259,6 +280,11 @@ export async function configContracts(
     implementationAddress: string
     stakeTogetherContract: StakeTogether
   },
+  stakeTogetherWrapper: {
+    proxyAddress: string
+    implementationAddress: string
+    stakeTogetherWrapperContract: StakeTogetherWrapper
+  },
   withdrawals: {
     proxyAddress: string
     implementationAddress: string
@@ -282,9 +308,13 @@ export async function configContracts(
   await withdrawals.withdrawalsContract.connect(owner).setRouter(router.proxyAddress)
 
   await router.routerContract.connect(owner).setStakeTogether(stakeTogether.proxyAddress)
+
+  await stakeTogetherWrapper.stakeTogetherWrapperContract
+    .connect(owner)
+    .setStakeTogether(stakeTogether.proxyAddress)
 }
 
-export async function withdrawalsFixture() {
+export async function stakeTogetherWrapperFixture() {
   checkVariables()
 
   const provider = ethers.provider
@@ -315,15 +345,16 @@ export async function withdrawalsFixture() {
     router.proxyAddress,
     withdrawals.proxyAddress,
   )
+  const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
   const { mockFlashLoanContract } = await deployMockFlashLoan(
     owner,
     stakeTogether.proxyAddress,
+    stakeTogetherWrapper.proxyAddress,
     stakeTogether.proxyAddress,
-    withdrawals.proxyAddress,
   )
 
-  await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
+  await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
 
   const UPGRADER_ROLE = await withdrawals.withdrawalsContract.UPGRADER_ROLE()
   const ADMIN_ROLE = await withdrawals.withdrawalsContract.ADMIN_ROLE()
@@ -344,6 +375,8 @@ export async function withdrawalsFixture() {
     withdrawalsProxy: withdrawals.proxyAddress,
     stakeTogether: stakeTogether.stakeTogetherContract,
     stakeTogetherProxy: stakeTogether.proxyAddress,
+    stakeTogetherWrapper: stakeTogetherWrapper.stakeTogetherWrapperContract,
+    stakeTogetherWrapperProxy: stakeTogetherWrapper.proxyAddress,
     mockStakeTogether: stakeTogether.mockStakeTogetherContract,
     mockStakeTogetherProxy: stakeTogether.mockProxyAddress,
     mockFlashLoan: mockFlashLoanContract,
