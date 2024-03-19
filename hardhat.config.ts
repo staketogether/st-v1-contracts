@@ -132,6 +132,14 @@ const config: HardhatUserConfig = {
           browserURL: 'https://optimistic-sepolia.etherscan.io',
         },
       },
+      {
+        chainId: 17000,
+        network: 'holesky',
+        urls: {
+          apiURL: 'https://api-holesky.etherscan.io/api',
+          browserURL: 'https://holesky.etherscan.io',
+        },
+      }
     ],
   },
   sourcify: {
