@@ -13,8 +13,8 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IDepositContract.sol';
 import './interfaces/IAirdrop.sol';
+import './interfaces/IBridge.sol';
 import './interfaces/IRouter.sol';
 import './interfaces/IStakeTogether.sol';
 import './interfaces/IWithdrawals.sol';
@@ -46,11 +46,11 @@ contract StakeTogether is
   uint256 public version; /// Contract version.
 
   IAirdrop public airdrop; /// Airdrop contract instance.
-  IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
+  IBridge public bridge; /// Bridge contract instance
+  address public l1Adapter; /// Address of the L1 adapter contract.
 
-  bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
   uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
 
@@ -87,25 +87,18 @@ contract StakeTogether is
   }
 
   /// @notice Stake Together Pool Initialization
-  /// @param _airdrop The address of the airdrop contract.
-  /// @param _deposit The address of the deposit contract.
-  /// @param _router The address of the router.
-  /// @param _withdrawals The address of the withdrawals contract.
-
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
     address _airdrop,
-    address _deposit,
     address _router,
     address _withdrawals,
-    bytes memory _withdrawalCredentials
+    address _bridgeOptimism
   ) public initializer {
-    __ERC20_init('Stake Together Protocol', 'stpETH');
+    __ERC20_init('Stake Together Protocol restaking ETH', 'stprETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Protocol');
+    __ERC20Permit_init('Stake Together Protocol restaking ETH');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -113,12 +106,9 @@ contract StakeTogether is
     version = 1;
 
     airdrop = IAirdrop(payable(_airdrop));
-    deposit = IDepositContract(_deposit);
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
-    withdrawalCredentials = _withdrawalCredentials;
-
-    _mintShares(address(this), 1 ether);
+    bridge = IBridge(payable(_bridgeOptimism));
   }
 
   /// @notice Pauses the contract, preventing certain actions.
@@ -164,6 +154,14 @@ contract StakeTogether is
     emit SetConfig(_config);
   }
 
+  /// @notice Sets the L1 adapter address.
+  /// @dev Only callable by the admin role.
+  /// @param _l1Adapter Address of the L1 adapter contract.
+  function setL1Adapter(address _l1Adapter) external onlyRole(ADMIN_ROLE) {
+    l1Adapter = _l1Adapter;
+    emit SetL1Adapter(_l1Adapter);
+  }
+
   /************
    ** SHARES **
    ************/
@@ -171,9 +169,7 @@ contract StakeTogether is
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
   function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
-    uint256 _totalSupply = address(this).balance + beaconBalance - withdrawBalance;
-    if (_totalSupply < 1 ether) revert InvalidTotalSupply();
-    return _totalSupply;
+    return address(this).balance + beaconBalance - withdrawBalance;
   }
 
   ///  @notice Calculates the shares amount by wei.
@@ -245,18 +241,6 @@ contract StakeTogether is
     uint256 _sharesToTransfer = sharesByWei(_amount);
     _transferShares(_from, _to, _sharesToTransfer);
     emit Transfer(_from, _to, _amount);
-  }
-
-  /// @notice Transfers a number of shares to the specified address.
-  /// @param _to The address to transfer to.
-  /// @param _sharesAmount The number of shares to be transferred.
-  /// @return Equivalent amount in wei.
-  function transferShares(
-    address _to,
-    uint256 _sharesAmount
-  ) public nonReentrant whenNotPaused returns (uint256) {
-    _transferShares(msg.sender, _to, _sharesAmount);
-    return weiByShares(_sharesAmount);
   }
 
   /// @notice Internal function to handle the transfer of shares.
@@ -335,6 +319,7 @@ contract StakeTogether is
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
     emit MintShares(_to, _sharesAmount);
+    emit Transfer(address(0), _to, weiByShares(_sharesAmount));
   }
 
   /// @notice Internal function to burn shares from a given address.
@@ -346,6 +331,7 @@ contract StakeTogether is
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
@@ -623,7 +609,7 @@ contract StakeTogether is
   function forceNextValidatorOracle() external {
     if (
       !hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) &&
-      !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
+    !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
     ) revert NotAuthorized();
     _nextValidatorOracle();
   }
@@ -688,40 +674,18 @@ contract StakeTogether is
     router.receiveWithdrawEther{ value: diffAmount }();
   }
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
+  /// @notice Requests the addition of a new validator on the L1 network.
+  /// @param _amount The amount for the validator
+  /// @param _minGasLimit The minimum gas limit for the bridge
+  /// @param _extraData The extra data to be sent
   /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external nonReentrant whenNotPaused {
+  function requestAddValidator(uint256 _amount, uint32 _minGasLimit, bytes calldata _extraData) external {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
-    if (validators[_publicKey]) revert ValidatorExists();
-    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
+    if (address(this).balance < _amount) revert InsufficientPoolBalance();
 
-    validators[_publicKey] = true;
-    _nextValidatorOracle();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit AddValidator(
-      msg.sender,
-      config.validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    deposit.deposit{ value: config.validatorSize }(
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    _processFeeValidator();
+    bridge.bridgeETHTo{ value: _amount }(l1Adapter, _minGasLimit, _extraData);
+
+    emit RequestAddValidator(msg.sender, _amount, _minGasLimit, _extraData);
   }
 
   /*************
@@ -734,6 +698,7 @@ contract StakeTogether is
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
     if (msg.sender != address(airdrop)) revert OnlyAirdrop();
     _transferShares(address(airdrop), _account, _sharesAmount);
+    emit Transfer(address(airdrop), _account, weiByShares(_sharesAmount));
   }
 
   /*****************

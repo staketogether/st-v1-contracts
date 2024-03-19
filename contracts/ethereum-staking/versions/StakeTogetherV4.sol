@@ -13,7 +13,7 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import '../interfaces/IDepositContract.sol';
+import "../interfaces/IDepositContract.sol";
 import '../interfaces/IAirdrop.sol';
 import '../interfaces/IRouter.sol';
 import '../interfaces/IStakeTogether.sol';
@@ -23,7 +23,7 @@ import '../interfaces/IWithdrawals.sol';
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 /// @custom:security-contact security@staketogether.org
-contract StakeTogetherV2 is
+contract StakeTogetherV4 is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -87,8 +87,8 @@ contract StakeTogetherV2 is
   }
 
   /// @notice Stake Together Pool Initialization
-  function initializeV2() public onlyRole(UPGRADER_ROLE) {
-    version = 2;
+  function initializeV4() public onlyRole(UPGRADER_ROLE) {
+    version = 4;
   }
 
   /// @notice Pauses the contract, preventing certain actions.
@@ -692,6 +692,7 @@ contract StakeTogetherV2 is
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
     if (msg.sender != address(airdrop)) revert OnlyAirdrop();
     _transferShares(address(airdrop), _account, _sharesAmount);
+    emit Transfer(address(airdrop), _account, weiByShares(_sharesAmount));
   }
 
   /*****************
@@ -823,14 +824,5 @@ contract StakeTogetherV2 is
   function _processFeeValidator() private {
     emit ProcessStakeValidator(getFeeAddress(FeeRole.Operator), fees[FeeType.Validator].value);
     Address.sendValue(payable(getFeeAddress(FeeRole.Operator)), fees[FeeType.Validator].value);
-  }
-
-  /// @notice Temp Function to Emit Non Processed Transfer Events
-  function emitTransfer(
-    address _from,
-    address _to,
-    uint256 _amount
-  ) external whenPaused onlyRole(ADMIN_ROLE) {
-    emit Transfer(_from, _to, _amount);
   }
 }

@@ -1,6 +1,6 @@
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ethers, network, upgrades } from 'hardhat'
-import { StakeTogetherV3__factory } from '../typechain'
+import { StakeTogetherV3__factory } from '../../typechain'
 
 const proxyAddress = '0x218dE5E6324c5351C3a2bf0c40d76f585B8dE04d'
 

@@ -13,17 +13,17 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import '../interfaces/IDepositContract.sol';
-import '../interfaces/IAirdrop.sol';
-import '../interfaces/IRouter.sol';
-import '../interfaces/IStakeTogether.sol';
-import '../interfaces/IWithdrawals.sol';
+import "./interfaces/IDepositContract.sol";
+import './interfaces/IAirdrop.sol';
+import './interfaces/IRouter.sol';
+import './interfaces/IStakeTogether.sol';
+import './interfaces/IWithdrawals.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 /// @custom:security-contact security@staketogether.org
-contract StakeTogetherV3 is
+contract StakeTogether is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -87,8 +87,38 @@ contract StakeTogetherV3 is
   }
 
   /// @notice Stake Together Pool Initialization
-  function initializeV3() public onlyRole(UPGRADER_ROLE) {
-    version = 3;
+  /// @param _airdrop The address of the airdrop contract.
+  /// @param _deposit The address of the deposit contract.
+  /// @param _router The address of the router.
+  /// @param _withdrawals The address of the withdrawals contract.
+
+  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
+  function initialize(
+    address _airdrop,
+    address _deposit,
+    address _router,
+    address _withdrawals,
+    bytes memory _withdrawalCredentials
+  ) public initializer {
+    __ERC20_init('Stake Together Protocol', 'stpETH');
+    __ERC20Burnable_init();
+    __Pausable_init();
+    __ReentrancyGuard_init();
+    __AccessControl_init();
+    __ERC20Permit_init('Stake Together Protocol');
+    __UUPSUpgradeable_init();
+
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+    version = 4;
+
+    airdrop = IAirdrop(payable(_airdrop));
+    deposit = IDepositContract(_deposit);
+    router = IRouter(payable(_router));
+    withdrawals = IWithdrawals(payable(_withdrawals));
+    withdrawalCredentials = _withdrawalCredentials;
+
+    _mintShares(address(this), 1 ether);
   }
 
   /// @notice Pauses the contract, preventing certain actions.
@@ -581,7 +611,7 @@ contract StakeTogetherV3 is
   function forceNextValidatorOracle() external {
     if (
       !hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) &&
-      !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
+    !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
     ) revert NotAuthorized();
     _nextValidatorOracle();
   }
@@ -692,6 +722,7 @@ contract StakeTogetherV3 is
   function claimAirdrop(address _account, uint256 _sharesAmount) external whenNotPaused {
     if (msg.sender != address(airdrop)) revert OnlyAirdrop();
     _transferShares(address(airdrop), _account, _sharesAmount);
+    emit Transfer(address(airdrop), _account, weiByShares(_sharesAmount));
   }
 
   /*****************

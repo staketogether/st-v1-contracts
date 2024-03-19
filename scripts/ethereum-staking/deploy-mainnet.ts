@@ -2,7 +2,7 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { checkVariables } from '../test/utils/env'
+import { checkVariables } from '../../test/utils/env'
 import {
   Airdrop,
   Airdrop__factory,
@@ -14,7 +14,7 @@ import {
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from '../typechain'
+} from '../../typechain'
 
 dotenv.config()
 

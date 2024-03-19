@@ -2,7 +2,7 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { checkVariables } from '../test/utils/env'
+import { checkVariables } from '../../test/utils/env'
 import {
   Airdrop,
   Airdrop__factory,
@@ -14,11 +14,11 @@ import {
   StakeTogether__factory,
   Withdrawals,
   Withdrawals__factory,
-} from '../typechain'
+} from '../../typechain'
 
 dotenv.config()
 
-const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
+const depositAddress = String(process.env.HOLESKY_DEPOSIT_ADDRESS)
 
 export async function deploy() {
   checkVariables()
@@ -126,7 +126,7 @@ export async function deployRouter(
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
   await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
 
-  await routerContract.setConfig(config)
+  await routerContract.connect(owner).setConfig(config)
 
   return { proxyAddress, implementationAddress, routerContract }
 }
@@ -149,6 +149,7 @@ export async function deployStakeTogether(
   }
 
   const withdrawalsCredentials = convertToWithdrawalAddress(routerContract)
+  console.log('Withdrawals credentials:', withdrawalsCredentials)
 
   if (withdrawalsCredentials.length !== 66) {
     throw new Error('Withdrawals credentials are not the correct length')
@@ -205,7 +206,7 @@ export async function deployStakeTogether(
     },
   }
 
-  await stakeTogetherContract.setConfig(config)
+  await stakeTogetherContract.connect(owner).setConfig(config)
 
   // Airdrop,
   // Operator,
@@ -213,7 +214,7 @@ export async function deployStakeTogether(
   // Sender
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(0n, stakeEntry, [
+  await stakeTogetherContract.connect(owner).setFee(0n, stakeEntry, [
     ethers.parseEther('0.6'),
     0n,
     ethers.parseEther('0.4'),
@@ -221,7 +222,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(1n, stakeRewardsFee, [
+  await stakeTogetherContract.connect(owner).setFee(1n, stakeRewardsFee, [
     ethers.parseEther('0.444'),
     ethers.parseEther('0.278'),
     ethers.parseEther('0.278'),
@@ -229,10 +230,10 @@ export async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract.connect(owner).setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract.connect(owner).setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('0.00001') })
 
@@ -316,16 +317,16 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network goerli ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network goerli ${stakeTogetherWrapperImplementation}`)
+  console.log(`npx hardhat verify --network holesky ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherImplementation} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherWrapperProxy} &&`)
+  console.log(`npx hardhat verify --network holesky ${stakeTogetherWrapperImplementation}`)
 }
 
 deploy().catch((error) => {

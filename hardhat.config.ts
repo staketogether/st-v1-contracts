@@ -1,13 +1,24 @@
 import '@nomicfoundation/hardhat-toolbox'
 import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
-import { HardhatUserConfig } from 'hardhat/config'
+import { HardhatUserConfig, task } from 'hardhat/config'
 
 import dotenv from 'dotenv'
 import { checkVariables } from './test/utils/env'
+import deployEthSepolia from './scripts/ethereum-restaking/deploy-eth-sepolia'
+import configureEthSepolia from './scripts/ethereum-restaking/configure-eth-sepolia'
+import deployOpSepolia from './scripts/ethereum-restaking/deploy-op-sepolia'
+import configureOpSepolia from './scripts/ethereum-restaking/configure-op-sepolia'
+import eigenLayerTestnet from './scripts/ethereum-restaking/deploy-and-configure'
 dotenv.config()
 
 checkVariables()
+
+const deployEthSepoliaTask = deployEthSepolia
+const configureEthSepoliaTask = configureEthSepolia
+const deployOpSepoliaTask = deployOpSepolia
+const configureOpSepoliaTask = configureOpSepolia
+const eigenLayerTestnetTask = eigenLayerTestnet
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -34,10 +45,25 @@ const config: HardhatUserConfig = {
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
       chainId: 1,
     },
-    goerli: {
-      url: `https://goerli.infura.io/v3/${process.env.GOERLI_INFURA_API_KEY}`,
+    optimism: {
+      url: `https://optimism-mainnet.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 5,
+      chainId: 10,
+    },
+    holesky: {
+      url: `${process.env.HOLESKY_RPC_URL}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 17000,
+    },
+    sepolia: {
+      url: `https://sepolia.infura.io/v3/${process.env.SEPOLIA_INFURA_API_KEY}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 11155111,
+    },
+    optimismSepolia: {
+      url: `https://optimism-sepolia.infura.io/v3/${process.env.OP_SEPOLIA_INFURA_API_KEY}`,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
+      chainId: 11155420,
     },
     localhost: {
       url: 'http://127.0.0.1:8545',
@@ -89,6 +115,32 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY as string,
+    customChains: [
+      {
+        chainId: 10,
+        network: 'optimism',
+        urls: {
+          apiURL: 'https://api-optimistic.etherscan.io/api',
+          browserURL: 'https://optimistic.etherscan.io',
+        },
+      },
+      {
+        chainId: 11155420,
+        network: 'optimismSepolia',
+        urls: {
+          apiURL: 'https://api-sepolia-optimistic.etherscan.io/api',
+          browserURL: 'https://optimistic-sepolia.etherscan.io',
+        },
+      },
+      {
+        chainId: 17000,
+        network: 'holesky',
+        urls: {
+          apiURL: 'https://api-holesky.etherscan.io/api',
+          browserURL: 'https://holesky.etherscan.io',
+        },
+      }
+    ],
   },
   sourcify: {
     enabled: false,
