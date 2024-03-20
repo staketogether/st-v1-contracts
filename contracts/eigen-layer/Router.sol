@@ -35,6 +35,7 @@ contract Router is
   uint256 public version; /// Contract version.
 
   IAirdrop public airdrop; /// Instance of the Airdrop contract.
+  address public bridge; /// Address of the bridge contract.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
@@ -68,7 +69,7 @@ contract Router is
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external initializer {
+  function initialize(address _airdrop, address _bridge, address _withdrawals) external initializer {
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
@@ -79,6 +80,7 @@ contract Router is
     version = 1;
 
     airdrop = IAirdrop(payable(_airdrop));
+    bridge = _bridge;
     withdrawals = IWithdrawals(payable(_withdrawals));
 
     reportBlock = block.number;
@@ -107,7 +109,11 @@ contract Router is
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
   receive() external payable {
-    emit ReceiveEther(msg.value);
+    if (msg.sender != address(bridge)) {
+      emit ReceiveEther(msg.value);
+    } else {
+      emit ReceiveBridgeEther(msg.value);
+    }
   }
 
   /// @notice Allows the Stake Together to send ETH to the contract.

@@ -78,9 +78,6 @@ interface IStakeTogether {
   /// @notice Thrown if there is not enough pool balance.
   error NotEnoughPoolBalance();
 
-  /// @notice Thrown if there is not enough balance on pool.
-  error NotEnoughBalanceOnPool();
-
   /// @notice Thrown if the pool is not found.
   error PoolNotFound();
 
@@ -92,9 +89,6 @@ interface IStakeTogether {
 
   /// @notice Thrown if the router balance is greater than the withdrawal balance.
   error RouterAlreadyHaveBalance();
-
-  /// @notice Thrown if the router balance is lower than the withdrawal balance.
-  error ShouldAnticipateWithdraw();
 
   /// @notice Thrown if the delegations length should be zero.
   error ShouldBeZeroLength();
@@ -128,9 +122,6 @@ interface IStakeTogether {
 
   /// @notice Thrown if the amount is not greater than the pool balance.
   error WithdrawFromPool();
-
-  /// @notice Thrown if the validator already exists.
-  error ValidatorExists();
 
   /// @notice Configuration for the StakeTogether protocol.
   struct Config {
@@ -218,22 +209,6 @@ interface IStakeTogether {
   /// @param sharesAmount The amount of shares burned
   event BurnShares(address indexed account, uint256 sharesAmount);
 
-  /// @notice Emitted when a validator is created
-  /// @param oracle The address of the oracle
-  /// @param amount The amount for the validator
-  /// @param publicKey The public key of the validator
-  /// @param withdrawalCredentials The withdrawal credentials
-  /// @param signature The signature
-  /// @param depositDataRoot The deposit data root
-  event AddValidator(
-    address indexed oracle,
-    uint256 amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
-
   /// @notice Emitted when a base deposit is made
   /// @param to The address to deposit to
   /// @param amount The deposit amount
@@ -288,6 +263,13 @@ interface IStakeTogether {
   /// @notice Emitted when Ether is received
   /// @param amount The amount of Ether received
   event ReceiveEther(uint256 indexed amount);
+
+  /// @notice Emitted when a validator creation is requested on the L1 network
+  /// @param oracle The address of the oracle
+  /// @param amount The amount for the validator
+  /// @param minGasLimit The minimum gas limit for the bridge
+  /// @param extraData The extra data to be sent
+  event RequestAddValidator(address indexed oracle, uint256 amount, uint32 minGasLimit, bytes extraData);
 
   /// @notice Emitted when a pool is removed
   /// @param pool The address of the pool
@@ -532,16 +514,11 @@ interface IStakeTogether {
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawBeacon() external;
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
+  /// @notice Requests the addition of a new validator on the L1 network.
+  /// @param _minGasLimit The minimum gas limit for the bridge
+  /// @param _extraData The extra data to be sent
   /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external;
+  function requestAddValidator(uint32 _minGasLimit, bytes calldata _extraData) external;
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.

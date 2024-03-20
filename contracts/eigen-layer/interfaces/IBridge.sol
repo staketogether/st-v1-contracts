@@ -3,5 +3,5 @@
 pragma solidity 0.8.25;
 
 interface IBridge {
-  function sendEthTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) external payable;
+  function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) external payable;
 }

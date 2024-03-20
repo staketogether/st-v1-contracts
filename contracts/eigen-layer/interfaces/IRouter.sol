@@ -154,6 +154,10 @@ interface IRouter {
 
   /// @notice Emitted when the contract receives ether.
   /// @param amount The amount of ether received.
+  event ReceiveBridgeEther(uint256 indexed amount);
+
+  /// @notice Emitted when the contract receives ether.
+  /// @param amount The amount of ether received.
   event ReceiveEther(uint256 indexed amount);
 
   /// @notice Emitted when Ether is received from Stake Together
