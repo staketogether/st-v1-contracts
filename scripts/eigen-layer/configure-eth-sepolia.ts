@@ -2,10 +2,10 @@ import { checkGeneralVariables } from '../../test/utils/env'
 import { ethers } from 'hardhat'
 
 export default async function configureEthSepolia() {
-  checkDeployVariables()
+  checkConfigVariables()
 
   await configureL1Adapter()
-  console.log('\n🔷 All ST Contracts on L1 Configured!\n')
+  console.log('\n🔷 All ST Eigen Layer Contracts on L1 Configured!\n')
 }
 
 async function configureL1Adapter() {
@@ -13,9 +13,11 @@ async function configureL1Adapter() {
 
   const tx = await ethAdapter.setL2Router(process.env.OP_SEPOLIA_L2_ROUTER_ADDRESS as string)
   await tx.wait()
+
+  console.log('\n🔷 All ST Eigen Layer Contracts on L1 Configured!\n')
 }
 
-function checkDeployVariables() {
+function checkConfigVariables() {
   checkGeneralVariables()
   const missingVariables = []
 

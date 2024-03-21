@@ -50,6 +50,7 @@
     "eth-mainnet:upgrade:st-v4": "npx hardhat run scripts/ethereum/upgrade-st-v4.ts --network eth-mainnet",
     "eth-mainnet:verify": "npx hardhat verify --network eth-mainnet",
     "el:op-sepolia:deploy": "npx hardhat run scripts/eigen-layer/deploy-op-sepolia.ts --network op-sepolia",
+    "el:op-sepolia:verify": "npx hardhat verify --network op-sepolia",
     "el:eth-sepolia:deploy": "npx hardhat run scripts/eigen-layer/deploy-eth-sepolia.ts --network sepolia",
     "el:eth-sepolia:verify": "npx hardhat verify --network eth-sepolia",
     "test": "npx hardhat test --typecheck",
