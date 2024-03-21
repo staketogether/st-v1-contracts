@@ -1,12 +1,12 @@
 import { ethers, network, upgrades } from 'hardhat'
-import { checkVariables } from '../../test/utils/env'
+import { checkGeneralVariables } from '../../test/utils/env'
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { Adapter } from '../../typechain/contracts/eigen-layer'
 import { Adapter__factory } from '../../typechain/factories/contracts/eigen-layer'
 
 export async function deploy() {
-  checkVariables()
+  checkDeployVariables()
   const [owner] = await ethers.getSigners()
 
   const withdrawalsCredentials = process.env.SEPOLIA_WITHDRAWAL_ADDRESS as string
@@ -48,8 +48,8 @@ async function deployEthereumAdapter(
   const OptimismAdapterFactory = new Adapter__factory().connect(owner)
 
   const optimismAdapter = await upgrades.deployProxy(OptimismAdapterFactory, [
-    depositAddress,
     bridgeAddress,
+    depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
@@ -82,4 +82,17 @@ async function verifyContracts(
 
   console.log(`npx hardhat verify --network sepolia ${adapterProxy} &&`)
   console.log(`npx hardhat verify --network sepolia ${adapterImplementation} &&`)
+}
+
+function checkDeployVariables() {
+  checkGeneralVariables()
+  const missingVariables = []
+
+  if (!process.env.SEPOLIA_WITHDRAWAL_ADDRESS) missingVariables.push('SEPOLIA_WITHDRAWAL_ADDRESS')
+  if (!process.env.SEPOLIA_DEPOSIT_ADDRESS) missingVariables.push('SEPOLIA_DEPOSIT_ADDRESS')
+  if (!process.env.SEPOLIA_BRIDGE_ADDRESS) missingVariables.push('SEPOLIA_BRIDGE_ADDRESS')
+
+  if (missingVariables.length > 0) {
+    throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
+  }
 }

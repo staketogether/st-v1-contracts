@@ -2,7 +2,7 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { checkVariables } from '../../test/utils/env'
+import { checkGeneralVariables } from '../../test/utils/env'
 import {
   Airdrop,
   Airdrop__factory,
@@ -18,10 +18,10 @@ import {
 
 dotenv.config()
 
-const depositAddress = String(process.env.GOERLI_DEPOSIT_ADDRESS)
+const depositAddress = String(process.env.HOLESKY_DEPOSIT_ADDRESS)
 
 export async function deploy() {
-  checkVariables()
+  checkGeneralVariables()
 
   const [owner] = await ethers.getSigners()
 

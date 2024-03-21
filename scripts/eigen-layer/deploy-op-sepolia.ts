@@ -2,7 +2,7 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { checkVariables } from '../../test/utils/env'
+import { checkGeneralVariables } from '../../test/utils/env'
 import { Airdrop, Router, StakeTogether, Withdrawals } from '../../typechain/contracts/eigen-layer'
 import {
   Airdrop__factory,
@@ -14,8 +14,7 @@ import {
 dotenv.config()
 
 export async function deploy() {
-  checkVariables()
-
+  checkDeployVariables()
   const bridgeContract = String(process.env.OP_SEPOLIA_BRIDGE_ADDRESS)
   const l1Adapter = String(process.env.OP_SEPOLIA_L1_ADAPTER_ADDRESS)
 
@@ -295,6 +294,18 @@ async function verifyContracts(
   console.log(
     `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/StakeTogether.sol:StakeTogether ${stakeTogetherImplementation} &&`,
   )
+}
+
+function checkDeployVariables() {
+  checkGeneralVariables()
+  const missingVariables = []
+
+  if (!process.env.OP_SEPOLIA_BRIDGE_ADDRESS) missingVariables.push('OP_SEPOLIA_BRIDGE_ADDRESS')
+  if (!process.env.OP_SEPOLIA_L1_ADAPTER_ADDRESS) missingVariables.push('OP_SEPOLIA_L1_ADAPTER_ADDRESS')
+
+  if (missingVariables.length > 0) {
+    throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
+  }
 }
 
 deploy().catch((error) => {

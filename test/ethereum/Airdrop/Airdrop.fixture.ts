@@ -14,7 +14,7 @@ import {
   Withdrawals,
   Withdrawals__factory,
 } from '../../../typechain'
-import { checkVariables } from '../../utils/env'
+import { checkGeneralVariables } from '../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)
@@ -278,7 +278,7 @@ export async function configContracts(
 }
 
 export async function airdropFixture() {
-  checkVariables()
+  checkGeneralVariables()
 
   const provider = ethers.provider
 

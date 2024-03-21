@@ -3,10 +3,10 @@ import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
 
 import dotenv from 'dotenv'
-import { checkVariables } from './test/utils/env'
+import { checkGeneralVariables } from './test/utils/env'
 dotenv.config()
 
-checkVariables()
+checkGeneralVariables()
 
 const config = {
   solidity: {
@@ -34,6 +34,10 @@ const config = {
     },
     'eth-holesky': {
       url: process.env.CS_RPC_ETH_HOLESKY,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+    },
+    'eth-sepolia': {
+      url: process.env.CS_RPC_ETH_SEPOLIA,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'op-mainnet': {
@@ -70,6 +74,14 @@ const config = {
         urls: {
           apiURL: 'https://holesky.etherscan.io/api',
           browserURL: 'https://holesky.etherscan.io/',
+        },
+      },
+      {
+        network: 'eth-sepolia',
+        chainId: 11155421,
+        urls: {
+          apiURL: 'https://sepolia.etherscan.io/api',
+          browserURL: 'https://sepolia.etherscan.io/',
         },
       },
       {
