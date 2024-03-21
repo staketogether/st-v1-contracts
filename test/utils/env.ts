@@ -14,6 +14,7 @@ export function checkVariables() {
   if (!process.env.CS_RPC_OP_SEPOLIA) missingVariables.push('CS_RPC_OP_SEPOLIA')
 
   if (!process.env.ETHERSCAN_API_KEY) missingVariables.push('ETHERSCAN_API_KEY')
+  if (!process.env.OP_ETHERSCAN_API_KEY) missingVariables.push('OP_ETHERSCAN_API_KEY')
 
   if (missingVariables.length > 0) {
     throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)

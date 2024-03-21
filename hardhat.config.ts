@@ -49,7 +49,12 @@ const config = {
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY as string,
+    apiKey: {
+      'eth-mainnet': process.env.ETHERSCAN_API_KEY as string,
+      'eth-holesky': process.env.ETHERSCAN_API_KEY as string,
+      'op-mainnet': process.env.OP_ETHERSCAN_API_KEY as string,
+      'op-sepolia': process.env.OP_ETHERSCAN_API_KEY as string,
+    },
     customChains: [
       {
         network: 'eth-mainnet',

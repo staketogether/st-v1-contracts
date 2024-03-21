@@ -90,13 +90,11 @@ contract StakeTogether is
   /// @param _airdrop The address of the airdrop contract.
   /// @param _bridge The address of the bridge contract.
   /// @param _router The address of the router.
-  /// @param _l1Adapter The address of the l1 adapter contract.
   /// @param _withdrawals The address of the withdrawals contract.
   function initialize(
     address _airdrop,
     address _bridge,
     address _router,
-    address _l1Adapter,
     address _withdrawals
   ) public initializer {
     __ERC20_init('Stake Together Restaking', 'strETH');
@@ -115,7 +113,6 @@ contract StakeTogether is
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
     bridge = IBridge(_bridge);
-    l1Adapter = _l1Adapter;
 
     _mintShares(address(this), 1 ether);
   }
@@ -161,6 +158,16 @@ contract StakeTogether is
     if (_config.poolSize < config.validatorSize) revert InvalidSize();
     config = _config;
     emit SetConfig(_config);
+  }
+
+  /// @notice Sets the address for the L1Adapter contract.
+  /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
+  /// @param _l1adapter The address of the StakeTogether contract.
+  function setL1Adapter(address _l1adapter) external onlyRole(ADMIN_ROLE) {
+    if (address(_l1adapter) != address(0)) revert L1AdapterAlreadySet();
+    if (_l1adapter == address(0)) revert ZeroAddress();
+    l1Adapter = _l1adapter;
+    emit SetAdapter(_l1adapter);
   }
 
   /************

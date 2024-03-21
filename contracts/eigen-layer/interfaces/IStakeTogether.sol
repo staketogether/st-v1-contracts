@@ -87,6 +87,9 @@ interface IStakeTogether {
   /// @notice Thrown if the listed in anti-fraud.
   error ListedInAntiFraud();
 
+  /// @notice Thrown if the adapter address already set.
+  error L1AdapterAlreadySet();
+
   /// @notice Thrown if the router balance is greater than the withdrawal balance.
   error RouterAlreadyHaveBalance();
 
@@ -293,6 +296,10 @@ interface IStakeTogether {
   /// @param config The configuration struct
   event SetConfig(Config indexed config);
 
+  /// @notice Emitted when the L1 adapter is set
+  /// @param adapter The address of the adapter
+  event SetAdapter(address indexed adapter);
+
   /// @notice Emitted when a fee is set
   /// @param feeType The type of fee being set
   /// @param value The value of the fee
@@ -367,6 +374,11 @@ interface IStakeTogether {
   /// @dev Only callable by the admin role.
   /// @param _config Configuration settings to be applied.
   function setConfig(Config memory _config) external;
+
+  /// @notice Sets the address for the L1Adapter contract.
+  /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
+  /// @param _l1adapter The address of the StakeTogether contract.
+  function setL1Adapter(address _l1adapter) external;
 
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.

@@ -31,17 +31,16 @@ export async function deploy() {
     airdrop.proxyAddress,
     bridgeContract,
     router.proxyAddress,
-    l1Adapter,
     withdrawals.proxyAddress,
   )
 
   // CONFIG
 
-  await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
+  await configContracts(owner, airdrop, l1Adapter, stakeTogether, withdrawals, router)
 
   // LOG
 
-  console.log('\n🔷 All ST Contracts Deployed!\n')
+  console.log('\n🔷 All ST Eigen Layer Contracts Deployed!\n')
 
   verifyContracts(
     airdrop.proxyAddress,
@@ -136,7 +135,6 @@ export async function deployStakeTogether(
   airdropContract: string,
   bridgeContract: string,
   routerContract: string,
-  l1AdapterContract: string,
   withdrawalsContract: string,
 ) {
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
@@ -145,7 +143,6 @@ export async function deployStakeTogether(
     airdropContract,
     bridgeContract,
     routerContract,
-    l1AdapterContract,
     withdrawalsContract,
   ])
 
@@ -229,6 +226,7 @@ export async function configContracts(
     implementationAddress: string
     airdropContract: Airdrop
   },
+  l1AdapterContract: string,
   stakeTogether: {
     proxyAddress: string
     implementationAddress: string
@@ -257,6 +255,8 @@ export async function configContracts(
   await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
   await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
   await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
+
+  // await stakeTogether.stakeTogetherContract.setL1Adapter(l1AdapterContract)
 }
 
 async function verifyContracts(
@@ -269,16 +269,32 @@ async function verifyContracts(
   withdrawalsProxy: string,
   withdrawalsImplementation: string,
 ) {
-  console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
+  console.log('\nRUN COMMAND TO VERIFY ON OP ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network op-sepolia ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network op-sepolia ${stakeTogetherImplementation} &&`)
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Airdrop.sol:Airdrop ${airdropProxy} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Airdrop.sol:Airdrop ${airdropImplementation} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Withdrawals.sol:Withdrawals ${withdrawalsProxy} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Withdrawals.sol:Withdrawals ${withdrawalsImplementation} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Router.sol:Router ${routerProxy} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Router.sol:Router ${routerImplementation} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/StakeTogether.sol:StakeTogether ${stakeTogetherProxy} &&`,
+  )
+  console.log(
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/StakeTogether.sol:StakeTogether ${stakeTogetherImplementation} &&`,
+  )
 }
 
 deploy().catch((error) => {

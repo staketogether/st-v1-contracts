@@ -47,7 +47,6 @@ contract MockStakeTogether is
   uint256 public version; /// Contract version.
 
   IAirdrop public airdrop; /// Airdrop contract instance.
-  IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
   IBridge public bridge; /// Bridge contract instance
@@ -90,23 +89,21 @@ contract MockStakeTogether is
 
   /// @notice Stake Together Pool Initialization
   /// @param _airdrop The address of the airdrop contract.
-  /// @param _deposit The address of the deposit contract.
+  /// @param _bridge The address of the bridge contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
   function initialize(
     address _airdrop,
     address _bridge,
-    address _deposit,
     address _router,
-    address _l1Adapter,
     address _withdrawals
   ) public initializer {
-    __ERC20_init('Stake Together Protocol', 'stpETH');
+    __ERC20_init('Stake Together Restaking', 'strETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Protocol');
+    __ERC20Permit_init('Stake Together Restaking');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -114,11 +111,9 @@ contract MockStakeTogether is
     version = 1;
 
     airdrop = IAirdrop(payable(_airdrop));
-    deposit = IDepositContract(_deposit);
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
     bridge = IBridge(_bridge);
-    l1Adapter = _l1Adapter;
 
     _mintShares(address(this), 1 ether);
   }
@@ -164,6 +159,16 @@ contract MockStakeTogether is
     if (_config.poolSize < config.validatorSize) revert InvalidSize();
     config = _config;
     emit SetConfig(_config);
+  }
+
+  /// @notice Sets the address for the L1Adapter contract.
+  /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
+  /// @param _l1adapter The address of the StakeTogether contract.
+  function setL1Adapter(address _l1adapter) external onlyRole(ADMIN_ROLE) {
+    if (address(_l1adapter) != address(0)) revert L1AdapterAlreadySet();
+    if (_l1adapter == address(0)) revert ZeroAddress();
+    l1Adapter = _l1adapter;
+    emit SetAdapter(_l1adapter);
   }
 
   /************
