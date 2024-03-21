@@ -68,6 +68,7 @@ contract Router is
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
+  /// @param _bridge The address of the Bridge contract.
   /// @param _withdrawals The address of the Withdrawals contract.
   function initialize(address _airdrop, address _bridge, address _withdrawals) external initializer {
     __Pausable_init();

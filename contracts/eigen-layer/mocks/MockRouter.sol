@@ -35,6 +35,7 @@ contract MockRouter is
   uint256 public version; /// Contract version.
 
   IAirdrop public airdrop; /// Instance of the Airdrop contract.
+  address public bridge; /// Address of the bridge contract.
   IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
   IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
@@ -67,8 +68,9 @@ contract MockRouter is
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
+  /// @param _bridge The address of the Bridge contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external initializer {
+  function initialize(address _airdrop, address _bridge, address _withdrawals) external initializer {
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
@@ -79,6 +81,7 @@ contract MockRouter is
     version = 1;
 
     airdrop = IAirdrop(payable(_airdrop));
+    bridge = _bridge;
     withdrawals = IWithdrawals(payable(_withdrawals));
 
     reportBlock = block.number;
@@ -107,7 +110,11 @@ contract MockRouter is
   /// @notice Receive ether to the contract.
   /// @dev An event is emitted with the amount of ether received.
   receive() external payable {
-    emit ReceiveEther(msg.value);
+    if (msg.sender != address(bridge)) {
+      emit ReceiveEther(msg.value);
+    } else {
+      emit ReceiveBridgeEther(msg.value);
+    }
   }
 
   /// @notice Allows the Stake Together to send ETH to the contract.
@@ -192,7 +199,10 @@ contract MockRouter is
     if (!reportOracles[_account]) revert OracleNotExists();
     _revokeRole(ORACLE_REPORT_ROLE, _account);
     reportOracles[_account] = false;
-    totalReportOracles--;
+    reportOraclesBlacklist[_account] = false;
+    if (!reportOraclesBlacklist[_account]) {
+      totalReportOracles--;
+    }
     emit RemoveReportOracle(_account);
   }
 
@@ -216,6 +226,7 @@ contract MockRouter is
     if (!reportOracles[_account]) revert OracleNotExists();
     if (!reportOraclesBlacklist[_account]) revert OracleNotBlacklisted();
     reportOraclesBlacklist[_account] = false;
+
     totalReportOracles++;
     emit UnBlacklistReportOracle(_account);
   }

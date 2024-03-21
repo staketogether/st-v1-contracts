@@ -13,7 +13,6 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IDepositContract.sol';
 import './interfaces/IAirdrop.sol';
 import './interfaces/IBridge.sol';
 import './interfaces/IRouter.sol';
@@ -47,7 +46,6 @@ contract StakeTogether is
   uint256 public version; /// Contract version.
 
   IAirdrop public airdrop; /// Airdrop contract instance.
-  IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
   IBridge public bridge; /// Bridge contract instance
@@ -90,23 +88,23 @@ contract StakeTogether is
 
   /// @notice Stake Together Pool Initialization
   /// @param _airdrop The address of the airdrop contract.
-  /// @param _deposit The address of the deposit contract.
+  /// @param _bridge The address of the bridge contract.
   /// @param _router The address of the router.
+  /// @param _l1Adapter The address of the l1 adapter contract.
   /// @param _withdrawals The address of the withdrawals contract.
   function initialize(
     address _airdrop,
     address _bridge,
-    address _deposit,
     address _router,
     address _l1Adapter,
     address _withdrawals
   ) public initializer {
-    __ERC20_init('Stake Together Protocol', 'stpETH');
+    __ERC20_init('Stake Together Restaking', 'strETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Protocol');
+    __ERC20Permit_init('Stake Together Restaking');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -114,7 +112,6 @@ contract StakeTogether is
     version = 1;
 
     airdrop = IAirdrop(payable(_airdrop));
-    deposit = IDepositContract(_deposit);
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
     bridge = IBridge(_bridge);

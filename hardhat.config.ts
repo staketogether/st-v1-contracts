@@ -29,16 +29,20 @@ const config = {
   },
   networks: {
     'eth-mainnet': {
-      url: `${process.env.CS_RPC_ETH_MAINNET}`,
+      url: process.env.CS_RPC_ETH_MAINNET,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'eth-holesky': {
-      url: `${process.env.CS_RPC_ETH_HOLESKY}`,
+      url: process.env.CS_RPC_ETH_HOLESKY,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'op-mainnet': {
-      url: `${process.env.CS_RPC_OP_MAINNET}`,
+      url: process.env.CS_RPC_OP_MAINNET,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'op-sepolia': {
-      url: `${process.env.CS_RPC_OP_SEPOLIA}`,
+      url: process.env.CS_RPC_OP_SEPOLIA,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     localhost: {
       url: 'http://127.0.0.1:8545',
@@ -46,6 +50,40 @@ const config = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY as string,
+    customChains: [
+      {
+        network: 'eth-mainnet',
+        chainId: 1,
+        urls: {
+          apiURL: 'https://etherscan.io/api',
+          browserURL: 'https://etherscan.io',
+        },
+      },
+      {
+        network: 'eth-holesky',
+        chainId: 17000,
+        urls: {
+          apiURL: 'https://holesky.etherscan.io/api',
+          browserURL: 'https://holesky.etherscan.io/',
+        },
+      },
+      {
+        network: 'op-mainnet',
+        chainId: 10,
+        urls: {
+          apiURL: 'https://optimistic.etherscan.io/api',
+          browserURL: 'https://optimistic.etherscan.io/',
+        },
+      },
+      {
+        network: 'op-sepolia',
+        chainId: 11155420,
+        urls: {
+          apiURL: 'https://sepolia-optimism.etherscan.io/api',
+          browserURL: 'https://sepolia-optimism.etherscan.io/',
+        },
+      },
+    ],
   },
   sourcify: {
     enabled: false,

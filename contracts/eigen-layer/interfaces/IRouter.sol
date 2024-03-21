@@ -202,8 +202,9 @@ interface IRouter {
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
+  /// @param _bridge The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external;
+  function initialize(address _airdrop, address _bridge, address _withdrawals) external;
 
   /// @notice Pauses the contract functionalities.
   /// @dev Only the ADMIN_ROLE can pause the contract.

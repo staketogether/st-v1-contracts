@@ -18,6 +18,7 @@ import '../interfaces/IDepositContract.sol';
 import '../interfaces/IRouter.sol';
 import '../interfaces/IStakeTogether.sol';
 import '../interfaces/IWithdrawals.sol';
+import '../interfaces/IBridge.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
@@ -49,8 +50,9 @@ contract MockStakeTogether is
   IDepositContract public deposit; /// Deposit contract interface.
   IRouter public router; /// Address of the contract router.
   IWithdrawals public withdrawals; /// Withdrawals contract instance.
+  IBridge public bridge; /// Bridge contract instance
+  address public l1Adapter; /// Address of the L1 adapter contract.
 
-  bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
   uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
 
@@ -91,13 +93,13 @@ contract MockStakeTogether is
   /// @param _deposit The address of the deposit contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
     address _airdrop,
+    address _bridge,
     address _deposit,
     address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
+    address _l1Adapter,
+    address _withdrawals
   ) public initializer {
     __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
@@ -115,7 +117,8 @@ contract MockStakeTogether is
     deposit = IDepositContract(_deposit);
     router = IRouter(payable(_router));
     withdrawals = IWithdrawals(payable(_withdrawals));
-    withdrawalCredentials = _withdrawalCredentials;
+    bridge = IBridge(_bridge);
+    l1Adapter = _l1Adapter;
 
     _mintShares(address(this), 1 ether);
   }
@@ -675,16 +678,18 @@ contract MockStakeTogether is
     router.receiveWithdrawEther{ value: diffAmount }();
   }
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
+  /// @notice Requests the addition of a new validator on the L1 network.
+  /// @param _minGasLimit The minimum gas limit for the bridge
+  /// @param _extraData The extra data to be sent
   /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external nonReentrant whenNotPaused {}
+  function requestAddValidator(uint32 _minGasLimit, bytes calldata _extraData) external {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (address(this).balance < config.poolSize) revert InsufficientPoolBalance();
+    bridge.bridgeETHTo{ value: config.validatorSize }(l1Adapter, _minGasLimit, _extraData);
+    _setBeaconBalance(beaconBalance + config.validatorSize);
+    _processFeeValidator();
+    emit RequestAddValidator(msg.sender, config.validatorSize, _minGasLimit, _extraData);
+  }
 
   /*************
    ** Airdrop **

@@ -9,7 +9,6 @@ import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 
 import '../StakeTogether.sol';
-import '../StakeTogetherWrapper.sol';
 import '../Withdrawals.sol';
 
 contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgradeable, UUPSUpgradeable {
@@ -17,7 +16,6 @@ contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgra
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
   StakeTogether public stakeTogether;
-  StakeTogetherWrapper public stakeTogetherWrapper;
   Withdrawals public withdrawals;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -25,13 +23,8 @@ contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgra
     _disableInitializers();
   }
 
-  function initialize(
-    address _stakeTogether,
-    address _stakeTogetherWrapper,
-    address _withdrawals
-  ) public initializer {
+  function initialize(address _stakeTogether, address _withdrawals) public initializer {
     stakeTogether = StakeTogether(payable(_stakeTogether));
-    stakeTogetherWrapper = StakeTogetherWrapper(payable(_stakeTogetherWrapper));
     withdrawals = Withdrawals(payable(_withdrawals));
   }
 
@@ -48,17 +41,6 @@ contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgra
     stakeTogether.withdrawPool(withdrawAmount, _pool);
 
     payable(msg.sender).transfer(withdrawAmount);
-  }
-
-  function wrapAndUnwrap(address _pool, bytes calldata _referral) external payable {
-    require(msg.value == 1 ether, 'Must deposit 1 ETH');
-
-    stakeTogether.depositPool{ value: 1 ether }(_pool, _referral);
-
-    uint256 amount = 0.5 ether;
-    stakeTogether.approve(address(stakeTogetherWrapper), amount);
-    stakeTogetherWrapper.wrap(amount);
-    stakeTogetherWrapper.unwrap(amount);
   }
 
   function doubleWithdraw() external payable {
