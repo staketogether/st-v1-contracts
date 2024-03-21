@@ -41,17 +41,13 @@
     "node": "npx hardhat node",
     "console": "npx hardhat console",
     "compile": "npx hardhat compile",
-    "ethereum:deploy:localhost": "npx hardhat run scripts/ethereum/deploy.ts --network localhost",
-    "ethereum:deploy:goerli": "npx hardhat run scripts/ethereum/deploy-goerli.ts --network goerli",
-    "ethereum:deploy:mainnet": "npx hardhat run scripts/ethereum/deploy-mainnet.ts --network mainnet",
-    "ethereum:upgrade:st-v2:goerli": "npx hardhat run scripts/ethereum/upgrade-st-v2.ts --network goerli",
-    "ethereum:upgrade:st-v3:goerli": "npx hardhat run scripts/ethereum/upgrade-st-v3.ts --network goerli",
-    "ethereum:upgrade:st-v4:goerli": "npx hardhat run scripts/ethereum/upgrade-st-v4.ts --network goerli",
-    "ethereum:upgrade:st-v2:mainnet": "npx hardhat run scripts/ethereum/upgrade-st-v2.ts --network mainnet",
-    "ethereum:upgrade:st-v3:mainnet": "npx hardhat run scripts/ethereum/upgrade-st-v3.ts --network mainnet",
-    "ethereum:upgrade:st-v4:mainnet": "npx hardhat run scripts/ethereum/upgrade-st-v4.ts --network mainnet",
-    "ethereum:verify:goerli": "npx hardhat verify --network goerli",
-    "ethereum:verify:mainnet": "npx hardhat verify --network mainnet",
+    "localhost:deploy": "npx hardhat run scripts/ethereum/deploy.ts --network localhost",
+    "eth-mainnet:deploy": "npx hardhat run scripts/ethereum/deploy-mainnet.ts --network eth-mainnet",
+    "eth-mainnet:upgrade:st-v2": "npx hardhat run scripts/ethereum/upgrade-st-v2.ts --network eth-mainnet",
+    "eth-mainnet:upgrade:st-v3": "npx hardhat run scripts/ethereum/upgrade-st-v3.ts --network eth-mainnet",
+    "eth-mainnet:upgrade:st-v4": "npx hardhat run scripts/ethereum/upgrade-st-v4.ts --network eth-mainnet",
+    "eth-mainnet:verify": "npx hardhat verify --network eth-mainnet",
+    "el:op-sepolia:deploy": "npx hardhat run scripts/eigen-layer/deploy-op-sepolia.ts --network op-sepolia",
     "test": "npx hardhat test --typecheck",
     "coverage": "npx hardhat coverage --typecheck",
     "prettier": "prettier --write 'contracts/**/*.sol'",
@@ -62,6 +58,6 @@
     "prepare": "husky install"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

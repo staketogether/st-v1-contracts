@@ -28,15 +28,17 @@ const config = {
     target: 'ethers-v6',
   },
   networks: {
-    mainnet: {
-      url: `https://mainnet.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`,
-      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 1,
+    'eth-mainnet': {
+      url: `${process.env.CS_RPC_ETH_MAINNET}`,
     },
-    goerli: {
-      url: `https://goerli.infura.io/v3/${process.env.GOERLI_INFURA_API_KEY}`,
-      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 5,
+    'eth-holesky': {
+      url: `${process.env.CS_RPC_ETH_HOLESKY}`,
+    },
+    'op-mainnet': {
+      url: `${process.env.CS_RPC_OP_MAINNET}`,
+    },
+    'op-sepolia': {
+      url: `${process.env.CS_RPC_OP_SEPOLIA}`,
     },
     localhost: {
       url: 'http://127.0.0.1:8545',
