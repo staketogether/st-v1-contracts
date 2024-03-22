@@ -78,7 +78,7 @@ const config = {
       },
       {
         network: 'eth-sepolia',
-        chainId: 11155421,
+        chainId: 11155111,
         urls: {
           apiURL: 'https://sepolia.etherscan.io/api',
           browserURL: 'https://sepolia.etherscan.io/',
