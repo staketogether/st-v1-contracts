@@ -326,8 +326,8 @@ contract StakeTogether is
     if (_to == address(0)) revert ZeroAddress();
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
-    emit MintShares(_to, _sharesAmount);
     emit Transfer(address(0), _to, weiByShares(_sharesAmount));
+    emit MintShares(_to, _sharesAmount);
   }
 
   /// @notice Internal function to burn shares from a given address.
@@ -336,10 +336,10 @@ contract StakeTogether is
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     if (_account == address(0)) revert ZeroAddress();
     if (_sharesAmount > shares[_account]) revert InsufficientShares();
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
-    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
