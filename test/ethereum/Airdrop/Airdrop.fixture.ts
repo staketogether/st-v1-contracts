@@ -1,19 +1,18 @@
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ethers, network, upgrades } from 'hardhat'
+import { Airdrop, Router, StakeTogether, Withdrawals } from '../../../typechain/contracts/ethereum'
+import { MockStakeTogether } from '../../../typechain/contracts/ethereum/mocks'
 import {
-  Airdrop,
   Airdrop__factory,
+  StakeTogether__factory,
+  Withdrawals__factory,
+} from '../../../typechain/factories/contracts/ethereum'
+import {
   MockDepositContract__factory,
   MockRouter__factory,
-  MockStakeTogether,
   MockStakeTogether__factory,
-  Router,
-  StakeTogether,
-  StakeTogether__factory,
-  Withdrawals,
-  Withdrawals__factory,
-} from '../../../typechain'
+} from '../../../typechain/factories/contracts/ethereum/mocks'
 import { checkGeneralVariables } from '../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {

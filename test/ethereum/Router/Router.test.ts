@@ -3,14 +3,10 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import {
-  Airdrop,
-  IRouter,
-  MockRouter__factory,
-  Router,
-  StakeTogether,
-  Withdrawals,
-} from '../../../typechain'
+
+import { Airdrop, Router, StakeTogether, Withdrawals } from '../../../typechain/contracts/ethereum'
+import { IRouter } from '../../../typechain/contracts/ethereum/interfaces'
+import { MockRouter__factory } from '../../../typechain/factories/contracts/ethereum/mocks'
 import { routerFixture } from './Router.fixture'
 
 dotenv.config()

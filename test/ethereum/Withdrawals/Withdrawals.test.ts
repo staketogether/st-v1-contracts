@@ -3,14 +3,10 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-import {
-  MockFlashLoan,
-  MockStakeTogether,
-  MockWithdrawals__factory,
-  StakeTogether,
-  Withdrawals,
-  Withdrawals__factory,
-} from '../../../typechain'
+import { StakeTogether, Withdrawals } from '../../../typechain/contracts/ethereum'
+import { MockFlashLoan, MockStakeTogether } from '../../../typechain/contracts/ethereum/mocks'
+import { Withdrawals__factory } from '../../../typechain/factories/contracts/ethereum'
+import { MockWithdrawals__factory } from '../../../typechain/factories/contracts/ethereum/mocks'
 import { withdrawalsFixture } from './Withdrawals.fixture'
 
 dotenv.config()

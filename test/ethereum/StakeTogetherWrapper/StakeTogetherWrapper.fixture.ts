@@ -3,22 +3,24 @@ import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import { ethers, network, upgrades } from 'hardhat'
 import {
   Airdrop,
-  Airdrop__factory,
-  MockDepositContract__factory,
-  MockFlashLoan,
-  MockFlashLoan__factory,
-  MockRouter__factory,
-  MockStakeTogether,
-  MockStakeTogether__factory,
   Router,
   StakeTogether,
   StakeTogetherWrapper,
+  Withdrawals,
+} from '../../../typechain/contracts/ethereum'
+import { MockFlashLoan, MockStakeTogether } from '../../../typechain/contracts/ethereum/mocks'
+import {
+  Airdrop__factory,
   StakeTogetherWrapper__factory,
   StakeTogether__factory,
-  Withdrawals,
   Withdrawals__factory,
-} from '../../../typechain'
-
+} from '../../../typechain/factories/contracts/ethereum'
+import {
+  MockDepositContract__factory,
+  MockFlashLoan__factory,
+  MockRouter__factory,
+  MockStakeTogether__factory,
+} from '../../../typechain/factories/contracts/ethereum/mocks'
 import { checkGeneralVariables } from '../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
