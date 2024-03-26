@@ -114,10 +114,12 @@ contract ELAdapter is
 
   /// @notice Sets L2 Stake Together contract address.
   /// @dev Only callable by the admin role.
-  /// @param _l2 Address of the L2 Stake Together contract.
-  function setL2Router(address _l2) external onlyRole(ADMIN_ROLE) {
-    l2Router = _l2;
-    emit SetL2Router(_l2);
+  /// @param _l2Router Address of the L2 Stake Together contract.
+  function setL2Router(address _l2Router) external onlyRole(ADMIN_ROLE) {
+    if (address(l2Router) != address(0)) revert L2RouterAlreadySet();
+    if (_l2Router == address(0)) revert ZeroAddress();
+    l2Router = _l2Router;
+    emit SetL2Router(_l2Router);
   }
 
   /***********************

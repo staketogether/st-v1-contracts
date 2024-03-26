@@ -18,6 +18,8 @@ function checkConfigVariables() {
 }
 
 export async function deploy() {
+  console.log('Deploy Initiating...\n')
+
   checkConfigVariables()
   const [owner] = await ethers.getSigners()
 

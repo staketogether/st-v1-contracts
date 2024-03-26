@@ -164,7 +164,7 @@ contract ELStakeTogether is
   /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
   /// @param _l1adapter The address of the StakeTogether contract.
   function setL1Adapter(address _l1adapter) external onlyRole(ADMIN_ROLE) {
-    if (address(_l1adapter) != address(0)) revert L1AdapterAlreadySet();
+    if (address(l1Adapter) != address(0)) revert L1AdapterAlreadySet();
     if (_l1adapter == address(0)) revert ZeroAddress();
     l1Adapter = _l1adapter;
     emit SetAdapter(_l1adapter);

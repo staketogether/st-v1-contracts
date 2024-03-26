@@ -42,6 +42,9 @@ interface IELAdapter {
   /// @notice Thrown if the gas limit is zero.
   error ZeroedGasLimit();
 
+  /// @notice Thrown if the L2 Router is already set.
+  error L2RouterAlreadySet();
+
   /// @notice Emitted when a validator is created
   /// @param oracle The address of the oracle
   /// @param amount The amount for the validator

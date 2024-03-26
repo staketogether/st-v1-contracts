@@ -17,6 +17,8 @@ import { checkGeneralVariables } from '../../utils/env'
 dotenv.config()
 
 export async function deploy() {
+  console.log('Deploy Initiating...\n')
+
   checkDeployVariables()
   const bridgeContract = String(process.env.OP_HOLESKY_BRIDGE_ADDRESS)
 
@@ -251,10 +253,12 @@ export async function configContracts(
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
   await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
 
+  const feeAddress = process.env.OP_HOLESKY_FEE_ADDRESS as string
+
   await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
-  await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(1, feeAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(2, feeAddress)
+  await stakeTogether.stakeTogetherContract.setFeeAddress(3, feeAddress)
 }
 
 async function verifyContracts(
@@ -284,6 +288,7 @@ function checkDeployVariables() {
   const missingVariables = []
 
   if (!process.env.OP_HOLESKY_BRIDGE_ADDRESS) missingVariables.push('OP_HOLESKY_BRIDGE_ADDRESS')
+  if (!process.env.OP_HOLESKY_FEE_ADDRESS) missingVariables.push('OP_HOLESKY_FEE_ADDRESS')
 
   if (missingVariables.length > 0) {
     throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)

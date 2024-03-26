@@ -165,7 +165,7 @@ contract MockELStakeTogether is
   /// @dev Only the ADMIN_ROLE can set the address, and the provided address must not be zero.
   /// @param _l1adapter The address of the StakeTogether contract.
   function setL1Adapter(address _l1adapter) external onlyRole(ADMIN_ROLE) {
-    if (address(_l1adapter) != address(0)) revert L1AdapterAlreadySet();
+    if (address(l1Adapter) != address(0)) revert L1AdapterAlreadySet();
     if (_l1adapter == address(0)) revert ZeroAddress();
     l1Adapter = _l1adapter;
     emit SetAdapter(_l1adapter);
@@ -327,8 +327,8 @@ contract MockELStakeTogether is
     if (_to == address(0)) revert ZeroAddress();
     shares[_to] += _sharesAmount;
     totalShares += _sharesAmount;
-    emit MintShares(_to, _sharesAmount);
     emit Transfer(address(0), _to, weiByShares(_sharesAmount));
+    emit MintShares(_to, _sharesAmount);
   }
 
   /// @notice Internal function to burn shares from a given address.
@@ -337,10 +337,10 @@ contract MockELStakeTogether is
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     if (_account == address(0)) revert ZeroAddress();
     if (_sharesAmount > shares[_account]) revert InsufficientShares();
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
-    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
