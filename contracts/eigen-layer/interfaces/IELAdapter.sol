@@ -6,7 +6,7 @@ pragma solidity 0.8.25;
 /// @notice The Interface for Adapter Contract is responsible to interact with Staking Infrastructure and manage the staking process.
 /// It provides functionalities for create validators, withdraw and withdraw rewards.
 /// @custom:security-contact security@staketogether.org
-interface IAdapter {
+interface IELAdapter {
   /// @notice Configuration for the StakeTogether's Adapter.sol.sol.
   struct Config {
     uint256 validatorSize; /// Size of the validator.

@@ -2,6 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.25;
 
-interface IBridge {
+interface IELBridge {
   function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) external payable;
 }

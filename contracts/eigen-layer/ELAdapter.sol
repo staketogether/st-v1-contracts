@@ -13,21 +13,21 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IAdapter.sol';
-import './interfaces/IBridge.sol';
-import './interfaces/IDepositContract.sol';
+import './interfaces/IELAdapter.sol';
+import './interfaces/IELBridge.sol';
+import './interfaces/IELDepositContract.sol';
 
 /// @title StakeTogether Adapter Contract
 /// @notice The Adapter Contract is responsible to interact with Staking Infrastructure and manage the staking process.
 /// It provides functionalities for create validators, withdraw and withdraw rewards.
 /// @custom:security-contact security@staketogether.org
-contract Adapter is
+contract ELAdapter is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IAdapter
+  IELAdapter
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
@@ -35,8 +35,8 @@ contract Adapter is
   bytes32 public constant ADAPTER_ORACLE_MANAGER_ROLE = keccak256('ADAPTER_ORACLE_MANAGER_ROLE'); /// Role for managing adapter oracle managers.
   bytes32 public constant VALIDATOR_ORACLE_SENTINEL_ROLE = keccak256('VALIDATOR_ORACLE_SENTINEL_ROLE'); /// Role for managing validator oracle sentinels.
 
-  IDepositContract public deposit; /// Instance of the deposit contract.
-  IBridge public bridge; /// Instance of the bridge contract.
+  IELDepositContract public deposit; /// Instance of the deposit contract.
+  IELBridge public bridge; /// Instance of the bridge contract.
   Config public config; /// Configuration settings.
   address public l2Router; /// Address of the Router on L2.
   uint256 public version; /// Contract version.
@@ -72,8 +72,8 @@ contract Adapter is
 
     version = 1;
 
-    bridge = IBridge(_bridge);
-    deposit = IDepositContract(_deposit);
+    bridge = IELBridge(_bridge);
+    deposit = IELDepositContract(_deposit);
     withdrawalCredentials = _withdrawalCredentials;
   }
 

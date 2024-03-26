@@ -22,6 +22,7 @@ const config = {
         runs: 200,
       },
     },
+    compilers: [{ version: '0.8.25' }],
   },
   typechain: {
     outDir: 'typechain',
@@ -72,7 +73,7 @@ const config = {
         network: 'eth-holesky',
         chainId: 17000,
         urls: {
-          apiURL: 'https://holesky.etherscan.io/api',
+          apiURL: 'https://api-holesky.etherscan.io/api',
           browserURL: 'https://holesky.etherscan.io/',
         },
       },
@@ -80,15 +81,16 @@ const config = {
         network: 'eth-sepolia',
         chainId: 11155111,
         urls: {
-          apiURL: 'https://sepolia.etherscan.io/api',
+          apiURL: 'https://api-sepolia.etherscan.io/api',
           browserURL: 'https://sepolia.etherscan.io/',
         },
       },
+
       {
         network: 'op-mainnet',
         chainId: 10,
         urls: {
-          apiURL: 'https://optimistic.etherscan.io/api',
+          apiURL: 'https://api-optimistic.etherscan.io/api',
           browserURL: 'https://optimistic.etherscan.io/',
         },
       },
@@ -96,7 +98,7 @@ const config = {
         network: 'op-sepolia',
         chainId: 11155420,
         urls: {
-          apiURL: 'https://sepolia-optimism.etherscan.io/api',
+          apiURL: 'https://api-sepolia-optimistic.etherscan.io/api',
           browserURL: 'https://sepolia-optimism.etherscan.io/',
         },
       },

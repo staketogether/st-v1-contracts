@@ -13,17 +13,17 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUp
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IAirdrop.sol';
-import './interfaces/IBridge.sol';
-import './interfaces/IRouter.sol';
-import './interfaces/IStakeTogether.sol';
-import './interfaces/IWithdrawals.sol';
+import './interfaces/IELAirdrop.sol';
+import './interfaces/IELBridge.sol';
+import './interfaces/IELRouter.sol';
+import './interfaces/IELStakeTogether.sol';
+import './interfaces/IELWithdrawals.sol';
 
 /// @title StakeTogether Pool Contract
 /// @notice The StakeTogether contract is the primary entry point for interaction with the StakeTogether protocol.
 /// It provides functionalities for staking, withdrawals, fee management, and interactions with pools and validators.
 /// @custom:security-contact security@staketogether.org
-contract StakeTogether is
+contract ELStakeTogether is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -32,7 +32,7 @@ contract StakeTogether is
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IStakeTogether
+  IELStakeTogether
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
@@ -45,10 +45,10 @@ contract StakeTogether is
 
   uint256 public version; /// Contract version.
 
-  IAirdrop public airdrop; /// Airdrop contract instance.
-  IRouter public router; /// Address of the contract router.
-  IWithdrawals public withdrawals; /// Withdrawals contract instance.
-  IBridge public bridge; /// Bridge contract instance
+  IELAirdrop public airdrop; /// Airdrop contract instance.
+  IELRouter public router; /// Address of the contract router.
+  IELWithdrawals public withdrawals; /// Withdrawals contract instance.
+  IELBridge public bridge; /// Bridge contract instance
   address public l1Adapter; /// Address of the L1 adapter contract.
 
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
@@ -109,10 +109,10 @@ contract StakeTogether is
 
     version = 1;
 
-    airdrop = IAirdrop(payable(_airdrop));
-    router = IRouter(payable(_router));
-    withdrawals = IWithdrawals(payable(_withdrawals));
-    bridge = IBridge(_bridge);
+    airdrop = IELAirdrop(payable(_airdrop));
+    router = IELRouter(payable(_router));
+    withdrawals = IELWithdrawals(payable(_withdrawals));
+    bridge = IELBridge(_bridge);
 
     _mintShares(address(this), 1 ether);
   }
@@ -176,7 +176,7 @@ contract StakeTogether is
 
   /// @notice Returns the total supply of the pool (contract balance + beacon balance).
   /// @return Total supply value.
-  function totalSupply() public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
+  function totalSupply() public view override(ERC20Upgradeable, IELStakeTogether) returns (uint256) {
     return address(this).balance + beaconBalance - withdrawBalance;
   }
 
@@ -185,7 +185,7 @@ contract StakeTogether is
   /// @return Balance value of the given account.
   function balanceOf(
     address _account
-  ) public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
+  ) public view override(ERC20Upgradeable, IELStakeTogether) returns (uint256) {
     return weiByShares(shares[_account]);
   }
 
@@ -210,7 +210,7 @@ contract StakeTogether is
   function transfer(
     address _to,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  ) public override(ERC20Upgradeable, IELStakeTogether) returns (bool) {
     if (isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     _transfer(msg.sender, _to, _amount);
@@ -226,7 +226,7 @@ contract StakeTogether is
     address _from,
     address _to,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  ) public override(ERC20Upgradeable, IELStakeTogether) returns (bool) {
     if (isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
@@ -273,7 +273,7 @@ contract StakeTogether is
   function allowance(
     address _account,
     address _spender
-  ) public view override(ERC20Upgradeable, IStakeTogether) returns (uint256) {
+  ) public view override(ERC20Upgradeable, IELStakeTogether) returns (uint256) {
     return allowances[_account][_spender];
   }
 
@@ -284,7 +284,7 @@ contract StakeTogether is
   function approve(
     address _spender,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IStakeTogether) returns (bool) {
+  ) public override(ERC20Upgradeable, IELStakeTogether) returns (bool) {
     _approve(msg.sender, _spender, _amount, true);
     return true;
   }

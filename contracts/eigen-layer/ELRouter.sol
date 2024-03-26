@@ -10,22 +10,22 @@ import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IAirdrop.sol';
-import './interfaces/IRouter.sol';
-import './interfaces/IStakeTogether.sol';
-import './interfaces/IWithdrawals.sol';
+import './interfaces/IELAirdrop.sol';
+import './interfaces/IELRouter.sol';
+import './interfaces/IELStakeTogether.sol';
+import './interfaces/IELWithdrawals.sol';
 
 /// @title Router Contract for the StakeTogether platform.
 /// @dev This contract handles routing functionalities, is pausable, upgradable, and guards against reentrancy attacks.
 /// It also leverages access controls for administrative purposes. This contract should be initialized after deployment.
 /// @custom:security-contact security@staketogether.org
-contract Router is
+contract ELRouter is
   Initializable,
   PausableUpgradeable,
   AccessControlUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IRouter
+  IELRouter
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
@@ -34,10 +34,10 @@ contract Router is
   bytes32 public constant ORACLE_REPORT_ROLE = keccak256('ORACLE_REPORT_ROLE'); /// Role for reporting as an oracle.
   uint256 public version; /// Contract version.
 
-  IAirdrop public airdrop; /// Instance of the Airdrop contract.
+  IELAirdrop public airdrop; /// Instance of the Airdrop contract.
   address public bridge; /// Address of the bridge contract.
-  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  IWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
+  IELStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IELWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
   bool public bunkermode; /// Configuration for beacon withdrawals speed.
 
@@ -80,9 +80,9 @@ contract Router is
 
     version = 1;
 
-    airdrop = IAirdrop(payable(_airdrop));
+    airdrop = IELAirdrop(payable(_airdrop));
     bridge = _bridge;
-    withdrawals = IWithdrawals(payable(_withdrawals));
+    withdrawals = IELWithdrawals(payable(_withdrawals));
 
     reportBlock = block.number;
 
@@ -130,7 +130,7 @@ contract Router is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (_stakeTogether == address(0)) revert ZeroAddress();
-    stakeTogether = IStakeTogether(payable(_stakeTogether));
+    stakeTogether = IELStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 

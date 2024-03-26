@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 /// @title StakeTogether Report Configuration
 /// @notice This module includes configuration and reports related to the StakeTogether protocol.
 /// @custom:security-contact security@staketogether.org
-interface IRouter {
+interface IELRouter {
   /// @notice Emitted when a report for a specific block has already been executed.
   error AlreadyExecuted();
 

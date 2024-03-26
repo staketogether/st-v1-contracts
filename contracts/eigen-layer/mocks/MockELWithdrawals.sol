@@ -12,15 +12,15 @@ import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import '@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
-import './interfaces/IRouter.sol';
-import './interfaces/IStakeTogether.sol';
-import './interfaces/IWithdrawals.sol';
+import '../interfaces/IELRouter.sol';
+import '../interfaces/IELStakeTogether.sol';
+import '../interfaces/IELWithdrawals.sol';
 
 /// @title Withdrawals Contract for StakeTogether
 /// @notice The Withdrawals contract handles all withdrawal-related activities within the StakeTogether protocol.
 /// It allows users to withdraw their staked tokens and interact with the associated stake contracts.
 /// @custom:security-contact security@staketogether.org
-contract Withdrawals is
+contract MockELWithdrawals is
   Initializable,
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
@@ -29,14 +29,14 @@ contract Withdrawals is
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IWithdrawals
+  IELWithdrawals
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
   uint256 public version; /// Contract version.
-  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  IRouter public router; /// Instance of the Router contract.
+  IELStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IELRouter public router; /// Instance of the Router contract.
   mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -46,12 +46,12 @@ contract Withdrawals is
 
   /// @notice Initialization function for Withdrawals contract.
   function initialize() external initializer {
-    __ERC20_init('Stake Together Restaking Withdrawals', 'strwETH');
+    __ERC20_init('Stake Together Withdrawals', 'stwETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together Restaking Withdrawals');
+    __ERC20Permit_init('Stake Together Withdrawals');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -100,7 +100,7 @@ contract Withdrawals is
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance - totalSupply();
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
-    address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
+    address stakeTogetherFee = stakeTogether.getFeeAddress(IELStakeTogether.FeeRole.StakeTogether);
     Address.sendValue(payable(stakeTogetherFee), extraAmount);
   }
 
@@ -110,7 +110,7 @@ contract Withdrawals is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (_stakeTogether == address(0)) revert ZeroAddress();
-    stakeTogether = IStakeTogether(payable(_stakeTogether));
+    stakeTogether = IELStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -120,7 +120,7 @@ contract Withdrawals is
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     if (address(router) != address(0)) revert RouterAlreadySet();
     if (_router == address(0)) revert ZeroAddress();
-    router = IRouter(payable(_router));
+    router = IELRouter(payable(_router));
     emit SetRouter(_router);
   }
 
@@ -135,7 +135,7 @@ contract Withdrawals is
   function transfer(
     address _to,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
+  ) public override(ERC20Upgradeable, IELWithdrawals) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (block.number < stakeTogether.getWithdrawBeaconBlock(msg.sender)) revert EarlyBeaconTransfer();
@@ -152,7 +152,7 @@ contract Withdrawals is
     address _from,
     address _to,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
+  ) public override(ERC20Upgradeable, IELWithdrawals) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
@@ -209,5 +209,13 @@ contract Withdrawals is
   function isWithdrawReady(uint256 _amount) external view returns (bool) {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) return false;
     return address(this).balance >= _amount;
+  }
+
+  /********************
+   ** MOCK FUNCTIONS **
+   ********************/
+
+  function initializeV2() external onlyRole(UPGRADER_ROLE) {
+    version = 2;
   }
 }

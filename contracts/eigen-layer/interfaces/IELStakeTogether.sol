@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 /// @title StakeTogether Interface
 /// @notice This interface defines the essential structures and functions for the StakeTogether protocol.
 /// @custom:security-contact security@staketogether.org
-interface IStakeTogether {
+interface IELStakeTogether {
   /// @notice Thrown if the deposit limit is reached.
   error DepositLimitReached();
 

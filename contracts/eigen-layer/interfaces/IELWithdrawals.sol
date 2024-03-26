@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 /// @title Interface for Validators Withdrawals
 /// @notice A contract that represent the validator withdrawal functionality
 /// @custom:security-contact security@staketogether.org
-interface IWithdrawals {
+interface IELWithdrawals {
   /// @notice This error is thrown when use try withdraw before the beacon delay.
   error EarlyBeaconTransfer();
 

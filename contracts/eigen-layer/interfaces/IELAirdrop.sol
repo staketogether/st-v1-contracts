@@ -5,7 +5,7 @@ pragma solidity 0.8.25;
 /// @title Interface for the Airdrop functionality within the Stake Together protocol.
 /// @notice A contract that represents the Airdrop functionality.
 /// @custom:security-contact security@staketogether.org
-interface IAirdrop {
+interface IELAirdrop {
   /// @notice Thrown if a claim has already been made for a given block and index.
   error AlreadyClaimed();
 

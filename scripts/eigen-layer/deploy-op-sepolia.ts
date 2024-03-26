@@ -3,13 +3,16 @@ import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
 import { checkGeneralVariables } from '../../test/utils/env'
-import { Airdrop, Router, StakeTogether, Withdrawals } from '../../typechain/contracts/eigen-layer'
 import {
-  Airdrop__factory,
-  Router__factory,
-  StakeTogether__factory,
-  Withdrawals__factory,
-} from '../../typechain/factories/contracts/eigen-layer'
+  ELAirdrop,
+  ELAirdrop__factory,
+  ELRouter,
+  ELRouter__factory,
+  ELStakeTogether,
+  ELStakeTogether__factory,
+  ELWithdrawals,
+  ELWithdrawals__factory,
+} from '../../typechain'
 
 dotenv.config()
 
@@ -54,16 +57,16 @@ export async function deploy() {
 }
 
 export async function deployAirdrop(owner: HardhatEthersSigner) {
-  const AirdropFactory = new Airdrop__factory().connect(owner)
+  const AirdropFactory = new ELAirdrop__factory().connect(owner)
   const airdrop = await upgrades.deployProxy(AirdropFactory)
   await airdrop.waitForDeployment()
   const proxyAddress = await airdrop.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`Airdrop\t\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Airdrop\t\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`ELAirdrop\t\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`ELAirdrop\t\t\t Implementation\t\t ${implementationAddress}`)
 
-  const airdropContract = airdrop as unknown as Airdrop
+  const airdropContract = airdrop as unknown as ELAirdrop
 
   const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
   await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
@@ -72,17 +75,17 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
 }
 
 export async function deployWithdrawals(owner: HardhatEthersSigner) {
-  const WithdrawalsFactory = new Withdrawals__factory().connect(owner)
+  const WithdrawalsFactory = new ELWithdrawals__factory().connect(owner)
 
   const withdrawals = await upgrades.deployProxy(WithdrawalsFactory)
   await withdrawals.waitForDeployment()
   const proxyAddress = await withdrawals.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`Withdrawals\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Withdrawals\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`ELWithdrawals\t\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`ELWithdrawals\t\t\t Implementation\t\t ${implementationAddress}`)
 
-  const withdrawalsContract = withdrawals as unknown as Withdrawals
+  const withdrawalsContract = withdrawals as unknown as ELWithdrawals
 
   const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
   await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
@@ -96,7 +99,7 @@ export async function deployRouter(
   bridgeContract: string,
   withdrawalsContract: string,
 ) {
-  const RouterFactory = new Router__factory().connect(owner)
+  const RouterFactory = new ELRouter__factory().connect(owner)
 
   const router = await upgrades.deployProxy(RouterFactory, [
     airdropContract,
@@ -108,8 +111,8 @@ export async function deployRouter(
   const proxyAddress = await router.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`Router\t\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Router\t\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`ELRouter\t\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`ELRouter\t\t\t Implementation\t\t ${implementationAddress}`)
 
   // Create the configuration
   const config = {
@@ -119,7 +122,7 @@ export async function deployRouter(
     oracleQuorum: 2n,
   }
 
-  const routerContract = router as unknown as Router
+  const routerContract = router as unknown as ELRouter
 
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
   await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
@@ -136,7 +139,7 @@ export async function deployStakeTogether(
   routerContract: string,
   withdrawalsContract: string,
 ) {
-  const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
+  const StakeTogetherFactory = new ELStakeTogether__factory().connect(owner)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     airdropContract,
@@ -149,10 +152,10 @@ export async function deployStakeTogether(
   const proxyAddress = await stakeTogether.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`StakeTogether\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`StakeTogether\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`ELStakeTogether\t\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`ELStakeTogether\t\t\t Implementation\t\t ${implementationAddress}`)
 
-  const stakeTogetherContract = stakeTogether as unknown as StakeTogether
+  const stakeTogetherContract = stakeTogether as unknown as ELStakeTogether
 
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
   await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
@@ -186,9 +189,9 @@ export async function deployStakeTogether(
 
   await stakeTogetherContract.setConfig(config)
 
-  // Airdrop,
+  // ELAirdrop,
   // Operator,
-  // StakeTogether,
+  // ELStakeTogether,
   // Sender
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
@@ -223,23 +226,23 @@ export async function configContracts(
   airdrop: {
     proxyAddress: string
     implementationAddress: string
-    airdropContract: Airdrop
+    airdropContract: ELAirdrop
   },
   l1AdapterContract: string,
   stakeTogether: {
     proxyAddress: string
     implementationAddress: string
-    stakeTogetherContract: StakeTogether
+    stakeTogetherContract: ELStakeTogether
   },
   withdrawals: {
     proxyAddress: string
     implementationAddress: string
-    withdrawalsContract: Withdrawals
+    withdrawalsContract: ELWithdrawals
   },
   router: {
     proxyAddress: string
     implementationAddress: string
-    routerContract: Router
+    routerContract: ELRouter
   },
 ) {
   await airdrop.airdropContract.setStakeTogether(stakeTogether.proxyAddress)
@@ -271,28 +274,28 @@ async function verifyContracts(
   console.log('\nRUN COMMAND TO VERIFY ON OP ETHERSCAN\n')
 
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Airdrop.sol:Airdrop ${airdropProxy} &&`,
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELAirdrop.sol:ELAirdrop ${airdropProxy} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Airdrop.sol:Airdrop ${airdropImplementation} &&`,
+    `npx hardhat verify --network op-sepolia  --contract contracts/eigen-layer/ELAirdrop.sol:ELAirdrop ${airdropImplementation} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Withdrawals.sol:Withdrawals ${withdrawalsProxy} &&`,
+    `npx hardhat verify --network op-sepolia  --contract contracts/eigen-layer/ELWithdrawals.sol:ELWithdrawals ${withdrawalsProxy} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Withdrawals.sol:Withdrawals ${withdrawalsImplementation} &&`,
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELWithdrawals.sol:ELWithdrawals ${withdrawalsImplementation} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Router.sol:Router ${routerProxy} &&`,
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELRouter.sol:ELRouter ${routerProxy} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/Router.sol:Router ${routerImplementation} &&`,
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELRouter.sol:ELRouter ${routerImplementation} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/StakeTogether.sol:StakeTogether ${stakeTogetherProxy} &&`,
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELStakeTogether.sol:ELStakeTogether ${stakeTogetherProxy} &&`,
   )
   console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/StakeTogether.sol:StakeTogether ${stakeTogetherImplementation} &&`,
+    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELStakeTogether.sol:ELStakeTogether ${stakeTogetherImplementation}`,
   )
 }
 

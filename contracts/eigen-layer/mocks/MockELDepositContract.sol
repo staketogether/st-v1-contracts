@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 pragma solidity 0.8.25;
 
-import '../interfaces/IDepositContract.sol';
+import '../interfaces/IELDepositContract.sol';
 
-contract MockDepositContract is IDepositContract {
+contract MockELDepositContract is IELDepositContract {
   // This can be set to an appropriate value for mocking purposes
   bytes32 public depositRoot = bytes32(0);
   uint64 public depositCount = 0;

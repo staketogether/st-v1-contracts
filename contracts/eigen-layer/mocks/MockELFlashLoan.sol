@@ -8,15 +8,20 @@ import '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 
-import '../StakeTogether.sol';
-import '../Withdrawals.sol';
+import '../ELStakeTogether.sol';
+import '../ELWithdrawals.sol';
 
-contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgradeable, UUPSUpgradeable {
+contract MockELFlashLoan is
+  Initializable,
+  PausableUpgradeable,
+  AccessControlUpgradeable,
+  UUPSUpgradeable
+{
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE');
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE');
 
-  StakeTogether public stakeTogether;
-  Withdrawals public withdrawals;
+  ELStakeTogether public stakeTogether;
+  ELWithdrawals public withdrawals;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
@@ -24,8 +29,8 @@ contract MockFlashLoan is Initializable, PausableUpgradeable, AccessControlUpgra
   }
 
   function initialize(address _stakeTogether, address _withdrawals) public initializer {
-    stakeTogether = StakeTogether(payable(_stakeTogether));
-    withdrawals = Withdrawals(payable(_withdrawals));
+    stakeTogether = ELStakeTogether(payable(_stakeTogether));
+    withdrawals = ELWithdrawals(payable(_withdrawals));
   }
 
   receive() external payable {}
