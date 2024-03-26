@@ -8,9 +8,9 @@ function checkConfigVariables() {
   checkGeneralVariables()
   const missingVariables = []
 
-  if (!process.env.ETH_HOLESKY_WITHDRAWAL_ADDRESS) missingVariables.push('ETH_HOLESKY_WITHDRAWAL_ADDRESS')
-  if (!process.env.ETH_HOLESKY_DEPOSIT_ADDRESS) missingVariables.push('ETH_HOLESKY_DEPOSIT_ADDRESS')
   if (!process.env.ETH_HOLESKY_BRIDGE_ADDRESS) missingVariables.push('ETH_HOLESKY_BRIDGE_ADDRESS')
+  if (!process.env.ETH_HOLESKY_DEPOSIT_ADDRESS) missingVariables.push('ETH_HOLESKY_DEPOSIT_ADDRESS')
+  if (!process.env.ETH_HOLESKY_WITHDRAWAL_ADDRESS) missingVariables.push('ETH_HOLESKY_WITHDRAWAL_ADDRESS')
 
   if (missingVariables.length > 0) {
     throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
@@ -21,9 +21,9 @@ export async function deploy() {
   checkConfigVariables()
   const [owner] = await ethers.getSigners()
 
-  const withdrawalsCredentials = process.env.ETH_HOLESKY_WITHDRAWAL_ADDRESS as string
-  const depositAddress = process.env.ETH_HOLESKY_DEPOSIT_ADDRESS as string
   const bridgeAddress = process.env.ETH_HOLESKY_BRIDGE_ADDRESS as string
+  const depositAddress = process.env.ETH_HOLESKY_DEPOSIT_ADDRESS as string
+  const withdrawalsCredentials = process.env.ETH_HOLESKY_WITHDRAWAL_ADDRESS as string
 
   const { proxyAddress, implementationAddress } = await deployAdapter(
     owner,
