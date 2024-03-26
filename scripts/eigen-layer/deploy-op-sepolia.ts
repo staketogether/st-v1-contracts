@@ -18,8 +18,7 @@ dotenv.config()
 
 export async function deploy() {
   checkDeployVariables()
-  const bridgeContract = String(process.env.OP_SEPOLIA_BRIDGE_ADDRESS)
-  const l1Adapter = String(process.env.OP_SEPOLIA_L1_ADAPTER_ADDRESS)
+  const bridgeContract = String(process.env.OP_HOLESKY_BRIDGE_ADDRESS)
 
   const [owner] = await ethers.getSigners()
 
@@ -38,7 +37,7 @@ export async function deploy() {
 
   // CONFIG
 
-  await configContracts(owner, airdrop, l1Adapter, stakeTogether, withdrawals, router)
+  await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
   // LOG
 
@@ -160,9 +159,9 @@ export async function deployStakeTogether(
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
   await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
 
-  const stakeEntry = ethers.parseEther('0.003')
-  const stakeRewardsFee = ethers.parseEther('0.09')
-  const stakePoolFee = ethers.parseEther('1')
+  const stakeEntry = ethers.parseEther('0')
+  const stakeRewardsFee = ethers.parseEther('0.08')
+  const stakePoolFee = ethers.parseEther('0.01')
   const stakeValidatorFee = ethers.parseEther('0.01')
 
   const poolSize = ethers.parseEther('32')
@@ -171,12 +170,12 @@ export async function deployStakeTogether(
     blocksPerDay: 7200n,
     depositLimit: ethers.parseEther('3200'),
     maxDelegations: 64n,
-    minDepositAmount: ethers.parseEther('0.01'),
-    minWithdrawAmount: ethers.parseEther('0.009'),
+    minDepositAmount: ethers.parseEther('0.00001'),
+    minWithdrawAmount: ethers.parseEther('0.001'),
     poolSize: poolSize + stakeValidatorFee,
     validatorSize: ethers.parseEther('32'),
-    withdrawalPoolLimit: ethers.parseEther('640'),
-    withdrawalValidatorLimit: ethers.parseEther('640'),
+    withdrawalPoolLimit: ethers.parseEther('64'),
+    withdrawalValidatorLimit: ethers.parseEther('64'),
     withdrawDelay: 7200n,
     withdrawBeaconDelay: 7200n,
     feature: {
@@ -216,7 +215,7 @@ export async function deployStakeTogether(
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
   await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
-  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('0.00001') })
+  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('0.001') })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
 }
@@ -228,7 +227,6 @@ export async function configContracts(
     implementationAddress: string
     airdropContract: ELAirdrop
   },
-  l1AdapterContract: string,
   stakeTogether: {
     proxyAddress: string
     implementationAddress: string
@@ -285,8 +283,7 @@ function checkDeployVariables() {
   checkGeneralVariables()
   const missingVariables = []
 
-  if (!process.env.OP_SEPOLIA_BRIDGE_ADDRESS) missingVariables.push('OP_SEPOLIA_BRIDGE_ADDRESS')
-  if (!process.env.OP_SEPOLIA_L1_ADAPTER_ADDRESS) missingVariables.push('OP_SEPOLIA_L1_ADAPTER_ADDRESS')
+  if (!process.env.OP_HOLESKY_BRIDGE_ADDRESS) missingVariables.push('OP_HOLESKY_BRIDGE_ADDRESS')
 
   if (missingVariables.length > 0) {
     throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)

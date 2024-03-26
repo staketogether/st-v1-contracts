@@ -5,10 +5,6 @@ export function checkGeneralVariables() {
   if (!process.env.MAINNET_DEPOSIT_ADDRESS) missingVariables.push('MAINNET_DEPOSIT_ADDRESS')
   if (!process.env.HOLESKY_DEPOSIT_ADDRESS) missingVariables.push('HOLESKY_DEPOSIT_ADDRESS')
 
-  if (!process.env.ETH_SEPOLIA_WITHDRAWAL_ADDRESS) missingVariables.push('SEPOLIA_WITHDRAWAL_ADDRESS')
-  if (!process.env.ETH_SEPOLIA_DEPOSIT_ADDRESS) missingVariables.push('SEPOLIA_DEPOSIT_ADDRESS')
-  if (!process.env.ETH_SEPOLIA_BRIDGE_ADDRESS) missingVariables.push('SEPOLIA_BRIDGE_ADDRESS')
-
   if (!process.env.CS_RPC_ETH_MAINNET) missingVariables.push('CS_RPC_ETH_MAINNET')
   if (!process.env.CS_RPC_ETH_HOLESKY) missingVariables.push('CS_RPC_ETH_HOLESKY')
   if (!process.env.CS_RPC_ETH_SEPOLIA) missingVariables.push('CS_RPC_ETH_SEPOLIA')

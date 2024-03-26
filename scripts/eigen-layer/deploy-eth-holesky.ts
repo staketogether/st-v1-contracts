@@ -4,13 +4,26 @@ import { ethers, network, upgrades } from 'hardhat'
 import { ELAdapter, ELAdapter__factory } from '../../typechain'
 import { checkGeneralVariables } from '../../utils/env'
 
-export async function deploy() {
+function checkConfigVariables() {
   checkGeneralVariables()
+  const missingVariables = []
+
+  if (!process.env.ETH_HOLESKY_WITHDRAWAL_ADDRESS) missingVariables.push('ETH_HOLESKY_WITHDRAWAL_ADDRESS')
+  if (!process.env.ETH_HOLESKY_DEPOSIT_ADDRESS) missingVariables.push('ETH_HOLESKY_DEPOSIT_ADDRESS')
+  if (!process.env.ETH_HOLESKY_BRIDGE_ADDRESS) missingVariables.push('ETH_HOLESKY_BRIDGE_ADDRESS')
+
+  if (missingVariables.length > 0) {
+    throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
+  }
+}
+
+export async function deploy() {
+  checkConfigVariables()
   const [owner] = await ethers.getSigners()
 
-  const withdrawalsCredentials = process.env.ETH_SEPOLIA_WITHDRAWAL_ADDRESS as string
-  const depositAddress = process.env.ETH_SEPOLIA_DEPOSIT_ADDRESS as string
-  const bridgeAddress = process.env.ETH_SEPOLIA_BRIDGE_ADDRESS as string
+  const withdrawalsCredentials = process.env.ETH_HOLESKY_WITHDRAWAL_ADDRESS as string
+  const depositAddress = process.env.ETH_HOLESKY_DEPOSIT_ADDRESS as string
+  const bridgeAddress = process.env.ETH_HOLESKY_BRIDGE_ADDRESS as string
 
   const { proxyAddress, implementationAddress } = await deployAdapter(
     owner,
@@ -51,15 +64,15 @@ async function deployAdapter(
   const adapter = await upgrades.deployProxy(adapterFactory, [
     bridgeAddress,
     depositAddress,
-    withdrawalsCredentialsAddress,
+    withdrawalsCredentials,
   ])
 
   await adapter.waitForDeployment()
   const proxyAddress = await adapter.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
-  console.log(`Adapter\t\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`Adapter\t\t Implementation\t\t ${implementationAddress}`)
+  console.log(`ELAdapter\t\t Proxy\t\t\t ${proxyAddress}`)
+  console.log(`ELAdapter\t\t Implementation\t\t ${implementationAddress}`)
 
   const adapterContract = adapter as unknown as ELAdapter
 
@@ -71,7 +84,7 @@ async function deployAdapter(
   await adapterContract.connect(owner).grantRole(ADA_ADMIN_ROLE, owner)
 
   const config = {
-    validatorSize: '32000000000000000000',
+    validatorSize: ethers.parseEther('32'),
   }
 
   await adapterContract.connect(owner).setConfig(config, { gasLimit: 1000000 })
@@ -82,8 +95,8 @@ async function deployAdapter(
 async function verifyContracts(adapterProxy: string, adapterImplementation: string) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network eth-sepolia ${adapterProxy} &&`)
-  console.log(`npx hardhat verify --network eth-sepolia ${adapterImplementation}`)
+  console.log(`npx hardhat verify --network eth-holesky ${adapterProxy} &&`)
+  console.log(`npx hardhat verify --network eth-holesky ${adapterImplementation}`)
 }
 
 deploy().catch((error) => {
