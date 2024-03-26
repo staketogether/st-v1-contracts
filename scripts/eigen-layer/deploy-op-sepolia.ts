@@ -2,7 +2,6 @@ import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
-import { checkGeneralVariables } from '../../test/utils/env'
 import {
   ELAirdrop,
   ELAirdrop__factory,
@@ -13,6 +12,7 @@ import {
   ELWithdrawals,
   ELWithdrawals__factory,
 } from '../../typechain'
+import { checkGeneralVariables } from '../../utils/env'
 
 dotenv.config()
 
@@ -257,8 +257,6 @@ export async function configContracts(
   await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
   await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
   await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
-
-  // await stakeTogether.stakeTogetherContract.setL1Adapter(l1AdapterContract)
 }
 
 async function verifyContracts(
@@ -273,30 +271,14 @@ async function verifyContracts(
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON OP ETHERSCAN\n')
 
-  console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELAirdrop.sol:ELAirdrop ${airdropProxy} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia  --contract contracts/eigen-layer/ELAirdrop.sol:ELAirdrop ${airdropImplementation} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia  --contract contracts/eigen-layer/ELWithdrawals.sol:ELWithdrawals ${withdrawalsProxy} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELWithdrawals.sol:ELWithdrawals ${withdrawalsImplementation} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELRouter.sol:ELRouter ${routerProxy} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELRouter.sol:ELRouter ${routerImplementation} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELStakeTogether.sol:ELStakeTogether ${stakeTogetherProxy} &&`,
-  )
-  console.log(
-    `npx hardhat verify --network op-sepolia --contract contracts/eigen-layer/ELStakeTogether.sol:ELStakeTogether ${stakeTogetherImplementation}`,
-  )
+  console.log(`npx hardhat verify --network op-sepolia ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network op-sepolia ${stakeTogetherImplementation}`)
 }
 
 function checkDeployVariables() {

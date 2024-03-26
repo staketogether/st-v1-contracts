@@ -14,7 +14,7 @@ import {
 } from '../../../typechain/factories/contracts/ethereum/mocks'
 
 import { MockFlashLoan } from '../../../typechain/contracts/mocks'
-import { checkGeneralVariables } from '../../utils/env'
+import { checkGeneralVariables } from '../../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)

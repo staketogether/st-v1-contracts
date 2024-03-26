@@ -3,7 +3,7 @@ import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
 
 import dotenv from 'dotenv'
-import { checkGeneralVariables } from './test/utils/env'
+import { checkGeneralVariables } from './utils/env'
 dotenv.config()
 
 checkGeneralVariables()
@@ -57,6 +57,7 @@ const config = {
     apiKey: {
       'eth-mainnet': process.env.ETHERSCAN_API_KEY as string,
       'eth-holesky': process.env.ETHERSCAN_API_KEY as string,
+      'eth-sepolia': process.env.ETHERSCAN_API_KEY as string,
       'op-mainnet': process.env.OP_ETHERSCAN_API_KEY as string,
       'op-sepolia': process.env.OP_ETHERSCAN_API_KEY as string,
     },

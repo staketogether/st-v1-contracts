@@ -10,7 +10,7 @@ import {
   Withdrawals__factory,
 } from '../../../typechain/factories/contracts/ethereum'
 import { MockDepositContract__factory } from '../../../typechain/factories/contracts/ethereum/mocks'
-import { checkGeneralVariables } from '../../utils/env'
+import { checkGeneralVariables } from '../../../utils/env'
 
 async function deployAirdrop(owner: HardhatEthersSigner) {
   const AirdropFactory = new Airdrop__factory().connect(owner)

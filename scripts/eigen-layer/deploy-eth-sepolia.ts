@@ -1,29 +1,30 @@
-import { ethers, network, upgrades } from 'hardhat'
-import { checkGeneralVariables } from '../../test/utils/env'
 import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
-import { Adapter } from '../../typechain/contracts/eigen-layer'
-import { Adapter__factory } from '../../typechain/factories/contracts/eigen-layer'
+import { ethers, network, upgrades } from 'hardhat'
+import { ELAdapter, ELAdapter__factory } from '../../typechain'
+import { checkGeneralVariables } from '../../utils/env'
 
 export async function deploy() {
-  checkDeployVariables()
+  checkGeneralVariables()
   const [owner] = await ethers.getSigners()
 
-  const withdrawalsCredentials = process.env.SEPOLIA_WITHDRAWAL_ADDRESS as string
-  const depositAddress = process.env.SEPOLIA_DEPOSIT_ADDRESS as string
-  const bridgeAddress = process.env.SEPOLIA_BRIDGE_ADDRESS as string
+  const withdrawalsCredentials = process.env.ETH_SEPOLIA_WITHDRAWAL_ADDRESS as string
+  const depositAddress = process.env.ETH_SEPOLIA_DEPOSIT_ADDRESS as string
+  const bridgeAddress = process.env.ETH_SEPOLIA_BRIDGE_ADDRESS as string
 
-  const { proxyAddress, implementationAddress } = await deployEthereumAdapter(owner, depositAddress, withdrawalsCredentials, bridgeAddress)
-
-  console.log('\n🔷 All ST Contracts Deployed!\n')
-
-  verifyContracts(
-    proxyAddress,
-    implementationAddress,
+  const { proxyAddress, implementationAddress } = await deployAdapter(
+    owner,
+    depositAddress,
+    withdrawalsCredentials,
+    bridgeAddress,
   )
+
+  console.log('\n🔷EL Adapter Contracts Deployed!\n')
+
+  verifyContracts(proxyAddress, implementationAddress)
 }
 
-async function deployEthereumAdapter(
+async function deployAdapter(
   owner: HardhatEthersSigner,
   depositAddress: string,
   withdrawalsCredentialsAddress: string,
@@ -45,54 +46,47 @@ async function deployEthereumAdapter(
     throw new Error('Withdrawals credentials are not the correct length')
   }
 
-  const OptimismAdapterFactory = new Adapter__factory().connect(owner)
+  const adapterFactory = new ELAdapter__factory().connect(owner)
 
-  const optimismAdapter = await upgrades.deployProxy(OptimismAdapterFactory, [
+  const adapter = await upgrades.deployProxy(adapterFactory, [
     bridgeAddress,
     depositAddress,
     withdrawalsCredentialsAddress,
   ])
 
-  await optimismAdapter.waitForDeployment()
-  const proxyAddress = await optimismAdapter.getAddress()
+  await adapter.waitForDeployment()
+  const proxyAddress = await adapter.getAddress()
   const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
 
   console.log(`Adapter\t\t Proxy\t\t\t ${proxyAddress}`)
   console.log(`Adapter\t\t Implementation\t\t ${implementationAddress}`)
 
-  const optimismAdapterContract = optimismAdapter as unknown as Adapter
+  const adapterContract = adapter as unknown as ELAdapter
 
-  const ST_ADMIN_ROLE = await optimismAdapterContract.ADMIN_ROLE()
-  await optimismAdapterContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+  const ST_ADMIN_ROLE = await adapterContract.ADMIN_ROLE()
+  await adapterContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+
+  const ADA_ADMIN_ROLE = await adapterContract.ADMIN_ROLE()
+
+  await adapterContract.connect(owner).grantRole(ADA_ADMIN_ROLE, owner)
 
   const config = {
-    validatorSize: ethers.parseEther('32'),
+    validatorSize: '32000000000000000000',
   }
 
-  await optimismAdapterContract.setConfig(config)
+  await adapterContract.connect(owner).setConfig(config, { gasLimit: 1000000 })
 
-  return { proxyAddress, implementationAddress, adapterContract: optimismAdapterContract }
+  return { proxyAddress, implementationAddress, adapterContract }
 }
 
-async function verifyContracts(
-  adapterProxy: string,
-  adapterImplementation: string,
-) {
+async function verifyContracts(adapterProxy: string, adapterImplementation: string) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network sepolia ${adapterProxy} &&`)
-  console.log(`npx hardhat verify --network sepolia ${adapterImplementation} &&`)
+  console.log(`npx hardhat verify --network eth-sepolia ${adapterProxy} &&`)
+  console.log(`npx hardhat verify --network eth-sepolia ${adapterImplementation}`)
 }
 
-function checkDeployVariables() {
-  checkGeneralVariables()
-  const missingVariables = []
-
-  if (!process.env.SEPOLIA_WITHDRAWAL_ADDRESS) missingVariables.push('SEPOLIA_WITHDRAWAL_ADDRESS')
-  if (!process.env.SEPOLIA_DEPOSIT_ADDRESS) missingVariables.push('SEPOLIA_DEPOSIT_ADDRESS')
-  if (!process.env.SEPOLIA_BRIDGE_ADDRESS) missingVariables.push('SEPOLIA_BRIDGE_ADDRESS')
-
-  if (missingVariables.length > 0) {
-    throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
-  }
-}
+deploy().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+})

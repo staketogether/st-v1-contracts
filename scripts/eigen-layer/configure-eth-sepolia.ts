@@ -1,5 +1,5 @@
-import { checkGeneralVariables } from '../../test/utils/env'
 import { ethers } from 'hardhat'
+import { checkGeneralVariables } from '../../utils/env'
 
 export default async function configureEthSepolia() {
   checkConfigVariables()
@@ -9,7 +9,10 @@ export default async function configureEthSepolia() {
 }
 
 async function configureL1Adapter() {
-  const ethAdapter = await ethers.getContractAt('Adapter', process.env.OP_SEPOLIA_L1_ADAPTER_ADDRESS as string)
+  const ethAdapter = await ethers.getContractAt(
+    'Adapter',
+    process.env.OP_SEPOLIA_L1_ADAPTER_ADDRESS as string,
+  )
 
   const tx = await ethAdapter.setL2Router(process.env.OP_SEPOLIA_L2_ROUTER_ADDRESS as string)
   await tx.wait()
