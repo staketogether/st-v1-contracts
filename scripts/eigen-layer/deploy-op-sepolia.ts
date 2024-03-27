@@ -16,11 +16,23 @@ import { checkGeneralVariables } from '../../utils/env'
 
 dotenv.config()
 
+function checkDeployVariables() {
+  checkGeneralVariables()
+  const missingVariables = []
+
+  if (!process.env.OP_SEPOLIA_BRIDGE_ADDRESS) missingVariables.push('OP_SEPOLIA_BRIDGE_ADDRESS')
+  if (!process.env.OP_SEPOLIA_FEE_ADDRESS) missingVariables.push('OP_SEPOLIA_FEE_ADDRESS')
+
+  if (missingVariables.length > 0) {
+    throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
+  }
+}
+
 export async function deploy() {
   console.log('Deploy Initiating...\n')
 
   checkDeployVariables()
-  const bridgeContract = String(process.env.OP_HOLESKY_BRIDGE_ADDRESS)
+  const bridgeContract = String(process.env.OP_SEPOLIA_BRIDGE_ADDRESS)
 
   const [owner] = await ethers.getSigners()
 
@@ -253,7 +265,7 @@ export async function configContracts(
   await withdrawals.withdrawalsContract.setStakeTogether(stakeTogether.proxyAddress)
   await withdrawals.withdrawalsContract.setRouter(router.proxyAddress)
 
-  const feeAddress = process.env.OP_HOLESKY_FEE_ADDRESS as string
+  const feeAddress = process.env.OP_SEPOLIA_FEE_ADDRESS as string
 
   await stakeTogether.stakeTogetherContract.setFeeAddress(0, airdrop.proxyAddress)
   await stakeTogether.stakeTogetherContract.setFeeAddress(1, feeAddress)
@@ -281,18 +293,6 @@ async function verifyContracts(
   console.log(`npx hardhat verify --network op-sepolia ${routerImplementation} &&`)
   console.log(`npx hardhat verify --network op-sepolia ${stakeTogetherProxy} &&`)
   console.log(`npx hardhat verify --network op-sepolia ${stakeTogetherImplementation}`)
-}
-
-function checkDeployVariables() {
-  checkGeneralVariables()
-  const missingVariables = []
-
-  if (!process.env.OP_HOLESKY_BRIDGE_ADDRESS) missingVariables.push('OP_HOLESKY_BRIDGE_ADDRESS')
-  if (!process.env.OP_HOLESKY_FEE_ADDRESS) missingVariables.push('OP_HOLESKY_FEE_ADDRESS')
-
-  if (missingVariables.length > 0) {
-    throw new Error(`Missing environment variables: ${missingVariables.join(', ')}`)
-  }
 }
 
 deploy().catch((error) => {
