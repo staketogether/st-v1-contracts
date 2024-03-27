@@ -66,7 +66,7 @@ const config = {
         network: 'eth-mainnet',
         chainId: 1,
         urls: {
-          apiURL: 'https://etherscan.io/api',
+          apiURL: 'https://api.etherscan.io/api',
           browserURL: 'https://etherscan.io',
         },
       },
