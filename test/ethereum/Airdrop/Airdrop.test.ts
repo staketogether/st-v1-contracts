@@ -4,7 +4,6 @@ import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { expect } from 'chai'
 import dotenv from 'dotenv'
 import { ethers, upgrades } from 'hardhat'
-
 import { Airdrop } from '../../../typechain/contracts/ethereum'
 import { MockAirdrop, MockRouter, MockStakeTogether } from '../../../typechain/contracts/ethereum/mocks'
 import { Airdrop__factory } from '../../../typechain/factories/contracts/ethereum'
