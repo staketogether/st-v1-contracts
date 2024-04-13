@@ -16,7 +16,9 @@
     "typechain",
     "UPGRADER",
     "UUPS",
-    "WLETH"
+    "WLETH",
+    "holesky",
+    "HOLESKY"
   ],
   "ignoreWords": [],
   "import": []

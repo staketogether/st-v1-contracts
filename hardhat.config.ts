@@ -3,10 +3,10 @@ import '@openzeppelin/hardhat-upgrades'
 import 'hardhat-gas-reporter'
 
 import dotenv from 'dotenv'
-import { checkVariables } from './test/utils/env'
+import { checkGeneralVariables } from './utils/env'
 dotenv.config()
 
-checkVariables()
+checkGeneralVariables()
 
 const config = {
   solidity: {
@@ -22,28 +22,88 @@ const config = {
         runs: 200,
       },
     },
+    compilers: [{ version: '0.8.25' }],
   },
   typechain: {
     outDir: 'typechain',
     target: 'ethers-v6',
   },
   networks: {
-    mainnet: {
-      url: `https://mainnet.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`,
-      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 1,
+    'eth-mainnet': {
+      url: process.env.CS_RPC_ETH_MAINNET,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
-    goerli: {
-      url: `https://goerli.infura.io/v3/${process.env.GOERLI_INFURA_API_KEY}`,
-      accounts: [process.env.DEPLOYER_PRIVATE_KEY as string],
-      chainId: 5,
+    'eth-holesky': {
+      url: process.env.CS_RPC_ETH_HOLESKY,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+    },
+    'eth-sepolia': {
+      url: process.env.CS_RPC_ETH_SEPOLIA,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+    },
+    'op-mainnet': {
+      url: process.env.CS_RPC_OP_MAINNET,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+    },
+    'op-sepolia': {
+      url: process.env.CS_RPC_OP_SEPOLIA,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     localhost: {
       url: 'http://127.0.0.1:8545',
     },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY as string,
+    apiKey: {
+      'eth-mainnet': process.env.ETHERSCAN_API_KEY as string,
+      'eth-holesky': process.env.ETHERSCAN_API_KEY as string,
+      'eth-sepolia': process.env.ETHERSCAN_API_KEY as string,
+      'op-mainnet': process.env.OP_ETHERSCAN_API_KEY as string,
+      'op-sepolia': process.env.OP_ETHERSCAN_API_KEY as string,
+    },
+    customChains: [
+      {
+        network: 'eth-mainnet',
+        chainId: 1,
+        urls: {
+          apiURL: 'https://api.etherscan.io/api',
+          browserURL: 'https://etherscan.io',
+        },
+      },
+      {
+        network: 'eth-holesky',
+        chainId: 17000,
+        urls: {
+          apiURL: 'https://api-holesky.etherscan.io/api',
+          browserURL: 'https://holesky.etherscan.io/',
+        },
+      },
+      {
+        network: 'eth-sepolia',
+        chainId: 11155111,
+        urls: {
+          apiURL: 'https://api-sepolia.etherscan.io/api',
+          browserURL: 'https://sepolia.etherscan.io/',
+        },
+      },
+
+      {
+        network: 'op-mainnet',
+        chainId: 10,
+        urls: {
+          apiURL: 'https://api-optimistic.etherscan.io/api',
+          browserURL: 'https://optimistic.etherscan.io/',
+        },
+      },
+      {
+        network: 'op-sepolia',
+        chainId: 11155420,
+        urls: {
+          apiURL: 'https://api-sepolia-optimistic.etherscan.io/api',
+          browserURL: 'https://sepolia-optimism.etherscan.io/',
+        },
+      },
+    ],
   },
   sourcify: {
     enabled: false,
