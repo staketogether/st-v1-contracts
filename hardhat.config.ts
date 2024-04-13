@@ -30,23 +30,23 @@ const config = {
   },
   networks: {
     'eth-mainnet': {
-      url: process.env.CS_RPC_ETH_MAINNET,
+      url: process.env.RPC_ETH_MAINNET,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'eth-holesky': {
-      url: process.env.CS_RPC_ETH_HOLESKY,
+      url: process.env.RPC_ETH_HOLESKY,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'eth-sepolia': {
-      url: process.env.CS_RPC_ETH_SEPOLIA,
+      url: process.env.RPC_ETH_SEPOLIA,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'op-mainnet': {
-      url: process.env.CS_RPC_OP_MAINNET,
+      url: process.env.RPC_OP_MAINNET,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     'op-sepolia': {
-      url: process.env.CS_RPC_OP_SEPOLIA,
+      url: process.env.RPC_OP_SEPOLIA,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
     localhost: {
