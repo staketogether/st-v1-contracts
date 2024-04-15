@@ -329,10 +329,10 @@ contract StakeTogether is
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     if (_account == address(0)) revert ZeroAddress();
     if (_sharesAmount > shares[_account]) revert InsufficientShares();
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
-    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
