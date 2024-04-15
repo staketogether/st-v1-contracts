@@ -49,6 +49,14 @@ const config = {
       url: process.env.RPC_OP_SEPOLIA,
       accounts: [process.env.DEPLOYER_PRIVATE_KEY],
     },
+    'chz-mainnet': {
+      url: process.env.RPC_CHZ_MAINNET,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+    },
+    'chz-spicy': {
+      url: process.env.RPC_CHZ_SPICY,
+      accounts: [process.env.DEPLOYER_PRIVATE_KEY],
+    },
     localhost: {
       url: 'http://127.0.0.1:8545',
     },
@@ -101,6 +109,22 @@ const config = {
         urls: {
           apiURL: 'https://api-sepolia-optimistic.etherscan.io/api',
           browserURL: 'https://sepolia-optimism.etherscan.io/',
+        },
+      },
+      {
+        network: 'chz-mainnet',
+        chainId: 88888,
+        urls: {
+          apiURL: '#',
+          browserURL: 'https://chiliscan.com/',
+        },
+      },
+      {
+        network: 'chz-spicy',
+        chainId: 88882,
+        urls: {
+          apiURL: '#',
+          browserURL: 'https://testnet.chiliscan.com/',
         },
       },
     ],
