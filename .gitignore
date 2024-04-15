@@ -28,3 +28,4 @@ lido
 
 .vscode/slither-results.json
 .openzeppelin
+.DS_Store
