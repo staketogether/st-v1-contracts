@@ -29,14 +29,14 @@ contract ChilizWithdrawals is
   ERC20PermitUpgradeable,
   UUPSUpgradeable,
   ReentrancyGuardUpgradeable,
-  IWithdrawals
+  IChilizWithdrawals
 {
   bytes32 public constant UPGRADER_ROLE = keccak256('UPGRADER_ROLE'); /// Role for managing upgrades.
   bytes32 public constant ADMIN_ROLE = keccak256('ADMIN_ROLE'); /// Role for administration.
 
   uint256 public version; /// Contract version.
-  IStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
-  IRouter public router; /// Instance of the Router contract.
+  IChilizStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IChilizRouter public router; /// Instance of the Router contract.
   mapping(address => uint256) private lastOperationBlock; // Mapping of addresses to their last operation block.
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -135,7 +135,7 @@ contract ChilizWithdrawals is
   function transfer(
     address _to,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
+  ) public override(ERC20Upgradeable, IChilizWithdrawals) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (block.number < stakeTogether.getWithdrawBeaconBlock(msg.sender)) revert EarlyBeaconTransfer();
@@ -152,7 +152,7 @@ contract ChilizWithdrawals is
     address _from,
     address _to,
     uint256 _amount
-  ) public override(ERC20Upgradeable, IWithdrawals) returns (bool) {
+  ) public override(ERC20Upgradeable, IChilizWithdrawals) returns (bool) {
     if (stakeTogether.isListedInAntiFraud(_from)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(_to)) revert ListedInAntiFraud();
     if (stakeTogether.isListedInAntiFraud(msg.sender)) revert ListedInAntiFraud();
