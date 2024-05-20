@@ -100,7 +100,7 @@ contract ChilizWithdrawals is
   function transferExtraAmount() external whenNotPaused nonReentrant onlyRole(ADMIN_ROLE) {
     uint256 extraAmount = address(this).balance - totalSupply();
     if (extraAmount <= 0) revert NoExtraAmountAvailable();
-    address stakeTogetherFee = stakeTogether.getFeeAddress(IStakeTogether.FeeRole.StakeTogether);
+    address stakeTogetherFee = stakeTogether.getFeeAddress(IChilizStakeTogether.FeeRole.StakeTogether);
     Address.sendValue(payable(stakeTogetherFee), extraAmount);
   }
 
@@ -110,7 +110,7 @@ contract ChilizWithdrawals is
   function setStakeTogether(address _stakeTogether) external onlyRole(ADMIN_ROLE) {
     if (address(stakeTogether) != address(0)) revert StakeTogetherAlreadySet();
     if (_stakeTogether == address(0)) revert ZeroAddress();
-    stakeTogether = IStakeTogether(payable(_stakeTogether));
+    stakeTogether = IChilizStakeTogether(payable(_stakeTogether));
     emit SetStakeTogether(_stakeTogether);
   }
 
@@ -120,7 +120,7 @@ contract ChilizWithdrawals is
   function setRouter(address _router) external onlyRole(ADMIN_ROLE) {
     if (address(router) != address(0)) revert RouterAlreadySet();
     if (_router == address(0)) revert ZeroAddress();
-    router = IRouter(payable(_router));
+    router = IChilizRouter(payable(_router));
     emit SetRouter(_router);
   }
 

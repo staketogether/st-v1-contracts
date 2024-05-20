@@ -68,6 +68,8 @@ const config = {
       'eth-sepolia': process.env.ETHERSCAN_API_KEY as string,
       'op-mainnet': process.env.OP_ETHERSCAN_API_KEY as string,
       'op-sepolia': process.env.OP_ETHERSCAN_API_KEY as string,
+      'chz-mainnet': 'not-necessary',
+      'chz-spicy': 'not-necessary',
     },
     customChains: [
       {
@@ -115,7 +117,7 @@ const config = {
         network: 'chz-mainnet',
         chainId: 88888,
         urls: {
-          apiURL: '#',
+          apiURL: 'https://api.routescan.io/v2/network/mainnet/evm/88888/etherscan/api',
           browserURL: 'https://chiliscan.com/',
         },
       },
@@ -123,7 +125,7 @@ const config = {
         network: 'chz-spicy',
         chainId: 88882,
         urls: {
-          apiURL: '#',
+          apiURL: 'https://api.routescan.io/v2/network/testnet/evm/88882/etherscan/api',
           browserURL: 'https://testnet.chiliscan.com/',
         },
       },

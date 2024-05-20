@@ -461,8 +461,7 @@ interface IChilizStakeTogether {
   /// @notice Withdraws from the validators with specific delegations and mints tokens to the sender.
   /// @param _amount The amount to withdraw.
   /// @param _pool the address of the pool.
-  /// @param _validator the address of the validator to be unstaked.
-  function withdrawBeacon(uint256 _amount, address _pool, address _validator) external;
+  function withdrawBeacon(uint256 _amount, address _pool) external;
 
   /// @notice Get the next withdraw block for account
   /// @param _account the address of the account.

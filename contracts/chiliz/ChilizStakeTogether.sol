@@ -50,7 +50,6 @@ contract ChilizStakeTogether is
   IChilizRouter public router; /// Address of the contract router.
   IChilizWithdrawals public withdrawals; /// Withdrawals contract instance.
 
-  bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
   uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
 
@@ -91,13 +90,11 @@ contract ChilizStakeTogether is
   /// @param _chiliz The address of the chiliz contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
     address _airdrop,
     address _chiliz,
     address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
+    address _withdrawals
   ) public initializer {
     __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
@@ -115,7 +112,6 @@ contract ChilizStakeTogether is
     chiliz = IChilizStake(payable(_chiliz));
     router = IChilizRouter(payable(_router));
     withdrawals = IChilizWithdrawals(payable(_withdrawals));
-    withdrawalCredentials = _withdrawalCredentials;
 
     _mintShares(address(this), 1 ether);
   }
@@ -717,7 +713,7 @@ contract ChilizStakeTogether is
   /// @notice Claims from validator with the given parameters.
   /// @param _validator The address of the benefactor validator
   /// @dev Only a valid validator oracle can call this function.
-  function claimRewardsFromValidator(
+  function claimFromValidator(
     address _validator,
     uint256 _amount
   ) external nonReentrant whenNotPaused {

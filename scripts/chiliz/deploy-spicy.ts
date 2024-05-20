@@ -3,22 +3,20 @@ import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 import * as dotenv from 'dotenv'
 import { ethers, network, upgrades } from 'hardhat'
 import {
-  Airdrop,
-  Airdrop__factory,
-  Router,
-  Router__factory,
-  StakeTogether,
-  StakeTogetherWrapper,
-  StakeTogetherWrapper__factory,
-  StakeTogether__factory,
-  Withdrawals,
-  Withdrawals__factory,
+  ChilizAirdrop as Airdrop,
+  ChilizAirdrop__factory as Airdrop__factory,
+  ChilizRouter as Router,
+  ChilizRouter__factory as Router__factory,
+  ChilizStakeTogether as StakeTogether,
+  ChilizStakeTogether__factory as StakeTogether__factory,
+  ChilizWithdrawals as Withdrawals,
+  ChilizWithdrawals__factory as Withdrawals__factory,
 } from '../../typechain'
 import { checkGeneralVariables } from '../../utils/env'
 
 dotenv.config()
 
-const depositAddress = String(process.env.MAINNET_DEPOSIT_ADDRESS)
+const stakingAddress = String(process.env.CHZ_SPICY_STAKING_ADDRESS)
 
 export async function deploy() {
   checkGeneralVariables()
@@ -36,9 +34,8 @@ export async function deploy() {
     router.proxyAddress,
     withdrawals.proxyAddress,
   )
-  const stakeTogetherWrapper = await deployStakeTogetherWrapper(owner)
 
-  await configContracts(owner, airdrop, stakeTogether, stakeTogetherWrapper, withdrawals, router)
+  await configContracts(owner, airdrop, stakeTogether, withdrawals, router)
 
   console.log('\n🔷 All ST Contracts Deployed!\n')
 
@@ -49,8 +46,6 @@ export async function deploy() {
     router.implementationAddress,
     stakeTogether.proxyAddress,
     stakeTogether.implementationAddress,
-    stakeTogetherWrapper.proxyAddress,
-    stakeTogetherWrapper.implementationAddress,
     withdrawals.proxyAddress,
     withdrawals.implementationAddress,
   )
@@ -114,7 +109,7 @@ export async function deployRouter(
     reportFrequency: 7200n,
     reportDelayBlock: 1200n,
     reportNoConsensusMargin: 0n,
-    oracleQuorum: 2n,
+    oracleQuorum: 1n,
   }
 
   const routerContract = router as unknown as Router
@@ -122,7 +117,7 @@ export async function deployRouter(
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
   await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
 
-  await routerContract.setConfig(config)
+  await routerContract.connect(owner).setConfig(config)
 
   return { proxyAddress, implementationAddress, routerContract }
 }
@@ -133,33 +128,13 @@ export async function deployStakeTogether(
   routerContract: string,
   withdrawalsContract: string,
 ) {
-  function convertToWithdrawalAddress(eth1Address: string): string {
-    if (!ethers.isAddress(eth1Address)) {
-      throw new Error('Invalid ETH1 address format.')
-    }
-
-    const address = eth1Address.startsWith('0x') ? eth1Address.slice(2) : eth1Address
-    const paddedAddress = address.padStart(62, '0')
-    const withdrawalAddress = '0x01' + paddedAddress
-    return withdrawalAddress
-  }
-
-  const withdrawalsCredentials = convertToWithdrawalAddress(routerContract)
-
-  if (withdrawalsCredentials.length !== 66) {
-    throw new Error('Withdrawals credentials are not the correct length')
-  }
-
   const StakeTogetherFactory = new StakeTogether__factory().connect(owner)
-
-  const withdrawalsCredentialsAddress = convertToWithdrawalAddress(routerContract)
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     airdropContract,
-    depositAddress,
+    stakingAddress,
     routerContract,
-    withdrawalsContract,
-    withdrawalsCredentialsAddress,
+    withdrawalsContract
   ])
 
   await stakeTogether.waitForDeployment()
@@ -201,7 +176,7 @@ export async function deployStakeTogether(
     },
   }
 
-  await stakeTogetherContract.setConfig(config)
+  await stakeTogetherContract.connect(owner).setConfig(config)
 
   // Airdrop,
   // Operator,
@@ -209,7 +184,7 @@ export async function deployStakeTogether(
   // Sender
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(0n, stakeEntry, [
+  await stakeTogetherContract.connect(owner).setFee(0n, stakeEntry, [
     ethers.parseEther('0.6'),
     0n,
     ethers.parseEther('0.4'),
@@ -217,7 +192,7 @@ export async function deployStakeTogether(
   ])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.setFee(1n, stakeRewardsFee, [
+  await stakeTogetherContract.connect(owner).setFee(1n, stakeRewardsFee, [
     ethers.parseEther('0.444'),
     ethers.parseEther('0.278'),
     ethers.parseEther('0.278'),
@@ -225,33 +200,14 @@ export async function deployStakeTogether(
   ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract.connect(owner).setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract.connect(owner).setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
-  // await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
+  await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
   return { proxyAddress, implementationAddress, stakeTogetherContract }
-}
-
-async function deployStakeTogetherWrapper(owner: HardhatEthersSigner) {
-  const STWrapperFactory = new StakeTogetherWrapper__factory().connect(owner)
-
-  const stWrapper = await upgrades.deployProxy(STWrapperFactory)
-  await stWrapper.waitForDeployment()
-  const proxyAddress = await stWrapper.getAddress()
-  const implementationAddress = await getImplementationAddress(network.provider, proxyAddress)
-
-  console.log(`StakeTogetherWrapper\t Proxy\t\t\t ${proxyAddress}`)
-  console.log(`StakeTogetherWrapper\t Implementation\t\t ${implementationAddress}`)
-
-  const stWrapperContract = stWrapper as unknown as StakeTogetherWrapper
-
-  const ST_WRAPPER_ADMIN_ROLE = await stWrapperContract.ADMIN_ROLE()
-  await stWrapperContract.connect(owner).grantRole(ST_WRAPPER_ADMIN_ROLE, owner)
-
-  return { proxyAddress, implementationAddress, stakeTogetherWrapperContract: stWrapperContract }
 }
 
 export async function configContracts(
@@ -265,11 +221,6 @@ export async function configContracts(
     proxyAddress: string
     implementationAddress: string
     stakeTogetherContract: StakeTogether
-  },
-  stakeTogetherWrapper: {
-    proxyAddress: string
-    implementationAddress: string
-    stakeTogetherWrapperContract: StakeTogetherWrapper
   },
   withdrawals: {
     proxyAddress: string
@@ -294,8 +245,6 @@ export async function configContracts(
   await stakeTogether.stakeTogetherContract.setFeeAddress(1, owner)
   await stakeTogether.stakeTogetherContract.setFeeAddress(2, owner)
   await stakeTogether.stakeTogetherContract.setFeeAddress(3, owner)
-
-  await stakeTogetherWrapper.stakeTogetherWrapperContract.setStakeTogether(stakeTogether.proxyAddress)
 }
 
 async function verifyContracts(
@@ -305,23 +254,19 @@ async function verifyContracts(
   routerImplementation: string,
   stakeTogetherProxy: string,
   stakeTogetherImplementation: string,
-  stakeTogetherWrapperProxy: string,
-  stakeTogetherWrapperImplementation: string,
   withdrawalsProxy: string,
   withdrawalsImplementation: string,
 ) {
   console.log('\nRUN COMMAND TO VERIFY ON ETHERSCAN\n')
 
-  console.log(`npx hardhat verify --network mainnet ${airdropProxy} &&`)
-  console.log(`npx hardhat verify --network mainnet ${airdropImplementation} &&`)
-  console.log(`npx hardhat verify --network mainnet ${routerProxy} &&`)
-  console.log(`npx hardhat verify --network mainnet ${routerImplementation} &&`)
-  console.log(`npx hardhat verify --network mainnet ${withdrawalsProxy} &&`)
-  console.log(`npx hardhat verify --network mainnet ${withdrawalsImplementation} &&`)
-  console.log(`npx hardhat verify --network mainnet ${stakeTogetherProxy} &&`)
-  console.log(`npx hardhat verify --network mainnet ${stakeTogetherImplementation} &&`)
-  console.log(`npx hardhat verify --network mainnet ${stakeTogetherWrapperProxy} &&`)
-  console.log(`npx hardhat verify --network mainnet ${stakeTogetherWrapperImplementation}`)
+  console.log(`npx hardhat verify --network chz-spicy ${airdropProxy} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${airdropImplementation} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${routerProxy} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${routerImplementation} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${withdrawalsProxy} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${withdrawalsImplementation} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${stakeTogetherProxy} &&`)
+  console.log(`npx hardhat verify --network chz-spicy ${stakeTogetherImplementation} &&`)
 }
 
 deploy().catch((error) => {
