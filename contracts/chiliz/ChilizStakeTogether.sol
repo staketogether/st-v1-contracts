@@ -112,7 +112,7 @@ contract ChilizStakeTogether is
     version = 1;
 
     airdrop = IChilizAirdrop(payable(_airdrop));
-    chiliz = IChilizStake(_chiliz);
+    chiliz = IChilizStake(payable(_chiliz));
     router = IChilizRouter(payable(_router));
     withdrawals = IChilizWithdrawals(payable(_withdrawals));
     withdrawalCredentials = _withdrawalCredentials;
@@ -675,40 +675,62 @@ contract ChilizStakeTogether is
     router.receiveWithdrawEther{ value: diffAmount }();
   }
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
+  /// @notice Stakes to validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
   /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
+  function stakeToValidator(
+    address _validator,
+    uint256 _amount
+  ) external nonReentrant whenNotPaused onlyRole(VALIDATOR_ORACLE_ROLE) {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
+    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
+    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
+
+    _nextValidatorOracle();
+    _setBeaconBalance(beaconBalance + _amount);
+
+    emit StakeToValidator(msg.sender, _validator, _amount);
+    chiliz.stake{ value: _amount }(_validator);
+    _processFeeValidator();
+  }
+
+  /// @notice Unstakes from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function unstakeFromValidator(
+    address _validator,
+    uint256 _amount
   ) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
-    if (validators[_publicKey]) revert ValidatorExists();
+    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
     if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
 
-    validators[_publicKey] = true;
     _nextValidatorOracle();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit AddValidator(
-      msg.sender,
-      config.validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    // chiliz.deposit{ value: config.validatorSize }(
-    //   _publicKey,
-    //   withdrawalCredentials,
-    //   _signature,
-    //   _depositDataRoot
-    // );
-    _processFeeValidator();
+    _setBeaconBalance(beaconBalance + _amount);
+
+    emit UnstakeFromValidator(msg.sender, _validator, _amount);
+    chiliz.unstake(_validator, _amount);
+  }
+
+  /// @notice Claims from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function claimRewardsFromValidator(
+    address _validator,
+    uint256 _amount
+  ) external nonReentrant whenNotPaused {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
+    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
+    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
+
+    _nextValidatorOracle();
+    _setBeaconBalance(beaconBalance + _amount);
+
+    emit ClaimFromValidator(msg.sender, _validator, _amount);
+    chiliz.claim(_validator);
   }
 
   /*************
