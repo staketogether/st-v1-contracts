@@ -64,7 +64,8 @@ export async function deployAirdrop(owner: HardhatEthersSigner) {
   const airdropContract = airdrop as unknown as Airdrop
 
   const AIR_ADMIN_ROLE = await airdropContract.ADMIN_ROLE()
-  await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+  const adminGrantRole = await airdropContract.connect(owner).grantRole(AIR_ADMIN_ROLE, owner)
+  await adminGrantRole.wait()
 
   return { proxyAddress, implementationAddress, airdropContract }
 }
@@ -83,7 +84,8 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
   const withdrawalsContract = withdrawals as unknown as Withdrawals
 
   const WITHDRAW_ADMIN_ROLE = await withdrawalsContract.ADMIN_ROLE()
-  await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
+  const adminGrantRole = await withdrawalsContract.connect(owner).grantRole(WITHDRAW_ADMIN_ROLE, owner)
+  await adminGrantRole.wait()
 
   return { proxyAddress, implementationAddress, withdrawalsContract }
 }
@@ -115,7 +117,8 @@ export async function deployRouter(
   const routerContract = router as unknown as Router
 
   const ROUTER_ADMIN_ROLE = await routerContract.ADMIN_ROLE()
-  await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
+  const grantRole = await routerContract.connect(owner).grantRole(ROUTER_ADMIN_ROLE, owner)
+  await grantRole.wait()
 
   await routerContract.connect(owner).setConfig(config)
 
@@ -147,7 +150,8 @@ export async function deployStakeTogether(
   const stakeTogetherContract = stakeTogether as unknown as StakeTogether
 
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
-  await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+  const grantAdminRole = await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
+  await grantAdminRole.wait()
 
   const stakeEntry = ethers.parseEther('0.003')
   const stakeRewardsFee = ethers.parseEther('0.09')
