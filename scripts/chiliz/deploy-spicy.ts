@@ -95,7 +95,7 @@ export async function deployRouter(
 ) {
   const RouterFactory = new Router__factory().connect(owner)
 
-  const router = await upgrades.deployProxy(RouterFactory, [airdropContract, withdrawalsContract])
+  const router = await upgrades.deployProxy(RouterFactory, [airdropContract, stakingAddress, withdrawalsContract])
 
   await router.waitForDeployment()
   const proxyAddress = await router.getAddress()
@@ -154,7 +154,7 @@ export async function deployStakeTogether(
   const stakePoolFee = ethers.parseEther('1')
   const stakeValidatorFee = ethers.parseEther('0.01')
 
-  const poolSize = ethers.parseEther('32')
+  const validatorSize = ethers.parseEther('32')
 
   const config = {
     blocksPerDay: 7200n,
@@ -162,8 +162,8 @@ export async function deployStakeTogether(
     maxDelegations: 64n,
     minDepositAmount: ethers.parseEther('0.01'),
     minWithdrawAmount: ethers.parseEther('0.009'),
-    poolSize: poolSize + stakeValidatorFee,
-    validatorSize: ethers.parseEther('32'),
+    poolSize: validatorSize + stakeValidatorFee,
+    validatorSize,
     withdrawalPoolLimit: ethers.parseEther('640'),
     withdrawalValidatorLimit: ethers.parseEther('640'),
     withdrawDelay: 7200n,
