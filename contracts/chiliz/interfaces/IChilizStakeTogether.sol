@@ -42,9 +42,6 @@ interface IChilizStakeTogether {
   /// @notice Thrown if the value is invalid.
   error InvalidValue();
 
-  /// @notice Thrown if the pool size is less than the validator size.
-  error InvalidSize();
-
   /// @notice Thrown if the total percentage is not equal to 1 ether.
   error InvalidTotalPercentage();
 
@@ -53,6 +50,9 @@ interface IChilizStakeTogether {
 
   /// @notice Thrown if the number of delegations exceeds the maximum limit.
   error MaxDelegations();
+
+  /// @notice Thrown if there is not enough balance on pool.
+  error NotEnoughBalanceOnPool();
 
   /// @notice Thrown if the withdrawal amount is less than the minimum required.
   error LessThanMinimumWithdraw();
@@ -72,14 +72,8 @@ interface IChilizStakeTogether {
   /// @notice Thrown if the account is not in anti-fraud list.
   error NotInAntiFraudList();
 
-  /// @notice Thrown if the caller is not the current oracle.
-  error NotIsCurrentValidatorOracle();
-
   /// @notice Thrown if there is not enough pool balance.
   error NotEnoughPoolBalance();
-
-  /// @notice Thrown if there is not enough balance on pool.
-  error NotEnoughBalanceOnPool();
 
   /// @notice Thrown if the pool is not found.
   error PoolNotFound();
@@ -129,9 +123,6 @@ interface IChilizStakeTogether {
   /// @notice Thrown if the amount is not greater than the pool balance.
   error WithdrawFromPool();
 
-  /// @notice Thrown if the validator already exists.
-  error ValidatorExists();
-
   /// @notice Configuration for the StakeTogether protocol.
   struct Config {
     uint256 blocksPerDay; /// Number of blocks per day.
@@ -139,8 +130,6 @@ interface IChilizStakeTogether {
     uint256 maxDelegations; /// Maximum number of delegations.
     uint256 minDepositAmount; /// Minimum amount to deposit.
     uint256 minWithdrawAmount; /// Minimum amount to withdraw.
-    uint256 poolSize; /// Size of the pool.
-    uint256 validatorSize; /// Size of the validator.
     uint256 withdrawalPoolLimit; /// Maximum amount of pool withdrawal.
     uint256 withdrawalValidatorLimit; /// Maximum amount of validator withdrawal.
     uint256 withdrawDelay; /// Delay Blocks for withdrawal.
@@ -218,21 +207,11 @@ interface IChilizStakeTogether {
   /// @param sharesAmount The amount of shares burned
   event BurnShares(address indexed account, uint256 sharesAmount);
 
-  /// @notice Emitted when a validator is created
-  /// @param oracle The address of the oracle
-  /// @param amount The amount for the validator
-  /// @param publicKey The public key of the validator
-  /// @param withdrawalCredentials The withdrawal credentials
-  /// @param signature The signature
-  /// @param depositDataRoot The deposit data root
-  event AddValidator(
-    address indexed oracle,
-    uint256 amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
+  // @notice Emitted when a claim is made for a validator
+  // @param account The address of the account
+  // @param validator The address of the validator
+  // @param amount The amount claimed
+  event ClaimFromValidator(address indexed account, address indexed validator);
 
   /// @notice Emitted when a base deposit is made
   /// @param to The address to deposit to
@@ -269,11 +248,6 @@ interface IChilizStakeTogether {
   /// @param to The address to mint to
   /// @param sharesAmount The amount of shares minted
   event MintShares(address indexed to, uint256 sharesAmount);
-
-  /// @notice Emitted when the next validator oracle is set
-  /// @param index The index of the oracle
-  /// @param account The address of the account
-  event NextValidatorOracle(uint256 index, address indexed account);
 
   /// @dev This event emits when rewards are processed for staking, indicating the amount and the number of shares.
   /// @param amount The total amount of rewards that have been processed for staking.
@@ -342,6 +316,12 @@ interface IChilizStakeTogether {
   /// @param withdrawalCredentials The withdrawal credentials bytes
   event SetWithdrawalsCredentials(bytes indexed withdrawalCredentials);
 
+  /// @notice Emitted when a stake is made on validator
+  /// @param account The address of the account
+  /// @param validator The address of the validator
+  /// @param amount The amount staked
+  event StakeOnValidator(address indexed account, address indexed validator, uint256 amount);
+
   /// @notice Emitted when shares are transferred
   /// @param from The address transferring from
   /// @param to The address transferring to
@@ -352,6 +332,12 @@ interface IChilizStakeTogether {
   /// @param account The address of the account
   /// @param delegations The delegation array
   event UpdateDelegations(address indexed account, Delegation[] delegations);
+
+  // @notice Emitted when a withdrawal request is made for a validator
+  // @param account The address of the account
+  // @param validator The address of the validator
+  // @param amount The amount requested
+  event UnstakeFromValidator(address indexed account, address indexed validator, uint256 amount);
 
   /// @notice Emitted when a base withdrawal is made
   /// @param account The address withdrawing
@@ -514,9 +500,6 @@ interface IChilizStakeTogether {
   /// @return True if the address is a validator oracle, false otherwise.
   function isValidatorOracle(address _account) external view returns (bool);
 
-  /// @notice Forces the selection of the next validator oracle.
-  function forceNextValidatorOracle() external;
-
   /// @notice Sets the beacon balance to the specified amount.
   /// @param _amount The amount to set as the beacon balance.
   /// @dev Only the router address can call this function.
@@ -531,17 +514,6 @@ interface IChilizStakeTogether {
   /// @dev Only a valid validator oracle can initiate this anticipation request.
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawBeacon() external;
-
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
-  /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external;
 
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.

@@ -198,8 +198,9 @@ interface IChilizRouter {
   /// @notice Initializes the contract after deployment.
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
+  /// @param _chiliz The address of the Chiliz contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external;
+  function initialize(address _airdrop, address _chiliz, address _withdrawals) external;
 
   /// @notice Pauses the contract functionalities.
   /// @dev Only the ADMIN_ROLE can pause the contract.
@@ -300,4 +301,18 @@ interface IChilizRouter {
 
   /// @notice Returns the next report block.
   function reportBlock() external view returns (uint256);
+
+  /// @notice Stake to validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount to stake
+  function stakeOnValidator(address _validator, uint256 _amount) external payable;
+
+  /// @notice Unstakes from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount to unstake
+  function unstakeFromValidator(address _validator, uint256 _amount) external;
+
+  /// @notice Claims from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  function claimFromValidator(address _validator) external;
 }

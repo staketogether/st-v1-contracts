@@ -70,9 +70,6 @@ contract ChilizStakeTogether is
 
   address[] private validatorsOracle; /// List of validator oracles.
   mapping(address => uint256) private validatorsOracleIndices; /// Mapping of validator oracle indices.
-  uint256 public currentOracleIndex; /// Current index of the oracle.
-
-  mapping(bytes => bool) public validators; /// Mapping of validators.
 
   mapping(FeeRole => address payable) private feesRole; /// Mapping of fee roles to addresses.
   mapping(FeeType => Fee) private fees; /// Mapping of fee types to fee details.
@@ -153,7 +150,6 @@ contract ChilizStakeTogether is
   /// @dev Only callable by the admin role.
   /// @param _config Configuration settings to be applied.
   function setConfig(Config memory _config) external onlyRole(ADMIN_ROLE) {
-    if (_config.poolSize < config.validatorSize) revert InvalidSize();
     config = _config;
     emit SetConfig(_config);
   }
@@ -584,12 +580,6 @@ contract ChilizStakeTogether is
     validatorsOracle.pop();
     delete validatorsOracleIndices[_account];
 
-    bool isCurrentOracle = (index == currentOracleIndex);
-
-    if (isCurrentOracle) {
-      currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
-    }
-
     _revokeRole(VALIDATOR_ORACLE_ROLE, _account);
     emit RemoveValidatorOracle(_account);
   }
@@ -599,21 +589,6 @@ contract ChilizStakeTogether is
   /// @return True if the address is a validator oracle, false otherwise.
   function isValidatorOracle(address _account) public view returns (bool) {
     return hasRole(VALIDATOR_ORACLE_ROLE, _account) && validatorsOracleIndices[_account] > 0;
-  }
-
-  /// @notice Forces the selection of the next validator oracle.
-  function forceNextValidatorOracle() external {
-    if (
-      !hasRole(VALIDATOR_ORACLE_SENTINEL_ROLE, msg.sender) &&
-      !hasRole(VALIDATOR_ORACLE_MANAGER_ROLE, msg.sender)
-    ) revert NotAuthorized();
-    _nextValidatorOracle();
-  }
-
-  /// @notice Internal function to update the current validator oracle.
-  function _nextValidatorOracle() private {
-    currentOracleIndex = (currentOracleIndex + 1) % validatorsOracle.length;
-    emit NextValidatorOracle(currentOracleIndex, validatorsOracle[currentOracleIndex]);
   }
 
   /****************
@@ -655,7 +630,6 @@ contract ChilizStakeTogether is
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawBeacon() external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
     if (withdrawBalance == 0) revert WithdrawZeroBalance();
 
     uint256 routerBalance = address(router).balance;
@@ -670,40 +644,38 @@ contract ChilizStakeTogether is
     router.receiveWithdrawEther{ value: diffAmount }();
   }
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
+  /// @notice Stakes to validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
   /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external nonReentrant whenNotPaused {
+  function stakeOnValidator(address _validator, uint256 _amount) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
-    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
-    if (validators[_publicKey]) revert ValidatorExists();
+    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
     if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
 
-    validators[_publicKey] = true;
-    _nextValidatorOracle();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit AddValidator(
-      msg.sender,
-      config.validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    // deposit.deposit{ value: config.validatorSize }(
-    //   _publicKey,
-    //   withdrawalCredentials,
-    //   _signature,
-    //   _depositDataRoot
-    // );
+    _setBeaconBalance(beaconBalance + _amount);
+
+    router.stakeOnValidator{ value: _amount }(_validator, _amount);
+
+    emit StakeOnValidator(msg.sender, _validator, _amount);
     _processFeeValidator();
+  }
+
+  /// @notice Unstakes from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function unstakeFromValidator(address _validator, uint256 _amount) external nonReentrant whenNotPaused {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    router.unstakeFromValidator(_validator, _amount);
+    emit UnstakeFromValidator(msg.sender, _validator, _amount);
+  }
+
+  /// @notice Claims from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function claimFromValidator(address _validator) external nonReentrant whenNotPaused {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    router.claimFromValidator(_validator);
+    emit ClaimFromValidator(msg.sender, _validator);
   }
 
   /*************

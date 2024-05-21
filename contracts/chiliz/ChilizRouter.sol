@@ -13,6 +13,7 @@ import '@openzeppelin/contracts/utils/Address.sol';
 import './interfaces/IChilizAirdrop.sol';
 import './interfaces/IChilizRouter.sol';
 import './interfaces/IChilizStakeTogether.sol';
+import './interfaces/IChilizValidator.sol';
 import './interfaces/IChilizWithdrawals.sol';
 
 /// @title Router Contract for the StakeTogether platform.
@@ -36,6 +37,7 @@ contract ChilizRouter is
 
   IChilizAirdrop public airdrop; /// Instance of the Airdrop contract.
   IChilizStakeTogether public stakeTogether; /// Instance of the StakeTogether contract.
+  IChilizValidator public chiliz; /// Chiliz Validator contract.
   IChilizWithdrawals public withdrawals; /// Instance of the Withdrawals contract.
   Config public config; /// Configuration settings for the protocol.
   bool public bunkermode; /// Configuration for beacon withdrawals speed.
@@ -68,7 +70,7 @@ contract ChilizRouter is
   /// @dev Initializes various base contract functionalities and sets the initial state.
   /// @param _airdrop The address of the Airdrop contract.
   /// @param _withdrawals The address of the Withdrawals contract.
-  function initialize(address _airdrop, address _withdrawals) external initializer {
+  function initialize(address _airdrop, address _chiliz, address _withdrawals) external initializer {
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
@@ -79,6 +81,7 @@ contract ChilizRouter is
     version = 1;
 
     airdrop = IChilizAirdrop(payable(_airdrop));
+    chiliz = IChilizValidator(payable(_chiliz));
     withdrawals = IChilizWithdrawals(payable(_withdrawals));
 
     reportBlock = block.number;
@@ -405,5 +408,35 @@ contract ChilizRouter is
     if (!pendingExecution) revert NoPendingExecution();
     if (config.reportFrequency == 0) revert ConfigNotSet();
     return hash;
+  }
+
+  /***************
+   ** VALIDATOR **
+   ***************/
+
+  /// @notice Stake to validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount to stake
+  function stakeOnValidator(
+    address _validator,
+    uint256 _amount
+  ) external payable nonReentrant whenNotPaused {
+    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
+    chiliz.stake{ value: _amount }(_validator);
+  }
+
+  /// @notice Unstakes from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount to unstake
+  function unstakeFromValidator(address _validator, uint256 _amount) external nonReentrant whenNotPaused {
+    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
+    chiliz.unstake(_validator, _amount);
+  }
+
+  /// @notice Claims from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  function claimFromValidator(address _validator) external nonReentrant whenNotPaused {
+    if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
+    chiliz.claim(_validator);
   }
 }
