@@ -154,16 +154,12 @@ export async function deployStakeTogether(
   const stakePoolFee = ethers.parseEther('1')
   const stakeValidatorFee = ethers.parseEther('0.01')
 
-  const validatorSize = ethers.parseEther('32')
-
   const config = {
     blocksPerDay: 7200n,
     depositLimit: ethers.parseEther('3200'),
     maxDelegations: 64n,
     minDepositAmount: ethers.parseEther('0.01'),
     minWithdrawAmount: ethers.parseEther('0.009'),
-    poolSize: validatorSize + stakeValidatorFee,
-    validatorSize,
     withdrawalPoolLimit: ethers.parseEther('640'),
     withdrawalValidatorLimit: ethers.parseEther('640'),
     withdrawDelay: 7200n,
