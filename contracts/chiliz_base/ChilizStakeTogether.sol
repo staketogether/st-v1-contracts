@@ -14,6 +14,7 @@ import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/Address.sol';
 
 import './interfaces/IChilizAirdrop.sol';
+import './interfaces/IChilizStake.sol';
 import './interfaces/IChilizRouter.sol';
 import './interfaces/IChilizStakeTogether.sol';
 import './interfaces/IChilizWithdrawals.sol';
@@ -45,10 +46,10 @@ contract ChilizStakeTogether is
   uint256 public version; /// Contract version.
 
   IChilizAirdrop public airdrop; /// Airdrop contract instance.
+  IChilizStake public chiliz; /// Deposit contract interface.
   IChilizRouter public router; /// Address of the contract router.
   IChilizWithdrawals public withdrawals; /// Withdrawals contract instance.
 
-  bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
   uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
 
@@ -86,21 +87,21 @@ contract ChilizStakeTogether is
 
   /// @notice Stake Together Pool Initialization
   /// @param _airdrop The address of the airdrop contract.
+  /// @param _chiliz The address of the chiliz contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
   function initialize(
     address _airdrop,
+    address _chiliz,
     address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
+    address _withdrawals
   ) public initializer {
-    __ERC20_init('Stake Together CHZ', 'stCHZ');
+    __ERC20_init('Stake Together Protocol', 'stpETH');
     __ERC20Burnable_init();
     __Pausable_init();
     __ReentrancyGuard_init();
     __AccessControl_init();
-    __ERC20Permit_init('Stake Together CHZ');
+    __ERC20Permit_init('Stake Together Protocol');
     __UUPSUpgradeable_init();
 
     _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -108,9 +109,9 @@ contract ChilizStakeTogether is
     version = 1;
 
     airdrop = IChilizAirdrop(payable(_airdrop));
+    chiliz = IChilizStake(payable(_chiliz));
     router = IChilizRouter(payable(_router));
     withdrawals = IChilizWithdrawals(payable(_withdrawals));
-    withdrawalCredentials = _withdrawalCredentials;
 
     _mintShares(address(this), 1 ether);
   }
@@ -324,10 +325,10 @@ contract ChilizStakeTogether is
   function _burnShares(address _account, uint256 _sharesAmount) private whenNotPaused {
     if (_account == address(0)) revert ZeroAddress();
     if (_sharesAmount > shares[_account]) revert InsufficientShares();
-    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
     shares[_account] -= _sharesAmount;
     totalShares -= _sharesAmount;
     emit BurnShares(_account, _sharesAmount);
+    emit Transfer(_account, address(0), weiByShares(_sharesAmount));
   }
 
   /***********
@@ -670,40 +671,60 @@ contract ChilizStakeTogether is
     router.receiveWithdrawEther{ value: diffAmount }();
   }
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
+  /// @notice Stakes to validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
   /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
+  function stakeToValidator(
+    address _validator,
+    uint256 _amount
   ) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < config.poolSize) revert NotEnoughBalanceOnPool();
-    if (validators[_publicKey]) revert ValidatorExists();
+    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
     if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
 
-    validators[_publicKey] = true;
     _nextValidatorOracle();
-    _setBeaconBalance(beaconBalance + config.validatorSize);
-    emit AddValidator(
-      msg.sender,
-      config.validatorSize,
-      _publicKey,
-      withdrawalCredentials,
-      _signature,
-      _depositDataRoot
-    );
-    // deposit.deposit{ value: config.validatorSize }(
-    //   _publicKey,
-    //   withdrawalCredentials,
-    //   _signature,
-    //   _depositDataRoot
-    // );
+    _setBeaconBalance(beaconBalance + _amount);
+
+    emit StakeToValidator(msg.sender, _validator, _amount);
+    chiliz.stake{ value: _amount }(_validator);
     _processFeeValidator();
+  }
+
+  /// @notice Unstakes from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function unstakeFromValidator(
+    address _validator,
+    uint256 _amount
+  ) external nonReentrant whenNotPaused {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
+    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
+
+    _nextValidatorOracle();
+    _setBeaconBalance(beaconBalance + _amount);
+
+    emit UnstakeFromValidator(msg.sender, _validator, _amount);
+    chiliz.unstake(_validator, _amount);
+  }
+
+  /// @notice Claims from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function claimFromValidator(
+    address _validator,
+    uint256 _amount
+  ) external nonReentrant whenNotPaused {
+    if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
+    if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
+    if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
+
+    _nextValidatorOracle();
+    _setBeaconBalance(beaconBalance + _amount);
+
+    emit ClaimFromValidator(msg.sender, _validator, _amount);
+    chiliz.claim(_validator);
   }
 
   /*************

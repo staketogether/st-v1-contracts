@@ -218,21 +218,23 @@ interface IChilizStakeTogether {
   /// @param sharesAmount The amount of shares burned
   event BurnShares(address indexed account, uint256 sharesAmount);
 
-  /// @notice Emitted when a validator is created
-  /// @param oracle The address of the oracle
-  /// @param amount The amount for the validator
-  /// @param publicKey The public key of the validator
-  /// @param withdrawalCredentials The withdrawal credentials
-  /// @param signature The signature
-  /// @param depositDataRoot The deposit data root
-  event AddValidator(
-    address indexed oracle,
-    uint256 amount,
-    bytes publicKey,
-    bytes withdrawalCredentials,
-    bytes signature,
-    bytes32 depositDataRoot
-  );
+  /// @notice Emitted when the deposit is sent to stake
+  /// @param _oracle The address of the oracle
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount of the stake
+  event StakeToValidator(address indexed _oracle, address indexed _validator, uint256 _amount);
+
+  /// @notice Emitted when the request to unstake is sent through the oracle
+  /// @param _oracle The address of the oracle
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount of the unstake
+  event UnstakeFromValidator(address indexed _oracle, address indexed _validator, uint256 _amount);
+
+  /// @notice Emitted when the request to claim is sent through the oracle
+  /// @param _oracle The address of the oracle
+  /// @param _validator The address of the benefactor validator
+  /// @param _amount The amount to be claimed
+  event ClaimFromValidator(address indexed _oracle, address indexed _validator, uint256 _amount);
 
   /// @notice Emitted when a base deposit is made
   /// @param to The address to deposit to
@@ -532,17 +534,6 @@ interface IChilizStakeTogether {
   /// This function also checks the balance constraints before processing.
   function anticipateWithdrawBeacon() external;
 
-  /// @notice Creates a new validator with the given parameters.
-  /// @param _publicKey The public key of the validator.
-  /// @param _signature The signature of the validator.
-  /// @param _depositDataRoot The deposit data root for the validator.
-  /// @dev Only a valid validator oracle can call this function.
-  function addValidator(
-    bytes calldata _publicKey,
-    bytes calldata _signature,
-    bytes32 _depositDataRoot
-  ) external;
-
   /// @notice Function to claim rewards by transferring shares, accessible only by the airdrop fee address.
   /// @param _account Address to transfer the claimed rewards to.
   /// @param _sharesAmount Amount of shares to claim as rewards.
@@ -574,4 +565,19 @@ interface IChilizStakeTogether {
   /// @param _sharesAmount The amount of shares related to the staking rewards.
   /// @dev Requires the caller to be the router contract.
   function processFeeRewards(uint256 _sharesAmount) external payable;
+
+  /// @notice Stakes to validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function stakeToValidator(address _validator, uint256 _amount) external;
+
+  /// @notice Unstakes from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function unstakeFromValidator(address _validator, uint256 _amount) external;
+
+  /// @notice Claims from validator with the given parameters.
+  /// @param _validator The address of the benefactor validator
+  /// @dev Only a valid validator oracle can call this function.
+  function claimFromValidator(address _validator, uint256 _amount) external;
 }
