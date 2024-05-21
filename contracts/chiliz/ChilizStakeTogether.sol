@@ -677,7 +677,7 @@ contract ChilizStakeTogether is
   function stakeToValidator(
     address _validator,
     uint256 _amount
-  ) external nonReentrant whenNotPaused onlyRole(VALIDATOR_ORACLE_ROLE) {
+  ) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
     if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
@@ -700,7 +700,6 @@ contract ChilizStakeTogether is
   ) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
     if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
 
     _nextValidatorOracle();
@@ -719,7 +718,6 @@ contract ChilizStakeTogether is
   ) external nonReentrant whenNotPaused {
     if (!isValidatorOracle(msg.sender)) revert OnlyValidatorOracle();
     if (msg.sender != validatorsOracle[currentOracleIndex]) revert NotIsCurrentValidatorOracle();
-    if (address(this).balance < _amount + fees[FeeType.Validator].value) revert NotEnoughBalanceOnPool();
     if (address(router).balance < withdrawBalance) revert ShouldAnticipateWithdraw();
 
     _nextValidatorOracle();
