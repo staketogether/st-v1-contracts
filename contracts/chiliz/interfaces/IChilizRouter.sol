@@ -305,7 +305,7 @@ interface IChilizRouter {
   /// @notice Stake to validator with the given parameters.
   /// @param _validator The address of the benefactor validator
   /// @param _amount The amount to stake
-  function stakeOnValidator(address _validator, uint256 _amount) external payable;
+  function stakeOnValidator(address _validator, uint256 _amount) external;
 
   /// @notice Unstakes from validator with the given parameters.
   /// @param _validator The address of the benefactor validator

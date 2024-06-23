@@ -48,7 +48,6 @@ contract ChilizStakeTogether is
   IChilizRouter public router; /// Address of the contract router.
   IChilizWithdrawals public withdrawals; /// Withdrawals contract instance.
 
-  bytes public withdrawalCredentials; /// Credentials for withdrawals.
   uint256 public beaconBalance; /// Beacon balance (includes transient Beacon balance on router).
   uint256 public withdrawBalance; /// Pending withdraw balance to be withdrawn from router.
 
@@ -85,13 +84,7 @@ contract ChilizStakeTogether is
   /// @param _airdrop The address of the airdrop contract.
   /// @param _router The address of the router.
   /// @param _withdrawals The address of the withdrawals contract.
-  /// @param _withdrawalCredentials The bytes for withdrawal credentials.
-  function initialize(
-    address _airdrop,
-    address _router,
-    address _withdrawals,
-    bytes memory _withdrawalCredentials
-  ) public initializer {
+  function initialize(address _airdrop, address _router, address _withdrawals) public initializer {
     __ERC20_init('Stake Together CHZ', 'stCHZ');
     __ERC20Burnable_init();
     __Pausable_init();
@@ -107,7 +100,6 @@ contract ChilizStakeTogether is
     airdrop = IChilizAirdrop(payable(_airdrop));
     router = IChilizRouter(payable(_router));
     withdrawals = IChilizWithdrawals(payable(_withdrawals));
-    withdrawalCredentials = _withdrawalCredentials;
 
     _mintShares(address(this), 1 ether);
   }
@@ -654,7 +646,8 @@ contract ChilizStakeTogether is
 
     _setBeaconBalance(beaconBalance + _amount);
 
-    router.stakeOnValidator{ value: _amount }(_validator, _amount);
+    Address.sendValue(payable(address(router)), _amount);
+    router.stakeOnValidator(_validator, _amount);
 
     emit StakeOnValidator(msg.sender, _validator, _amount);
     _processFeeValidator();

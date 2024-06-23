@@ -416,11 +416,7 @@ contract ChilizRouter is
 
   /// @notice Stake to validator with the given parameters.
   /// @param _validator The address of the benefactor validator
-  /// @param _amount The amount to stake
-  function stakeOnValidator(
-    address _validator,
-    uint256 _amount
-  ) external payable nonReentrant whenNotPaused {
+  function stakeOnValidator(address _validator, uint256 _amount) external nonReentrant whenNotPaused {
     if (msg.sender != address(stakeTogether)) revert OnlyStakeTogether();
     chiliz.stake{ value: _amount }(_validator);
   }
