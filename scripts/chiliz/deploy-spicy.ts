@@ -16,17 +16,17 @@ import { checkGeneralVariables } from '../../utils/env'
 
 dotenv.config()
 
-const stakingAddress = String(process.env.CHZ_SPICY_STAKING_ADDRESS)
-
 export async function deploy() {
   checkGeneralVariables()
+
+  const stakingAddress = String(process.env.CHZ_SPICY_STAKING_ADDRESS)
 
   const [owner] = await ethers.getSigners()
 
   // DEPLOY
   const airdrop = await deployAirdrop(owner)
   const withdrawals = await deployWithdrawals(owner)
-  const router = await deployRouter(owner, airdrop.proxyAddress, withdrawals.proxyAddress)
+  const router = await deployRouter(owner, airdrop.proxyAddress, stakingAddress, withdrawals.proxyAddress)
 
   const stakeTogether = await deployStakeTogether(
     owner,
@@ -93,11 +93,16 @@ export async function deployWithdrawals(owner: HardhatEthersSigner) {
 export async function deployRouter(
   owner: HardhatEthersSigner,
   airdropContract: string,
+  stakingContract: string,
   withdrawalsContract: string,
 ) {
   const RouterFactory = new Router__factory().connect(owner)
 
-  const router = await upgrades.deployProxy(RouterFactory, [airdropContract, stakingAddress, withdrawalsContract])
+  const router = await upgrades.deployProxy(RouterFactory, [
+    airdropContract,
+    stakingContract,
+    withdrawalsContract,
+  ])
 
   await router.waitForDeployment()
   const proxyAddress = await router.getAddress()
@@ -135,9 +140,8 @@ export async function deployStakeTogether(
 
   const stakeTogether = await upgrades.deployProxy(StakeTogetherFactory, [
     airdropContract,
-    stakingAddress,
     routerContract,
-    withdrawalsContract
+    withdrawalsContract,
   ])
 
   await stakeTogether.waitForDeployment()
@@ -152,6 +156,22 @@ export async function deployStakeTogether(
   const ST_ADMIN_ROLE = await stakeTogetherContract.ADMIN_ROLE()
   const grantAdminRole = await stakeTogetherContract.connect(owner).grantRole(ST_ADMIN_ROLE, owner)
   await grantAdminRole.wait()
+
+  // TEMP
+
+  const ST_VALIDATOR_ORACLE_MANAGER = await stakeTogetherContract.VALIDATOR_ORACLE_MANAGER_ROLE()
+  const grantValidatorOracleManager = await stakeTogetherContract
+    .connect(owner)
+    .grantRole(ST_VALIDATOR_ORACLE_MANAGER, owner)
+  await grantValidatorOracleManager.wait()
+
+  const ST_POOL_MANAGER_ROLE = await stakeTogetherContract.POOL_MANAGER_ROLE()
+  const grantPoolManager = await stakeTogetherContract
+    .connect(owner)
+    .grantRole(ST_POOL_MANAGER_ROLE, owner)
+  await grantPoolManager.wait()
+
+  // TEMP
 
   const stakeEntry = ethers.parseEther('0.003')
   const stakeRewardsFee = ethers.parseEther('0.09')
@@ -184,26 +204,29 @@ export async function deployStakeTogether(
   // Sender
 
   // Set the StakeEntry fee to 0.003 ether and make it a percentage-based fee
-  await stakeTogetherContract.connect(owner).setFee(0n, stakeEntry, [
-    ethers.parseEther('0.6'),
-    0n,
-    ethers.parseEther('0.4'),
-    0n,
-  ])
+  await stakeTogetherContract
+    .connect(owner)
+    .setFee(0n, stakeEntry, [ethers.parseEther('0.6'), 0n, ethers.parseEther('0.4'), 0n])
 
   // Set the ProcessStakeRewards fee to 0.09 ether and make it a percentage-based fee
-  await stakeTogetherContract.connect(owner).setFee(1n, stakeRewardsFee, [
-    ethers.parseEther('0.444'),
-    ethers.parseEther('0.278'),
-    ethers.parseEther('0.278'),
-    0n,
-  ])
+  await stakeTogetherContract
+    .connect(owner)
+    .setFee(1n, stakeRewardsFee, [
+      ethers.parseEther('0.444'),
+      ethers.parseEther('0.278'),
+      ethers.parseEther('0.278'),
+      0n,
+    ])
 
   // Set the StakePool fee to 1 ether and make it a fixed fee
-  await stakeTogetherContract.connect(owner).setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract
+    .connect(owner)
+    .setFee(2n, stakePoolFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   // Set the ProcessStakeValidator fee to 0.01 ether and make it a fixed fee
-  await stakeTogetherContract.connect(owner).setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
+  await stakeTogetherContract
+    .connect(owner)
+    .setFee(3n, stakeValidatorFee, [0n, 0n, ethers.parseEther('1'), 0n])
 
   await owner.sendTransaction({ to: proxyAddress, value: ethers.parseEther('1') })
 
